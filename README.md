@@ -44,13 +44,13 @@ Outputs
 Methodology
 ===========
 
-Input:
+```Input:
     BaseCall - Benchmark TruthSet of SVs
     CompCalls - Comparison SVs from another program
 For each BaseCall, fetch CompCalls overlapping within ±500 buffer. 
 If LevDistRatio >= 0.7 and SizeRatio >= 0.7:
     Match BaseCall with best CompCall as TP
-Only use a CompCall once. 
+Only use a CompCall once. ```
 
 
 Comparing VCFs without sequence resolved calls
@@ -59,16 +59,16 @@ Comparing VCFs without sequence resolved calls
 If the base or call vcfs do not have sequence resolved calls, simply set `--pctsim=0` to turn of
 sequence comparison.
 
-Definition of annotations** added to TP vcfs
+Definition of annotations added to TP vcfs
 --------------------------------------------
 
-PctSimilarity          "Pct sequence similarity between this variant and its closest match"
-StartDistance          "Distance of this call's start from comparison call's start"
-EndDistance            "Distance of this call's end from comparison call's end"
-PctRecOverlap          "Percent reciprocal overlap of the two calls' coordinates"
-SizeDiff               "Difference in size(basecall) and size(evalcall)"
-NumNeighbors           "Number of calls in B that were in the neighborhood (REFDIST) of this call"
-NumThresholdNeighbors  "Number of calls in B that are within threshold distances of this call"
+* PctSimilarity          "Pct sequence similarity between this variant and its closest match"
+* StartDistance          "Distance of this call's start from comparison call's start"
+* EndDistance            "Distance of this call's end from comparison call's end"
+* PctRecOverlap          "Percent reciprocal overlap of the two calls' coordinates"
+* SizeDiff               "Difference in size(basecall) and size(evalcall)"
+* NumNeighbors           "Number of calls in B that were in the neighborhood (REFDIST) of this call"
+* NumThresholdNeighbors  "Number of calls in B that are within threshold distances of this call"
 
 
 Difference between --sizemin and --sizefilt
