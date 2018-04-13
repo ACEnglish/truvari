@@ -1,3 +1,4 @@
+<center>
 ```
 ████████╗██████╗ ██╗   ██╗██╗   ██╗ █████╗ ██████╗ ██╗
 ╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██╗██║
@@ -6,6 +7,7 @@
    ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║  ██║██║  ██║██║
    ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 ```
+</center>
 
 Structural variant caller comparison tool for VCF
 
@@ -63,15 +65,16 @@ sequence comparison.
 
 Definition of annotations added to TP vcfs
 --------------------------------------------
-
-* PctSimilarity          "Pct sequence similarity between this variant and its closest match"
-* StartDistance          "Distance of this call's start from comparison call's start"
-* EndDistance            "Distance of this call's end from comparison call's end"
-* PctRecOverlap          "Percent reciprocal overlap of the two calls' coordinates"
-* SizeDiff               "Difference in size(basecall) and size(evalcall)"
-* NumNeighbors           "Number of calls in B that were in the neighborhood (REFDIST) of this call"
-* NumThresholdNeighbors  "Number of calls in B that are within threshold distances of this call"
-
+<table>
+<th><td>Anno                   </td><td>Definition</td></th>
+<tr><td>PctSimilarity          </td><td>Pct sequence similarity between this variant and its closest match</td></tr>
+<tr><td>StartDistance          </td><td>Distance of this call's start from comparison call's start</td></tr>
+<tr><td>EndDistance            </td><td>Distance of this call's end from comparison call's end</td></tr>
+<tr><td>PctRecOverlap          </td><td>Percent reciprocal overlap of the two calls' coordinates</td></tr>
+<tr><td>SizeDiff               </td><td>Difference in size(basecall) and size(evalcall)</td></tr>
+<tr><td>NumNeighbors           </td><td>Number of calls in B that were in the neighborhood (REFDIST) of this call</td></tr>
+<tr><td>NumThresholdNeighbors  </td><td>Number of calls in B that are within threshold distances of this call</td></tr>
+</table>
 
 Difference between --sizemin and --sizefilt
 -------------------------------------------
