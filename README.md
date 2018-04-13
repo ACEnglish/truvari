@@ -1,4 +1,5 @@
 <center>
+
 ```
 ████████╗██████╗ ██╗   ██╗██╗   ██╗ █████╗ ██████╗ ██╗
 ╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██╗██║
@@ -7,6 +8,7 @@
    ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║  ██║██║  ██║██║
    ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 ```
+
 </center>
 
 Structural variant caller comparison tool for VCF
@@ -66,7 +68,7 @@ sequence comparison.
 Definition of annotations added to TP vcfs
 --------------------------------------------
 <table>
-<th><td>Anno                   </td><td>Definition</td></th>
+<tr><th>Anno                   </th><th>Definition</th></tr>
 <tr><td>PctSimilarity          </td><td>Pct sequence similarity between this variant and its closest match</td></tr>
 <tr><td>StartDistance          </td><td>Distance of this call's start from comparison call's start</td></tr>
 <tr><td>EndDistance            </td><td>Distance of this call's end from comparison call's end</td></tr>
