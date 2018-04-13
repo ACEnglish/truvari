@@ -44,13 +44,15 @@ Outputs
 Methodology
 ===========
 
-```Input:
+```
+Input:
     BaseCall - Benchmark TruthSet of SVs
     CompCalls - Comparison SVs from another program
 For each BaseCall, fetch CompCalls overlapping within ±500 buffer. 
 If LevDistRatio >= 0.7 and SizeRatio >= 0.7:
     Match BaseCall with best CompCall as TP
-Only use a CompCall once. ```
+Only use a CompCall once. 
+```
 
 
 Comparing VCFs without sequence resolved calls
