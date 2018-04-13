@@ -1,9 +1,9 @@
-    __                              _
-   / /________  ___   ______ ______(_)
-  / __/ ___/ / / / | / / __ `/ ___/ /
- / /_/ /  / /_/ /| |/ / /_/ / /  / /
- \__/_/   \__,_/ |___/\__,_/_/  /_/
-
+████████╗██████╗ ██╗   ██╗██╗   ██╗ █████╗ ██████╗ ██╗
+╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██╗██║
+   ██║   ██████╔╝██║   ██║██║   ██║███████║██████╔╝██║
+   ██║   ██╔══██╗██║   ██║╚██╗ ██╔╝██╔══██║██╔══██╗██║
+   ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║  ██║██║  ██║██║
+   ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 
 Structural variant caller comparison tool for VCF
 
@@ -17,7 +17,7 @@ Installation
 
 Truvari requires the following modules:
 
-  $ pip install edlib pyvcf progressbar2 intervaltree
+  $ pip install pyvcf Levenshtein swalign intervaltree progressbar2
 
 
 Quick start
@@ -42,44 +42,20 @@ Outputs
 Methodology
 ===========
 
-Everything in all caps is a parameter.
-
-For varA in BASE greater than SIZEMIN:
-    For varB in CALLS within varA.start - REFDIST to varA.end + REFDIST greater than SIZEMIN
-        if already matched varB:
-            continue
-        if similarity* >= PCTSIM
-            add to candidates
-        if more than 0 candidates:
-            matchVar is highest similarity score of candidates
-            add to TP-base and TP-call
-            add annotations** to varA and matchVar
-            mark matchVar as already matched
-        else:
-            add to FN
-
-For every varB in CALLS greater than SIZEMIN:
-    if varB not already match:
-        add to FP
+Input:
+    BaseCall - Benchmark TruthSet of SVs
+    CompCalls - Comparison SVs from another program
+For each BaseCall, fetch CompCalls overlapping within ±500 buffer. 
+If LevDistRatio >= 0.7 and SizeRatio >= 0.7:
+    Match BaseCall with best CompCall as TP
+Only use a CompCall once. 
 
 
-How similarity* is calculated
------------------------------
+Comparing VCFs without sequence resolved calls
+----------------------------------------------
 
-TYPEMATCH is a flag to force same type (default False)
-
-if TYPEMATCH and (len(entryA.REF) < len(entryB.ALT)) != (len(entryA.REF) < len(entryB.ALT)):
-    return False
-if ref and alt sequences are identical:
-    return True
-
-ref_dist is Levenshtein distance of the two BASE/CALL reference allele sequences
-alt_dist is Levenshtein distance of the two BASE/CALL alternate allele sequences
-max_ref is max length of two ref allele sequences
-max_alt is max length of two alt allele sequences
-
-similarity = 1 - ((ref_dist + alt_dist) / (max_ref + max_alt)
-
+If the base or call vcfs do not have sequence resolved calls, simply set `--pctsim=0` to turn of
+sequence comparison.
 
 Definition of annotations** added to TP vcfs
 --------------------------------------------
@@ -96,11 +72,11 @@ NumThresholdNeighbors  "Number of calls in B that are within threshold distances
 Difference between --sizemin and --sizefilt
 -------------------------------------------
 
---sizemin is the minimum size of a base to be considered a TP. Those removed are counted as base
+`--sizemin` is the minimum size of a base to be considered a TP. Those removed are counted as base
 size filtered. It is also the minimum size a call to be considered a FP. Those removed are counted
 as call size filtered.
 
---sizefilt is the minimum size of a call to be added into the IntervalTree for searching. It should
+`--sizefilt` is the minimum size of a call to be added into the IntervalTree for searching. It should
 be less than sizemin for edge case variants around sizemin.
 
 For example: sizemin is 50 and sizefilt is 30. A 50bp base is 98% similar to a 49bp call at the
