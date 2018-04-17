@@ -62,7 +62,7 @@ Only use a CompCall once.
 Comparing VCFs without sequence resolved calls
 ----------------------------------------------
 
-If the base or call vcfs do not have sequence resolved calls, simply set `--pctsim=0` to turn of
+If the base or call vcfs do not have sequence resolved calls, simply set `--pctsim=0` to turn off
 sequence comparison.
 
 Definition of annotations added to TP vcfs
@@ -98,3 +98,25 @@ This does have the side effect of artificially inflating specificity. If that sa
 above were below the similarity threshold, it would not be classified as a FP due to the sizemin
 threshold. So we're giving the call a better chance to be useful and less chance to be detrimental
 to final statistics. SVs are fuzzy like this.
+
+
+Using the GIAB Report
+---------------------
+
+When running against the 
+[GIAB SV v0.5 benchmark](ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/), 
+you can create a detailed report of calls summarized by the GIAB VCF's SVTYPE, SVLEN, Technology, 
+and Repeat annotations.
+
+To do this, run Truvari with the flag `--giabreport`.
+
+In your output directory, you will find a file named `giab_report.txt`.
+
+Next, make a copy of the 
+[Truvari Report Template Google Sheet](https://docs.google.com/spreadsheets/d/1T3EdpyLO1Kq-bJ8SDatqJ5nP_wwFKCrH0qhxorvTVd4/edit?usp=sharing).
+
+Finally, paste ALL of the information inside `giab_report.txt` into the "RawData" tab. Be careful not 
+to alter the report text in any way. If successul, the "Formatted" tab you will have a fully formated report.
+
+This currently only works with GIAB SV v0.5. Work will need to be done to ensure Truvari can parse future 
+GIAB SV releases.

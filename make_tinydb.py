@@ -24,7 +24,8 @@ def make_entries(vcf_reader):
         data["CHROM"] = entry.CHROM
         data["POS"] = entry.POS
         data["ID"] = entry.ID
-        data["FILTER"] = ";".join(entry.FILTER)
+        if entry.FILTER is not None:
+            data["FILTER"] = ";".join(entry.FILTER)
         data["QUAL"] = entry.QUAL
         yield data
 USAGE = "Turn vcfs in a truvari result into a TinyDB for easier queries"

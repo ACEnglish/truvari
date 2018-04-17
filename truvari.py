@@ -9,7 +9,7 @@ import logging
 import argparse
 import warnings
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 # External dependencies
 import vcf
@@ -314,7 +314,143 @@ def annotate_tp(entry, score, pctsim, pctsize, pctovl, szdiff, stdist, endist, o
     entry.INFO["StartDistance"] = stdist
     entry.INFO["EndDistance"] = endist
 
+def make_giabreport(args, stats_box):
+    """
+    Create summaries of the TPs/FNs
+    """
+    def make_entries(vcf_file):
+        """
+        Turn all vcf entries into a list of dicts for easy parsing
+        """
+        ret = []
+        vcf_reader = vcf.Reader(filename=vcf_file)
+        for entry in vcf_reader:
+            data = {}
+            for key in entry.INFO:
+                data[key] = entry.INFO[key]
+            for sample in entry.samples:
+                for fmt in sample.data._fields:
+                    data[sample.sample + "_" + fmt] = sample[fmt]
+            data["CHROM"] = entry.CHROM
+            data["POS"] = entry.POS
+            data["ID"] = entry.ID
+            if entry.FILTER is not None:
+                data["FILTER"] = ";".join(entry.FILTER)
+            data["QUAL"] = entry.QUAL
+            ret.append(data)
+        return ret
 
+    def count_by(key, docs, out):
+        """
+        get a count for all the keys
+        key is a dictionary of count and their order
+        """
+        main_key = key.keys()[0]
+        cnt = Counter()
+        for x in docs:
+            cnt[x[main_key]] += 1
+        for k in key[main_key]:
+            out.write("%s\t%s\n" % (k, cnt[k]))
+    
+    def twoxtable(key1, key2, docs, out):
+        """
+        Parse any set of docs and create a 2x2 table
+        """
+        main_key1 = key1.keys()[0]
+        main_key2 = key2.keys()[0]
+        cnt = defaultdict(Counter)
+        for x in docs:
+            cnt[x[main_key1]][x[main_key2]] += 1
+        
+        out.write(".\t"+"\t".join([str(i) for i in key1[main_key1]]) + '\n')
+        for y in key2[main_key2]:
+            o = [str(y)]
+            for x in key1[main_key1]:
+                o.append(str(cnt[x][y]))
+            out.write("\t".join(o) + '\n')
+    
+    def collapse_techs(docs):
+        """
+        Make a new annotation about the presence of techs inplace
+        called techs
+        Illcalls
+            PBcalls
+        CGcalls
+        TenXcalls
+        """
+        calls = ["Illcalls", "PBcalls", "CGcalls", "TenXcalls"]
+        for d in docs:
+            new_anno = []
+            for i in calls:
+                if d[i] > 0:
+                    new_anno.append(i.rstrip("calls"))
+            d["techs"] = "+".join(new_anno)
+    
+    logging.info("Creating GIAB report")
+
+    sum_out = open(os.path.join(args.output, "giab_report.txt"), 'w')
+    
+    tp_base = make_entries(os.path.join(args.output, "tp-base.vcf"))
+    
+    collapse_techs(tp_base)
+    fn = make_entries(os.path.join(args.output, "fn.vcf"))
+    collapse_techs(fn)
+
+    size_keys = {"sizecat": ["50to99", "100to299", "300to999", "gt1000"]}
+    svtype_keys = {"SVTYPE": ["DEL", "INS", "COMPLEX"]}
+    tech_keys = {"techs": ["I+PB+CG+TenX", "I+PB+CG", "I+PB+TenX", "PB+CG+TenX",
+                       "I+PB", "I+CG", "I+TenX", "PB+CG", "PB+TenX", "CG+TenX",
+                       "I", "PB", "CG","TenX"]}
+    rep_keys = {"REPTYPE": [ "SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
+
+    #OverallNumbers 
+    sum_out.write("TP\t%s\n" % (len(tp_base)))
+    sum_out.write("FN\t%s\n\n" % (len(fn)))
+    sum_out.write("TP_size\n") 
+    count_by(size_keys, tp_base, sum_out)
+    sum_out.write("FN_size\n")
+    count_by(size_keys, fn, sum_out)
+    sum_out.write("\nTP_type\n")
+    count_by(svtype_keys, tp_base, sum_out)
+    sum_out.write("FN_type\n")
+    count_by(svtype_keys, fn, sum_out)
+    sum_out.write("\nTP_Type+Size\n")
+    twoxtable(svtype_keys, size_keys, tp_base, sum_out)
+    sum_out.write("FN_Type+Size\n")
+    twoxtable(svtype_keys, size_keys, fn, sum_out)
+    sum_out.write("\nTP_REPTYPE\n")
+    count_by(rep_keys, tp_base, sum_out)
+    sum_out.write("FN_REPTYPE\n")
+    count_by(rep_keys, fn, sum_out)
+    sum_out.write("\nTP_size+REPTYPE\n")
+    twoxtable(size_keys, rep_keys, tp_base, sum_out)
+    sum_out.write("FN_size+REPTYPE\n")
+    twoxtable(size_keys, rep_keys, fn, sum_out)
+    sum_out.write("\nTP_Tech\n")
+    count_by(tech_keys, tp_base, sum_out)
+    sum_out.write("FN_Tech\n")
+    count_by(tech_keys, fn, sum_out)
+    sum_out.write("\nTP_Size+Tech\n")
+    twoxtable(size_keys, tech_keys, tp_base, sum_out)
+    sum_out.write("FN_Size+Tech\n")
+    twoxtable(size_keys, tech_keys, fn, sum_out)
+    sum_out.write("\nTP_Type+Tech\n")
+    twoxtable(svtype_keys, tech_keys, tp_base, sum_out)
+    sum_out.write("FN_Type+Tech\n")
+    twoxtable(svtype_keys, tech_keys, fn, sum_out)
+    
+    sum_out.write("\nPerformance\n")
+    #Add output of the stats box
+    for key in sorted(stats_box.keys()):
+        sum_out.write("%s\t%s\n" % (key, str(stats_box[key])))
+
+    sum_out.write("\nArgs\n")
+    #Add output of the parameters
+    argd = vars(args)
+    for key in sorted(argd.keys()):
+        sum_out.write("%s\t%s\n" % (key, str(argd[key])))
+    sum_out.close()
+    
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -378,6 +514,8 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
+    parser.add_argument("--giabreport", action="store_true", 
+                        help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -638,7 +776,6 @@ def run(cmdargs):
         if args.passonly and len(entry.FILTER):
             continue
         bar.update(cnt + 1)
-        stats_box["call cnt"] += 1
         if already_considered[vcf_to_key(entry)]:
             continue
         size = get_vcf_entry_size(entry)
@@ -651,6 +788,16 @@ def run(cmdargs):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
     bar.finish()
+    #call count is just of those used were used
+    stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
+
+    #Close to flush vcfs
+    tpb_out.close()
+    b_filt.close()
+    tpc_out.close()
+    c_filt.close()
+    fn_out.close()
+    fp_out.close()
 
     # Final calculations
     if do_stats_math:
@@ -668,10 +815,14 @@ def run(cmdargs):
         stats_box["f1"] = 2 * (neum / denom)
     else:
         stats_box["f1"] = "NaN"
-
+    
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
         logging.info("Stats: %s", json.dumps(stats_box, indent=4))
+
+    if args.giabreport:
+        make_giabreport(args, stats_box)
+
     logging.info("Finished")
 
 if __name__ == '__main__':
