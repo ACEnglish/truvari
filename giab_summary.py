@@ -93,8 +93,6 @@ for entry in v:
     summary[sizecat]["HG3_GTcons1"][entry.genotype("HG003")["GTcons1"]] += 1
     summary[sizecat]["HG4_GTcons1"][entry.genotype("HG004")["GTcons1"]] += 1
 
-import json
-
 for szc in ["20to49", "50to99", "100to299", "300to999", "gt1000"]:
     if szc not in summary:
         continue
