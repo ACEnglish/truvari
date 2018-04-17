@@ -103,10 +103,8 @@ to final statistics. SVs are fuzzy like this.
 Using the GIAB Report
 ---------------------
 
-When running against the 
-<a href="ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/">
-GIAB SV v0.5 benchmark</a> you can create a detailed report of calls summarized by the GIAB VCF's 
-SVTYPE, SVLEN, Technology, and Repeat annotations.
+When running against the GIAB SV v0.5 benchmark (link below), you can create a detailed report of 
+calls summarized by the GIAB VCF's SVTYPE, SVLEN, Technology, and Repeat annotations.
 
 To create this report.
 
@@ -119,3 +117,5 @@ to alter the report text in any way. If successul, the "Formatted" tab you will 
 
 This currently only works with GIAB SV v0.5. Work will need to be done to ensure Truvari can parse future 
 GIAB SV releases.
+
+ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
