@@ -104,18 +104,17 @@ Using the GIAB Report
 ---------------------
 
 When running against the 
-[GIAB SV v0.5 benchmark](ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/), 
-you can create a detailed report of calls summarized by the GIAB VCF's SVTYPE, SVLEN, Technology, 
-and Repeat annotations.
+<a href="ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/">
+GIAB SV v0.5 benchmark</a> you can create a detailed report of calls summarized by the GIAB VCF's 
+SVTYPE, SVLEN, Technology, and Repeat annotations.
 
-To do this, run Truvari with the flag `--giabreport`.
+To create this report.
 
-In your output directory, you will find a file named `giab_report.txt`.
-
-Next, make a copy of the 
+1. Run Truvari with the flag `--giabreport`.
+2. In your output directory, you will find a file named `giab_report.txt`.
+3. Next, make a copy of the 
 [Truvari Report Template Google Sheet](https://docs.google.com/spreadsheets/d/1T3EdpyLO1Kq-bJ8SDatqJ5nP_wwFKCrH0qhxorvTVd4/edit?usp=sharing).
-
-Finally, paste ALL of the information inside `giab_report.txt` into the "RawData" tab. Be careful not 
+4. Finally, paste ALL of the information inside `giab_report.txt` into the "RawData" tab. Be careful not 
 to alter the report text in any way. If successul, the "Formatted" tab you will have a fully formated report.
 
 This currently only works with GIAB SV v0.5. Work will need to be done to ensure Truvari can parse future 
