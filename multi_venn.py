@@ -9,6 +9,8 @@ Over multiple vcfs, calculate their overlap.
 
 Entries will match if a key of:
     CHROM:POS ID REF ALT matches. Doesn't do anything fancy with Alleles
+
+Useful for intersecting the tp-base.vcf of multiple comparisons
 """
 allVCFs = sys.argv[1:]
 

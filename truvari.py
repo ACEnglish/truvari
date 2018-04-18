@@ -470,6 +470,10 @@ def edit_header(my_vcf):
         id="PctSizeSimilarity", num=1, type='Float',
         desc="Pct size similarity between this variant and it's closest match",
         source=None, version=None)
+    my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
+        id="PctRecOverlap", num=1, type='Float',
+        desc="Percent reciprocal overlap percent of the two calls' coordinates",
+        source=None, version=None)
     my_vcf.infos['StartDistance'] = vcf.parser._Info(
         id="StartDistance", num=1, type='Integer',
         desc="Distance of this call's start from comparison call's start",
@@ -477,10 +481,6 @@ def edit_header(my_vcf):
     my_vcf.infos['EndDistance'] = vcf.parser._Info(
         id="EndDistance", num=1, type='Integer',
         desc="Distance of this call's start from comparison call's start",
-        source=None, version=None)
-    my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
-        id="PctRecOverlap", num=1, type='Float',
-        desc="Percent reciprocal overlap percent of the two calls' coordinates",
         source=None, version=None)
     my_vcf.infos['SizeDiff'] = vcf.parser._Info(
         id="SizeDiff", num=1, type='Float',
@@ -510,7 +510,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline truth-set calls")
-    parser.add_argument("-c", "--calls", type=str, required=True,
+    parser.add_argument("-c", "--comp", type=str, required=True,
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
@@ -528,8 +528,8 @@ def parse_args(args):
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=restricted_float, default=0.0,
                         help="Minimum pct reciprocal overlap (%(default)s)")
-    thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
-                        help="Compare variants of different types (%(default)s)")
+    thresg.add_argument("-t", "--typematch", action="store_true", default=False,
+                        help="Variant types must match to compare (%(default)s)")
     thresg.add_argument("--use-swalign", action="store_true", default=False,
                         help=("Use SmithWaterman to compute sequence similarity "
                               "instead of Levenshtein ratio. WARNING - much slower. (%(default)s)"))
@@ -695,7 +695,7 @@ def run(cmdargs):
             if args.gtcomp and entryA.genotype(sampleA)["GT"] != entryB.genotype(sampleB)["GT"]:
                 continue
 
-            if args.typeignore and not same_variant_type(entryA, entryB):
+            if args.typematch and not same_variant_type(entryA, entryB):
                 continue
 
             size_similarity = var_sizesim(entryA, entryB)

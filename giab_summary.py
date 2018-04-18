@@ -26,6 +26,8 @@ PerSizeBin Info/sizecat
 
 in this size regime, the number of calls with 5 techs is 10
 50-100bp : NumTechs : 5 : 10
+
+Use Truvari's --giabreport for a better looking output
 """
 import sys
 import vcf
