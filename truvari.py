@@ -401,8 +401,10 @@ def make_giabreport(args, stats_box):
     tech_keys = {"techs": ["I+PB+CG+TenX", "I+PB+CG", "I+PB+TenX", "PB+CG+TenX",
                        "I+PB", "I+CG", "I+TenX", "PB+CG", "PB+TenX", "CG+TenX",
                        "I", "PB", "CG","TenX"]}
-    rep_keys = {"REPTYPE": [ "SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
-
+    rep_keys = {"REPTYPE": ["SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
+    gt_keys_proband = {"HG002_GT": ["0/1", "./1", "1/1"]}
+    gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
+    gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     #OverallNumbers 
     sum_out.write("TP\t%s\n" % (len(tp_base)))
     sum_out.write("FN\t%s\n\n" % (len(fn)))
@@ -449,6 +451,15 @@ def make_giabreport(args, stats_box):
     argd = vars(args)
     for key in sorted(argd.keys()):
         sum_out.write("%s\t%s\n" % (key, str(argd[key])))
+    #
+    sum_out.write("\nTP_HG002GT\n")
+    count_by(gt_keys_proband, tp_base, sum_out)
+    sum_out.write("FN_HG002GT\n")
+    count_by(gt_keys_proband, fn, sum_out)
+
+    sum_out.write("\nTP_HG003|4GT\n")
+    twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
+    
     sum_out.close()
     
 def edit_header(my_vcf):
@@ -470,6 +481,10 @@ def edit_header(my_vcf):
         id="PctSizeSimilarity", num=1, type='Float',
         desc="Pct size similarity between this variant and it's closest match",
         source=None, version=None)
+    my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
+        id="PctRecOverlap", num=1, type='Float',
+        desc="Percent reciprocal overlap percent of the two calls' coordinates",
+        source=None, version=None)
     my_vcf.infos['StartDistance'] = vcf.parser._Info(
         id="StartDistance", num=1, type='Integer',
         desc="Distance of this call's start from comparison call's start",
@@ -477,10 +492,6 @@ def edit_header(my_vcf):
     my_vcf.infos['EndDistance'] = vcf.parser._Info(
         id="EndDistance", num=1, type='Integer',
         desc="Distance of this call's start from comparison call's start",
-        source=None, version=None)
-    my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
-        id="PctRecOverlap", num=1, type='Float',
-        desc="Percent reciprocal overlap percent of the two calls' coordinates",
         source=None, version=None)
     my_vcf.infos['SizeDiff'] = vcf.parser._Info(
         id="SizeDiff", num=1, type='Float',
@@ -510,7 +521,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline truth-set calls")
-    parser.add_argument("-c", "--calls", type=str, required=True,
+    parser.add_argument("-c", "--comp", type=str, required=True,
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
@@ -528,8 +539,8 @@ def parse_args(args):
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=restricted_float, default=0.0,
                         help="Minimum pct reciprocal overlap (%(default)s)")
-    thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
-                        help="Compare variants of different types (%(default)s)")
+    thresg.add_argument("-t", "--typematch", action="store_true", default=False,
+                        help="Variant types must match to compare (%(default)s)")
     thresg.add_argument("--use-swalign", action="store_true", default=False,
                         help=("Use SmithWaterman to compute sequence similarity "
                               "instead of Levenshtein ratio. WARNING - much slower. (%(default)s)"))
@@ -580,7 +591,7 @@ def run(cmdargs):
     else:
         sampleA = vcfA.samples[0]
 
-    vcfB = vcf.Reader(open(args.calls, 'r'))
+    vcfB = vcf.Reader(open(args.comp, 'r'))
     edit_header(vcfB)
     if args.cSample is not None:
         sampleB = args.cSample
@@ -695,7 +706,7 @@ def run(cmdargs):
             if args.gtcomp and entryA.genotype(sampleA)["GT"] != entryB.genotype(sampleB)["GT"]:
                 continue
 
-            if args.typeignore and not same_variant_type(entryA, entryB):
+            if args.typematch and not same_variant_type(entryA, entryB):
                 continue
 
             size_similarity = var_sizesim(entryA, entryB)
@@ -770,7 +781,7 @@ def run(cmdargs):
     logging.info("Parsing FPs from calls")
     bar = setup_progressbar(num_entries_b)
     # Reset
-    vcfB = vcf.Reader(open(args.calls, 'r'))
+    vcfB = vcf.Reader(open(args.comp, 'r'))
     edit_header(vcfB)
     for cnt, entry in enumerate(vcfB):
         if args.passonly and len(entry.FILTER):
