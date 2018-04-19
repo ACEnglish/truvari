@@ -196,20 +196,21 @@ def same_variant_type(entryA, entryB):
         ret_type = None
         if "SVTYPE" in entry.INFO:
             return entry.INFO["SVTYPE"]
-        if not (entry.ALT[0].count("<" or entry.ALT[0].count(":"))):
+        if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
             # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
             if len(entry.REF) <= len(entry.ALT[0]):
-                ret_type = "DEL"
-            elif len(entry.REF) >= len(entry.ALT[0]):
                 ret_type = "INS"
+            elif len(entry.REF) >= len(entry.ALT[0]):
+                ret_type = "DEL"
             elif len(entry.REF) == len(entry.ALT[0]):
-                ret_type = "REPL"
+                #Is it really?
+                ret_type = "COMPLEX"
             return ret_type
         mat1 = sv_alt_match.match(entry.ALT[0])
         if mat is not None:
             return mat1.groups()["SVTYPE"]
         # rely on pyvcf
-        return entry.var_subtype
+        return entry.var_subtype.upper()
 
     a_type = pull_type(entryA)
     b_type = pull_type(entryB)
@@ -457,8 +458,10 @@ def make_giabreport(args, stats_box):
     sum_out.write("FN_HG002GT\n")
     count_by(gt_keys_proband, fn, sum_out)
 
-    sum_out.write("\nTP_HG003|4GT\n")
+    sum_out.write("\nTP_HG003.HG004GT\n")
     twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
+    sum_out.write("FN_HG003.HG004GT\n")
+    twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
     
     sum_out.close()
     
