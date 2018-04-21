@@ -19,7 +19,7 @@ Installation
 
 Truvari requires the following modules:
 
-  $ pip install pyvcf Levenshtein swalign intervaltree progressbar2
+  $ pip install pyvcf python-Levenshtein swalign intervaltree progressbar2
 
 
 Quick start
