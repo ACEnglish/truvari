@@ -464,7 +464,57 @@ def make_giabreport(args, stats_box):
     twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
     
     sum_out.close()
-    
+
+class GenomeTree():
+    """
+    Helper class to exclude regions of the genome when iterating events.
+    """
+    def __init__(self, vcfA, vcfB, exclude=None):
+        contigA_set = set(vcfA.contigs.keys())
+        contigB_set = set(vcfB.contigs.keys())
+        excluding = contigB_set - contigA_set
+        if len(excluding):
+            logging.warning("Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+        
+        all_regions = defaultdict(IntervalTree)
+
+        for contig in excluding:
+            name = vcfB.contigs[contig].id
+            length = vcfB.contigs[contig].length
+            all_regions[name].addi(0, length, data="exclude")
+
+        if exclude is not None:
+            counter = 0
+            with open(exclude, 'r') as fh:
+                for line in fh:
+                    if line.startswith("#"): continue
+                    data = line.strip().split('\t')
+                    chrom = data[0]
+                    start = int(data[1])
+                    end = int(data[2])
+                    all_regions[chrom].addi(start, end)
+                    #Split the interval here..
+                    counter += 1
+            logging.info("Excluding %d regions", counter)
+            
+
+        self.tree = all_regions
+
+    def iterate(self, vcf_file):
+        """
+        Iterates a vcf an yields only the entries that DO NOT overlap an 'exclude' region
+        """
+        for entry in vcf_file:
+            if not self.exclude(entry):
+                yield entry
+
+    def exclude(self, entry):
+        """
+        Returns if this entry spans a region that is to be excluded
+        """
+        astart, aend = get_vcf_boundaries(entry)
+        return self.tree[entry.CHROM].overlaps(astart, aend)
+           
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -542,11 +592,11 @@ def parse_args(args):
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=restricted_float, default=0.0,
                         help="Minimum pct reciprocal overlap (%(default)s)")
-    thresg.add_argument("-t", "--typematch", action="store_true", default=False,
-                        help="Variant types must match to compare (%(default)s)")
+    thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
+                        help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-swalign", action="store_true", default=False,
                         help=("Use SmithWaterman to compute sequence similarity "
-                              "instead of Levenshtein ratio. WARNING - much slower. (%(default)s)"))
+                              "instead of Levenshtein ratio. WARNING - much slower (%(default)s)"))
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -567,6 +617,8 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
     filteg.add_argument("--no-ref", action="store_true", default=False,
                         help="Don't include 0/0 or ./. GT calls (%(default)s)")
+    filteg.add_argument("--excludebed", type=str, default=None,
+                        help="Bed file of regions in the genome to exclude any calls overlapping")
 
     args = parser.parse_args(args)
     return args
@@ -604,14 +656,16 @@ def run(cmdargs):
     else:
         sampleB = vcfB.samples[0]
 
+    regions = GenomeTree(vcfA, vcfB, args.excludebed)
+    
     logging.info("Creating call interval tree for overlap search")
     span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcfB, args.sizefilt, args.sizemax, args.passonly)
-
+    
     logging.info("%d call variants", num_entries_b)
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
     num_entries = 0
-    for entry in vcfA:
+    for entry in regions.iterate(vcfA):
         num_entries += 1
     logging.info("%s base variants", num_entries)
     # Reset
@@ -643,7 +697,7 @@ def run(cmdargs):
     already_considered = defaultdict(bool)
     # for variant A - do var_match in B
     logging.info("Matching base to calls")
-    for pbarcnt, entryA in enumerate(vcfA):
+    for pbarcnt, entryA in enumerate(regions.iterate(vcfA)):
         bar.update(pbarcnt)
         sz = get_vcf_entry_size(entryA)
 
@@ -684,6 +738,7 @@ def run(cmdargs):
         # even if already_considered was atomic, you may get diff answers
         # +- 1 just to be safe because why not...
         for entryB in vcfB.fetch(entryA.CHROM, max(0, fetch_start - 1), fetch_end + 1):
+
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
             # better, it can't use it and we mismatch
@@ -699,7 +754,8 @@ def run(cmdargs):
             bstart, bend = get_vcf_boundaries(entryB)
             if not overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
                 continue
-
+            if regions.exclude(entryB):
+                continue
             # Someone in the Base call's neighborhood, we'll see if it passes comparisons
             num_neighbors += 1
 
@@ -709,7 +765,7 @@ def run(cmdargs):
             if args.gtcomp and entryA.genotype(sampleA)["GT"] != entryB.genotype(sampleB)["GT"]:
                 continue
 
-            if args.typematch and not same_variant_type(entryA, entryB):
+            if not args.typeignore and not same_variant_type(entryA, entryB):
                 continue
 
             size_similarity = var_sizesim(entryA, entryB)
@@ -798,7 +854,7 @@ def run(cmdargs):
             stats_box["call size filtered"] += 1
         elif args.no_ref and entry.genotype(sampleB)["GT"] in ref_gts:
             stats_box["call gt filtered"] += 1
-        else:
+        elif not regions.exclude(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
     bar.finish()

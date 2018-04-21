@@ -65,20 +65,18 @@ For each CompCall:
 
 Matching Parameters
 --------------------
-
-<table>
-<tr><th>Parameter</th><th>Definition</th>
-<tr><td>refdist</td>
+<table><tr><th>Parameter</th><th>Default</th><th>Definition</th>
+<tr><td>refdist</td><td>500</td>
 <td>Maximum distance comparison calls must be within from base call's start/end</td></tr>
-<tr><td>pctsim</td>
+<tr><td>pctsim</td><td>0.7</td>
 <td>Levenshtein distance ratio between the REF or ALT sequence of base and comparison call.
 Longer sequence of the two is used.</td></tr>
-<tr><td>pctsize</td>
+<tr><td>pctsize</td><td>0.7</td>
 <td>Ratio of min(base_size, comp_size)/max(base_size, comp_size)</td></tr>
-<tr><td>pctovl</td>
+<tr><td>pctovl</td><td>0.0</td>
 <td>Ratio of two calls' (overlapping bases)/(longest span)</td></tr>
-<tr><td>typematch</td>
-<td>Types must match to compare calls.</td>
+<tr><td>typeignore</td><td>False</td>
+<td>Types don't need to match to compare calls.</td>
 </table>
 
 Comparing VCFs without sequence resolved calls
@@ -90,14 +88,13 @@ sequence comparison.
 Difference between --sizemin and --sizefilt
 -------------------------------------------
 
-`--sizemin` is the minimum size of a base call or comparison call to be considered. Those removed 
-are counted as size filtered. 
+`--sizemin` is the minimum size of a base call or comparison call to be considered.  
 
 `--sizefilt` is the minimum size of a call to be added into the IntervalTree for searching. It should
 be less than `sizemin` for edge case variants.
 
-For example: `sizemin` is 50 and `sizefilt` is 30. A 50bp base call is 98% similar to a 49bp call at the
-same position.
+For example: `sizemin` is 50 and `sizefilt` is 30. A 50bp base call is 98% similar to a 49bp call at 
+the same position.
 
 These two calls should be considered matching. If we instead removed calls less than `sizemin`, we'd
 incorrectly classify the 50bp base call as a false negative.
@@ -143,3 +140,18 @@ This currently only works with GIAB SV v0.5. Work will need to be done to ensure
 GIAB SV releases.
 
 ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
+
+VCF Header contigs & Exclude Bed 
+-----------
+
+Before parsing any files, the set of contigs in VCF headers of the comparison calls are subtracted from the
+base calls set of contigs. This gives us a set of contigs to exclude from this analysis. Any comparison call 
+on a contig not present in the base calls' VCF is not examined for TP/FP/FN.
+
+An `--excludebed` file may be provided to remove calls in regions from comparison. This is functionally 
+equivalent to running `bedtools subtract -A -a calls.vcf -b exclude.bed`. 
+
+It is important to note that any size/gt filtered numbers in the summary do not account for these excluded 
+regions.
+
+
