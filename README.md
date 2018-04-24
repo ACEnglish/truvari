@@ -11,8 +11,9 @@ Structural variant comparison tool for VCFs
 
 Given benchmark and comparsion sets of SVs, calculate the sensitivity/specificity/f-measure.
 
-Spiral Genetics, 2018
+[Spiral Genetics](https://www.spiralgenetics.com), 2018
 
+[Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
 Installation
 ============
@@ -144,9 +145,9 @@ ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_Unio
 VCF Header contigs & Exclude Bed 
 -----------
 
-Before parsing any files, the set of contigs in VCF headers of the comparison calls are subtracted from the
-base calls set of contigs. This gives us a set of contigs to exclude from this analysis. Any comparison call 
-on a contig not present in the base calls' VCF is not examined for TP/FP/FN.
+Before parsing any files, the set of contigs in VCF headers of the base calls are subtracted from the
+comparison calls' set of contigs. This gives us a set of contigs to exclude from this analysis. Any 
+comparison call on a contig not present in the base calls' VCF is not examined for TP/FP/FN.
 
 An `--excludebed` file may be provided to remove calls in regions from comparison. This is functionally 
 equivalent to running `bedtools subtract -A -a calls.vcf -b exclude.bed`. 

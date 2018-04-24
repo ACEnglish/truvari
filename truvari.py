@@ -125,6 +125,11 @@ def var_pctsim_lev(entryA, entryB):
     # Shortcut to save compute - probably unneeded
     if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
         return 1.0
+    #Handling of breakends should be here
+    if entryA.var_subtype == "complex" and entryB.var_subtype == "complex":
+        return 1 
+    elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
+        return 0
 
     if len(entryA.REF) < len(entryA.ALT[0]):
         return Levenshtein.ratio(str(entryA.ALT[0]), str(entryB.ALT[0]))
@@ -646,6 +651,14 @@ def run(cmdargs):
     else:
         sampleA = vcfA.samples[0]
 
+    #Check early so we don't waste users' time
+    try:    
+        vcfB = vcf.Reader(open(args.comp, 'r'))
+        contig = vcfB.contigs.keys()[0]
+        contig = vcfB.fetch(contig, 0, 1000)
+    except IOError as e:
+        logging.error("Cannot fetch on %s. Is it sorted/indexed?", args.comp)
+        exit(1)
     vcfB = vcf.Reader(open(args.comp, 'r'))
     edit_header(vcfB)
     if args.cSample is not None:
