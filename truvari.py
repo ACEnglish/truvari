@@ -97,14 +97,20 @@ def vcf_to_key(entry):
     return "%s:%d-%d(%s|%s)" % (entry.CHROM, start, end, entry.REF, str(entry.ALT[0]))
 
 
-def var_sizesim(entryA, entryB):
+def var_sizesim(sizeA, sizeB):
     """
     Calculate the size similarity pct for the two entries
     compares the longer of entryA's two alleles (REF or ALT)
     """
-    sizeA = get_vcf_entry_size(entryA)
-    sizeB = get_vcf_entry_size(entryB)
-    return min(sizeA, sizeB) / float(max(sizeA, sizeB))
+    return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
+
+
+def gt_comp(entryA, entryB):
+    """
+    Compare the genotypes, returns if they're the same
+    Simple for now. Methodized so it's easy to expand later
+    """
+    return entryA.genotype(sampleA)["GT"] == entryB.genotype(sampleB)["GT"]
 
 
 def do_swalign(seq1, seq2, match=2, mismatch=-1, gap_penalty=-2, gap_extension_decay=0.5):
@@ -125,9 +131,9 @@ def var_pctsim_lev(entryA, entryB):
     # Shortcut to save compute - probably unneeded
     if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
         return 1.0
-    #Handling of breakends should be here
+    # Handling of breakends should be here
     if entryA.var_subtype == "complex" and entryB.var_subtype == "complex":
-        return 1 
+        return 1
     elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
         return 0
 
@@ -138,10 +144,7 @@ def var_pctsim_lev(entryA, entryB):
 
 def var_pctsim_sw(entryA, entryB):
     """
-    Find all the entries in vcfB that are within max_dist of entryA
-
-    Works using swalign instead of Levenshtein
-    Returns the percent similarity
+    Calculates pctsim with swalign instead of Levenshtein
     """
     # Shortcut to save compute
     if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
@@ -155,25 +158,6 @@ def var_pctsim_sw(entryA, entryB):
         return 0
     ident = mat_tot / denom
     return ident
-
-
-def __defunct_var_pctsim_ed(entryA, entryB):
-    """
-    Find all the entries in vcfB that are within max_dist of entryA
-
-    Returns the percent similarity
-    """
-    # Shortcut to save compute
-    if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
-        return 1.0
-    ref_dist = edlib.align(str(entryA.REF), str(entryB.REF))["editDistance"]
-    max_ref = max(len(entryA.REF), len(entryB.REF))
-    # Only consider the first allele. This is a problem
-    alt_dist = edlib.align(str(entryA.ALT[0]), str(entryB.ALT[0]))["editDistance"]
-    max_alt = max(len(str(entryA.ALT[0])), len(str(entryB.ALT[0])))
-
-    ed = 1 - ((ref_dist + alt_dist) / float(max_ref + max_alt))
-    return ed
 
 
 def overlaps(s1, e1, s2, e2):
@@ -208,7 +192,7 @@ def same_variant_type(entryA, entryB):
             elif len(entry.REF) >= len(entry.ALT[0]):
                 ret_type = "DEL"
             elif len(entry.REF) == len(entry.ALT[0]):
-                #Is it really?
+                # Is it really?
                 ret_type = "COMPLEX"
             return ret_type
         mat1 = sv_alt_match.match(entry.ALT[0])
@@ -320,6 +304,7 @@ def annotate_tp(entry, score, pctsim, pctsize, pctovl, szdiff, stdist, endist, o
     entry.INFO["StartDistance"] = stdist
     entry.INFO["EndDistance"] = endist
 
+
 def make_giabreport(args, stats_box):
     """
     Create summaries of the TPs/FNs
@@ -357,7 +342,7 @@ def make_giabreport(args, stats_box):
             cnt[x[main_key]] += 1
         for k in key[main_key]:
             out.write("%s\t%s\n" % (k, cnt[k]))
-    
+
     def twoxtable(key1, key2, docs, out):
         """
         Parse any set of docs and create a 2x2 table
@@ -367,14 +352,14 @@ def make_giabreport(args, stats_box):
         cnt = defaultdict(Counter)
         for x in docs:
             cnt[x[main_key1]][x[main_key2]] += 1
-        
-        out.write(".\t"+"\t".join([str(i) for i in key1[main_key1]]) + '\n')
+
+        out.write(".\t" + "\t".join([str(i) for i in key1[main_key1]]) + '\n')
         for y in key2[main_key2]:
             o = [str(y)]
             for x in key1[main_key1]:
                 o.append(str(cnt[x][y]))
             out.write("\t".join(o) + '\n')
-    
+
     def collapse_techs(docs):
         """
         Make a new annotation about the presence of techs inplace
@@ -391,13 +376,13 @@ def make_giabreport(args, stats_box):
                 if d[i] > 0:
                     new_anno.append(i.rstrip("calls"))
             d["techs"] = "+".join(new_anno)
-    
+
     logging.info("Creating GIAB report")
 
     sum_out = open(os.path.join(args.output, "giab_report.txt"), 'w')
-    
+
     tp_base = make_entries(os.path.join(args.output, "tp-base.vcf"))
-    
+
     collapse_techs(tp_base)
     fn = make_entries(os.path.join(args.output, "fn.vcf"))
     collapse_techs(fn)
@@ -405,16 +390,16 @@ def make_giabreport(args, stats_box):
     size_keys = {"sizecat": ["50to99", "100to299", "300to999", "gt1000"]}
     svtype_keys = {"SVTYPE": ["DEL", "INS", "COMPLEX"]}
     tech_keys = {"techs": ["I+PB+CG+TenX", "I+PB+CG", "I+PB+TenX", "PB+CG+TenX",
-                       "I+PB", "I+CG", "I+TenX", "PB+CG", "PB+TenX", "CG+TenX",
-                       "I", "PB", "CG","TenX"]}
+                           "I+PB", "I+CG", "I+TenX", "PB+CG", "PB+TenX", "CG+TenX",
+                           "I", "PB", "CG", "TenX"]}
     rep_keys = {"REPTYPE": ["SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
     gt_keys_proband = {"HG002_GT": ["0/1", "./1", "1/1"]}
     gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
-    #OverallNumbers 
+    # OverallNumbers
     sum_out.write("TP\t%s\n" % (len(tp_base)))
     sum_out.write("FN\t%s\n\n" % (len(fn)))
-    sum_out.write("TP_size\n") 
+    sum_out.write("TP_size\n")
     count_by(size_keys, tp_base, sum_out)
     sum_out.write("FN_size\n")
     count_by(size_keys, fn, sum_out)
@@ -446,14 +431,14 @@ def make_giabreport(args, stats_box):
     twoxtable(svtype_keys, tech_keys, tp_base, sum_out)
     sum_out.write("FN_Type+Tech\n")
     twoxtable(svtype_keys, tech_keys, fn, sum_out)
-    
+
     sum_out.write("\nPerformance\n")
-    #Add output of the stats box
+    # Add output of the stats box
     for key in sorted(stats_box.keys()):
         sum_out.write("%s\t%s\n" % (key, str(stats_box[key])))
 
     sum_out.write("\nArgs\n")
-    #Add output of the parameters
+    # Add output of the parameters
     argd = vars(args)
     for key in sorted(argd.keys()):
         sum_out.write("%s\t%s\n" % (key, str(argd[key])))
@@ -467,20 +452,24 @@ def make_giabreport(args, stats_box):
     twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
     sum_out.write("FN_HG003.HG004GT\n")
     twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
-    
+
     sum_out.close()
 
+
 class GenomeTree():
+
     """
     Helper class to exclude regions of the genome when iterating events.
     """
+
     def __init__(self, vcfA, vcfB, exclude=None):
         contigA_set = set(vcfA.contigs.keys())
         contigB_set = set(vcfB.contigs.keys())
         excluding = contigB_set - contigA_set
         if len(excluding):
-            logging.warning("Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
-        
+            logging.warning(
+                "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+
         all_regions = defaultdict(IntervalTree)
 
         for contig in excluding:
@@ -492,16 +481,16 @@ class GenomeTree():
             counter = 0
             with open(exclude, 'r') as fh:
                 for line in fh:
-                    if line.startswith("#"): continue
+                    if line.startswith("#"):
+                        continue
                     data = line.strip().split('\t')
                     chrom = data[0]
                     start = int(data[1])
                     end = int(data[2])
                     all_regions[chrom].addi(start, end)
-                    #Split the interval here..
+                    # Split the interval here..
                     counter += 1
             logging.info("Excluding %d regions", counter)
-            
 
         self.tree = all_regions
 
@@ -519,7 +508,8 @@ class GenomeTree():
         """
         astart, aend = get_vcf_boundaries(entry)
         return self.tree[entry.CHROM].overlaps(astart, aend)
-           
+
+
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -583,7 +573,7 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
-    parser.add_argument("--giabreport", action="store_true", 
+    parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
@@ -651,8 +641,8 @@ def run(cmdargs):
     else:
         sampleA = vcfA.samples[0]
 
-    #Check early so we don't waste users' time
-    try:    
+    # Check early so we don't waste users' time
+    try:
         vcfB = vcf.Reader(open(args.comp, 'r'))
         contig = vcfB.contigs.keys()[0]
         contig = vcfB.fetch(contig, 0, 1000)
@@ -670,10 +660,10 @@ def run(cmdargs):
         sampleB = vcfB.samples[0]
 
     regions = GenomeTree(vcfA, vcfB, args.excludebed)
-    
+
     logging.info("Creating call interval tree for overlap search")
     span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcfB, args.sizefilt, args.sizemax, args.passonly)
-    
+
     logging.info("%d call variants", num_entries_b)
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
@@ -712,9 +702,9 @@ def run(cmdargs):
     logging.info("Matching base to calls")
     for pbarcnt, entryA in enumerate(regions.iterate(vcfA)):
         bar.update(pbarcnt)
-        sz = get_vcf_entry_size(entryA)
+        sizeA = get_vcf_entry_size(entryA)
 
-        if sz < args.sizemin or sz > args.sizemax:
+        if sizeA < args.sizemin or sizeA > args.sizemax:
             stats_box["base size filtered"] += 1
             b_filt.write_record(entryA)
             continue
@@ -758,8 +748,8 @@ def run(cmdargs):
             if already_considered[vcf_to_key(entryB)]:
                 continue
 
-            nsize = get_vcf_entry_size(entryB)
-            if get_vcf_entry_size(entryB) < args.sizefilt:
+            sizeB = get_vcf_entry_size(entryB)
+            if sizeB < args.sizefilt:
                 continue
 
             # Double ensure OVERLAP - there's a weird edge case where fetch with
@@ -775,13 +765,13 @@ def run(cmdargs):
             if args.no_ref and not entryB.genotype(sampleB).is_variant:
                 continue
 
-            if args.gtcomp and entryA.genotype(sampleA)["GT"] != entryB.genotype(sampleB)["GT"]:
+            if args.gtcomp and not gt_comp(entryA, entryB):
                 continue
 
             if not args.typeignore and not same_variant_type(entryA, entryB):
                 continue
 
-            size_similarity = var_sizesim(entryA, entryB)
+            size_similarity, size_diff = var_sizesim(sizeA, sizeB)
             if size_similarity < args.pctsize:
                 continue
 
@@ -805,7 +795,6 @@ def run(cmdargs):
             logging.debug(str(entryB))
             logging.debug("%d %d %d", aend, bend, end_distance)
 
-            size_diff = get_vcf_entry_size(entryA) - get_vcf_entry_size(entryB)
             score = get_weighted_score(seq_similarity, size_similarity, ovl_pct)
             # If you put these numbers in an object, it'd be easier to pass round
             # You'd just need to make it sortable
@@ -865,16 +854,16 @@ def run(cmdargs):
         if size < args.sizemin or size > args.sizemax:
             c_filt.write_record(entry)
             stats_box["call size filtered"] += 1
-        elif args.no_ref and entry.genotype(sampleB)["GT"] in ref_gts:
+        elif args.no_ref and not entry.genotype(sampleB)["GT"].is_variant:
             stats_box["call gt filtered"] += 1
         elif not regions.exclude(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
     bar.finish()
-    #call count is just of those used were used
+    # call count is just of those used were used
     stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
 
-    #Close to flush vcfs
+    # Close to flush vcfs
     tpb_out.close()
     b_filt.close()
     tpc_out.close()
@@ -898,7 +887,7 @@ def run(cmdargs):
         stats_box["f1"] = 2 * (neum / denom)
     else:
         stats_box["f1"] = "NaN"
-    
+
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
         logging.info("Stats: %s", json.dumps(stats_box, indent=4))
