@@ -18,10 +18,11 @@ Given benchmark and comparsion sets of SVs, calculate the sensitivity/specificit
 Installation
 ============
 
-Truvari requires the following modules:
+Truvari uses Python 2 or 3 and requires the following modules:
 
-  $ pip install pyvcf python-Levenshtein swalign intervaltree progressbar2
+  $ pip install pyvcf python-Levenshtein swalign intervaltree progressbar2 pysam
 
+Note that `--use-swalign` is not compatible with Python 3.
 
 Quick start
 ===========

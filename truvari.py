@@ -13,7 +13,8 @@ from collections import defaultdict, Counter
 
 # External dependencies
 import vcf
-import swalign
+if sys.version_info[0] < 3:
+    import swalign
 import Levenshtein
 import progressbar
 from intervaltree import IntervalTree
@@ -73,16 +74,20 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     n_entries = 0
     cmp_entries = 0
     lookup = defaultdict(IntervalTree)
-    for entry in vcf_file:
-        n_entries += 1
-        if passonly and len(entry.FILTER):
-            continue
-        start, end = get_vcf_boundaries(entry)
-        sz = get_vcf_entry_size(entry)
-        if sz < sizemin or sz > sizemax:
-            continue
-        cmp_entries += 1
-        lookup[entry.CHROM].addi(start, end, entry.start)
+    try:
+        for entry in vcf_file:
+            n_entries += 1
+            if passonly and (entry.FILTER is not None and len(entry.FILTER)):
+                continue
+            start, end = get_vcf_boundaries(entry)
+            sz = get_vcf_entry_size(entry)
+            if sz < sizemin or sz > sizemax:
+                continue
+            cmp_entries += 1
+            lookup[entry.CHROM].addi(start, end, entry.start)
+    except ValueError:
+        logging.error("Unable to parse comparison vcf file. Please check header definitions")
+        exit(1)
     return lookup, n_entries, cmp_entries
 
 
@@ -616,6 +621,8 @@ def parse_args(args):
                         help="Bed file of regions in the genome to exclude any calls overlapping")
 
     args = parser.parse_args(args)
+    if sys.version_info[0] >= 3 and args.use_swalign:
+        sys.stderr.write("swalign not compatible with Python3.*")
     return args
 
 
@@ -632,7 +639,7 @@ def run(cmdargs):
 
     ref_gts = ["0/0", "0|0", "./.", ".|."]
 
-    vcfA = vcf.Reader(open(args.base, 'r'))
+    vcfA = vcf.Reader(filename=args.base)
     if args.bSample is not None:
         sampleA = args.bSample
         if sampleA not in vcfA.samples:
@@ -643,13 +650,13 @@ def run(cmdargs):
 
     # Check early so we don't waste users' time
     try:
-        vcfB = vcf.Reader(open(args.comp, 'r'))
-        contig = vcfB.contigs.keys()[0]
+        vcfB = vcf.Reader(filename=args.comp)
+        contig = list(vcfB.contigs.keys())[0]
         contig = vcfB.fetch(contig, 0, 1000)
     except IOError as e:
         logging.error("Cannot fetch on %s. Is it sorted/indexed?", args.comp)
         exit(1)
-    vcfB = vcf.Reader(open(args.comp, 'r'))
+    vcfB = vcf.Reader(filename=args.comp)
     edit_header(vcfB)
     if args.cSample is not None:
         sampleB = args.cSample
@@ -672,7 +679,7 @@ def run(cmdargs):
         num_entries += 1
     logging.info("%s base variants", num_entries)
     # Reset
-    vcfA = vcf.Reader(open(args.base, 'r'))
+    vcfA = vcf.Reader(filename=args.base)
     edit_header(vcfA)
 
     bar = setup_progressbar(num_entries)
@@ -740,12 +747,14 @@ def run(cmdargs):
         # more importantly, we'd also have race conditions for when it's been used...
         # even if already_considered was atomic, you may get diff answers
         # +- 1 just to be safe because why not...
+        a_key = vcf_to_key(entryA)
         for entryB in vcfB.fetch(entryA.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
             # better, it can't use it and we mismatch
-            if already_considered[vcf_to_key(entryB)]:
+            b_key = vcf_to_key(entryB)
+            if already_considered[b_key]:
                 continue
 
             sizeB = get_vcf_entry_size(entryB)
@@ -842,10 +851,10 @@ def run(cmdargs):
     logging.info("Parsing FPs from calls")
     bar = setup_progressbar(num_entries_b)
     # Reset
-    vcfB = vcf.Reader(open(args.comp, 'r'))
+    vcfB = vcf.Reader(filename=args.comp)
     edit_header(vcfB)
     for cnt, entry in enumerate(vcfB):
-        if args.passonly and len(entry.FILTER):
+        if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
         if already_considered[vcf_to_key(entry)]:
