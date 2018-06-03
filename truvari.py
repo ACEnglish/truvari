@@ -464,27 +464,16 @@ def make_giabreport(args, stats_box):
 class GenomeTree():
 
     """
-    Helper class to exclude regions of the genome when iterating events.
+    Helper class to specify included regions of the genome when iterating events.
     """
 
-    def __init__(self, vcfA, vcfB, exclude=None):
+    def __init__(self, vcfA, vcfB, include=None):
         contigA_set = set(vcfA.contigs.keys())
         contigB_set = set(vcfB.contigs.keys())
-        excluding = contigB_set - contigA_set
-        if len(excluding):
-            logging.warning(
-                "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
-
         all_regions = defaultdict(IntervalTree)
-
-        for contig in excluding:
-            name = vcfB.contigs[contig].id
-            length = vcfB.contigs[contig].length
-            all_regions[name].addi(0, length, data="exclude")
-
-        if exclude is not None:
+        if include is not None:
             counter = 0
-            with open(exclude, 'r') as fh:
+            with open(include, 'r') as fh:
                 for line in fh:
                     if line.startswith("#"):
                         continue
@@ -493,25 +482,35 @@ class GenomeTree():
                     start = int(data[1])
                     end = int(data[2])
                     all_regions[chrom].addi(start, end)
-                    # Split the interval here..
                     counter += 1
-            logging.info("Excluding %d regions", counter)
+        else:
+            excluding = contigB_set - contigA_set
+            if len(excluding):
+                logging.warning(
+                    "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+
+            for contig in contigA_set:
+                name = vcfA.contigs[contig].id
+                length = vcfA.contigs[contig].length
+                all_regions[name].addi(0, length, data="include")
 
         self.tree = all_regions
 
     def iterate(self, vcf_file):
         """
-        Iterates a vcf an yields only the entries that DO NOT overlap an 'exclude' region
+        Iterates a vcf an yields only the entries that overlap an 'include' region
         """
         for entry in vcf_file:
-            if not self.exclude(entry):
+            if self.include(entry):
                 yield entry
 
-    def exclude(self, entry):
+    def include(self, entry):
         """
-        Returns if this entry spans a region that is to be excluded
+        Returns if this entry spans a region that is to be included
         """
         astart, aend = get_vcf_boundaries(entry)
+        if astart == aend:
+            return self.tree[entry.CHROM].overlaps(astart)
         return self.tree[entry.CHROM].overlaps(astart, aend)
 
 
@@ -617,8 +616,8 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
     filteg.add_argument("--no-ref", action="store_true", default=False,
                         help="Don't include 0/0 or ./. GT calls (%(default)s)")
-    filteg.add_argument("--excludebed", type=str, default=None,
-                        help="Bed file of regions in the genome to exclude any calls overlapping")
+    filteg.add_argument("--includebed", type=str, default=None,
+                        help="Bed file of regions in the genome to include only calls overlapping")
 
     args = parser.parse_args(args)
     if sys.version_info[0] >= 3 and args.use_swalign:
@@ -666,7 +665,7 @@ def run(cmdargs):
     else:
         sampleB = vcfB.samples[0]
 
-    regions = GenomeTree(vcfA, vcfB, args.excludebed)
+    regions = GenomeTree(vcfA, vcfB, args.includebed)
 
     logging.info("Creating call interval tree for overlap search")
     span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcfB, args.sizefilt, args.sizemax, args.passonly)
@@ -766,7 +765,7 @@ def run(cmdargs):
             bstart, bend = get_vcf_boundaries(entryB)
             if not overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
                 continue
-            if regions.exclude(entryB):
+            if not regions.include(entryB):
                 continue
             # Someone in the Base call's neighborhood, we'll see if it passes comparisons
             num_neighbors += 1
@@ -853,7 +852,7 @@ def run(cmdargs):
     # Reset
     vcfB = vcf.Reader(filename=args.comp)
     edit_header(vcfB)
-    for cnt, entry in enumerate(vcfB):
+    for cnt, entry in enumerate(regions.iterate(vcfB)):
         if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
@@ -865,7 +864,7 @@ def run(cmdargs):
             stats_box["call size filtered"] += 1
         elif args.no_ref and not entry.genotype(sampleB)["GT"].is_variant:
             stats_box["call gt filtered"] += 1
-        elif not regions.exclude(entry):
+        elif regions.include(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
     bar.finish()

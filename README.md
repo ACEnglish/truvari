@@ -143,17 +143,14 @@ GIAB SV releases.
 
 ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
 
-VCF Header contigs & Exclude Bed 
+Include Bed & VCF Header Contigs 
 -----------
 
-Before parsing any files, the set of contigs in VCF headers of the base calls are subtracted from the
-comparison calls' set of contigs. This gives us a set of contigs to exclude from this analysis. Any 
-comparison call on a contig not present in the base calls' VCF is not examined for TP/FP/FN.
+If an `--includebed` is provided, only base and comp calls overlapping the defined regions are used 
+for comparison. This is equilavent to pre-filtering your base/comp calls with:
 
-An `--excludebed` file may be provided to remove calls in regions from comparison. This is functionally 
-equivalent to running `bedtools subtract -A -a calls.vcf -b exclude.bed`. 
+`(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
 
-It is important to note that any size/gt filtered numbers in the summary do not account for these excluded 
-regions.
-
-
+If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
+heaer. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
+statistics and will not be present in any output vcfs.
