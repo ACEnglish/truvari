@@ -152,5 +152,5 @@ for comparison. This is equilavent to pre-filtering your base/comp calls with:
 `(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
-heaer. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
+header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
 statistics and will not be present in any output vcfs.
