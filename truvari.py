@@ -110,7 +110,7 @@ def var_sizesim(sizeA, sizeB):
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 
-def gt_comp(entryA, entryB):
+def gt_comp(entryA, entryB, sampleA, sampleB):
     """
     Compare the genotypes, returns if they're the same
     Simple for now. Methodized so it's easy to expand later
@@ -483,6 +483,7 @@ class GenomeTree():
                     end = int(data[2])
                     all_regions[chrom].addi(start, end)
                     counter += 1
+            logging.info("Including %d bed regions", counter)
         else:
             excluding = contigB_set - contigA_set
             if len(excluding):
@@ -492,13 +493,13 @@ class GenomeTree():
             for contig in contigA_set:
                 name = vcfA.contigs[contig].id
                 length = vcfA.contigs[contig].length
-                all_regions[name].addi(0, length, data="include")
+                all_regions[name].addi(0, length)
 
         self.tree = all_regions
 
     def iterate(self, vcf_file):
         """
-        Iterates a vcf an yields only the entries that overlap an 'include' region
+        Iterates a vcf and yields only the entries that overlap an 'include' region
         """
         for entry in vcf_file:
             if self.include(entry):
@@ -648,6 +649,12 @@ def run(cmdargs):
         sampleA = vcfA.samples[0]
 
     # Check early so we don't waste users' time
+    if not os.path.exists(args.comp):
+        logging.error("File %s does not exist" % (args.comp))
+        exit(1)
+    if not os.path.exists(args.base):
+        logging.error("File %s does not exist" % (args.base))
+        exit(1)
     try:
         vcfB = vcf.Reader(filename=args.comp)
         contig = list(vcfB.contigs.keys())[0]
@@ -771,20 +778,25 @@ def run(cmdargs):
             num_neighbors += 1
 
             if args.no_ref and not entryB.genotype(sampleB).is_variant:
+                logging.debug("%s is hom-ref", str(entryB))
                 continue
 
-            if args.gtcomp and not gt_comp(entryA, entryB):
+            if args.gtcomp and not gt_comp(entryA, entryB, sampleA, sampleB):
+                logging.debug("%s and %s are not the same genotype", str(entryA), str(entryB))
                 continue
 
             if not args.typeignore and not same_variant_type(entryA, entryB):
+                logging.debug("%s and %s are not the same SVTYPE", str(entryA), str(entryB))
                 continue
 
             size_similarity, size_diff = var_sizesim(sizeA, sizeB)
             if size_similarity < args.pctsize:
+                logging.debug("%s and %s size similarity is too low (%f)", str(entryA), str(entryB), size_similarity)
                 continue
 
             ovl_pct = get_rec_ovl(astart, aend, bstart, bend)
             if ovl_pct < args.pctovl:
+                logging.debug("%s and %s overlap percent is too low (%f)", str(entryA), str(entryB), ovl_pct)
                 continue
 
             if args.pctsim > 0:
@@ -793,6 +805,8 @@ def run(cmdargs):
                 else:
                     seq_similarity = var_pctsim_lev(entryA, entryB)
                 if seq_similarity < args.pctsim:
+                    logging.debug("%s and %s sequence similarity is too low (%f)", str(
+                        entryA), str(entryB), seq_similarity)
                     continue
             else:
                 seq_similarity = 0
@@ -832,6 +846,7 @@ def run(cmdargs):
 
             tpb_out.write_record(entryA)
             tpc_out.write_record(match_entry)
+            logging.debug("Matching %s and %s", str(entryA), str(match_entry))
         else:
             stats_box["FN"] += 1
             fn_out.write_record(entryA)
@@ -853,6 +868,7 @@ def run(cmdargs):
     vcfB = vcf.Reader(filename=args.comp)
     edit_header(vcfB)
     for cnt, entry in enumerate(regions.iterate(vcfB)):
+        # Need to count these, I think
         if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
@@ -898,6 +914,7 @@ def run(cmdargs):
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
+        sys.stdout.write(json.dumps(stats_box, indent=4) + '\n')
         logging.info("Stats: %s", json.dumps(stats_box, indent=4))
 
     if args.giabreport:
