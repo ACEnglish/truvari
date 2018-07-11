@@ -85,8 +85,8 @@ def summarize_cnt(cnt, out_file):
         rows = []
         extra = []
         for key in cnt:
-            if type(cnt[key]) is dict:
-                row_headers.append(k)
+            if type(cnt[key]) is Counter:
+                row_headers.append(key)
                 if col_headers is None:
                     col_headers = cnt[key].keys()
                 c_row  = []
@@ -95,10 +95,7 @@ def summarize_cnt(cnt, out_file):
                 rows.append(c_row)
             else:
                 extra.append("%s\t%s" % (key, str(cnt[key])))
-        try:
-            fout.write("\t" + "\t".join(col_headers) + '\n')
-        except TypeError as e:
-            fout.write("Error making output %s\n" % str(e))
+        fout.write("\t" + "\t".join(col_headers) + '\n')
         for name, data in zip(row_headers, rows):
             fout.write("%s\t%s" % (name, "\t".join([str(x) for x in data])) + '\n')
 
