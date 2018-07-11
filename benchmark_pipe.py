@@ -1,36 +1,68 @@
 import os
 import sys
+import time
 import json
+import signal
+import datetime
+import argparse
+import subprocess
 
 from collections import defaultdict, Counter
 
 import vcf
-from biograph import cmd_exe
 
 #TODO: document what this thing actually does
-#TODO: pull cmd_exe over
-#Bug fixes:
-# Fixed genotype comparisons bug
-# Spelling errors in documentation
-# Added safety checks on ensuring input vcfs exist
-# Added debug statements for WHY variants don't match. Should help trouble shoot why
-#   events you expect to match don't and help users address the problem
-# Added a script `benchmark_pipe.py` That will characterize snps/indels/svs in multiple
-#   ways so that you can get a full characterization of performance (only relevant to
-#   callers that report all variation regardless of size.)
-# Added a link in README to truvari Wiki so it's more likely people will read that
-#   extra information
 
-# Separate SNPs/INDELs (just parse the tp/fns? or split and re-run...?)
-# report those individual stats
-# and I've already got giab-report made.
+class Alarm(Exception):
+    """ Alarm Class for command timeouts """
+    def __init__(self):
+        pass
+
+
+def alarm_handler(signum, frame=None):  # pylint: disable=unused-argument
+    """ Alarm handler for command timeouts """
+    raise Alarm
+
+
+def cmd_exe(cmd, timeout=-1):
+    """
+    Executes a command through the shell.
+    timeout in minutes! so 1440 mean is 24 hours.
+    -1 means never
+    returns (ret_code, stdout, stderr, datetime)
+    where ret_code is the exit code for the command executed
+    stdout/err is the Standard Output Error from the command
+    and datetime is a datetime object of the execution time
+    """
+    t_start = time.time()
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, close_fds=True,
+                            preexec_fn=os.setsid)
+    signal.signal(signal.SIGALRM, alarm_handler)
+    if timeout > 0:
+        signal.alarm(int(timeout * 60))
+    try:
+        stdoutVal, stderrVal = proc.communicate()
+        signal.alarm(0)  # reset the alarm
+    except Alarm:
+        logging.error(("Command was taking too long. "
+                       "Automatic Timeout Initiated after %d"), timeout)
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.kill()
+        return 214, None, None, datetime.timedelta(seconds=int(time.time() - t_start))
+    t_end = time.time()
+
+    stdoutVal = bytes.decode(stdoutVal)
+    retCode = proc.returncode
+    return retCode, stdoutVal, stderrVal, datetime.timedelta(seconds=int(t_end - t_start))
+
 
 def do_cnt(bdir):
     cnt = {'tp': Counter(), 'fp': Counter(), 'fn': Counter()}
     for fn, label in [("tp.vcf.gz", "tp"), ("fp.vcf.gz", "fp"), ("fn.vcf.gz", "fn")]:
         v = vcf.Reader(filename=os.path.join(bdir, fn))
         for entry in v:
-            cnt[label][entry.var_subtype] += 1
+            cnt[label][str(entry.var_subtype)] += 1
     return cnt
 
 
@@ -62,20 +94,39 @@ def summarize_cnt(cnt, out_file):
                     c_row.append(cnt[key][col])
                 rows.append(c_row)
             else:
-                extra.append("%s\t%d" % (key, cnt[key]))
-        fout.write("\t" + "\t".join(col_headers) + '\n')
+                extra.append("%s\t%s" % (key, str(cnt[key])))
+        try:
+            fout.write("\t" + "\t".join(col_headers) + '\n')
+        except TypeError as e:
+            fout.write("Error making output %s\n" % str(e))
         for name, data in zip(row_headers, rows):
             fout.write("%s\t%s" % (name, "\t".join([str(x) for x in data])) + '\n')
 
+def parse_args(args):
+    """ Make pretty arguments """
+    parser = argparse.ArgumentParser(description='Run many stratifications of SNP/INDEL/SV benchmarking')
+    parser.add_argument("-a", "--base-small", required=True,
+                        help="Small benchmarking base variants")
+    parser.add_argument("-A", "--base-small-hc-region", required=True,
+                        help="High Confidence Regions for small variants")
+    parser.add_argument("-b", "--base-large", required=True,
+                        help="Large benchmarking base variants")
+    parser.add_argument("-B", "--base-large-hc-region", required=True,
+                        help="High Confidence Regions for large variants")
+    parser.add_argument("-c", "--calls", required=True,
+                        help="Comparison variants")
+    args = parser.parse_args()
+    return args
 
-def run():
+def run(args):
+    args = parse_args(args)
     rtg_cmd = "rtg vcfeval -b {base_small} \
         -c {calls} \
         {high_conf} \
         {w_gt} \
         -t /share/datasets/HG001/hg19.sdf --all-records \
         -o results_small{hc}"
-    truvari_cmd = "../truvari.py --base {base_large} \
+    truvari_cmd = "truvari.py --base {base_large} \
         --comp {calls} \
         --giabreport \
         {w_gt} \
@@ -83,15 +134,11 @@ def run():
         {high_conf} \
         -o results_large{hc}"
 
-    bdir = "/home/english/ajtrio/giab_calls"
-    BASE_SMALL = os.path.join(
-        bdir, "HG002_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-22_v.3.3.2_highconf_triophased.vcf.gz")
-    SMALL_HC = os.path.join(
-        bdir, "HG002_GRCh37_GIAB_highconf_CG-IllFB-IllGATKHC-Ion-10X-SOLID_CHROM1-22_v.3.3.2_highconf_noinconsistent.bed")
-    BASE_LARGE = os.path.join(bdir, "HG002_SVs_Tier1_v0.6.vcf.gz")
-    LARGE_HC = os.path.join(bdir, "HG002_SVs_Tier1_v0.6.bed")
-
-    comp = sys.argv[1]
+    BASE_SMALL = args.base_small
+    SMALL_HC = args.base_small_hc_region
+    BASE_LARGE = args.base_large
+    LARGE_HC = args.base_large_hc_region
+    comp = args.calls
     
     print "HC small calls"
     r, o, e, t = cmd_exe(
@@ -152,4 +199,4 @@ def run():
     print o
     
 if __name__ == '__main__':
-    run()
+    run(sys.argv)

@@ -189,7 +189,11 @@ def same_variant_type(entryA, entryB):
     def pull_type(entry):
         ret_type = None
         if "SVTYPE" in entry.INFO:
-            return entry.INFO["SVTYPE"]
+            ret_type = entry.INFO["SVTYPE"]
+            if type(ret_type) is list:
+                logging.warning("SVTYPE is list for entry %s", str(entry))
+                ret_type = ret_type[0]
+            return ret_type
         if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
             # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
             if len(entry.REF) <= len(entry.ALT[0]):
@@ -236,6 +240,8 @@ def get_vcf_boundaries(entry):
     start = entry.start
     if "END" in entry.INFO:
         end = entry.INFO["END"]
+        if type(end) == list:
+            end = end[0]
     else:
         end = entry.end
     if start > end:
@@ -364,7 +370,26 @@ def make_giabreport(args, stats_box):
             for x in key1[main_key1]:
                 o.append(str(cnt[x][y]))
             out.write("\t".join(o) + '\n')
-
+    
+    def bool_counter(keys, docs, out):
+        """
+        For bool valued INFO keys, write summaries of their counts
+        """
+        cnt = defaultdict(Counter)
+        col_names = set()
+        for x in docs:
+            for y in keys:
+                cnt[y][x[y]] += 1
+                col_names.add(x[y])
+        col_names = sorted(list(col_names))
+        out.write(".\t%s\n" % "\t".join(col_names))
+        row_keys = sorted(list(cnt.keys()))
+        for row in row_keys:
+            out.write(row)
+            for col_val in col_names:
+                out.write("\t%d" % cnt[row][col_val])
+            out.write("\n") 
+            
     def collapse_techs(docs):
         """
         Make a new annotation about the presence of techs inplace
@@ -398,6 +423,8 @@ def make_giabreport(args, stats_box):
                            "I+PB", "I+CG", "I+TenX", "PB+CG", "PB+TenX", "CG+TenX",
                            "I", "PB", "CG", "TenX"]}
     rep_keys = {"REPTYPE": ["SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
+    tr_keys = ["TRall", "TRgt100", "TRgt10k", "segdup"]
+    
     gt_keys_proband = {"HG002_GT": ["0/1", "./1", "1/1"]}
     gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
@@ -457,7 +484,11 @@ def make_giabreport(args, stats_box):
     twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
     sum_out.write("FN_HG003.HG004GT\n")
     twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
-
+    
+    sum_out.write("\nTP TandemRepeat Anno\n")
+    bool_counter(tr_keys, tp_base, sum_out)
+    sum_out.write("FN TandemRepeat Anno\n")
+    bool_counter(tr_keys, fn, sum_out)
     sum_out.close()
 
 
@@ -655,13 +686,16 @@ def run(cmdargs):
     if not os.path.exists(args.base):
         logging.error("File %s does not exist" % (args.base))
         exit(1)
-    try:
-        vcfB = vcf.Reader(filename=args.comp)
-        contig = list(vcfB.contigs.keys())[0]
-        contig = vcfB.fetch(contig, 0, 1000)
-    except IOError as e:
-        logging.error("Cannot fetch on %s. Is it sorted/indexed?", args.comp)
+    check_fail = False
+    if not args.comp.endswith(".gz"):
+        check_fail = True
+        logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
+    if not os.path.exists(args.comp + '.tbi'):
+        check_fail = True
+        logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+    if check_fail:
         exit(1)
+    
     vcfB = vcf.Reader(filename=args.comp)
     edit_header(vcfB)
     if args.cSample is not None:
