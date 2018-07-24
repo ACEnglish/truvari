@@ -85,8 +85,9 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
                 continue
             cmp_entries += 1
             lookup[entry.CHROM].addi(start, end, entry.start)
-    except ValueError:
+    except ValueError as e:
         logging.error("Unable to parse comparison vcf file. Please check header definitions")
+        logging.error("Specific error: \"%s\"", str(e))
         exit(1)
     return lookup, n_entries, cmp_entries
 
@@ -660,7 +661,7 @@ def parse_args(args):
 def run(cmdargs):
     args = parse_args(cmdargs)
     if os.path.isdir(args.output):
-        print("Error! Output Directory %s already exists" % args.output)
+        print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
 
     os.mkdir(args.output)
@@ -793,8 +794,10 @@ def run(cmdargs):
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
             # better, it can't use it and we mismatch
+            logging.debug("Comparing %s %s", str(entryA), str(entryB))
             b_key = vcf_to_key(entryB)
             if already_considered[b_key]:
+                logging.debug("No match because comparison call already considered")
                 continue
 
             sizeB = get_vcf_entry_size(entryB)
@@ -847,9 +850,6 @@ def run(cmdargs):
 
             start_distance = astart - bstart
             end_distance = aend - bend
-            logging.debug(str(entryA))
-            logging.debug(str(entryB))
-            logging.debug("%d %d %d", aend, bend, end_distance)
 
             score = get_weighted_score(seq_similarity, size_similarity, ovl_pct)
             # If you put these numbers in an object, it'd be easier to pass round
@@ -862,11 +862,13 @@ def run(cmdargs):
         entryA.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
         if len(thresh_neighbors) > 0:
             thresh_neighbors.sort(reverse=True)
+            logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
             stats_box["TP-base"] += 1
             stats_box["TP-call"] += 1
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
                 match_stdist, match_endist, match_entry = thresh_neighbors[0]
-
+            logging.debug("Best match is %s", str(match_entry))
+            
             entryA.INFO["TruScore"] = match_score
             match_entry.INFO["TruScore"] = match_score
             match_entry.INFO["NumNeighbors"] = num_neighbors
