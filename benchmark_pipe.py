@@ -104,9 +104,9 @@ def summarize_cnt(cnt, out_file):
 def parse_args(args):
     """ Make pretty arguments """
     parser = argparse.ArgumentParser(description=USAGE)
-    parser.add_argument("-a", "--base-small", required=False, default=None
+    parser.add_argument("-a", "--base-small", required=False, default=None,
                         help="Small benchmarking base variants")
-    parser.add_argument("-A", "--base-small-hc-region", required=False, default=None
+    parser.add_argument("-A", "--base-small-hc-region", required=False, default=None,
                         help="High Confidence Regions for small variants")
     parser.add_argument("-b", "--base-large", required=True,
                         help="Large benchmarking base variants")
