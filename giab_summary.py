@@ -26,6 +26,8 @@ PerSizeBin Info/sizecat
 
 in this size regime, the number of calls with 5 techs is 10
 50-100bp : NumTechs : 5 : 10
+
+Use Truvari's --giabreport for a better looking output
 """
 import sys
 import vcf
@@ -92,8 +94,6 @@ for entry in v:
     summary[sizecat]["HG2_GTcons1"][entry.genotype("HG002")["GTcons1"]] += 1
     summary[sizecat]["HG3_GTcons1"][entry.genotype("HG003")["GTcons1"]] += 1
     summary[sizecat]["HG4_GTcons1"][entry.genotype("HG004")["GTcons1"]] += 1
-
-import json
 
 for szc in ["20to49", "50to99", "100to299", "300to999", "gt1000"]:
     if szc not in summary:

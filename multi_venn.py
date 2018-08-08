@@ -9,6 +9,8 @@ Over multiple vcfs, calculate their overlap.
 
 Entries will match if a key of:
     CHROM:POS ID REF ALT matches. Doesn't do anything fancy with Alleles
+
+Useful for intersecting the tp-base.vcf of multiple comparisons
 """
 allVCFs = sys.argv[1:]
 
@@ -45,7 +47,7 @@ print "#Files"
 for i in allVCFs:
     print "#" + i
 
-print "Group\tTotal\tFileName=pct"
+print "Group\tTotal\tFileName=pct_of_files_calls"
 for combo, value in sorted(count_lookup.iteritems(), key=lambda (k,v): (v,k), reverse=True):
     #Key to id
     if value == 0:
