@@ -9,9 +9,9 @@
 
 Structural variant comparison tool for VCFs
 
-Given benchmark and comparsion sets of SVs, calculate the sensitivity/specificity/f-measure.
+Given benchmark and comparsion sets of SVs, calculate the recall, precision, and f-measure.
 
-[Spiral Genetics](https://www.spiralgenetics.com), 2018
+[Spiral Genetics](https:www.spiralgenetics.com)
 
 [Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
@@ -146,10 +146,13 @@ ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_Unio
 Include Bed & VCF Header Contigs 
 --------------------------------
 
-If an `--includebed` is provided, only base and comp calls overlapping the defined regions are used 
-for comparison. This is equilavent to pre-filtering your base/comp calls with:
+If an `--includebed` is provided, only base and comp calls contained within the defined regions are used 
+for comparison. This is similar to pre-filtering your base/comp calls with:
 
 `(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
+
+with the exception that Truvari requires the start and the end to be contained in the same includebed region 
+whereas `bedtools intersect` does not.
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
@@ -159,3 +162,7 @@ More Information
 ----------------
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+
+
+
+<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>

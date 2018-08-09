@@ -540,12 +540,14 @@ class GenomeTree():
 
     def include(self, entry):
         """
-        Returns if this entry spans a region that is to be included
+        Returns if this entry's start and end are within a region that is to be included
+        Here overlap means lies completely within the boundary of an include region
         """
         astart, aend = get_vcf_boundaries(entry)
+        overlaps = self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
         if astart == aend:
-            return self.tree[entry.CHROM].overlaps(astart)
-        return self.tree[entry.CHROM].overlaps(astart, aend)
+            return overlaps
+        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 1
 
 
 def edit_header(my_vcf):
