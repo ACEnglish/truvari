@@ -1,0 +1,15 @@
+{
+    "FP": 0,
+    "f1": 1.0,
+    "base gt filtered": 0,
+    "precision": 1.0,
+    "TP-call": 1,
+    "call cnt": 1,
+    "base size filtered": 0,
+    "FN": 0,
+    "TP-base": 1,
+    "base cnt": 1,
+    "recall": 1.0,
+    "call gt filtered": 0,
+    "call size filtered": 0
+}
