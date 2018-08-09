@@ -146,10 +146,13 @@ ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_Unio
 Include Bed & VCF Header Contigs 
 --------------------------------
 
-If an `--includebed` is provided, only base and comp calls overlapping the defined regions are used 
-for comparison. This is equilavent to pre-filtering your base/comp calls with:
+If an `--includebed` is provided, only base and comp calls contained within the defined regions are used 
+for comparison. This is similar to pre-filtering your base/comp calls with:
 
 `(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
+
+with the exception that Truvari requires the start and the end to be contained in the same includebed region 
+whereas `bedtools intersect` does not.
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 

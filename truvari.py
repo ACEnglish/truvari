@@ -547,7 +547,7 @@ class GenomeTree():
         overlaps = self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
         if astart == aend:
             return overlaps
-        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 0
+        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 1
 
 
 def edit_header(my_vcf):
