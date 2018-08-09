@@ -9,9 +9,9 @@
 
 Structural variant comparison tool for VCFs
 
-Given benchmark and comparsion sets of SVs, calculate the sensitivity/specificity/f-measure.
+Given benchmark and comparsion sets of SVs, calculate the recall, precision, and f-measure.
 
-[Spiral Genetics](https://www.spiralgenetics.com), 2018
+<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>
 
 [Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
