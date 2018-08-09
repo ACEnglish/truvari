@@ -11,7 +11,7 @@ Structural variant comparison tool for VCFs
 
 Given benchmark and comparsion sets of SVs, calculate the recall, precision, and f-measure.
 
-<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>
+[Spiral Genetics](https:www.spiralgenetics.com)
 
 [Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
@@ -159,3 +159,7 @@ More Information
 ----------------
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+
+
+
+<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>
