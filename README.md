@@ -59,7 +59,7 @@ For each BaseCall:
       Add CompCall to list of Neighbors
   Sort list of Neighbors by TruScore ((2*sim + 1*size + 1*ovl) / 3.0)
   Take CompCall with highest TruScore and BaseCall as TPs
-  Only use a CompCall once
+  Only use a CompCall once if --multimatch
   If no neighbors: BaseCall is FN
 For each CompCall:
   If not used: mark as FP
@@ -144,7 +144,7 @@ GIAB SV releases.
 ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
 
 Include Bed & VCF Header Contigs 
------------
+--------------------------------
 
 If an `--includebed` is provided, only base and comp calls overlapping the defined regions are used 
 for comparison. This is equilavent to pre-filtering your base/comp calls with:
@@ -154,3 +154,8 @@ for comparison. This is equilavent to pre-filtering your base/comp calls with:
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
 statistics and will not be present in any output vcfs.
+
+More Information
+----------------
+
+Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).

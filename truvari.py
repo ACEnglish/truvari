@@ -92,15 +92,16 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     return lookup, n_entries, cmp_entries
 
 
-def vcf_to_key(entry):
+def vcf_to_key(source,  entry):
     """
-    Turn a vcf entry into a hashable key
-    chr:pos:ref:alt
+    Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
+    setsource.chr:pos:ref:alt
     helpful for not re-using variants
-    BUG: if a caller redundantly calls a variant. It will be collapsed
+    BUG: if a caller redundantly calls a variant exactly the same. It will be collapsed
+    the
     """
     start, end = get_vcf_boundaries(entry)
-    return "%s:%d-%d(%s|%s)" % (entry.CHROM, start, end, entry.REF, str(entry.ALT[0]))
+    return "%s.%s:%d-%d(%s|%s)" % (source, entry.CHROM, start, end, entry.REF, str(entry.ALT[0]))
 
 
 def var_sizesim(sizeA, sizeB):
@@ -371,7 +372,7 @@ def make_giabreport(args, stats_box):
             for x in key1[main_key1]:
                 o.append(str(cnt[x][y]))
             out.write("\t".join(o) + '\n')
-    
+
     def bool_counter(keys, docs, out):
         """
         For bool valued INFO keys, write summaries of their counts
@@ -389,8 +390,8 @@ def make_giabreport(args, stats_box):
             out.write(row)
             for col_val in col_names:
                 out.write("\t%d" % cnt[row][col_val])
-            out.write("\n") 
-            
+            out.write("\n")
+
     def collapse_techs(docs):
         """
         Make a new annotation about the presence of techs inplace
@@ -425,7 +426,7 @@ def make_giabreport(args, stats_box):
                            "I", "PB", "CG", "TenX"]}
     rep_keys = {"REPTYPE": ["SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
     tr_keys = ["TRall", "TRgt100", "TRgt10k", "segdup"]
-    
+
     gt_keys_proband = {"HG002_GT": ["0/1", "./1", "1/1"]}
     gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
@@ -485,7 +486,7 @@ def make_giabreport(args, stats_box):
     twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
     sum_out.write("FN_HG003.HG004GT\n")
     twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
-    
+
     sum_out.write("\nTP TandemRepeat Anno\n")
     bool_counter(tr_keys, tp_base, sum_out)
     sum_out.write("FN TandemRepeat Anno\n")
@@ -652,7 +653,7 @@ def parse_args(args):
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--multimatch", action="store_true", default=False,
-                        help="Allow base calls to match multiple (%(default)s)")
+                        help="Allow base calls to match multiple comparison calls (%(default)s)")
 
     args = parser.parse_args(args)
     if sys.version_info[0] >= 3 and args.use_swalign:
@@ -698,7 +699,7 @@ def run(cmdargs):
         logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
     if check_fail:
         exit(1)
-    
+
     vcf_comp = vcf.Reader(filename=args.comp)
     edit_header(vcf_comp)
     if args.cSample is not None:
@@ -750,37 +751,37 @@ def run(cmdargs):
     matched_calls = defaultdict(bool)
     # for variant A - do var_match in B
     logging.info("Matching base to calls")
-    for pbarcnt, entry_base in enumerate(regions.iterate(vcf_base)):
+    for pbarcnt, base_entry in enumerate(regions.iterate(vcf_base)):
         bar.update(pbarcnt)
-        sizeA = get_vcf_entry_size(entry_base)
+        sizeA = get_vcf_entry_size(base_entry)
 
         if sizeA < args.sizemin or sizeA > args.sizemax:
             stats_box["base size filtered"] += 1
-            b_filt.write_record(entry_base)
+            b_filt.write_record(base_entry)
             continue
-        if args.no_ref and not entry_base.genotype(sampleA).is_variant:
+        if args.no_ref and not base_entry.genotype(sampleA).is_variant:
             stats_box["base gt filtered"] += 1
-            b_filt.write_record(entry_base)
+            b_filt.write_record(base_entry)
             continue
 
-        if args.passonly and len(entry_base.FILTER):
+        if args.passonly and len(base_entry.FILTER):
             continue
         stats_box["base cnt"] += 1
 
-        fetch_start, fetch_end = fetch_coords(span_lookup, entry_base, args.refdist)
+        fetch_start, fetch_end = fetch_coords(span_lookup, base_entry, args.refdist)
         if fetch_start is None and fetch_end is None:
             # No overlaps, don't even bother checking
-            entry_base.INFO["NumNeighbors"] = 0
-            entry_base.INFO["NumThresholdNeighbors"] = 0
+            base_entry.INFO["NumNeighbors"] = 0
+            base_entry.INFO["NumThresholdNeighbors"] = 0
             stats_box["FN"] += 1
-            fn_out.write_record(entry_base)
+            fn_out.write_record(base_entry)
             continue
 
         # IntervalTree can give boundaries past REFDIST in the case of Inversions where start>end
         # We still need to fetch on the expanded boundaries so we can test them, but
         #   we need to filter calls that otherwise shouldn't be considered
         #  see the bstart/bend below
-        astart, aend = get_vcf_boundaries(entry_base)
+        astart, aend = get_vcf_boundaries(base_entry)
 
         thresh_neighbors = []
         num_neighbors = 0
@@ -790,62 +791,62 @@ def run(cmdargs):
         # more importantly, we'd also have race conditions for when it's been used...
         # even if already_considered was atomic, you may get diff answers
         # +- 1 just to be safe because why not...
-        a_key = vcf_to_key(entry_base)
-        for entry_comp in vcf_comp.fetch(entry_base.CHROM, max(0, fetch_start - 1), fetch_end + 1):
+        for comp_entry in vcf_comp.fetch(base_entry.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
             # better, it can't use it and we mismatch -- UPDATE: by default we don't enforce one-match
-            logging.debug("Comparing %s %s", str(entry_base), str(entry_comp))
-            b_key = vcf_to_key(entry_comp)
+            logging.debug("Comparing %s %s", str(base_entry), str(comp_entry))
+            b_key = vcf_to_key('c', comp_entry)
             if not args.multimatch and matched_calls[b_key]:
                 logging.debug("No match because comparison call already matched")
                 continue
 
-            sizeB = get_vcf_entry_size(entry_comp)
+            sizeB = get_vcf_entry_size(comp_entry)
             if sizeB < args.sizefilt:
                 continue
 
             # Double ensure OVERLAP - there's a weird edge case where fetch with
             # the interval tree can return non-overlaps
-            bstart, bend = get_vcf_boundaries(entry_comp)
+            bstart, bend = get_vcf_boundaries(comp_entry)
             if not overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
                 continue
-            if not regions.include(entry_comp):
+            if not regions.include(comp_entry):
                 continue
             # Someone in the Base call's neighborhood, we'll see if it passes comparisons
             num_neighbors += 1
 
-            if args.no_ref and not entry_comp.genotype(sampleB).is_variant:
-                logging.debug("%s is hom-ref", str(entry_comp))
+            if args.no_ref and not comp_entry.genotype(sampleB).is_variant:
+                logging.debug("%s is hom-ref", str(comp_entry))
                 continue
 
-            if args.gtcomp and not gt_comp(entry_base, entry_comp, sampleA, sampleB):
-                logging.debug("%s and %s are not the same genotype", str(entry_base), str(entry_comp))
+            if args.gtcomp and not gt_comp(base_entry, comp_entry, sampleA, sampleB):
+                logging.debug("%s and %s are not the same genotype", str(base_entry), str(comp_entry))
                 continue
 
-            if not args.typeignore and not same_variant_type(entry_base, entry_comp):
-                logging.debug("%s and %s are not the same SVTYPE", str(entry_base), str(entry_comp))
+            if not args.typeignore and not same_variant_type(base_entry, comp_entry):
+                logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
                 continue
 
             size_similarity, size_diff = var_sizesim(sizeA, sizeB)
             if size_similarity < args.pctsize:
-                logging.debug("%s and %s size similarity is too low (%f)", str(entry_base), str(entry_comp), size_similarity)
+                logging.debug("%s and %s size similarity is too low (%f)", str(
+                    base_entry), str(comp_entry), size_similarity)
                 continue
 
             ovl_pct = get_rec_ovl(astart, aend, bstart, bend)
             if ovl_pct < args.pctovl:
-                logging.debug("%s and %s overlap percent is too low (%f)", str(entry_base), str(entry_comp), ovl_pct)
+                logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
                 continue
 
             if args.pctsim > 0:
                 if args.use_swalign:
-                    seq_similarity = var_pctsim_sw(entry_base, entry_comp)
+                    seq_similarity = var_pctsim_sw(base_entry, comp_entry)
                 else:
-                    seq_similarity = var_pctsim_lev(entry_base, entry_comp)
+                    seq_similarity = var_pctsim_lev(base_entry, comp_entry)
                 if seq_similarity < args.pctsim:
                     logging.debug("%s and %s sequence similarity is too low (%f)", str(
-                        entry_base), str(entry_comp), seq_similarity)
+                        base_entry), str(comp_entry), seq_similarity)
                     continue
             else:
                 seq_similarity = 0
@@ -857,48 +858,55 @@ def run(cmdargs):
             # If you put these numbers in an object, it'd be easier to pass round
             # You'd just need to make it sortable
             thresh_neighbors.append(
-                (score, seq_similarity, size_similarity, ovl_pct, size_diff, start_distance, end_distance, entry_comp))
+                (score, seq_similarity, size_similarity, ovl_pct, size_diff, start_distance, end_distance, comp_entry))
 
         # reporting the best match
-        entry_base.INFO["NumNeighbors"] = num_neighbors
-        entry_base.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+        base_entry.INFO["NumNeighbors"] = num_neighbors
+        base_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
         if len(thresh_neighbors) > 0:
             thresh_neighbors.sort(reverse=True)
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
-            stats_box["TP-base"] += 1
-            stats_box["TP-call"] += 1
+
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
                 match_stdist, match_endist, match_entry = thresh_neighbors[0]
             logging.debug("Best match is %s", str(match_entry))
-            
-            entry_base.INFO["TruScore"] = match_score
+
+            base_entry.INFO["TruScore"] = match_score
             match_entry.INFO["TruScore"] = match_score
             match_entry.INFO["NumNeighbors"] = num_neighbors
             match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
 
-            # Don't use it twice
-            matched_calls[vcf_to_key(match_entry)] = True
+            # Don't double count calls was found before
+            b_key = vcf_to_key('b', base_entry)
+            c_key = vcf_to_key('c', match_entry)
+            if not matched_calls[b_key]:
+                stats_box["TP-base"] += 1
+            if not matched_calls[c_key]:
+                stats_box["TP-call"] += 1
+            # Mark the call for multimatch checking
+            matched_calls[b_key] = True
+            matched_calls[c_key] = True
 
-            annotate_tp(entry_base, *thresh_neighbors[0])
+            annotate_tp(base_entry, *thresh_neighbors[0])
             annotate_tp(match_entry, *thresh_neighbors[0])
 
-            tpb_out.write_record(entry_base)
+            tpb_out.write_record(base_entry)
             tpc_out.write_record(match_entry)
-            logging.debug("Matching %s and %s", str(entry_base), str(match_entry))
+            logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
             stats_box["FN"] += 1
-            fn_out.write_record(entry_base)
+            fn_out.write_record(base_entry)
 
     bar.finish()
 
     # Get a results peek
     do_stats_math = True
-    if stats_box["TP-call"] == 0 and stats_box["FN"] == 0:
+    if stats_box["TP-base"] == 0 and stats_box["FN"] == 0:
         logging.warning("No TP or FN calls in base!")
         do_stats_math = False
     else:
-        logging.info("Results peek: %d TP %d FN %.2f%% Recall", stats_box["TP-call"], stats_box["FN"],
-                     100 * (float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FN"])))
+        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", stats_box["TP-base"], stats_box["FN"],
+                     100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
 
     logging.info("Parsing FPs from calls")
     bar = setup_progressbar(num_entries_b)
@@ -910,7 +918,7 @@ def run(cmdargs):
         if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
-        if matched_calls[vcf_to_key(entry)]:
+        if matched_calls[vcf_to_key('c', entry)]:
             continue
         size = get_vcf_entry_size(entry)
         if size < args.sizemin or size > args.sizemax:
@@ -938,7 +946,7 @@ def run(cmdargs):
         # precision
         stats_box["precision"] = float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FP"])
         # recall
-        stats_box["recall"] = float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FN"])
+        stats_box["recall"] = float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])
     else:
         stats_box["precision"] = 0
         stats_box["recall"] = 0
