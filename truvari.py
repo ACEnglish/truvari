@@ -143,7 +143,7 @@ def var_pctsim_lev(entryA, entryB):
         return 1
     elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
         return 0
-
+    allele1, allele2 = create_haplotype(
     if len(entryA.REF) < len(entryA.ALT[0]):
         return Levenshtein.ratio(str(entryA.ALT[0]), str(entryB.ALT[0]))
     return Levenshtein.ratio(str(entryA.REF), str(entryB.REF))
@@ -613,6 +613,8 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
+    parser.add_argument("--reference", type=str, required=False, default=None,
+                        help="If provided, compare haplotypes instead of just alleles")
     parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -843,9 +845,10 @@ def run(cmdargs):
 
             if args.pctsim > 0:
                 if args.use_swalign:
-                    seq_similarity = var_pctsim_sw(base_entry, comp_entry)
+                    seq_similarity = var_pctsim_sw(base_entry, comp_entry, args.reference)
                 else:
-                    seq_similarity = var_pctsim_lev(base_entry, comp_entry)
+                    # TODO: change this so I only build the base haplotype once
+                    seq_similarity = var_pctsim_lev(base_entry, comp_entry, args.reference)
                 if seq_similarity < args.pctsim:
                     logging.debug("%s and %s sequence similarity is too low (%f)", str(
                         base_entry), str(comp_entry), seq_similarity)

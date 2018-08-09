@@ -158,6 +158,14 @@ If an `--includebed` is not provided, the comparison is restricted to only the c
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
 statistics and will not be present in any output vcfs.
 
+
+Comparing Haplotypes instead of Alleles
+---------------------------------------
+
+By default, Truvari will directly compare the sequence in the REF/ALT columns of base/comparison vcf entries.
+However, this requires that the variants found are represented the same way. See [wiki](wiki entry) for details.
+To better compare the variants by looking at the haplotype changes over their region, provide a `--reference`.
+
 More Information
 ----------------
 
