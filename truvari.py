@@ -544,7 +544,10 @@ class GenomeTree():
         Here overlap means lies completely within the boundary of an include region
         """
         astart, aend = get_vcf_boundaries(entry)
-        return self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
+        overlaps = self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
+        if astart == aend:
+            return overlaps
+        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 0
 
 
 def edit_header(my_vcf):
