@@ -13,8 +13,7 @@ from collections import defaultdict, Counter
 
 # External dependencies
 import vcf
-if sys.version_info[0] < 3:
-    import swalign
+import pyfaidx
 import Levenshtein
 import progressbar
 from intervaltree import IntervalTree
@@ -130,7 +129,22 @@ def do_swalign(seq1, seq2, match=2, mismatch=-1, gap_penalty=-2, gap_extension_d
     return aln
 
 
-def var_pctsim_lev(entryA, entryB):
+def create_haplotype(entryA, entryB, ref):
+    """
+    Turn two entries into their haplotype sequence for comparison
+    """
+    a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0])
+    a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0])
+
+    start = min(a1_start, a2_start)
+    end = max(a1_end, a2_end)
+
+    hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
+    hap2_seq = ref.get_seq(a2_chrom, start + 1, a2_start).seq + a2_seq + ref.get_seq(a2_chrom, a2_end + 1, end).seq
+    return str(hap1_seq), str(hap2_seq)
+
+
+def var_pctsim_lev(entryA, entryB, ref):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
     to pct sequence similarity
@@ -143,15 +157,14 @@ def var_pctsim_lev(entryA, entryB):
         return 1
     elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
         return 0
-    allele1, allele2 = create_haplotype(
-    if len(entryA.REF) < len(entryA.ALT[0]):
-        return Levenshtein.ratio(str(entryA.ALT[0]), str(entryB.ALT[0]))
-    return Levenshtein.ratio(str(entryA.REF), str(entryB.REF))
+    allele1, allele2 = create_haplotype(entryA, entryB, ref)
+    return Levenshtein.ratio(allele1, allele2)
 
 
 def var_pctsim_sw(entryA, entryB):
     """
     Calculates pctsim with swalign instead of Levenshtein
+    No longer used
     """
     # Shortcut to save compute
     if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
@@ -613,8 +626,8 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
-    parser.add_argument("--reference", type=str, required=False, default=None,
-                        help="If provided, compare haplotypes instead of just alleles")
+    parser.add_argument("-f", "--reference", type=str, required=True, default=None,
+                        help="Indexed fasta used to call variants")
     parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -631,9 +644,6 @@ def parse_args(args):
                         help="Minimum pct reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-    thresg.add_argument("--use-swalign", action="store_true", default=False,
-                        help=("Use SmithWaterman to compute sequence similarity "
-                              "instead of Levenshtein ratio. WARNING - much slower (%(default)s)"))
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -660,8 +670,6 @@ def parse_args(args):
                         help="Allow base calls to match multiple comparison calls (%(default)s)")
 
     args = parser.parse_args(args)
-    if sys.version_info[0] >= 3 and args.use_swalign:
-        sys.stderr.write("swalign not compatible with Python3.*")
     return args
 
 
@@ -670,7 +678,8 @@ def run(cmdargs):
     if os.path.isdir(args.output):
         print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
-
+    
+    reference = pyfaidx.Fasta(args.reference)
     os.mkdir(args.output)
 
     setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
@@ -844,11 +853,7 @@ def run(cmdargs):
                 continue
 
             if args.pctsim > 0:
-                if args.use_swalign:
-                    seq_similarity = var_pctsim_sw(base_entry, comp_entry, args.reference)
-                else:
-                    # TODO: change this so I only build the base haplotype once
-                    seq_similarity = var_pctsim_lev(base_entry, comp_entry, args.reference)
+                seq_similarity = var_pctsim_lev(base_entry, comp_entry, reference)
                 if seq_similarity < args.pctsim:
                     logging.debug("%s and %s sequence similarity is too low (%f)", str(
                         base_entry), str(comp_entry), seq_similarity)
