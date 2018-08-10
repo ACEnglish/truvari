@@ -114,6 +114,10 @@ def parse_args(args):
                         help="High Confidence Regions for large variants")
     parser.add_argument("-c", "--calls", required=True,
                         help="Comparison variants")
+    parser.add_argument("-t", "--rtg_ref", required=False,
+                        help="RTG indexed reference")
+    parser.add_argument("-r", "--reference", required=True,
+                        help="samtools faidx indexed reference")
     args = parser.parse_args()
     return args
 
@@ -123,15 +127,16 @@ def run(args):
         -c {calls} \
         {high_conf} \
         {w_gt} \
-        -t /share/datasets/HG001/hg19.sdf --all-records \
-        -o results_small{hc}"
+        -t %s --all-records \
+        -o results_small{hc}" % args.rtg_ref
     truvari_cmd = "truvari.py --base {base_large} \
         --comp {calls} \
+        --reference %s \
         --giabreport \
         {w_gt} \
         {passonly} \
         {high_conf} \
-        -o results_large{hc}"
+        -o results_large{hc}" % args.reference
 
     BASE_SMALL = args.base_small
     SMALL_HC = args.base_small_hc_region
@@ -139,7 +144,7 @@ def run(args):
     LARGE_HC = args.base_large_hc_region
     comp = args.calls
     
-    if BASE_SMALL is not None and SMALL_HC is not None:
+    if args.rtg_ref is not None and BASE_SMALL is not None and SMALL_HC is not None:
         print "HC small calls"
         r, o, e, t = cmd_exe(
             rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc", w_gt="--squash-ploidy"))
@@ -168,7 +173,7 @@ def run(args):
         gt_cnt = do_cnt("results_small_hc_gt")
         summarize_cnt(gt_cnt, "results_small_hc_gt/by_type_cnt.txt")
     else:
-        print "Skipping analysis of small events. Provide -a and -A to run rtg"
+        print "Skipping analysis of small events. Provide -a and -A and -t to run rtg"
     
     #checking SVs
     print "HC large calls"

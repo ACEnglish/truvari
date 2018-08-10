@@ -20,9 +20,7 @@ Installation
 
 Truvari uses Python 2 or 3 and requires the following modules:
 
-  $ pip install pyvcf python-Levenshtein swalign intervaltree progressbar2 pysam
-
-Note that `--use-swalign` is not compatible with Python 3.
+  $ pip install pyvcf python-Levenshtein intervaltree progressbar2 pysam pyfaidx
 
 Quick start
 ===========
@@ -157,6 +155,19 @@ whereas `bedtools intersect` does not.
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
 statistics and will not be present in any output vcfs.
+
+
+Comparing Haplotype Sequences of Variants
+---------------------------------------
+
+To compare the sequence similarity, biuld the haplotypes over the range of min(call starts)-max(call ends) and
+build the sequence change from the variants. For example:
+
+``` python
+hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
+```
+
+Where `a1_seq1` is the longer of the REF or ALT allele.
 
 More Information
 ----------------
