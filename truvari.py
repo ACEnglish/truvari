@@ -133,8 +133,12 @@ def create_haplotype(entryA, entryB, ref):
     """
     Turn two entries into their haplotype sequence for comparison
     """
-    a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0])
-    a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0])
+    if len(entryA.ALT[0]) >= len(entryA.REF):
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0]).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0]).upper()
+    else:
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF  # str(entryA.ALT[0]).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF  # str(entryB.ALT[0]).upper()
 
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
@@ -678,7 +682,7 @@ def run(cmdargs):
     if os.path.isdir(args.output):
         print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
-    
+
     reference = pyfaidx.Fasta(args.reference)
     os.mkdir(args.output)
 

@@ -157,12 +157,17 @@ header. Therefore, any comparison calls on contigs not in the base calls will no
 statistics and will not be present in any output vcfs.
 
 
-Comparing Haplotypes instead of Alleles
+Comparing Haplotype Sequences of Variants
 ---------------------------------------
 
-By default, Truvari will directly compare the sequence in the REF/ALT columns of base/comparison vcf entries.
-However, this requires that the variants found are represented the same way. See [wiki](wiki entry) for details.
-To better compare the variants by looking at the haplotype changes over their region, provide a `--reference`.
+To compare the sequence similarity, biuld the haplotypes over the range of min(call starts)-max(call ends) and
+build the sequence change from the variants. For example:
+
+``` python
+hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
+```
+
+Where `a1_seq1` is the longer of the REF or ALT allele.
 
 More Information
 ----------------
