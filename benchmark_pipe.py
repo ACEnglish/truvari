@@ -118,6 +118,8 @@ def parse_args(args):
                         help="RTG indexed reference")
     parser.add_argument("-r", "--reference", required=True,
                         help="samtools faidx indexed reference")
+    parser.add_argument("-s", "--simple", action="store_true", default=False,
+                        help="Only create the small/large hc results")
     args = parser.parse_args()
     return args
 
@@ -151,27 +153,29 @@ def run(args):
         if r != 0:
             print r, o, e, t
         print o
-    
-        print "All small calls"
-        r, o, e, c = cmd_exe(rtg_cmd.format(base_small=BASE_SMALL, high_conf="", calls=comp, hc="_all",
-                                            w_gt="--squash-ploidy"))
-        if r != 0:
-            print r, o, e, t
-        print o
-    
-        print "HC small calls w/GT"
-        r, o, e, t = cmd_exe(
-            rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc_gt", w_gt=""))
-        if r != 0:
-            print r, o, e, c
-        print o
-        
         hc_cnt = do_cnt("results_small_hc")
-        summarize_cnt(hc_cnt, "results_small_hc/by_type_cnt.txt")
-        all_cnt = do_cnt("results_small_all")
-        summarize_cnt(all_cnt, "results_small_all/by_type_cnt.txt")
-        gt_cnt = do_cnt("results_small_hc_gt")
-        summarize_cnt(gt_cnt, "results_small_hc_gt/by_type_cnt.txt")
+        summarize_cnt(hc_cnt, "results_small_hc/by_type_cnt.txt")       
+
+        if not args.simple:
+            print "All small calls"
+            r, o, e, c = cmd_exe(rtg_cmd.format(base_small=BASE_SMALL, high_conf="", calls=comp, hc="_all",
+                                            w_gt="--squash-ploidy"))
+            if r != 0:
+                print r, o, e, t
+            print o
+
+            all_cnt = do_cnt("results_small_all")
+            summarize_cnt(all_cnt, "results_small_all/by_type_cnt.txt")
+
+            print "HC small calls w/GT"
+            r, o, e, t = cmd_exe(
+                rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc_gt", w_gt=""))
+            if r != 0:
+                print r, o, e, c
+            print o
+
+            gt_cnt = do_cnt("results_small_hc_gt")
+            summarize_cnt(gt_cnt, "results_small_hc_gt/by_type_cnt.txt")
     else:
         print "Skipping analysis of small events. Provide -a and -A and -t to run rtg"
     
@@ -182,28 +186,28 @@ def run(args):
     if r != 0:
         print r, o, e, t
     print o
-
-    print "HC large calls w/ loose cmp"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
-                                            hc="_hc_loose", w_gt="", passonly="--passonly --refdist 2000 --pctsim 0"))
-    if r != 0:
-        print r, o, e, t
-    print o
-
-
-    print "All large calls"
-    r, o, e, c = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="", calls=comp, hc="_all", w_gt="",
-                passonly=""))
-    if r != 0:
-        print r, o, e, t
-    print o
     
-    print "HC large calls w/GT"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
+    if not args.simple:
+        print "HC large calls w/ loose cmp"
+        r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
+                                            hc="_hc_loose", w_gt="", passonly="--passonly --refdist 2000 --pctsim 0"))
+        if r != 0:
+            print r, o, e, t
+        print o
+
+        print "All large calls"
+        r, o, e, c = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="", calls=comp, hc="_all", w_gt="",
+                passonly=""))
+        if r != 0:
+            print r, o, e, t
+        print o
+    
+        print "HC large calls w/GT"
+        r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
                                             hc="_hc_gt", w_gt="--gtcomp", passonly="--passonly"))
-    if r != 0:
-        print r, o, e, t
-    print o
+        if r != 0:
+            print r, o, e, t
+        print o
     
 if __name__ == '__main__':
     run(sys.argv)
