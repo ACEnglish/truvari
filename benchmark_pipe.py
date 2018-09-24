@@ -147,9 +147,10 @@ def run(args):
     comp = args.calls
     
     if args.rtg_ref is not None and BASE_SMALL is not None and SMALL_HC is not None:
-        print "HC small calls"
-        r, o, e, t = cmd_exe(
-            rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc", w_gt="--squash-ploidy"))
+        m_cmd = rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc", w_gt="--squash-ploidy --sample HG002")
+        print "HC small calls\n%s" % m_cmd
+        r, o, e, t = cmd_exe(m_cmd)
+            
         if r != 0:
             print r, o, e, t
         print o
@@ -180,9 +181,11 @@ def run(args):
         print "Skipping analysis of small events. Provide -a and -A and -t to run rtg"
     
     #checking SVs
-    print "HC large calls"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
-                                            hc="_hc", w_gt="", passonly="--passonly"))
+    m_cmd = truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp, 
+                                hc="_hc", w_gt="", passonly="--passonly")
+
+    print "HC large calls\n%s" % m_cmd
+    r, o, e, t = cmd_exe(m_cmd)
     if r != 0:
         print r, o, e, t
     print o
