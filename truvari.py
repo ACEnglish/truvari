@@ -781,7 +781,7 @@ def run(cmdargs):
             b_filt.write_record(base_entry)
             continue
 
-        if args.passonly and (base_entry.FILTER is None or len(base_entry.FILTER)):
+        if args.passonly and (base_entry.FILTER is not None and len(base_entry.FILTER)):
             continue
 
         stats_box["base cnt"] += 1
