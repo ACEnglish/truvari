@@ -13,8 +13,7 @@ from collections import defaultdict, Counter
 
 # External dependencies
 import vcf
-if sys.version_info[0] < 3:
-    import swalign
+import pyfaidx
 import Levenshtein
 import progressbar
 from intervaltree import IntervalTree
@@ -92,15 +91,16 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     return lookup, n_entries, cmp_entries
 
 
-def vcf_to_key(entry):
+def vcf_to_key(source,  entry):
     """
-    Turn a vcf entry into a hashable key
-    chr:pos:ref:alt
+    Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
+    setsource.chr:pos:ref:alt
     helpful for not re-using variants
-    BUG: if a caller redundantly calls a variant. It will be collapsed
+    BUG: if a caller redundantly calls a variant exactly the same. It will be collapsed
+    the
     """
     start, end = get_vcf_boundaries(entry)
-    return "%s:%d-%d(%s|%s)" % (entry.CHROM, start, end, entry.REF, str(entry.ALT[0]))
+    return "%s.%s:%d-%d(%s|%s)" % (source, entry.CHROM, start, end, entry.REF, str(entry.ALT[0]))
 
 
 def var_sizesim(sizeA, sizeB):
@@ -119,17 +119,27 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     return entryA.genotype(sampleA)["GT"] == entryB.genotype(sampleB)["GT"]
 
 
-def do_swalign(seq1, seq2, match=2, mismatch=-1, gap_penalty=-2, gap_extension_decay=0.5):
+
+def create_haplotype(entryA, entryB, ref):
     """
-    Align two sequences using swalign
+    Turn two entries into their haplotype sequence for comparison
     """
-    scoring = swalign.NucleotideScoringMatrix(match, mismatch)
-    sw = swalign.LocalAlignment(scoring, gap_penalty=gap_penalty, gap_extension_decay=gap_extension_decay)
-    aln = sw.align(seq1, seq2)
-    return aln
+    if len(entryA.ALT[0]) >= len(entryA.REF):
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0]).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0]).upper()
+    else:
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF  # str(entryA.ALT[0]).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF  # str(entryB.ALT[0]).upper()
+
+    start = min(a1_start, a2_start)
+    end = max(a1_end, a2_end)
+
+    hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
+    hap2_seq = ref.get_seq(a2_chrom, start + 1, a2_start).seq + a2_seq + ref.get_seq(a2_chrom, a2_end + 1, end).seq
+    return str(hap1_seq), str(hap2_seq)
 
 
-def var_pctsim_lev(entryA, entryB):
+def var_pctsim_lev(entryA, entryB, ref):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
     to pct sequence similarity
@@ -142,28 +152,8 @@ def var_pctsim_lev(entryA, entryB):
         return 1
     elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
         return 0
-
-    if len(entryA.REF) < len(entryA.ALT[0]):
-        return Levenshtein.ratio(str(entryA.ALT[0]), str(entryB.ALT[0]))
-    return Levenshtein.ratio(str(entryA.REF), str(entryB.REF))
-
-
-def var_pctsim_sw(entryA, entryB):
-    """
-    Calculates pctsim with swalign instead of Levenshtein
-    """
-    # Shortcut to save compute
-    if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
-        return 1.0
-    ref_aln = do_swalign(str(entryA.REF), str(entryB.REF))
-    alt_aln = do_swalign(str(entryA.ALT[0]), str(entryB.ALT[0]))
-    mat_tot = ref_aln.matches + alt_aln.matches
-    mis_tot = ref_aln.mismatches + ref_aln.mismatches
-    denom = float(mis_tot + mat_tot)
-    if denom == 0:
-        return 0
-    ident = mat_tot / denom
-    return ident
+    allele1, allele2 = create_haplotype(entryA, entryB, ref)
+    return Levenshtein.ratio(allele1, allele2)
 
 
 def overlaps(s1, e1, s2, e2):
@@ -371,7 +361,7 @@ def make_giabreport(args, stats_box):
             for x in key1[main_key1]:
                 o.append(str(cnt[x][y]))
             out.write("\t".join(o) + '\n')
-    
+
     def bool_counter(keys, docs, out):
         """
         For bool valued INFO keys, write summaries of their counts
@@ -389,8 +379,8 @@ def make_giabreport(args, stats_box):
             out.write(row)
             for col_val in col_names:
                 out.write("\t%d" % cnt[row][col_val])
-            out.write("\n") 
-            
+            out.write("\n")
+
     def collapse_techs(docs):
         """
         Make a new annotation about the presence of techs inplace
@@ -425,7 +415,7 @@ def make_giabreport(args, stats_box):
                            "I", "PB", "CG", "TenX"]}
     rep_keys = {"REPTYPE": ["SIMPLEDEL", "SIMPLEINS", "DUP", "SUBSDEL", "SUBSINS", "CONTRAC"]}
     tr_keys = ["TRall", "TRgt100", "TRgt10k", "segdup"]
-    
+
     gt_keys_proband = {"HG002_GT": ["0/1", "./1", "1/1"]}
     gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
@@ -485,7 +475,7 @@ def make_giabreport(args, stats_box):
     twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
     sum_out.write("FN_HG003.HG004GT\n")
     twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
-    
+
     sum_out.write("\nTP TandemRepeat Anno\n")
     bool_counter(tr_keys, tp_base, sum_out)
     sum_out.write("FN TandemRepeat Anno\n")
@@ -539,12 +529,14 @@ class GenomeTree():
 
     def include(self, entry):
         """
-        Returns if this entry spans a region that is to be included
+        Returns if this entry's start and end are within a region that is to be included
+        Here overlap means lies completely within the boundary of an include region
         """
         astart, aend = get_vcf_boundaries(entry)
+        overlaps = self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
         if astart == aend:
-            return self.tree[entry.CHROM].overlaps(astart)
-        return self.tree[entry.CHROM].overlaps(astart, aend)
+            return overlaps
+        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 1
 
 
 def edit_header(my_vcf):
@@ -610,6 +602,8 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
+    parser.add_argument("-f", "--reference", type=str, required=True, default=None,
+                        help="Indexed fasta used to call variants")
     parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -626,9 +620,6 @@ def parse_args(args):
                         help="Minimum pct reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-    thresg.add_argument("--use-swalign", action="store_true", default=False,
-                        help=("Use SmithWaterman to compute sequence similarity "
-                              "instead of Levenshtein ratio. WARNING - much slower (%(default)s)"))
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -651,10 +642,10 @@ def parse_args(args):
                         help="Don't include 0/0 or ./. GT calls (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
+    filteg.add_argument("--multimatch", action="store_true", default=False,
+                        help="Allow base calls to match multiple comparison calls (%(default)s)")
 
     args = parser.parse_args(args)
-    if sys.version_info[0] >= 3 and args.use_swalign:
-        sys.stderr.write("swalign not compatible with Python3.*")
     return args
 
 
@@ -664,6 +655,7 @@ def run(cmdargs):
         print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
 
+    reference = pyfaidx.Fasta(args.reference)
     os.mkdir(args.output)
 
     setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
@@ -671,14 +663,14 @@ def run(cmdargs):
 
     ref_gts = ["0/0", "0|0", "./.", ".|."]
 
-    vcfA = vcf.Reader(filename=args.base)
+    vcf_base = vcf.Reader(filename=args.base)
     if args.bSample is not None:
         sampleA = args.bSample
-        if sampleA not in vcfA.samples:
-            logging.error("Sample %s not found in vcf (%s)", sampleA, vcfA.samples)
+        if sampleA not in vcf_base.samples:
+            logging.error("Sample %s not found in vcf (%s)", sampleA, vcf_base.samples)
             exit(1)
     else:
-        sampleA = vcfA.samples[0]
+        sampleA = vcf_base.samples[0]
 
     # Check early so we don't waste users' time
     if not os.path.exists(args.comp):
@@ -696,42 +688,42 @@ def run(cmdargs):
         logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
     if check_fail:
         exit(1)
-    
-    vcfB = vcf.Reader(filename=args.comp)
-    edit_header(vcfB)
+
+    vcf_comp = vcf.Reader(filename=args.comp)
+    edit_header(vcf_comp)
     if args.cSample is not None:
         sampleB = args.cSample
-        if sampleB not in vcfB.samples:
-            logging.error("Sample %s not found in vcf (%s)", sampleB, vcfB.samples)
+        if sampleB not in vcf_comp.samples:
+            logging.error("Sample %s not found in vcf (%s)", sampleB, vcf_comp.samples)
             exit(1)
     else:
-        sampleB = vcfB.samples[0]
+        sampleB = vcf_comp.samples[0]
 
-    regions = GenomeTree(vcfA, vcfB, args.includebed)
+    regions = GenomeTree(vcf_base, vcf_comp, args.includebed)
 
     logging.info("Creating call interval tree for overlap search")
-    span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcfB, args.sizefilt, args.sizemax, args.passonly)
+    span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcf_comp, args.sizefilt, args.sizemax, args.passonly)
 
     logging.info("%d call variants", num_entries_b)
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
     num_entries = 0
-    for entry in regions.iterate(vcfA):
+    for entry in regions.iterate(vcf_base):
         num_entries += 1
     logging.info("%s base variants", num_entries)
     # Reset
-    vcfA = vcf.Reader(filename=args.base)
-    edit_header(vcfA)
+    vcf_base = vcf.Reader(filename=args.base)
+    edit_header(vcf_base)
 
     bar = setup_progressbar(num_entries)
 
     # Setup outputs
-    tpb_out = vcf.Writer(open(os.path.join(args.output, "tp-base.vcf"), 'w'), vcfA)
-    b_filt = vcf.Writer(open(os.path.join(args.output, "base-filter.vcf"), 'w'), vcfA)
-    tpc_out = vcf.Writer(open(os.path.join(args.output, "tp-call.vcf"), 'w'), vcfB)
-    c_filt = vcf.Writer(open(os.path.join(args.output, "call-filter.vcf"), 'w'), vcfB)
-    fn_out = vcf.Writer(open(os.path.join(args.output, "fn.vcf"), 'w'), vcfA)
-    fp_out = vcf.Writer(open(os.path.join(args.output, "fp.vcf"), 'w'), vcfB)
+    tpb_out = vcf.Writer(open(os.path.join(args.output, "tp-base.vcf"), 'w'), vcf_base)
+    b_filt = vcf.Writer(open(os.path.join(args.output, "base-filter.vcf"), 'w'), vcf_base)
+    tpc_out = vcf.Writer(open(os.path.join(args.output, "tp-call.vcf"), 'w'), vcf_comp)
+    c_filt = vcf.Writer(open(os.path.join(args.output, "call-filter.vcf"), 'w'), vcf_comp)
+    fn_out = vcf.Writer(open(os.path.join(args.output, "fn.vcf"), 'w'), vcf_base)
+    fp_out = vcf.Writer(open(os.path.join(args.output, "fp.vcf"), 'w'), vcf_comp)
 
     stats_box = {"TP-base": 0,
                  "TP-call": 0,
@@ -744,41 +736,41 @@ def run(cmdargs):
                  "base gt filtered": 0,
                  "call gt filtered": 0}
 
-    # Only match calls once
-    already_considered = defaultdict(bool)
+    # Calls that have been matched up
+    matched_calls = defaultdict(bool)
     # for variant A - do var_match in B
     logging.info("Matching base to calls")
-    for pbarcnt, entryA in enumerate(regions.iterate(vcfA)):
+    for pbarcnt, base_entry in enumerate(regions.iterate(vcf_base)):
         bar.update(pbarcnt)
-        sizeA = get_vcf_entry_size(entryA)
+        sizeA = get_vcf_entry_size(base_entry)
 
         if sizeA < args.sizemin or sizeA > args.sizemax:
             stats_box["base size filtered"] += 1
-            b_filt.write_record(entryA)
+            b_filt.write_record(base_entry)
             continue
-        if args.no_ref and not entryA.genotype(sampleA).is_variant:
+        if args.no_ref and not base_entry.genotype(sampleA).is_variant:
             stats_box["base gt filtered"] += 1
-            b_filt.write_record(entryA)
+            b_filt.write_record(base_entry)
             continue
 
-        if args.passonly and len(entryA.FILTER):
+        if args.passonly and len(base_entry.FILTER):
             continue
         stats_box["base cnt"] += 1
 
-        fetch_start, fetch_end = fetch_coords(span_lookup, entryA, args.refdist)
+        fetch_start, fetch_end = fetch_coords(span_lookup, base_entry, args.refdist)
         if fetch_start is None and fetch_end is None:
             # No overlaps, don't even bother checking
-            entryA.INFO["NumNeighbors"] = 0
-            entryA.INFO["NumThresholdNeighbors"] = 0
+            base_entry.INFO["NumNeighbors"] = 0
+            base_entry.INFO["NumThresholdNeighbors"] = 0
             stats_box["FN"] += 1
-            fn_out.write_record(entryA)
+            fn_out.write_record(base_entry)
             continue
 
         # IntervalTree can give boundaries past REFDIST in the case of Inversions where start>end
         # We still need to fetch on the expanded boundaries so we can test them, but
         #   we need to filter calls that otherwise shouldn't be considered
         #  see the bstart/bend below
-        astart, aend = get_vcf_boundaries(entryA)
+        astart, aend = get_vcf_boundaries(base_entry)
 
         thresh_neighbors = []
         num_neighbors = 0
@@ -788,62 +780,59 @@ def run(cmdargs):
         # more importantly, we'd also have race conditions for when it's been used...
         # even if already_considered was atomic, you may get diff answers
         # +- 1 just to be safe because why not...
-        a_key = vcf_to_key(entryA)
-        for entryB in vcfB.fetch(entryA.CHROM, max(0, fetch_start - 1), fetch_end + 1):
+        for comp_entry in vcf_comp.fetch(base_entry.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
-            # better, it can't use it and we mismatch
-            logging.debug("Comparing %s %s", str(entryA), str(entryB))
-            b_key = vcf_to_key(entryB)
-            if already_considered[b_key]:
-                logging.debug("No match because comparison call already considered")
+            # better, it can't use it and we mismatch -- UPDATE: by default we don't enforce one-match
+            logging.debug("Comparing %s %s", str(base_entry), str(comp_entry))
+            b_key = vcf_to_key('c', comp_entry)
+            if not args.multimatch and matched_calls[b_key]:
+                logging.debug("No match because comparison call already matched")
                 continue
 
-            sizeB = get_vcf_entry_size(entryB)
+            sizeB = get_vcf_entry_size(comp_entry)
             if sizeB < args.sizefilt:
                 continue
 
             # Double ensure OVERLAP - there's a weird edge case where fetch with
             # the interval tree can return non-overlaps
-            bstart, bend = get_vcf_boundaries(entryB)
+            bstart, bend = get_vcf_boundaries(comp_entry)
             if not overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
                 continue
-            if not regions.include(entryB):
+            if not regions.include(comp_entry):
                 continue
             # Someone in the Base call's neighborhood, we'll see if it passes comparisons
             num_neighbors += 1
 
-            if args.no_ref and not entryB.genotype(sampleB).is_variant:
-                logging.debug("%s is hom-ref", str(entryB))
+            if args.no_ref and not comp_entry.genotype(sampleB).is_variant:
+                logging.debug("%s is hom-ref", str(comp_entry))
                 continue
 
-            if args.gtcomp and not gt_comp(entryA, entryB, sampleA, sampleB):
-                logging.debug("%s and %s are not the same genotype", str(entryA), str(entryB))
+            if args.gtcomp and not gt_comp(base_entry, comp_entry, sampleA, sampleB):
+                logging.debug("%s and %s are not the same genotype", str(base_entry), str(comp_entry))
                 continue
 
-            if not args.typeignore and not same_variant_type(entryA, entryB):
-                logging.debug("%s and %s are not the same SVTYPE", str(entryA), str(entryB))
+            if not args.typeignore and not same_variant_type(base_entry, comp_entry):
+                logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
                 continue
 
             size_similarity, size_diff = var_sizesim(sizeA, sizeB)
             if size_similarity < args.pctsize:
-                logging.debug("%s and %s size similarity is too low (%f)", str(entryA), str(entryB), size_similarity)
+                logging.debug("%s and %s size similarity is too low (%f)", str(
+                    base_entry), str(comp_entry), size_similarity)
                 continue
 
             ovl_pct = get_rec_ovl(astart, aend, bstart, bend)
             if ovl_pct < args.pctovl:
-                logging.debug("%s and %s overlap percent is too low (%f)", str(entryA), str(entryB), ovl_pct)
+                logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
                 continue
 
             if args.pctsim > 0:
-                if args.use_swalign:
-                    seq_similarity = var_pctsim_sw(entryA, entryB)
-                else:
-                    seq_similarity = var_pctsim_lev(entryA, entryB)
+                seq_similarity = var_pctsim_lev(base_entry, comp_entry, reference)
                 if seq_similarity < args.pctsim:
                     logging.debug("%s and %s sequence similarity is too low (%f)", str(
-                        entryA), str(entryB), seq_similarity)
+                        base_entry), str(comp_entry), seq_similarity)
                     continue
             else:
                 seq_similarity = 0
@@ -855,66 +844,77 @@ def run(cmdargs):
             # If you put these numbers in an object, it'd be easier to pass round
             # You'd just need to make it sortable
             thresh_neighbors.append(
-                (score, seq_similarity, size_similarity, ovl_pct, size_diff, start_distance, end_distance, entryB))
+                (score, seq_similarity, size_similarity, ovl_pct, size_diff, start_distance, end_distance, comp_entry))
 
         # reporting the best match
-        entryA.INFO["NumNeighbors"] = num_neighbors
-        entryA.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+        base_entry.INFO["NumNeighbors"] = num_neighbors
+        base_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
         if len(thresh_neighbors) > 0:
             thresh_neighbors.sort(reverse=True)
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
-            stats_box["TP-base"] += 1
-            stats_box["TP-call"] += 1
+
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
                 match_stdist, match_endist, match_entry = thresh_neighbors[0]
             logging.debug("Best match is %s", str(match_entry))
-            
-            entryA.INFO["TruScore"] = match_score
+
+            base_entry.INFO["TruScore"] = match_score
             match_entry.INFO["TruScore"] = match_score
             match_entry.INFO["NumNeighbors"] = num_neighbors
             match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
 
-            # Don't use it twice
-            already_considered[vcf_to_key(match_entry)] = True
+            # Don't double count calls was found before
+            b_key = vcf_to_key('b', base_entry)
+            c_key = vcf_to_key('c', match_entry)
+            if not matched_calls[b_key]:
+                stats_box["TP-base"] += 1
+            if not matched_calls[c_key]:
+                stats_box["TP-call"] += 1
+                write_tp_call = True
+            else:
+                write_tp_call = False
+            # Mark the call for multimatch checking
+            matched_calls[b_key] = True
+            matched_calls[c_key] = True
 
-            annotate_tp(entryA, *thresh_neighbors[0])
+            annotate_tp(base_entry, *thresh_neighbors[0])
             annotate_tp(match_entry, *thresh_neighbors[0])
 
-            tpb_out.write_record(entryA)
-            tpc_out.write_record(match_entry)
-            logging.debug("Matching %s and %s", str(entryA), str(match_entry))
+            tpb_out.write_record(base_entry)
+            if write_tp_call:
+                tpc_out.write_record(match_entry)
+            logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
             stats_box["FN"] += 1
-            fn_out.write_record(entryA)
+            fn_out.write_record(base_entry)
 
     bar.finish()
 
     # Get a results peek
     do_stats_math = True
-    if stats_box["TP-call"] == 0 and stats_box["FN"] == 0:
+    if stats_box["TP-base"] == 0 and stats_box["FN"] == 0:
         logging.warning("No TP or FN calls in base!")
         do_stats_math = False
     else:
-        logging.info("Results peek: %d TP %d FN %.2f%% Recall", stats_box["TP-call"], stats_box["FN"],
-                     100 * (float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FN"])))
+        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", stats_box["TP-base"], stats_box["FN"],
+                     100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
 
     logging.info("Parsing FPs from calls")
     bar = setup_progressbar(num_entries_b)
     # Reset
-    vcfB = vcf.Reader(filename=args.comp)
-    edit_header(vcfB)
-    for cnt, entry in enumerate(regions.iterate(vcfB)):
+    vcf_comp = vcf.Reader(filename=args.comp)
+    edit_header(vcf_comp)
+    for cnt, entry in enumerate(regions.iterate(vcf_comp)):
         # Need to count these, I think
         if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
-        if already_considered[vcf_to_key(entry)]:
+        if matched_calls[vcf_to_key('c', entry)]:
             continue
         size = get_vcf_entry_size(entry)
         if size < args.sizemin or size > args.sizemax:
             c_filt.write_record(entry)
             stats_box["call size filtered"] += 1
-        elif args.no_ref and not entry.genotype(sampleB)["GT"].is_variant:
+        elif args.no_ref and not entry.genotype(sampleB).is_variant:
             stats_box["call gt filtered"] += 1
         elif regions.include(entry):
             fp_out.write_record(entry)
@@ -936,7 +936,7 @@ def run(cmdargs):
         # precision
         stats_box["precision"] = float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FP"])
         # recall
-        stats_box["recall"] = float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FN"])
+        stats_box["recall"] = float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])
     else:
         stats_box["precision"] = 0
         stats_box["recall"] = 0

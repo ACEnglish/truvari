@@ -104,9 +104,9 @@ def summarize_cnt(cnt, out_file):
 def parse_args(args):
     """ Make pretty arguments """
     parser = argparse.ArgumentParser(description=USAGE)
-    parser.add_argument("-a", "--base-small", required=False, default=None
+    parser.add_argument("-a", "--base-small", required=False, default=None,
                         help="Small benchmarking base variants")
-    parser.add_argument("-A", "--base-small-hc-region", required=False, default=None
+    parser.add_argument("-A", "--base-small-hc-region", required=False, default=None,
                         help="High Confidence Regions for small variants")
     parser.add_argument("-b", "--base-large", required=True,
                         help="Large benchmarking base variants")
@@ -114,6 +114,12 @@ def parse_args(args):
                         help="High Confidence Regions for large variants")
     parser.add_argument("-c", "--calls", required=True,
                         help="Comparison variants")
+    parser.add_argument("-t", "--rtg_ref", required=False,
+                        help="RTG indexed reference")
+    parser.add_argument("-r", "--reference", required=True,
+                        help="samtools faidx indexed reference")
+    parser.add_argument("-s", "--simple", action="store_true", default=False,
+                        help="Only create the small/large hc results")
     args = parser.parse_args()
     return args
 
@@ -123,15 +129,16 @@ def run(args):
         -c {calls} \
         {high_conf} \
         {w_gt} \
-        -t /share/datasets/HG001/hg19.sdf --all-records \
-        -o results_small{hc}"
+        -t %s --all-records \
+        -o results_small{hc}" % args.rtg_ref
     truvari_cmd = "truvari.py --base {base_large} \
         --comp {calls} \
+        --reference %s \
         --giabreport \
         {w_gt} \
         {passonly} \
         {high_conf} \
-        -o results_large{hc}"
+        -o results_large{hc}" % args.reference
 
     BASE_SMALL = args.base_small
     SMALL_HC = args.base_small_hc_region
@@ -139,66 +146,71 @@ def run(args):
     LARGE_HC = args.base_large_hc_region
     comp = args.calls
     
-    if BASE_SMALL is not None and SMALL_HC is not None:
-        print "HC small calls"
-        r, o, e, t = cmd_exe(
-            rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc", w_gt="--squash-ploidy"))
+    if args.rtg_ref is not None and BASE_SMALL is not None and SMALL_HC is not None:
+        m_cmd = rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc", w_gt="--squash-ploidy --sample HG002")
+        print "HC small calls\n%s" % m_cmd
+        r, o, e, t = cmd_exe(m_cmd)
+            
         if r != 0:
             print r, o, e, t
         print o
-    
-        print "All small calls"
-        r, o, e, c = cmd_exe(rtg_cmd.format(base_small=BASE_SMALL, high_conf="", calls=comp, hc="_all",
-                                            w_gt="--squash-ploidy"))
-        if r != 0:
-            print r, o, e, t
-        print o
-    
-        print "HC small calls w/GT"
-        r, o, e, t = cmd_exe(
-            rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc_gt", w_gt=""))
-        if r != 0:
-            print r, o, e, c
-        print o
-        
         hc_cnt = do_cnt("results_small_hc")
-        summarize_cnt(hc_cnt, "results_small_hc/by_type_cnt.txt")
-        all_cnt = do_cnt("results_small_all")
-        summarize_cnt(all_cnt, "results_small_all/by_type_cnt.txt")
-        gt_cnt = do_cnt("results_small_hc_gt")
-        summarize_cnt(gt_cnt, "results_small_hc_gt/by_type_cnt.txt")
+        summarize_cnt(hc_cnt, "results_small_hc/by_type_cnt.txt")       
+
+        if not args.simple:
+            print "All small calls"
+            r, o, e, c = cmd_exe(rtg_cmd.format(base_small=BASE_SMALL, high_conf="", calls=comp, hc="_all",
+                                            w_gt="--squash-ploidy"))
+            if r != 0:
+                print r, o, e, t
+            print o
+
+            all_cnt = do_cnt("results_small_all")
+            summarize_cnt(all_cnt, "results_small_all/by_type_cnt.txt")
+
+            print "HC small calls w/GT"
+            r, o, e, t = cmd_exe(
+                rtg_cmd.format(base_small=BASE_SMALL, high_conf="-e " + SMALL_HC, calls=comp, hc="_hc_gt", w_gt=""))
+            if r != 0:
+                print r, o, e, c
+            print o
+
+            gt_cnt = do_cnt("results_small_hc_gt")
+            summarize_cnt(gt_cnt, "results_small_hc_gt/by_type_cnt.txt")
     else:
-        print "Skipping analysis of small events. Provide -a and -A to run rtg"
+        print "Skipping analysis of small events. Provide -a and -A and -t to run rtg"
     
     #checking SVs
-    print "HC large calls"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
-                                            hc="_hc", w_gt="", passonly="--passonly"))
-    if r != 0:
-        print r, o, e, t
-    print o
+    m_cmd = truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp, 
+                                hc="_hc", w_gt="", passonly="--passonly")
 
-    print "HC large calls w/ loose cmp"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
-                                            hc="_hc_loose", w_gt="", passonly="--passonly --refdist 2000 --pctsim 0"))
-    if r != 0:
-        print r, o, e, t
-    print o
-
-
-    print "All large calls"
-    r, o, e, c = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="", calls=comp, hc="_all", w_gt="",
-                passonly=""))
+    print "HC large calls\n%s" % m_cmd
+    r, o, e, t = cmd_exe(m_cmd)
     if r != 0:
         print r, o, e, t
     print o
     
-    print "HC large calls w/GT"
-    r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
+    if not args.simple:
+        print "HC large calls w/ loose cmp"
+        r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
+                                            hc="_hc_loose", w_gt="", passonly="--passonly --refdist 2000 --pctsim 0"))
+        if r != 0:
+            print r, o, e, t
+        print o
+
+        print "All large calls"
+        r, o, e, c = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="", calls=comp, hc="_all", w_gt="",
+                passonly=""))
+        if r != 0:
+            print r, o, e, t
+        print o
+    
+        print "HC large calls w/GT"
+        r, o, e, t = cmd_exe(truvari_cmd.format(base_large=BASE_LARGE, high_conf="--includebed " + LARGE_HC, calls=comp,
                                             hc="_hc_gt", w_gt="--gtcomp", passonly="--passonly"))
-    if r != 0:
-        print r, o, e, t
-    print o
+        if r != 0:
+            print r, o, e, t
+        print o
     
 if __name__ == '__main__':
     run(sys.argv)

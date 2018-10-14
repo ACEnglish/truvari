@@ -9,9 +9,9 @@
 
 Structural variant comparison tool for VCFs
 
-Given benchmark and comparsion sets of SVs, calculate the sensitivity/specificity/f-measure.
+Given benchmark and comparsion sets of SVs, calculate the recall, precision, and f-measure.
 
-[Spiral Genetics](https://www.spiralgenetics.com), 2018
+[Spiral Genetics](https:www.spiralgenetics.com)
 
 [Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
@@ -20,9 +20,7 @@ Installation
 
 Truvari uses Python 2 or 3 and requires the following modules:
 
-  $ pip install pyvcf python-Levenshtein swalign intervaltree progressbar2 pysam
-
-Note that `--use-swalign` is not compatible with Python 3.
+  $ pip install pyvcf python-Levenshtein intervaltree progressbar2 pysam pyfaidx
 
 Quick start
 ===========
@@ -59,7 +57,7 @@ For each BaseCall:
       Add CompCall to list of Neighbors
   Sort list of Neighbors by TruScore ((2*sim + 1*size + 1*ovl) / 3.0)
   Take CompCall with highest TruScore and BaseCall as TPs
-  Only use a CompCall once
+  Only use a CompCall once if --multimatch
   If no neighbors: BaseCall is FN
 For each CompCall:
   If not used: mark as FP
@@ -144,13 +142,38 @@ GIAB SV releases.
 ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
 
 Include Bed & VCF Header Contigs 
------------
+--------------------------------
 
-If an `--includebed` is provided, only base and comp calls overlapping the defined regions are used 
-for comparison. This is equilavent to pre-filtering your base/comp calls with:
+If an `--includebed` is provided, only base and comp calls contained within the defined regions are used 
+for comparison. This is similar to pre-filtering your base/comp calls with:
 
 `(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
+
+with the exception that Truvari requires the start and the end to be contained in the same includebed region 
+whereas `bedtools intersect` does not.
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
 header. Therefore, any comparison calls on contigs not in the base calls will not be counted toward summary 
 statistics and will not be present in any output vcfs.
+
+
+Comparing Haplotype Sequences of Variants
+---------------------------------------
+
+To compare the sequence similarity, biuld the haplotypes over the range of min(call starts)-max(call ends) and
+build the sequence change from the variants. For example:
+
+``` python
+hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
+```
+
+Where `a1_seq1` is the longer of the REF or ALT allele.
+
+More Information
+----------------
+
+Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+
+
+
+<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>
