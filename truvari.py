@@ -119,15 +119,6 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     return entryA.genotype(sampleA)["GT"] == entryB.genotype(sampleB)["GT"]
 
 
-def do_swalign(seq1, seq2, match=2, mismatch=-1, gap_penalty=-2, gap_extension_decay=0.5):
-    """
-    Align two sequences using swalign
-    """
-    scoring = swalign.NucleotideScoringMatrix(match, mismatch)
-    sw = swalign.LocalAlignment(scoring, gap_penalty=gap_penalty, gap_extension_decay=gap_extension_decay)
-    aln = sw.align(seq1, seq2)
-    return aln
-
 
 def create_haplotype(entryA, entryB, ref):
     """
@@ -163,25 +154,6 @@ def var_pctsim_lev(entryA, entryB, ref):
         return 0
     allele1, allele2 = create_haplotype(entryA, entryB, ref)
     return Levenshtein.ratio(allele1, allele2)
-
-
-def var_pctsim_sw(entryA, entryB):
-    """
-    Calculates pctsim with swalign instead of Levenshtein
-    No longer used
-    """
-    # Shortcut to save compute
-    if entryA.REF == entryB.REF and entryA.ALT[0] == entryB.ALT[0]:
-        return 1.0
-    ref_aln = do_swalign(str(entryA.REF), str(entryB.REF))
-    alt_aln = do_swalign(str(entryA.ALT[0]), str(entryB.ALT[0]))
-    mat_tot = ref_aln.matches + alt_aln.matches
-    mis_tot = ref_aln.mismatches + ref_aln.mismatches
-    denom = float(mis_tot + mat_tot)
-    if denom == 0:
-        return 0
-    ident = mat_tot / denom
-    return ident
 
 
 def overlaps(s1, e1, s2, e2):
