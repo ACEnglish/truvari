@@ -76,7 +76,7 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     try:
         for entry in vcf_file:
             n_entries += 1
-            if passonly and (entry.FILTER is not None and len(entry.FILTER)):
+            if passonly and (entry.FILTER is None or len(entry.FILTER)):
                 continue
             start, end = get_vcf_boundaries(entry)
             sz = get_vcf_entry_size(entry)
@@ -753,7 +753,7 @@ def run(cmdargs):
             b_filt.write_record(base_entry)
             continue
 
-        if args.passonly and len(base_entry.FILTER):
+        if args.passonly and (base_entry.FILTER is None or len(base_entry.FILTER)):
             continue
         stats_box["base cnt"] += 1
 
@@ -905,7 +905,7 @@ def run(cmdargs):
     edit_header(vcf_comp)
     for cnt, entry in enumerate(regions.iterate(vcf_comp)):
         # Need to count these, I think
-        if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
+        if args.passonly and (entry.FILTER is None or len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
         if matched_calls[vcf_to_key('c', entry)]:
