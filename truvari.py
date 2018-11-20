@@ -119,7 +119,6 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     return entryA.genotype(sampleA)["GT"] == entryB.genotype(sampleB)["GT"]
 
 
-
 def create_haplotype(entryA, entryB, ref):
     """
     Turn two entries into their haplotype sequence for comparison
@@ -195,9 +194,9 @@ def same_variant_type(entryA, entryB):
                 # Is it really?
                 ret_type = "COMPLEX"
             return ret_type
-        mat1 = sv_alt_match.match(entry.ALT[0])
+        mat1 = sv_alt_match.match(str(entry.ALT[0]))
         if mat is not None:
-            return mat1.groups()["SVTYPE"]
+            return mat1.groupdict()["SVTYPE"]
         # rely on pyvcf
         return entry.var_subtype.upper()
 
