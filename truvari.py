@@ -893,6 +893,9 @@ def run(cmdargs):
     if stats_box["TP-base"] == 0 and stats_box["FN"] == 0:
         logging.warning("No TP or FN calls in base!")
         do_stats_math = False
+    elif stats_box["TP-call"] == 0 and stats_box["FP"] == 0:
+        logging.warning("No TP or FP calls in base!")
+        do_stats_math = False
     else:
         logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", stats_box["TP-base"], stats_box["FN"],
                      100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
