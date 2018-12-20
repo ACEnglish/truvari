@@ -136,10 +136,10 @@ To create this report.
 4. Finally, paste ALL of the information inside `giab_report.txt` into the "RawData" tab. Be careful not 
 to alter the report text in any way. If successul, the "Formatted" tab you will have a fully formated report.
 
-This currently only works with GIAB SV v0.5. Work will need to be done to ensure Truvari can parse future 
-GIAB SV releases.
+While truvari can use other benchmark sets, this formatted report currently only works with GIAB SV v0.5 and v0.6. Work
+will need to be done to ensure Truvari can parse future GIAB SV releases.
 
-ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_UnionSVs_12122017/
+ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/
 
 Include Bed & VCF Header Contigs 
 --------------------------------
