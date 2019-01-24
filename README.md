@@ -69,8 +69,8 @@ Matching Parameters
 <tr><td>refdist</td><td>500</td>
 <td>Maximum distance comparison calls must be within from base call's start/end</td></tr>
 <tr><td>pctsim</td><td>0.7</td>
-<td>Levenshtein distance ratio between the REF or ALT sequence of base and comparison call.
-Longer sequence of the two is used.</td></tr>
+<td>Levenshtein distance ratio between the REF/ALT haplotype sequences of base and comparison call.
+See "Comparing Haplotype Sequences of Variants" below.
 <tr><td>pctsize</td><td>0.7</td>
 <td>Ratio of min(base_size, comp_size)/max(base_size, comp_size)</td></tr>
 <tr><td>pctovl</td><td>0.0</td>
@@ -160,7 +160,7 @@ statistics and will not be present in any output vcfs.
 Comparing Haplotype Sequences of Variants
 ---------------------------------------
 
-To compare the sequence similarity, biuld the haplotypes over the range of min(call starts)-max(call ends) and
+To compare the sequence similarity, build the haplotypes over the range of min(call starts)-max(call ends) and
 build the sequence change from the variants. For example:
 
 ``` python
