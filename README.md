@@ -20,7 +20,7 @@ Installation
 
 Truvari uses Python 2 or 3 and requires the following modules:
 
-  $ pip install pyvcf python-Levenshtein intervaltree progressbar2 pysam pyfaidx
+  $ pip install pyvcf python-Levenshtein progressbar2 pysam pyfaidx intervaltree==2.1.0
 
 Quick start
 ===========
