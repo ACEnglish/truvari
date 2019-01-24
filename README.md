@@ -124,12 +124,12 @@ NumNeighbors and NumThresholdNeighbors are also added to the FN vcf.
 Using the GIAB Report
 ---------------------
 
-When running against the GIAB SV v0.5 benchmark (link below), you can create a detailed report of 
+When running against the GIAB SV benchmark (link below), you can create a detailed report of 
 calls summarized by the GIAB VCF's SVTYPE, SVLEN, Technology, and Repeat annotations.
 
 To create this report.
 
-1. Run Truvari with the flag `--giabreport`.
+1. Run truvari with the flag `--giabreport`.
 2. In your output directory, you will find a file named `giab_report.txt`.
 3. Next, make a copy of the 
 [Truvari Report Template Google Sheet](https://docs.google.com/spreadsheets/d/1T3EdpyLO1Kq-bJ8SDatqJ5nP_wwFKCrH0qhxorvTVd4/edit?usp=sharing).
@@ -137,7 +137,7 @@ To create this report.
 to alter the report text in any way. If successul, the "Formatted" tab you will have a fully formated report.
 
 While truvari can use other benchmark sets, this formatted report currently only works with GIAB SV v0.5 and v0.6. Work
-will need to be done to ensure Truvari can parse future GIAB SV releases.
+will need to be done to ensure truvari can parse future GIAB SV releases.
 
 ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/
 
@@ -149,7 +149,7 @@ for comparison. This is similar to pre-filtering your base/comp calls with:
 
 `(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
 
-with the exception that Truvari requires the start and the end to be contained in the same includebed region 
+with the exception that truvari requires the start and the end to be contained in the same includebed region 
 whereas `bedtools intersect` does not.
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
@@ -172,7 +172,7 @@ Where `a1_seq1` is the longer of the REF or ALT allele.
 More Information
 ----------------
 
-Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+Find more details and discussions about truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
 
 
 
