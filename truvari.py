@@ -76,7 +76,7 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     try:
         for entry in vcf_file:
             n_entries += 1
-            if passonly and (entry.FILTER is not None and len(entry.FILTER)):
+            if passonly and (entry.FILTER is None or len(entry.FILTER)):
                 continue
             start, end = get_vcf_boundaries(entry)
             sz = get_vcf_entry_size(entry)
@@ -117,7 +117,6 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     Simple for now. Methodized so it's easy to expand later
     """
     return entryA.genotype(sampleA)["GT"] == entryB.genotype(sampleB)["GT"]
-
 
 
 def create_haplotype(entryA, entryB, ref):
@@ -167,13 +166,15 @@ def overlaps(s1, e1, s2, e2):
 
 def same_variant_type(entryA, entryB):
     """
-    Look at INFO/SVTYPE to see if they two calls are of the same type.
-    If SVTYPE is unavailable, Infer if this is a insertion or deletion by
-    looking at the REF/ALT sequence size differences
-    If REF/ALT are not available, try to use the <INS> <DEL> in the ALT column.
-    else rely on vcf.model._Record.var_subtype
+    returns if entryA svtype == entryB svtype
 
-    return a_type == b_type
+    How svtype is determined:
+    - Starts by trying to use INFO/SVTYPE
+    - If SVTYPE is unavailable, infer if entry is a insertion or deletion by
+      looking at the REF/ALT sequence size differences
+    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>, 
+      etc from the ALT column.
+    - Otherwise, rely on vcf.model._Record.var_subtype
     """
     sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
 
@@ -195,9 +196,9 @@ def same_variant_type(entryA, entryB):
                 # Is it really?
                 ret_type = "COMPLEX"
             return ret_type
-        mat1 = sv_alt_match.match(entry.ALT[0])
+        mat1 = sv_alt_match.match(str(entry.ALT[0]))
         if mat is not None:
-            return mat1.groups()["SVTYPE"]
+            return mat1.groupdict()["SVTYPE"]
         # rely on pyvcf
         return entry.var_subtype.upper()
 
@@ -753,7 +754,9 @@ def run(cmdargs):
             b_filt.write_record(base_entry)
             continue
 
-        if args.passonly and len(base_entry.FILTER):
+        if args.passonly and (base_entry.FILTER is None or len(base_entry.FILTER)):
+            if base_entry.FILTER is None:
+                logging.warning("Base variant %s has 'None' FILTER and is being excluded from comparison", base_entry)
             continue
         stats_box["base cnt"] += 1
 
@@ -782,6 +785,11 @@ def run(cmdargs):
         # +- 1 just to be safe because why not...
         for comp_entry in vcf_comp.fetch(base_entry.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
+
+            if args.passonly and (comp_entry.FILTER is None or len(comp_entry.FILTER)):
+                if comp_entry.FILTER is None:
+                    logging.warning("Comp variant %s has 'None' FILTER and is being excluded from comparison", comp_entry)
+                continue
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
             # better, it can't use it and we mismatch -- UPDATE: by default we don't enforce one-match
@@ -894,6 +902,9 @@ def run(cmdargs):
     if stats_box["TP-base"] == 0 and stats_box["FN"] == 0:
         logging.warning("No TP or FN calls in base!")
         do_stats_math = False
+    elif stats_box["TP-call"] == 0 and stats_box["FP"] == 0:
+        logging.warning("No TP or FP calls in base!")
+        do_stats_math = False
     else:
         logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", stats_box["TP-base"], stats_box["FN"],
                      100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
@@ -904,8 +915,7 @@ def run(cmdargs):
     vcf_comp = vcf.Reader(filename=args.comp)
     edit_header(vcf_comp)
     for cnt, entry in enumerate(regions.iterate(vcf_comp)):
-        # Need to count these, I think
-        if args.passonly and (entry.FILTER is not None and len(entry.FILTER)):
+        if args.passonly and (entry.FILTER is None or len(entry.FILTER)):
             continue
         bar.update(cnt + 1)
         if matched_calls[vcf_to_key('c', entry)]:
