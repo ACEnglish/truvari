@@ -172,7 +172,7 @@ def same_variant_type(entryA, entryB):
     - Starts by trying to use INFO/SVTYPE
     - If SVTYPE is unavailable, infer if entry is a insertion or deletion by
       looking at the REF/ALT sequence size differences
-    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>, 
+    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>,
       etc from the ALT column.
     - Otherwise, rely on vcf.model._Record.var_subtype
     """
@@ -243,8 +243,15 @@ def get_vcf_boundaries(entry):
 
 def get_vcf_entry_size(entry):
     """
-    Calculate the size of the variant. Use SVLEN INFO tag if available. Otherwise infer
-    Return absolute value of the size
+    returns the size of the variant.
+
+    How size is determined:
+    - Starts by trying to use INFO/SVLEN
+    - If SVLEN is unavailable and ALT field is an SV (e.g. <INS>, <DEL>, etc),
+      use abs(vcf.model._Record.start - vcf.model._Record.end). The INFO/END
+      tag needs to be available, especially for INS.
+    - Otherwise, return the size difference of the sequence resolved call using
+      abs(len(vcf.model._Record.REF) - len(str(vcf.model._Record.ALT[0])))
     """
     if "SVLEN" in entry.INFO:
         if type(entry.INFO["SVLEN"]) is list:
@@ -644,7 +651,7 @@ def parse_args(args):
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--multimatch", action="store_true", default=False,
-                        help="Allow base calls to match multiple comparison calls (%(default)s)")
+                        help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
 
     args = parser.parse_args(args)
     return args
@@ -785,10 +792,10 @@ def run(cmdargs):
         # +- 1 just to be safe because why not...
         for comp_entry in vcf_comp.fetch(base_entry.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
-
             if args.passonly and (comp_entry.FILTER is None or len(comp_entry.FILTER)):
                 if comp_entry.FILTER is None:
-                    logging.warning("Comp variant %s has 'None' FILTER and is being excluded from comparison", comp_entry)
+                    logging.warning("Comp variant %s has 'None' FILTER and is being excluded from comparison",
+                                    comp_entry)
                 continue
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
