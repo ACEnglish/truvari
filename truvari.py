@@ -172,7 +172,7 @@ def same_variant_type(entryA, entryB):
     - Starts by trying to use INFO/SVTYPE
     - If SVTYPE is unavailable, infer if entry is a insertion or deletion by
       looking at the REF/ALT sequence size differences
-    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>, 
+    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>,
       etc from the ALT column.
     - Otherwise, rely on vcf.model._Record.var_subtype
     """
@@ -870,27 +870,33 @@ def run(cmdargs):
             match_entry.INFO["NumNeighbors"] = num_neighbors
             match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
 
+            annotate_tp(base_entry, *thresh_neighbors[0])
+            tpb_out.write_record(base_entry)
+
             # Don't double count calls was found before
             b_key = vcf_to_key('b', base_entry)
-            c_key = vcf_to_key('c', match_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
-            if not matched_calls[c_key]:
-                stats_box["TP-call"] += 1
-                write_tp_call = True
-            else:
-                write_tp_call = False
             # Mark the call for multimatch checking
             matched_calls[b_key] = True
-            matched_calls[c_key] = True
 
-            annotate_tp(base_entry, *thresh_neighbors[0])
-            annotate_tp(match_entry, *thresh_neighbors[0])
+            for thresh_neighbor in thresh_neighbors:
+                match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
+                    match_stdist, match_endist, match_entry = thresh_neighbor
 
-            tpb_out.write_record(base_entry)
-            if write_tp_call:
-                tpc_out.write_record(match_entry)
-            logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
+                c_key = vcf_to_key('c', match_entry)
+                if not matched_calls[c_key]:
+                    stats_box["TP-call"] += 1
+                    write_tp_call = True
+                else:
+                    write_tp_call = False
+                annotate_tp(match_entry, *thresh_neighbors[0])
+                # Mark the call for multimatch checking
+                matched_calls[c_key] = True
+
+                if write_tp_call:
+                    tpc_out.write_record(match_entry)
+                    logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
             stats_box["FN"] += 1
             fn_out.write_record(base_entry)
