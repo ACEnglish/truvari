@@ -123,9 +123,12 @@ def create_haplotype(entryA, entryB, ref):
     """
     Turn two entries into their haplotype sequence for comparison
     """
-    if len(entryA.ALT[0]) >= len(entryA.REF):
-        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0]).upper()
-        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0]).upper()
+    a_alt = entryA.REF[0] if entryA.ALT[0] == "<DEL>" else entryA.ALT[0]
+    b_alt = entryB.REF[0] if entryB.ALT[0] == "<DEL>" else entryB.ALT[0]
+        
+    if len(a_alt) >= len(entryA.REF):
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(a_alt).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(b_alt).upper()
     else:
         a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF  # str(entryA.ALT[0]).upper()
         a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF  # str(entryB.ALT[0]).upper()
@@ -163,11 +166,8 @@ def overlaps(s1, e1, s2, e2):
     e_cand = min(e1, e2)
     return s_cand < e_cand
 
-
-def same_variant_type(entryA, entryB):
+def get_vcf_variant_type(entry):
     """
-    returns if entryA svtype == entryB svtype
-
     How svtype is determined:
     - Starts by trying to use INFO/SVTYPE
     - If SVTYPE is unavailable, infer if entry is a insertion or deletion by
@@ -178,32 +178,35 @@ def same_variant_type(entryA, entryB):
     """
     sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
 
-    def pull_type(entry):
-        ret_type = None
-        if "SVTYPE" in entry.INFO:
-            ret_type = entry.INFO["SVTYPE"]
-            if type(ret_type) is list:
-                logging.warning("SVTYPE is list for entry %s", str(entry))
-                ret_type = ret_type[0]
-            return ret_type
-        if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
-            # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
-            if len(entry.REF) <= len(entry.ALT[0]):
-                ret_type = "INS"
-            elif len(entry.REF) >= len(entry.ALT[0]):
-                ret_type = "DEL"
-            elif len(entry.REF) == len(entry.ALT[0]):
-                # Is it really?
-                ret_type = "COMPLEX"
-            return ret_type
-        mat1 = sv_alt_match.match(str(entry.ALT[0]))
-        if mat is not None:
-            return mat1.groupdict()["SVTYPE"]
-        # rely on pyvcf
-        return entry.var_subtype.upper()
+    ret_type = None
+    if "SVTYPE" in entry.INFO:
+        ret_type = entry.INFO["SVTYPE"]
+        if type(ret_type) is list:
+            logging.warning("SVTYPE is list for entry %s", str(entry))
+            ret_type = ret_type[0]
+        return ret_type
+    if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
+        # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
+        if len(entry.REF) <= len(entry.ALT[0]):
+            ret_type = "INS"
+        elif len(entry.REF) >= len(entry.ALT[0]):
+            ret_type = "DEL"
+        elif len(entry.REF) == len(entry.ALT[0]):
+            # Is it really?
+            ret_type = "COMPLEX"
+        return ret_type
+    mat1 = sv_alt_match.match(str(entry.ALT[0]))
+    if mat is not None:
+        return mat1.groupdict()["SVTYPE"]
+    # rely on pyvcf
+    return entry.var_subtype.upper()
 
-    a_type = pull_type(entryA)
-    b_type = pull_type(entryB)
+def same_variant_type(entryA, entryB):
+    """
+    returns if entryA svtype == entryB svtype
+    """
+    a_type = get_vcf_variant_type(entryA)
+    b_type = get_vcf_variant_type(entryB)
     return a_type == b_type
 
 
@@ -610,12 +613,14 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
-    parser.add_argument("-f", "--reference", type=str, required=True, default=None,
+    parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
     parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("--noprog", action="store_true",
+                        help="Turn off progress monitoring for faster analysis")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=int, default=500,
@@ -654,6 +659,9 @@ def parse_args(args):
                         help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
 
     args = parser.parse_args(args)
+    if args.pctsim != 0 and not args.reference:
+        parser.error("--reference is required when --pctsim is set")
+
     return args
 
 
@@ -663,7 +671,7 @@ def run(cmdargs):
         print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
 
-    reference = pyfaidx.Fasta(args.reference)
+    reference = pyfaidx.Fasta(args.reference) if args.reference else None
     os.mkdir(args.output)
 
     setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
@@ -716,14 +724,17 @@ def run(cmdargs):
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
     num_entries = 0
-    for entry in regions.iterate(vcf_base):
-        num_entries += 1
-    logging.info("%s base variants", num_entries)
+    bar = None
+    if not args.noprog:
+        for entry in regions.iterate(vcf_base):
+            num_entries += 1
+        logging.info("%s base variants", num_entries)
+        bar = setup_progressbar(num_entries)
+    
     # Reset
     vcf_base = vcf.Reader(filename=args.base)
     edit_header(vcf_base)
 
-    bar = setup_progressbar(num_entries)
 
     # Setup outputs
     tpb_out = vcf.Writer(open(os.path.join(args.output, "tp-base.vcf"), 'w'), vcf_base)
@@ -749,7 +760,8 @@ def run(cmdargs):
     # for variant A - do var_match in B
     logging.info("Matching base to calls")
     for pbarcnt, base_entry in enumerate(regions.iterate(vcf_base)):
-        bar.update(pbarcnt)
+        if not args.noprog:
+            bar.update(pbarcnt)
         sizeA = get_vcf_entry_size(base_entry)
 
         if sizeA < args.sizemin or sizeA > args.sizemax:
@@ -908,7 +920,7 @@ def run(cmdargs):
             stats_box["FN"] += 1
             fn_out.write_record(base_entry)
 
-    bar.finish()
+    if not args.noprog: bar.finish()
 
     # Get a results peek
     do_stats_math = True
@@ -923,14 +935,15 @@ def run(cmdargs):
                      100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
 
     logging.info("Parsing FPs from calls")
-    bar = setup_progressbar(num_entries_b)
+    if not args.noprog: bar = setup_progressbar(num_entries_b)
+    
     # Reset
     vcf_comp = vcf.Reader(filename=args.comp)
     edit_header(vcf_comp)
     for cnt, entry in enumerate(regions.iterate(vcf_comp)):
         if args.passonly and (entry.FILTER is None or len(entry.FILTER)):
             continue
-        bar.update(cnt + 1)
+        if not args.noprog: bar.update(cnt + 1)
         if matched_calls[vcf_to_key('c', entry)]:
             continue
         size = get_vcf_entry_size(entry)
@@ -942,7 +955,9 @@ def run(cmdargs):
         elif regions.include(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
-    bar.finish()
+    
+    if not args.noprog: bar.finish()
+    
     # call count is just of those used were used
     stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
 
