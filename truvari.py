@@ -563,11 +563,11 @@ def edit_header(my_vcf):
         source=None, version=None)
     my_vcf.infos['PctSeqSimilarity'] = vcf.parser._Info(
         id="PctSeqSimilarity", num=1, type='Float',
-        desc="Pct sequence similarity between this variant and it's closest match",
+        desc="Pct sequence similarity between this variant and its closest match",
         source=None, version=None)
     my_vcf.infos['PctSizeSimilarity'] = vcf.parser._Info(
         id="PctSizeSimilarity", num=1, type='Float',
-        desc="Pct size similarity between this variant and it's closest match",
+        desc="Pct size similarity between this variant and its closest match",
         source=None, version=None)
     my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
         id="PctRecOverlap", num=1, type='Float',
