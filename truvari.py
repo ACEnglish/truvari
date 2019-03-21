@@ -593,6 +593,11 @@ def edit_header(my_vcf):
         id="NumThresholdNeighbors", num=1, type='Integer',
         desc="Number of calls in B that are within threshold distances of this call",
         source=None, version=None)
+    my_vcf.infos['MatchId'] = vcf.parser._Info(
+        id="MatchId", num=1, type='Integer',
+        desc="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together",
+        source=None, version=None)
+
 
 
 def parse_args(args):
@@ -876,6 +881,7 @@ def run(cmdargs):
         # reporting the best match
         base_entry.INFO["NumNeighbors"] = num_neighbors
         base_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+        base_entry.INFO["MatchId"] = pbarcnt
         if len(thresh_neighbors) > 0:
             thresh_neighbors.sort(reverse=True)
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
@@ -885,10 +891,7 @@ def run(cmdargs):
             logging.debug("Best match is %s", str(match_entry))
 
             base_entry.INFO["TruScore"] = match_score
-            match_entry.INFO["TruScore"] = match_score
-            match_entry.INFO["NumNeighbors"] = num_neighbors
-            match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
-
+            
             annotate_tp(base_entry, *thresh_neighbors[0])
             tpb_out.write_record(base_entry)
 
@@ -902,6 +905,11 @@ def run(cmdargs):
             for thresh_neighbor in thresh_neighbors:
                 match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
                     match_stdist, match_endist, match_entry = thresh_neighbor
+                
+                match_entry.INFO["TruScore"] = match_score
+                match_entry.INFO["NumNeighbors"] = num_neighbors
+                match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+                match_entry.INFO["MatchId"] = pbarcnt
 
                 c_key = vcf_to_key('c', match_entry)
                 if not matched_calls[c_key]:
@@ -909,7 +917,7 @@ def run(cmdargs):
                     write_tp_call = True
                 else:
                     write_tp_call = False
-                annotate_tp(match_entry, *thresh_neighbors[0])
+                annotate_tp(match_entry, *thresh_neighbor)
                 # Mark the call for multimatch checking
                 matched_calls[c_key] = True
 
