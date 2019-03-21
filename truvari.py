@@ -123,9 +123,12 @@ def create_haplotype(entryA, entryB, ref):
     """
     Turn two entries into their haplotype sequence for comparison
     """
-    if len(entryA.ALT[0]) >= len(entryA.REF):
-        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(entryA.ALT[0]).upper()
-        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(entryB.ALT[0]).upper()
+    a_alt = entryA.REF[0] if entryA.ALT[0] == "<DEL>" else entryA.ALT[0]
+    b_alt = entryB.REF[0] if entryB.ALT[0] == "<DEL>" else entryB.ALT[0]
+        
+    if len(a_alt) >= len(entryA.REF):
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(a_alt).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(b_alt).upper()
     else:
         a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF  # str(entryA.ALT[0]).upper()
         a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF  # str(entryB.ALT[0]).upper()
@@ -163,47 +166,47 @@ def overlaps(s1, e1, s2, e2):
     e_cand = min(e1, e2)
     return s_cand < e_cand
 
-
-def same_variant_type(entryA, entryB):
+def get_vcf_variant_type(entry):
     """
-    returns if entryA svtype == entryB svtype
-
     How svtype is determined:
     - Starts by trying to use INFO/SVTYPE
     - If SVTYPE is unavailable, infer if entry is a insertion or deletion by
       looking at the REF/ALT sequence size differences
-    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>, 
+    - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>,
       etc from the ALT column.
     - Otherwise, rely on vcf.model._Record.var_subtype
     """
     sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
 
-    def pull_type(entry):
-        ret_type = None
-        if "SVTYPE" in entry.INFO:
-            ret_type = entry.INFO["SVTYPE"]
-            if type(ret_type) is list:
-                logging.warning("SVTYPE is list for entry %s", str(entry))
-                ret_type = ret_type[0]
-            return ret_type
-        if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
-            # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
-            if len(entry.REF) <= len(entry.ALT[0]):
-                ret_type = "INS"
-            elif len(entry.REF) >= len(entry.ALT[0]):
-                ret_type = "DEL"
-            elif len(entry.REF) == len(entry.ALT[0]):
-                # Is it really?
-                ret_type = "COMPLEX"
-            return ret_type
-        mat1 = sv_alt_match.match(str(entry.ALT[0]))
-        if mat is not None:
-            return mat1.groupdict()["SVTYPE"]
-        # rely on pyvcf
-        return entry.var_subtype.upper()
+    ret_type = None
+    if "SVTYPE" in entry.INFO:
+        ret_type = entry.INFO["SVTYPE"]
+        if type(ret_type) is list:
+            logging.warning("SVTYPE is list for entry %s", str(entry))
+            ret_type = ret_type[0]
+        return ret_type
+    if not (str(entry.ALT[0]).count("<" or str(entry.ALT)[0].count(":"))):
+        # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
+        if len(entry.REF) <= len(entry.ALT[0]):
+            ret_type = "INS"
+        elif len(entry.REF) >= len(entry.ALT[0]):
+            ret_type = "DEL"
+        elif len(entry.REF) == len(entry.ALT[0]):
+            # Is it really?
+            ret_type = "COMPLEX"
+        return ret_type
+    mat1 = sv_alt_match.match(str(entry.ALT[0]))
+    if mat is not None:
+        return mat1.groupdict()["SVTYPE"]
+    # rely on pyvcf
+    return entry.var_subtype.upper()
 
-    a_type = pull_type(entryA)
-    b_type = pull_type(entryB)
+def same_variant_type(entryA, entryB):
+    """
+    returns if entryA svtype == entryB svtype
+    """
+    a_type = get_vcf_variant_type(entryA)
+    b_type = get_vcf_variant_type(entryB)
     return a_type == b_type
 
 
@@ -243,8 +246,15 @@ def get_vcf_boundaries(entry):
 
 def get_vcf_entry_size(entry):
     """
-    Calculate the size of the variant. Use SVLEN INFO tag if available. Otherwise infer
-    Return absolute value of the size
+    returns the size of the variant.
+
+    How size is determined:
+    - Starts by trying to use INFO/SVLEN
+    - If SVLEN is unavailable and ALT field is an SV (e.g. <INS>, <DEL>, etc),
+      use abs(vcf.model._Record.start - vcf.model._Record.end). The INFO/END
+      tag needs to be available, especially for INS.
+    - Otherwise, return the size difference of the sequence resolved call using
+      abs(len(vcf.model._Record.REF) - len(str(vcf.model._Record.ALT[0])))
     """
     if "SVLEN" in entry.INFO:
         if type(entry.INFO["SVLEN"]) is list:
@@ -553,11 +563,11 @@ def edit_header(my_vcf):
         source=None, version=None)
     my_vcf.infos['PctSeqSimilarity'] = vcf.parser._Info(
         id="PctSeqSimilarity", num=1, type='Float',
-        desc="Pct sequence similarity between this variant and it's closest match",
+        desc="Pct sequence similarity between this variant and its closest match",
         source=None, version=None)
     my_vcf.infos['PctSizeSimilarity'] = vcf.parser._Info(
         id="PctSizeSimilarity", num=1, type='Float',
-        desc="Pct size similarity between this variant and it's closest match",
+        desc="Pct size similarity between this variant and its closest match",
         source=None, version=None)
     my_vcf.infos['PctRecOverlap'] = vcf.parser._Info(
         id="PctRecOverlap", num=1, type='Float',
@@ -583,6 +593,11 @@ def edit_header(my_vcf):
         id="NumThresholdNeighbors", num=1, type='Integer',
         desc="Number of calls in B that are within threshold distances of this call",
         source=None, version=None)
+    my_vcf.infos['MatchId'] = vcf.parser._Info(
+        id="MatchId", num=1, type='Integer',
+        desc="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together",
+        source=None, version=None)
+
 
 
 def parse_args(args):
@@ -603,12 +618,14 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
-    parser.add_argument("-f", "--reference", type=str, required=True, default=None,
+    parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
     parser.add_argument("--giabreport", action="store_true",
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("--noprog", action="store_true",
+                        help="Turn off progress monitoring for faster analysis")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=int, default=500,
@@ -644,9 +661,12 @@ def parse_args(args):
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--multimatch", action="store_true", default=False,
-                        help="Allow base calls to match multiple comparison calls (%(default)s)")
+                        help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
 
     args = parser.parse_args(args)
+    if args.pctsim != 0 and not args.reference:
+        parser.error("--reference is required when --pctsim is set")
+
     return args
 
 
@@ -656,7 +676,7 @@ def run(cmdargs):
         print("Error! Output directory '%s' already exists" % args.output)
         exit(1)
 
-    reference = pyfaidx.Fasta(args.reference)
+    reference = pyfaidx.Fasta(args.reference) if args.reference else None
     os.mkdir(args.output)
 
     setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
@@ -709,14 +729,17 @@ def run(cmdargs):
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
     num_entries = 0
-    for entry in regions.iterate(vcf_base):
-        num_entries += 1
-    logging.info("%s base variants", num_entries)
+    bar = None
+    if not args.noprog:
+        for entry in regions.iterate(vcf_base):
+            num_entries += 1
+        logging.info("%s base variants", num_entries)
+        bar = setup_progressbar(num_entries)
+    
     # Reset
     vcf_base = vcf.Reader(filename=args.base)
     edit_header(vcf_base)
 
-    bar = setup_progressbar(num_entries)
 
     # Setup outputs
     tpb_out = vcf.Writer(open(os.path.join(args.output, "tp-base.vcf"), 'w'), vcf_base)
@@ -742,7 +765,8 @@ def run(cmdargs):
     # for variant A - do var_match in B
     logging.info("Matching base to calls")
     for pbarcnt, base_entry in enumerate(regions.iterate(vcf_base)):
-        bar.update(pbarcnt)
+        if not args.noprog:
+            bar.update(pbarcnt)
         sizeA = get_vcf_entry_size(base_entry)
 
         if sizeA < args.sizemin or sizeA > args.sizemax:
@@ -785,10 +809,10 @@ def run(cmdargs):
         # +- 1 just to be safe because why not...
         for comp_entry in vcf_comp.fetch(base_entry.CHROM, max(0, fetch_start - 1), fetch_end + 1):
 
-
             if args.passonly and (comp_entry.FILTER is None or len(comp_entry.FILTER)):
                 if comp_entry.FILTER is None:
-                    logging.warning("Comp variant %s has 'None' FILTER and is being excluded from comparison", comp_entry)
+                    logging.warning("Comp variant %s has 'None' FILTER and is being excluded from comparison",
+                                    comp_entry)
                 continue
             # There is a race condition here that could potentially mismatch things
             # If base1 passes matching call1 and then base2 passes matching call1
@@ -857,6 +881,7 @@ def run(cmdargs):
         # reporting the best match
         base_entry.INFO["NumNeighbors"] = num_neighbors
         base_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+        base_entry.INFO["MatchId"] = pbarcnt
         if len(thresh_neighbors) > 0:
             thresh_neighbors.sort(reverse=True)
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
@@ -866,36 +891,44 @@ def run(cmdargs):
             logging.debug("Best match is %s", str(match_entry))
 
             base_entry.INFO["TruScore"] = match_score
-            match_entry.INFO["TruScore"] = match_score
-            match_entry.INFO["NumNeighbors"] = num_neighbors
-            match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+            
+            annotate_tp(base_entry, *thresh_neighbors[0])
+            tpb_out.write_record(base_entry)
 
             # Don't double count calls was found before
             b_key = vcf_to_key('b', base_entry)
-            c_key = vcf_to_key('c', match_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
-            if not matched_calls[c_key]:
-                stats_box["TP-call"] += 1
-                write_tp_call = True
-            else:
-                write_tp_call = False
             # Mark the call for multimatch checking
             matched_calls[b_key] = True
-            matched_calls[c_key] = True
 
-            annotate_tp(base_entry, *thresh_neighbors[0])
-            annotate_tp(match_entry, *thresh_neighbors[0])
+            for thresh_neighbor in thresh_neighbors:
+                match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
+                    match_stdist, match_endist, match_entry = thresh_neighbor
+                
+                match_entry.INFO["TruScore"] = match_score
+                match_entry.INFO["NumNeighbors"] = num_neighbors
+                match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
+                match_entry.INFO["MatchId"] = pbarcnt
 
-            tpb_out.write_record(base_entry)
-            if write_tp_call:
-                tpc_out.write_record(match_entry)
-            logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
+                c_key = vcf_to_key('c', match_entry)
+                if not matched_calls[c_key]:
+                    stats_box["TP-call"] += 1
+                    write_tp_call = True
+                else:
+                    write_tp_call = False
+                annotate_tp(match_entry, *thresh_neighbor)
+                # Mark the call for multimatch checking
+                matched_calls[c_key] = True
+
+                if write_tp_call:
+                    tpc_out.write_record(match_entry)
+                    logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
             stats_box["FN"] += 1
             fn_out.write_record(base_entry)
 
-    bar.finish()
+    if not args.noprog: bar.finish()
 
     # Get a results peek
     do_stats_math = True
@@ -910,14 +943,15 @@ def run(cmdargs):
                      100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
 
     logging.info("Parsing FPs from calls")
-    bar = setup_progressbar(num_entries_b)
+    if not args.noprog: bar = setup_progressbar(num_entries_b)
+    
     # Reset
     vcf_comp = vcf.Reader(filename=args.comp)
     edit_header(vcf_comp)
     for cnt, entry in enumerate(regions.iterate(vcf_comp)):
         if args.passonly and (entry.FILTER is None or len(entry.FILTER)):
             continue
-        bar.update(cnt + 1)
+        if not args.noprog: bar.update(cnt + 1)
         if matched_calls[vcf_to_key('c', entry)]:
             continue
         size = get_vcf_entry_size(entry)
@@ -929,7 +963,9 @@ def run(cmdargs):
         elif regions.include(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
-    bar.finish()
+    
+    if not args.noprog: bar.finish()
+    
     # call count is just of those used were used
     stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
 
