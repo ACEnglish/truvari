@@ -125,7 +125,7 @@ def create_haplotype(entryA, entryB, ref):
     """
     a_alt = entryA.REF[0] if entryA.ALT[0] == "<DEL>" else entryA.ALT[0]
     b_alt = entryB.REF[0] if entryB.ALT[0] == "<DEL>" else entryB.ALT[0]
-        
+
     if len(a_alt) >= len(entryA.REF):
         a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(a_alt).upper()
         a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(b_alt).upper()
@@ -154,7 +154,10 @@ def var_pctsim_lev(entryA, entryB, ref):
         return 1
     elif entryA.var_subtype == "complex" or entryB.var_subtype == "complex":
         return 0
-    allele1, allele2 = create_haplotype(entryA, entryB, ref)
+    try:
+        allele1, allele2 = create_haplotype(entryA, entryB, ref)
+    except Exception:
+        return 0
     return Levenshtein.ratio(allele1, allele2)
 
 
@@ -656,12 +659,14 @@ def parse_args(args):
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=False,
                         help="Only consider calls with FILTER == PASS")
-    filteg.add_argument("--no-ref", action="store_true", default=False,
-                        help="Don't include 0/0 or ./. GT calls (%(default)s)")
+    filteg.add_argument("--no-ref", default=False, choices=['a', 'b', 'c'],
+                        help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--multimatch", action="store_true", default=False,
                         help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
+    filteg.add_argument("--network", action="store_true", default=False,
+                        help="Output calls redundantly with MatchIds for building Loci networks")
 
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
@@ -735,7 +740,7 @@ def run(cmdargs):
             num_entries += 1
         logging.info("%s base variants", num_entries)
         bar = setup_progressbar(num_entries)
-    
+
     # Reset
     vcf_base = vcf.Reader(filename=args.base)
     edit_header(vcf_base)
@@ -773,7 +778,7 @@ def run(cmdargs):
             stats_box["base size filtered"] += 1
             b_filt.write_record(base_entry)
             continue
-        if args.no_ref and not base_entry.genotype(sampleA).is_variant:
+        if args.no_ref in ["a", "b"] and not base_entry.genotype(sampleA).is_variant:
             stats_box["base gt filtered"] += 1
             b_filt.write_record(base_entry)
             continue
@@ -837,7 +842,7 @@ def run(cmdargs):
             # Someone in the Base call's neighborhood, we'll see if it passes comparisons
             num_neighbors += 1
 
-            if args.no_ref and not comp_entry.genotype(sampleB).is_variant:
+            if args.no_ref in ["a", "c"] and not comp_entry.genotype(sampleB).is_variant:
                 logging.debug("%s is hom-ref", str(comp_entry))
                 continue
 
@@ -891,7 +896,7 @@ def run(cmdargs):
             logging.debug("Best match is %s", str(match_entry))
 
             base_entry.INFO["TruScore"] = match_score
-            
+
             annotate_tp(base_entry, *thresh_neighbors[0])
             tpb_out.write_record(base_entry)
 
@@ -899,13 +904,14 @@ def run(cmdargs):
             b_key = vcf_to_key('b', base_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
+
             # Mark the call for multimatch checking
             matched_calls[b_key] = True
 
             for thresh_neighbor in thresh_neighbors:
                 match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
                     match_stdist, match_endist, match_entry = thresh_neighbor
-                
+
                 match_entry.INFO["TruScore"] = match_score
                 match_entry.INFO["NumNeighbors"] = num_neighbors
                 match_entry.INFO["NumThresholdNeighbors"] = len(thresh_neighbors)
@@ -921,7 +927,7 @@ def run(cmdargs):
                 # Mark the call for multimatch checking
                 matched_calls[c_key] = True
 
-                if write_tp_call:
+                if write_tp_call or args.network:
                     tpc_out.write_record(match_entry)
                     logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
@@ -944,7 +950,7 @@ def run(cmdargs):
 
     logging.info("Parsing FPs from calls")
     if not args.noprog: bar = setup_progressbar(num_entries_b)
-    
+
     # Reset
     vcf_comp = vcf.Reader(filename=args.comp)
     edit_header(vcf_comp)
@@ -958,14 +964,14 @@ def run(cmdargs):
         if size < args.sizemin or size > args.sizemax:
             c_filt.write_record(entry)
             stats_box["call size filtered"] += 1
-        elif args.no_ref and not entry.genotype(sampleB).is_variant:
+        elif args.no_ref in ["a", "c"] and not entry.genotype(sampleB).is_variant:
             stats_box["call gt filtered"] += 1
         elif regions.include(entry):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
-    
+
     if not args.noprog: bar.finish()
-    
+
     # call count is just of those used were used
     stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
 

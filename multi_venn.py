@@ -43,7 +43,8 @@ def main():
     for vcfn in allVCFs:
         v = parse_vcf(vcfn)
         for entry in v:
-            call_lookup[entry_key(entry)].append(vcfn)
+            key = entry_key(entry)
+            call_lookup[key].append(vcfn)
             file_abscnt[vcfn] += 1
 
     count_lookup = {}
