@@ -22,11 +22,13 @@ Truvari uses Python 2 or 3 and requires the following modules:
 
   $ pip install pyvcf python-Levenshtein progressbar2 pysam pyfaidx intervaltree==2.1.0
 
+Once those dependencies are installed, checkout this repository with `git` and directly
+call `python /your/clone/directory/truvari.py`.
+
 Quick start
 ===========
 
   $ ./truvari.py -b base_calls.vcf -c compare_calls.vcf -o output_dir/
-
 
 Outputs
 =======
@@ -39,7 +41,7 @@ Outputs
   * call-filter.vcf -- size filtered calls from COMP
   * summary.txt -- json output of performance stats
   * log.txt -- run log
-  * giab_report.txt -- (optional) Summary of GIAB benchmark calls. See below for details.
+  * giab_report.txt -- (optional) Summary of GIAB benchmark calls. See "Using the GIAB Report" below.
 
 
 Methodology
@@ -57,7 +59,7 @@ For each BaseCall:
       Add CompCall to list of Neighbors
   Sort list of Neighbors by TruScore ((2*sim + 1*size + 1*ovl) / 3.0)
   Take CompCall with highest TruScore and BaseCall as TPs
-  Only use a CompCall once if --multimatch
+  Only use a CompCall once if not --multimatch
   If no neighbors: BaseCall is FN
 For each CompCall:
   If not used: mark as FP
@@ -136,10 +138,10 @@ To create this report.
 4. Finally, paste ALL of the information inside `giab_report.txt` into the "RawData" tab. Be careful not 
 to alter the report text in any way. If successul, the "Formatted" tab you will have a fully formated report.
 
-While truvari can use other benchmark sets, this formatted report currently only works with GIAB SV v0.5 and v0.6. Work
-will need to be done to ensure truvari can parse future GIAB SV releases.
+While Truvari can use other benchmark sets, this formatted report currently only works with GIAB SV v0.5 and v0.6. Work
+will need to be done to ensure Truvari can parse future GIAB SV releases.
 
-ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/
+<a href="ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/">GIAB v0.6 Download Link</a>
 
 Include Bed & VCF Header Contigs 
 --------------------------------
@@ -147,9 +149,11 @@ Include Bed & VCF Header Contigs
 If an `--includebed` is provided, only base and comp calls contained within the defined regions are used 
 for comparison. This is similar to pre-filtering your base/comp calls with:
 
-`(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz`
+```bash
+(zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz
+```
 
-with the exception that truvari requires the start and the end to be contained in the same includebed region 
+with the exception that Truvari requires the start and the end to be contained in the same includebed region 
 whereas `bedtools intersect` does not.
 
 If an `--includebed` is not provided, the comparison is restricted to only the contigs present in the base VCF
@@ -172,7 +176,7 @@ Where `a1_seq1` is the longer of the REF or ALT allele.
 More Information
 ----------------
 
-Find more details and discussions about truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
 
 
 

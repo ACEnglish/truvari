@@ -666,7 +666,7 @@ def parse_args(args):
     filteg.add_argument("--multimatch", action="store_true", default=False,
                         help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
     filteg.add_argument("--network", action="store_true", default=False,
-                        help="Output calls redundantly with MatchIds for building Loci networks")
+                        help="Output multimatch calls redundantly with MatchIds for building Loci networks")
 
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
