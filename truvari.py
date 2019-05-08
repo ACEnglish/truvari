@@ -664,9 +664,8 @@ def parse_args(args):
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--multimatch", action="store_true", default=False,
-                        help="Allow base calls to match multiple comparison calls, and vice versa (%(default)s)")
-    filteg.add_argument("--network", action="store_true", default=False,
-                        help="Output multimatch calls redundantly with MatchIds for building Loci networks")
+                        help=("Allow base calls to match multiple comparison calls, and vice versa. "
+                              "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
@@ -730,7 +729,7 @@ def run(cmdargs):
     logging.info("Creating call interval tree for overlap search")
     span_lookup, num_entries_b, cmp_entries = make_interval_tree(vcf_comp, args.sizefilt, args.sizemax, args.passonly)
 
-    logging.info("%d call variants", num_entries_b)
+    logging.info("%d call variants in total", num_entries_b)
     logging.info("%d call variants within size range (%d, %d)", cmp_entries, args.sizefilt, args.sizemax)
 
     num_entries = 0
@@ -927,7 +926,7 @@ def run(cmdargs):
                 # Mark the call for multimatch checking
                 matched_calls[c_key] = True
 
-                if write_tp_call or args.network:
+                if write_tp_call or args.multimatch:
                     tpc_out.write_record(match_entry)
                     logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
         else:
