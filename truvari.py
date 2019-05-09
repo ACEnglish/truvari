@@ -7,6 +7,10 @@ import json
 import bisect
 import logging
 import argparse
+"""
+Structural variant caller comparison tool
+Given a benchmark and callset, calculate the recall/precision/f-measure
+"""
 import warnings
 
 from collections import defaultdict, Counter
@@ -18,8 +22,6 @@ import Levenshtein
 import progressbar
 from intervaltree import IntervalTree
 
-USAGE = """Structural variant caller comparison tool
-Given a benchmark and callset, calculate the recall/precision/f-measure"""
 
 
 # setup logging - need to write to file AND stderr
@@ -613,7 +615,7 @@ def parse_args(args):
             raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
         return x
 
-    parser = argparse.ArgumentParser(prog="truvari", description=USAGE,
+    parser = argparse.ArgumentParser(prog="truvari", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline truth-set calls")

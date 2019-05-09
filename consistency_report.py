@@ -1,16 +1,15 @@
 """
-Over multiple vcfs, calculate their overlap.
+Over multiple vcfs, calculate their intersection/consistency.
 
-Entries will match if a key of:
-    CHROM:POS ID REF ALT matches. Doesn't do anything fancy with Alleles
-
-Useful for intersecting the tp-base.vcf of multiple comparisons
+Calls will match between VCFs if they have a matching key of:
+    CHROM:POS ID REF ALT
 """
 from __future__ import print_function
 
 import sys
 import gzip
 import bisect
+import argparse
 import itertools
 
 from collections import defaultdict, namedtuple, Counter
@@ -88,10 +87,15 @@ def main():
     """
     Run the program
     """
-    allVCFs = sys.argv[1:]
-    call_lookup, file_abscnt = read_files(allVCFs)
+    parser = argparse.ArgumentParser(prog="consistency_report", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
+                        help="VCFs to intersect")
+    args = parser.parse_args()
 
-    count_lookup = create_file_intersections(allVCFs)
+    call_lookup, file_abscnt = read_files(args.allVCFs)
+
+    count_lookup = create_file_intersections(args.allVCFs)
 
     for key in call_lookup:
         fkey = hash_list(call_lookup[key])
@@ -108,10 +112,10 @@ def main():
         if value == 0:
             continue
 
-        my_group = ["0"] * len(allVCFs)
+        my_group = ["0"] * len(args.allVCFs)
         m_cnt = 0
         for j in combo:
-            my_group[allVCFs.index(j)] = "1"
+            my_group[args.allVCFs.index(j)] = "1"
             m_cnt += 1
         cur_data.append("".join(my_group))
         cur_data.append(value)
@@ -128,9 +132,10 @@ def main():
 
     total_unique_calls = sum(all_consistency.values())
     # Write the report
-    print("#\n# Total %d calls across %d VCFs\n#" % (total_unique_calls, len(allVCFs)))
-    print("#Files")
-    print("\n".join(allVCFs))
+    print("#\n# Total %d calls across %d VCFs\n#" % (total_unique_calls, len(args.allVCFs)))
+    print("#File\tNumCalls")
+    for fn in args.allVCFs:
+        print("%s\t%d" % (fn, file_abscnt[fn]))
 
     print("#\n# Summary of consistency\n#")
     print("#VCFs\tCalls\tPct")
