@@ -22,24 +22,22 @@ Truvari has some big changes. In order to keep up with the retirement of Python 
 We're now only supporting Python 3.
 
 Additionally, we now package Truvari so it and its dependencies can be installed directly. See Installation 
-below.
+below. This will enable us to refactor the code for easier maintenance and reusability.
 
 Finally, we now automatically report genotype comparisons in the summary stats.
 
 Installation
 ============
 
-Truvari uses Python 2 or 3 and requires the following modules:
+Truvari uses Python 3.7 and can be installed with pip:
 
-  $ pip install pyvcf python-Levenshtein progressbar2 pysam pyfaidx intervaltree==2.1.0
+  $ pip install Truvari 
 
-Once those dependencies are installed, checkout this repository with `git` and directly
-call `python /your/clone/directory/truvari.py`.
 
 Quick start
 ===========
 
-  $ ./truvari.py -b base_calls.vcf -c compare_calls.vcf -o output_dir/
+  $ truvari -b base_calls.vcf -c compare_calls.vcf -o output_dir/
 
 Outputs
 =======
