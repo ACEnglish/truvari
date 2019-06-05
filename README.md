@@ -15,20 +15,29 @@ Given benchmark and comparsion sets of SVs, calculate the recall, precision, and
 
 [Motivation](https://docs.google.com/presentation/d/17mvC1XOpOm7khAbZwF3SgtG2Rl4M9Mro37yF2nN7GhE/edit)
 
+UPDATES
+=======
+
+Truvari has some big changes. In order to keep up with the retirement of Python 2.7 https://pythonclock.org/
+We're now only supporting Python 3.
+
+Additionally, we now package Truvari so it and its dependencies can be installed directly. See Installation 
+below. This will enable us to refactor the code for easier maintenance and reusability.
+
+Finally, we now automatically report genotype comparisons in the summary stats.
+
 Installation
 ============
 
-Truvari uses Python 2 or 3 and requires the following modules:
+Truvari uses Python 3.7 and can be installed with pip:
 
-  $ pip install pyvcf python-Levenshtein progressbar2 pysam pyfaidx intervaltree==2.1.0
+  $ pip install Truvari 
 
-Once those dependencies are installed, checkout this repository with `git` and directly
-call `python /your/clone/directory/truvari.py`.
 
 Quick start
 ===========
 
-  $ ./truvari.py -b base_calls.vcf -c compare_calls.vcf -o output_dir/
+  $ truvari -b base_calls.vcf -c compare_calls.vcf -o output_dir/
 
 Outputs
 =======
@@ -43,6 +52,32 @@ Outputs
   * log.txt -- run log
   * giab_report.txt -- (optional) Summary of GIAB benchmark calls. See "Using the GIAB Report" below.
 
+summary.txt
+===========
+
+The following stats are generated for benchmarking your call set.
+<table><tr><th>Metric</th><th>Definition</th>
+<tr><td>TP-base</td><td>Number of matching calls from the base vcf</td></tr>
+<tr><td>TP-call</td><td>Number of matching calls from the comp vcf</td></tr>
+<tr><td>FP</td><td>Number of non-matching calls from the comp vcf</td></tr>
+<tr><td>FN</td><td>Number of non-matching calls from the base vcf</td></tr>
+<tr><td>precision</td><td>TP-call / (TP-call +  FP)</td></tr>
+<tr><td>recall</td><td>TP-base / (TP-base + FN)</td></tr>
+<tr><td>f1</td><td>(recall * precision) / (recall + precision)</td></tr>
+<tr><td>base cnt</td><td>Number of calls in the base vcf</td></tr>
+<tr><td>call cnt</td><td>Number of calls in the comp vcf</td></tr>
+<tr><td>base size filtered</td><td>Number of base vcf calls outside of (sizemin, sizemax)</td></tr>
+<tr><td>call size filtered</td><td>Number of comp vcf calls outside of (sizemin, sizemax)</td></tr>
+<tr><td>base gt filtered</td><td>Number of base calls not passing the no-ref parameter filter</td></tr>
+<tr><td>call gt filtered</td><td>Number of comp calls not passing the no-ref parameter filter</td></tr>
+<tr><td>TP-call_TP-gt</td><td>TP-call's with genotype match</td></tr>
+<tr><td>TP-call_FP-gt</td><td>TP-call's without genotype match</td></tr>
+<tr><td>TP-base_TP-gt</td><td>TP-base's with genotype match</td></tr>
+<tr><td>TP-base_FP-gt</td><td>TP-base's without genotype match</td></tr>
+<tr><td>gt_precision</td><td>TP-call_TP-gt / (TP-call_TP-gt + FP + TP-call_FP-gt)</td></tr>
+<tr><td>gt_recall</td><td>TP-base_TP-gt / (TP-base_TP-gt / FN)</td></tr>
+<tr><td>gt_f1</td><td>(gt_recall * gt_precision) / (gt_recall + gt_precision)</td></tr>
+</table>
 
 Methodology
 ===========
