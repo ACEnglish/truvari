@@ -13,7 +13,7 @@ Given a benchmark and callset, calculate the recall/precision/f-measure
 """
 import warnings
 
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, OrderedDict
 
 # External dependencies
 import vcf
@@ -21,7 +21,6 @@ import pyfaidx
 import Levenshtein
 import progressbar
 from intervaltree import IntervalTree
-
 
 
 # setup logging - need to write to file AND stderr
@@ -132,8 +131,10 @@ def create_haplotype(entryA, entryB, ref):
         a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, str(a_alt).upper()
         a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, str(b_alt).upper()
     else:
-        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF  # str(entryA.ALT[0]).upper()
-        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF  # str(entryB.ALT[0]).upper()
+        # str(entryA.ALT[0]).upper()
+        a1_chrom, a1_start, a1_end, a1_seq = entryA.CHROM, entryA.start, entryA.end, entryA.REF
+        # str(entryB.ALT[0]).upper()
+        a2_chrom, a2_start, a2_end, a2_seq = entryB.CHROM, entryB.start, entryB.end, entryB.REF
 
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
@@ -171,6 +172,7 @@ def overlaps(s1, e1, s2, e2):
     e_cand = min(e1, e2)
     return s_cand < e_cand
 
+
 def get_vcf_variant_type(entry):
     """
     How svtype is determined:
@@ -206,6 +208,7 @@ def get_vcf_variant_type(entry):
     # rely on pyvcf
     return entry.var_subtype.upper()
 
+
 def same_variant_type(entryA, entryB):
     """
     returns if entryA svtype == entryB svtype
@@ -227,7 +230,7 @@ def fetch_coords(lookup, entry, dist=0):
     if not lookup[entry.CHROM].overlaps(start, end):
         return None, None
 
-    cand_intervals = lookup[entry.CHROM].search(start, end)
+    cand_intervals = lookup[entry.CHROM].overlap(start, end)
     s_ret = min([x.data for x in cand_intervals if overlaps(start, end, x[0], x[1])])
     e_ret = max([x.data for x in cand_intervals if overlaps(start, end, x[0], x[1])])
     return s_ret, e_ret
@@ -354,7 +357,7 @@ def make_giabreport(args, stats_box):
         get a count for all the keys
         key is a dictionary of count and their order
         """
-        main_key = key.keys()[0]
+        main_key = next(iter(key.keys()))
         cnt = Counter()
         for x in docs:
             cnt[x[main_key]] += 1
@@ -365,8 +368,8 @@ def make_giabreport(args, stats_box):
         """
         Parse any set of docs and create a 2x2 table
         """
-        main_key1 = key1.keys()[0]
-        main_key2 = key2.keys()[0]
+        main_key1 = next(iter(key1.keys()))
+        main_key2 = next(iter(key2.keys()))
         cnt = defaultdict(Counter)
         for x in docs:
             cnt[x[main_key1]][x[main_key2]] += 1
@@ -552,7 +555,7 @@ class GenomeTree():
         overlaps = self.tree[entry.CHROM].overlaps(astart) and self.tree[entry.CHROM].overlaps(aend)
         if astart == aend:
             return overlaps
-        return overlaps and len(self.tree[entry.CHROM].search(astart, aend)) == 1
+        return overlaps and len(self.tree[entry.CHROM].overlap(astart, aend)) == 1
 
 
 def edit_header(my_vcf):
@@ -602,7 +605,6 @@ def edit_header(my_vcf):
         id="MatchId", num=1, type='Integer',
         desc="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together",
         source=None, version=None)
-
 
 
 def parse_args(args):
@@ -746,7 +748,6 @@ def run(cmdargs):
     vcf_base = vcf.Reader(filename=args.base)
     edit_header(vcf_base)
 
-
     # Setup outputs
     tpb_out = vcf.Writer(open(os.path.join(args.output, "tp-base.vcf"), 'w'), vcf_base)
     b_filt = vcf.Writer(open(os.path.join(args.output, "base-filter.vcf"), 'w'), vcf_base)
@@ -755,17 +756,28 @@ def run(cmdargs):
     fn_out = vcf.Writer(open(os.path.join(args.output, "fn.vcf"), 'w'), vcf_base)
     fp_out = vcf.Writer(open(os.path.join(args.output, "fp.vcf"), 'w'), vcf_comp)
 
-    stats_box = {"TP-base": 0,
-                 "TP-call": 0,
-                 "FP": 0,
-                 "FN": 0,
-                 "base cnt": 0,
-                 "call cnt": 0,
-                 "base size filtered": 0,
-                 "call size filtered": 0,
-                 "base gt filtered": 0,
-                 "call gt filtered": 0}
-
+    stats_box = OrderedDict()
+    stats_box["TP-base"] = 0
+    stats_box["TP-call"] = 0
+    stats_box["FP"] = 0
+    stats_box["FN"] = 0
+    stats_box["precision"] = 0
+    stats_box["recall"] = 0
+    stats_box["f1"] = 0
+    stats_box["base cnt"] = 0
+    stats_box["call cnt"] = 0
+    stats_box["base size filtered"] = 0
+    stats_box["call size filtered"] = 0
+    stats_box["base gt filtered"] = 0
+    stats_box["call gt filtered"] = 0
+    stats_box["TP-call_TP-gt"] = 0
+    stats_box["TP-call_FP-gt"] = 0
+    stats_box["TP-base_TP-gt"] = 0
+    stats_box["TP-base_FP-gt"] = 0
+    stats_box["gt_precision"] = 0
+    stats_box["gt_recall"] = 0
+    stats_box["gt_f1"] = 0
+    
     # Calls that have been matched up
     matched_calls = defaultdict(bool)
     # for variant A - do var_match in B
@@ -905,6 +917,10 @@ def run(cmdargs):
             b_key = vcf_to_key('b', base_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
+                if gt_comp(base_entry, match_entry, sampleA, sampleB):
+                    stats_box["TP-base_TP-gt"] += 1
+                else:
+                    stats_box["TP-base_FP-gt"] += 1
 
             # Mark the call for multimatch checking
             matched_calls[b_key] = True
@@ -921,6 +937,10 @@ def run(cmdargs):
                 c_key = vcf_to_key('c', match_entry)
                 if not matched_calls[c_key]:
                     stats_box["TP-call"] += 1
+                    if gt_comp(base_entry, match_entry, sampleA, sampleB):
+                        stats_box["TP-call_TP-gt"] += 1
+                    else:
+                        stats_box["TP-call_FP-gt"] += 1
                     write_tp_call = True
                 else:
                     write_tp_call = False
@@ -935,7 +955,8 @@ def run(cmdargs):
             stats_box["FN"] += 1
             fn_out.write_record(base_entry)
 
-    if not args.noprog: bar.finish()
+    if not args.noprog:
+        bar.finish()
 
     # Get a results peek
     do_stats_math = True
@@ -950,7 +971,8 @@ def run(cmdargs):
                      100 * (float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])))
 
     logging.info("Parsing FPs from calls")
-    if not args.noprog: bar = setup_progressbar(num_entries_b)
+    if not args.noprog:
+        bar = setup_progressbar(num_entries_b)
 
     # Reset
     vcf_comp = vcf.Reader(filename=args.comp)
@@ -958,7 +980,8 @@ def run(cmdargs):
     for cnt, entry in enumerate(regions.iterate(vcf_comp)):
         if args.passonly and (entry.FILTER is None or len(entry.FILTER)):
             continue
-        if not args.noprog: bar.update(cnt + 1)
+        if not args.noprog:
+            bar.update(cnt + 1)
         if matched_calls[vcf_to_key('c', entry)]:
             continue
         size = get_vcf_entry_size(entry)
@@ -971,7 +994,8 @@ def run(cmdargs):
             fp_out.write_record(entry)
             stats_box["FP"] += 1
 
-    if not args.noprog: bar.finish()
+    if not args.noprog:
+        bar.finish()
 
     # call count is just of those used were used
     stats_box["call cnt"] = stats_box["TP-base"] + stats_box["FP"]
@@ -986,13 +1010,13 @@ def run(cmdargs):
 
     # Final calculations
     if do_stats_math:
-        # precision
         stats_box["precision"] = float(stats_box["TP-call"]) / (stats_box["TP-call"] + stats_box["FP"])
-        # recall
         stats_box["recall"] = float(stats_box["TP-base"]) / (stats_box["TP-base"] + stats_box["FN"])
-    else:
-        stats_box["precision"] = 0
-        stats_box["recall"] = 0
+        if stats_box["TP-call_TP-gt"] != 0:
+            stats_box["gt_precision"] = float(stats_box["TP-call_TP-gt"]) / (stats_box["TP-call_TP-gt"] +
+                                                                             stats_box["FP"] + stats_box["TP-call_FP-gt"])
+            stats_box["gt_recall"] = float(stats_box["TP-base_TP-gt"]) / (stats_box["TP-base_TP-gt"] + stats_box["FN"])
+    
     # f-measure
     neum = stats_box["recall"] * stats_box["precision"]
     denom = stats_box["recall"] + stats_box["precision"]
@@ -1000,7 +1024,14 @@ def run(cmdargs):
         stats_box["f1"] = 2 * (neum / denom)
     else:
         stats_box["f1"] = "NaN"
-
+    
+    neum = stats_box["gt_recall"] * stats_box["gt_precision"]
+    denom = stats_box["gt_recall"] + stats_box["gt_precision"]
+    if denom != 0:
+        stats_box["gt_f1"] = 2 * (neum / denom)
+    else:
+        stats_box["gt_f1"] = "NaN"
+        
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
         sys.stdout.write(json.dumps(stats_box, indent=4) + '\n')
@@ -1010,6 +1041,7 @@ def run(cmdargs):
         make_giabreport(args, stats_box)
 
     logging.info("Finished")
+
 
 if __name__ == '__main__':
     run(sys.argv[1:])
