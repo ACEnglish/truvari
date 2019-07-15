@@ -913,7 +913,7 @@ def run(cmdargs):
             annotate_tp(base_entry, *thresh_neighbors[0])
             tpb_out.write_record(base_entry)
 
-            # Don't double count calls was found before
+            # Don't double count calls found before
             b_key = vcf_to_key('b', base_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
@@ -935,22 +935,22 @@ def run(cmdargs):
                 match_entry.INFO["MatchId"] = pbarcnt
 
                 c_key = vcf_to_key('c', match_entry)
-                if not matched_calls[c_key]:
+                if not matched_calls[c_key]: # unmatched
                     stats_box["TP-call"] += 1
                     if gt_comp(base_entry, match_entry, sampleA, sampleB):
                         stats_box["TP-call_TP-gt"] += 1
                     else:
                         stats_box["TP-call_FP-gt"] += 1
-                    write_tp_call = True
-                else:
-                    write_tp_call = False
+                elif not args.multimatch:
+                    # Used this one and it can't multimatch
+                    continue
+                logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
                 annotate_tp(match_entry, *thresh_neighbor)
+                tpc_out.write_record(match_entry)
                 # Mark the call for multimatch checking
                 matched_calls[c_key] = True
-
-                if write_tp_call or args.multimatch:
-                    tpc_out.write_record(match_entry)
-                    logging.debug("Matching %s and %s", str(base_entry), str(match_entry))
+                if not args.multimatch: # We're done here
+                    break
         else:
             stats_box["FN"] += 1
             fn_out.write_record(base_entry)
