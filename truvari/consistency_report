@@ -7,6 +7,7 @@ Calls will match between VCFs if they have a matching key of:
 """
 from __future__ import print_function
 
+import io
 import sys
 import gzip
 import bisect
@@ -22,7 +23,7 @@ def parse_vcf(fn):
     """
     VCFLine = namedtuple("VCFline", "CHROM POS ID REF ALT QUAL FILT INFO FORMAT SAMPLES")
     if fn.endswith(".gz"):
-        fh = gzip.GzipFile(fn)
+        fh = io.TextIOWrapper(gzip.open(fn))
     else:
         fh = open(fn, 'r')
     for line in fh:
