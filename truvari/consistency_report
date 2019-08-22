@@ -64,8 +64,13 @@ def read_files(allVCFs):
     file_abscnt = defaultdict(float)
     for vcfn in allVCFs:
         v = parse_vcf(vcfn)
+        #disallow intra vcf duplicates
+        seen = {}
         for entry in v:
             key = entry_key(entry)
+            if key in seen:
+                continue
+            seen[key] = True
             bisect.insort(call_lookup[key], vcfn)
             file_abscnt[vcfn] += 1
 
