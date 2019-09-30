@@ -525,8 +525,8 @@ class GenomeTree():
                     "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
             for contig in contigA_set:
-                name = vcfA.contigs[contig].name
-                length = vcfA.contigs[contig].length
+                name = vcfA.header.contigs[contig].name
+                length = vcfA.header.contigs[contig].length
                 all_regions[name].addi(0, length)
 
         self.tree = all_regions
