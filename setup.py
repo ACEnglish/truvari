@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Truvari',
-    version='1.3',
+    version='1.3.1',
     author="ACEnglish",
     author_email="acenglish@gmail.com",
     url="https://github.com/spiralgenetics/truvari",
