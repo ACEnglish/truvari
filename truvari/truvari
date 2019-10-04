@@ -1031,7 +1031,6 @@ def main(cmdargs):
         
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
-        # sys.stdout.write(json.dumps(stats_box, indent=4) + '\n')
         logging.info("Stats: %s", json.dumps(stats_box, indent=4))
 
     if args.giabreport:
