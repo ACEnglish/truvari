@@ -154,7 +154,7 @@ def main():
     print("#\n# Breakdown of VCFs' consistency\n#")
     print("#Group\tTotal\tTotalPct\tPctOfFileCalls")
     for my_group, value, combo in all_overlap:
-        print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, combo[1:]))
+        print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, combo[1:][::-1]))
 
 if __name__ == '__main__':
     main()
