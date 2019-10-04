@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 from __future__ import print_function
+"""
+Structural variant caller comparison tool
+Given a benchmark and callset, calculate the recall/precision/f-measure
+"""
 import os
 import re
 import sys
 import json
 import bisect
 import logging
-import argparse
-"""
-Structural variant caller comparison tool
-Given a benchmark and callset, calculate the recall/precision/f-measure
-"""
 import warnings
+import argparse
 
+from functools import cmp_to_key
 from collections import defaultdict, Counter, OrderedDict
 
 # External dependencies
@@ -673,6 +674,14 @@ def copy_entry(entry, header):
                         #    alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
                         #    info=entry.info, format=entry.format, samples=entry.samples)
 
+def match_sorter(mat1, mat2):
+    """
+    Sort by attributes and then deterministically by hash(str(VariantRecord))
+    """
+    for i in range(7):
+        if mat1[i] != mat2[i]:
+            return mat1[i] - mat2[i]
+    return hash(str(mat1[7])) - hash(str(mat2[7]))
 
 def main(cmdargs):
     args = parse_args(cmdargs)
@@ -899,7 +908,7 @@ def main(cmdargs):
         base_entry.info["NumThresholdNeighbors"] = len(thresh_neighbors)
         base_entry.info["MatchId"] = pbarcnt
         if len(thresh_neighbors) > 0:
-            thresh_neighbors.sort(reverse=True)
+            thresh_neighbors.sort(reverse=True, key=cmp_to_key(match_sorter))
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
 
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
@@ -1031,7 +1040,6 @@ def main(cmdargs):
         
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         fout.write(json.dumps(stats_box, indent=4))
-        # sys.stdout.write(json.dumps(stats_box, indent=4) + '\n')
         logging.info("Stats: %s", json.dumps(stats_box, indent=4))
 
     if args.giabreport:
