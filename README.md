@@ -182,7 +182,7 @@ Include Bed & VCF Header Contigs
 --------------------------------
 
 If an `--includebed` is provided, only base and comp calls contained within the defined regions are used 
-for comparison. This is similar to pre-filtering your base/comp calls with:
+for comparison. This is similar to pre-filtering your base/comp calls using:
 
 ```bash
 (zgrep "#" my_calls.vcf.gz && bedtools intersect -u -a my_calls.vcf.gz -b include.bed) | bgzip > filtered.vcf.gz
