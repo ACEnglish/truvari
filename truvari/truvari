@@ -899,7 +899,7 @@ def main(cmdargs):
         base_entry.info["NumThresholdNeighbors"] = len(thresh_neighbors)
         base_entry.info["MatchId"] = pbarcnt
         if len(thresh_neighbors) > 0:
-            thresh_neighbors.sort(reverse=True)
+            thresh_neighbors.sort(reverse=True, key=itemgetter(0))
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
 
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
