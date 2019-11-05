@@ -199,14 +199,32 @@ statistics and will not be present in any output vcfs.
 Comparing Haplotype Sequences of Variants
 ---------------------------------------
 
-To compare the sequence similarity, build the haplotypes over the range of min(call starts)-max(call ends) and
-build the sequence change from the variants. For example:
+While many SV overlapping approaches match changes within regions with metrics such as reciprocal overlap and
+start/end distances, few account for the possibility to represent the same sequence change in multiple ways.
+
+For example, consider a tandem repeat expansion of the reference sequence 'AB'. Here, we'll represent the 'insertion'
+sequence as lower-case 'ab', though it should be considered equivalent to 'AB'. Three equally valid descriptions of this 
+variant would be:
+
+```text
+#POS INS  Haplotype
+  0  ab   abAB
+  1  ba   AbaB
+  2  ab   ABab
+```
+
+Therefore, to compare the sequence similarity, Truvari builds the haplotypes over the range of a pair of calls'
+`min(starts):max(ends)` before making the the sequence change introduced by the variants. In python, this line 
+looks like:
 
 ``` python
 hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
 ```
 
 Where `a1_seq1` is the longer of the REF or ALT allele.
+
+Future versions of Truvari may take this concept further to reconstruct haplotypes based on phasing information
+between variants in order to allow for more flexibilty in complex multi-allelic representations.
 
 More Information
 ----------------

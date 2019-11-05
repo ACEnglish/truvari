@@ -126,15 +126,12 @@ def main():
             m_cnt += 1
         cur_data.append("".join(my_group))
         cur_data.append(value)
-        cur_data.append("")
+        cur_data.append([])
 
         all_consistency[m_cnt] += value
         for fkey in combo:
             if file_abscnt[fkey] > 0:
-                cur_data[-1] += " %.2f%%" % (count_lookup[combo] / file_abscnt[fkey] * 100)
-            else:
-                # Shouldn't happen...
-                cur_data[-1] += " 0%%"
+                cur_data[-1].append("%.2f%%" % (count_lookup[combo] / file_abscnt[fkey] * 100))
         all_overlap.append(cur_data)
 
     total_unique_calls = sum(all_consistency.values())
@@ -154,7 +151,15 @@ def main():
     print("#\n# Breakdown of VCFs' consistency\n#")
     print("#Group\tTotal\tTotalPct\tPctOfFileCalls")
     for my_group, value, combo in all_overlap:
-        print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, combo[1:][::-1]))
+        c_text = ""
+        pos = 0
+        for i in my_group:
+            if i == '1':
+                c_text += combo[pos] + " "
+                pos += 1
+            else:
+                c_text += "0% "
+        print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, c_text))
 
 if __name__ == '__main__':
     main()
