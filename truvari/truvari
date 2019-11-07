@@ -123,7 +123,7 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     Compare the genotypes, returns if they're the same
     Simple for now. Methodized so it's easy to expand later
     """
-    return sorted(entryA.samples[sampleA]["GT"]) == sorted(entryB.samples[sampleB]["GT"])
+    return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
 
 def create_haplotype(entryA, entryB, ref):
