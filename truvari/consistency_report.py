@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Over multiple vcfs, calculate their intersection/consistency.
 
@@ -64,7 +63,7 @@ def read_files(allVCFs):
     file_abscnt = defaultdict(float)
     for vcfn in allVCFs:
         v = parse_vcf(vcfn)
-        #disallow intra vcf duplicates
+        # disallow intra vcf duplicates
         seen = {}
         for entry in v:
             key = entry_key(entry)
@@ -160,6 +159,3 @@ def main():
             else:
                 c_text += "0% "
         print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, c_text))
-
-if __name__ == '__main__':
-    main()
