@@ -89,7 +89,7 @@ def create_file_intersections(allVCFs):
     return count_lookup
 
 
-def main():
+def consistency_main(args):
     """
     Run the program
     """
@@ -97,7 +97,7 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     call_lookup, file_abscnt = read_files(args.allVCFs)
 

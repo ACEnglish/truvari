@@ -2,13 +2,13 @@ from setuptools import setup
 
 setup(
     name='Truvari',
-    version='2.0.0',
+    version='2.0.0-dev',
     author="ACEnglish",
     author_email="acenglish@gmail.com",
     url="https://github.com/spiralgenetics/truvari",
-    packages=['truvari',],
+    packages=['truvari'],
     license='MIT',
-    scripts=["bin/truvari", "bin/consistency_report"],
+    scripts=["bin/truvari"],
     description="Structural variant comparison tool for VCFs",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
