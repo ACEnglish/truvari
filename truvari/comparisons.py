@@ -2,6 +2,8 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
+import re
+from functools import cmp_to_key
 import Levenshtein
 
 
@@ -28,8 +30,23 @@ def var_sizesim(sizeA, sizeB):
     """
     Calculate the size similarity pct for the two entries
     compares the longer of entryA's two alleles (REF or ALT)
+    backwards compat
     """
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
+
+
+def size_similarity(sizeA, sizeB):
+    return var_sizesim(sizeA, sizeB)
+
+
+def get_vcf_size_similarity(entryA, entryB):
+    """
+    Calculate the size similarity pct for the two entries
+    compares the longer of entryA's two alleles (REF or ALT)
+    """
+    sizeA = get_vcf_entry_size(entryA)
+    sizeB = get_vcf_entry_size(entryB)
+    return var_sizesim(sizeA, sizeB)
 
 
 def gt_comp(entryA, entryB, sampleA, sampleB):
@@ -81,7 +98,7 @@ def var_pctsim_lev(entryA, entryB, ref):
 
 def overlaps(s1, e1, s2, e2):
     """
-    Check if two ranges have overlap
+    Check if two start/end ranges have overlap
     """
     s_cand = max(s1, s2)
     e_cand = min(e1, e2)
@@ -189,6 +206,7 @@ def get_vcf_entry_size(entry):
 def get_rec_ovl(astart, aend, bstart, bend):
     """
     Compute reciprocal overlap between two spans
+    backwards compatibility
     """
     ovl_start = max(astart, bstart)
     ovl_end = min(aend, bend)
@@ -205,3 +223,82 @@ def get_weighted_score(sim, size, ovl):
     return (2*sim + 1*size + 1*ovl) / 3.0
     """
     return (2 * sim + 1 * size + 1 * ovl) / 3.0
+
+
+def reciprocal_overlap(astart, aend, bstart, bend):
+    """
+    creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
+    """
+    return get_rec_ovl(astart, aend, bstart, bend)
+
+
+def get_vcf_reciprocal_overlap(entry1, entry2):
+    """
+    creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
+    """
+    astart, aend = get_vcf_boundaries(entry1)
+    bstart, bend = get_vcf_boundaries(entry2)
+    return reciprocal_overlap(astart, aend, bstart, bend)
+
+
+def is_sv(entry, min_size=25):
+    """
+    Returns if the event is a variant over a minimum size
+    """
+    return get_vcf_length(entry) >= min_size
+
+
+def type_match(entry1, entry2, lookup=None):
+    """
+    lookup of TYPE1 that matches to TYPE2
+    """
+    pass
+
+
+def filter_value(entry, values=None):
+    """
+    Only take calls with filter values in the list provided
+    if None provided, assume that filter_value must be PASS or blank '.')
+    """
+    if values is None:
+        return entry.filter == [] or 'PASS' in entry.filter
+    return values.intersection(entry.filter)
+
+
+def match_sorter(candidates):
+    """
+    sort a list of tuples with similarity scores by priority, ignoring the entry_idx, but still sorting deterministically
+    NOTE - last item in tuple must be the entry being priortized
+    """
+    if len(candidates) == 0:
+        return
+    entry_idx = len(candidates[0]) - 1
+
+    def sort_cmp(mat1, mat2):
+        """
+        Sort by attributes and then deterministically by hash(str(VariantRecord))
+        """
+        for i in range(entry_idx):
+            if mat1[i] != mat2[i]:
+                return mat1[i] - mat2[i]
+        return hash(str(mat1[entry_idx])) - hash(str(mat2[entry_idx]))
+
+    candidates.sort(reverse=True, key=cmp_to_key(sort_cmp))
+
+
+def copy_entry(entry, header):
+    """
+    For making entries editable
+    """
+    ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
+                            alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
+                            info=entry.info)
+    # should be able to just say samples=entry.samples...
+    for sample in entry.samples:
+        for k, v in entry.samples[sample].items():
+            try:  # this will be a problem for pVCFs with differing Number=./A/G and set on input as (None,).. maybe
+                ret.samples[sample][k] = v
+            except TypeError:
+                pass
+
+    return ret

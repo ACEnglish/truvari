@@ -13,7 +13,6 @@ import argparse
 
 from truvari import *
 
-from functools import cmp_to_key
 from collections import defaultdict
 
 # External dependencies
@@ -91,25 +90,6 @@ def parse_args(args):
 
     return args
 
-
-def copy_entry(entry, header):
-    """
-    For making entries editable
-    """
-    ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
-                            alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
-                            info=entry.info)
-    # should be able to just say samples=entry.samples...
-    for sample in entry.samples:
-        for k, v in entry.samples[sample].items():
-            try:  # this will be a problem for pVCFs with differing Number=./A/G and set on input as (None,).. maybe
-                ret.samples[sample][k] = v
-            except TypeError:
-                pass
-
-    return ret
-
-
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -140,7 +120,6 @@ def edit_header(my_vcf):
                      'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
     return header
 
-
 def annotate_tp(entry, score, pctsim, pctsize, pctovl, szdiff, stdist, endist, oentry):
     """
     Add the matching annotations to a vcf entry
@@ -157,15 +136,6 @@ def annotate_tp(entry, score, pctsim, pctsize, pctovl, szdiff, stdist, endist, o
     entry.info["StartDistance"] = stdist
     entry.info["EndDistance"] = endist
 
-
-def match_sorter(mat1, mat2):
-    """
-    Sort by attributes and then deterministically by hash(str(VariantRecord))
-    """
-    for i in range(7):
-        if mat1[i] != mat2[i]:
-            return mat1[i] - mat2[i]
-    return hash(str(mat1[7])) - hash(str(mat2[7]))
 
 
 def bench_main(cmdargs):
@@ -373,7 +343,7 @@ def bench_main(cmdargs):
         base_entry.info["NumThresholdNeighbors"] = len(thresh_neighbors)
         base_entry.info["MatchId"] = pbarcnt
         if len(thresh_neighbors) > 0:
-            thresh_neighbors.sort(reverse=True, key=cmp_to_key(match_sorter))
+            truvari.match_sorter(thresh_neighbors)
             logging.debug("Picking from candidate matches:\n%s", "\n".join([str(x) for x in thresh_neighbors]))
 
             match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
