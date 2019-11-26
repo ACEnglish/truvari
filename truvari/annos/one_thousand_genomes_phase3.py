@@ -19,13 +19,16 @@ class OneKg():
 
     def __init__(self, anno_file):
         self.anno_file = anno_file
-        self.trees = defaultdict(IntervalTree)
-        prog = 0
-        for entry in self.anno_file:
-            prog += 1
-            self.trees[entry.chrom].addi(entry.start, entry.stop, entry)
+        self.tree = IntervalTree()
+        for entry in self.anno_file.fetch("22", 0, 51304566):
+            self.tree.addi(entry.start, entry.stop, entry)
+        self.tree_bts = list(self.tree.boundary_table.keys())
+        # Everything past the end would need to be pumped through
+        self.tree_bts.append(sys.maxsize)
+        self.n_header = None
 
-    def edit_header(self, in_vcf):
+    @profile
+    def load_header(self, in_vcf):
         """
         Returns the header of the information we'll be adding to the annotated vcfs
         """
@@ -33,7 +36,6 @@ class OneKg():
         ret = in_vcf.header.copy()
         ret.add_line(('##INFO=<ID=OKG_MSTART,Number=1,Type=Integer,Description="Mitochondrial '
                       'start coordinate of inserted sequence">'))
-
         ret.add_line(('##INFO=<ID=OKG_MLEN,Number=1,Type=Integer,Description="Estimated length '
                       'of mitochondrial insert">'))
         ret.add_line(('##INFO=<ID=OKG_MEND,Number=1,Type=Integer,Description="Mitochondrial end'
@@ -55,18 +57,30 @@ class OneKg():
                       'in the SAS populations calculated from AC and AN, in the range (0,1)">'))
         ret.add_line(('##INFO=<ID=OKG_SVTYPE,Number=1,Type=String,Description="OneThousandGenome'
                       'ALT Type">'))
-        return ret
+        self.n_header = ret
 
+    @profile
     def annotate(self, entry, refdist=500, size_min=50, size_max=50000):
         """
         Given an pyvcf Variant entry do the matching
         """
-        if not (size_min <= truvari.get_vcf_entry_size(entry) <= size_max):
+        # Biggest shortcut, only annotate SVs
+        if "SVLEN" not in entry.info:
+            return entry
+        
+        if entry.stop + refdist < self.tree_bts[0]:
             return entry
 
-        m_type = truvari.get_vcf_variant_type(entry)
+        if entry.start - refdist > self.tree_bts[0]:
+            self.tree_bts.pop(0)
+            
+        if not (size_min <= abs(entry.info["SVLEN"]) <= size_max):
+            return entry
+
+        # Don't lookup until we have to
+        m_type = None
         candidates = []
-        for anno_entry in self.trees[entry.chrom].overlap(entry.start - refdist, entry.stop + refdist):
+        for anno_entry in self.tree.overlap(entry.start - refdist, entry.stop + refdist):
             anno_entry = anno_entry.data
             a_size = truvari.get_vcf_entry_size(anno_entry)
             if not (size_min <= a_size <= size_max):
@@ -81,9 +95,13 @@ class OneKg():
                 a_type = mat1.groupdict()["SVTYPE"]
             else:
                 a_type = truvari.get_vcf_variant_type(anno_entry)
-            # Does generic CNV happen here?
+            
+            # Don't make until we have to, and only do so once
+            if m_type is None:
+                m_type = truvari.get_vcf_variant_type(entry)
+
             if not (a_type == m_type
-                    or ((a_type == "CN0" or a_type.startswith("DEL"))  and m_type == "DEL")
+                    or ((a_type == "CN0" or a_type.startswith("DEL")) and m_type == "DEL")
                     or (m_type == "INS" and a_type.startswith("INS"))):
                 continue
 
@@ -96,9 +114,10 @@ class OneKg():
 
         if candidates:
             truvari.match_sorter(candidates)
-            return self.add_info(entry, candidates[0][-1])
+            return self.add_info(truvari.copy_entry(entry, self.n_header), candidates[0][-1])
         return entry
 
+    @profile
     def extract_info(self, annot):
         """MSTART MLEN MEND MEINFO AF EAS_AF EUR_AF AFR_AF AMR_AF SAS_AF ALT"""
         def infoc(key):
@@ -124,7 +143,7 @@ class OneKg():
                 infoc("AFR_AF"),
                 infoc("AMR_AF"),
                 infoc("SAS_AF")]
-
+    @profile
     def add_info(self, entry, annot):
         """
         Put the relevant info fields into the entry to be annotated
@@ -143,16 +162,23 @@ def parse_args(args):
     setup_logging()
     pass
 
-
-if __name__ == '__main__':
+@profile
+def main():
+    ## Next -- need to figure out how to make an anno per-chromosome
+    ## Then figure out how to multi-process it
+    ## Also want to accept a --region chrom[:start-end]+ parameter so that I can subset
+    ## and, all of that needs to be generalized such that I can reuse it as I expand into other annotations
     logging.info("Loading annotation")
     #anno = OneKg(pysam.VariantFile("/home/english/science/english/annotation/1kg_phase3/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz"))
     anno = OneKg(pysam.VariantFile(sys.argv[2]))
     logging.info("Annotating Variants")
     in_vcf = pysam.VariantFile(sys.argv[1])
-    n_header = anno.edit_header(in_vcf)
-    out_vcf = pysam.VariantFile("/dev/stdout", 'w', header=n_header)
+    anno.load_header(in_vcf)
+    out_vcf = pysam.VariantFile("/dev/stdout", 'w', header=anno.n_header)
     for entry in in_vcf:
-        out_vcf.write(anno.annotate(truvari.copy_entry(entry, n_header)))
+        out_vcf.write(anno.annotate(entry))
     out_vcf.close()
-    logging.info("Finished")
+    logging.info("Finished")   
+
+if __name__ == '__main__':
+    main()
