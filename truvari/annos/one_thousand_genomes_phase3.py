@@ -17,17 +17,19 @@ sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
 
 class OneKg():
 
-    def __init__(self, anno_file):
+    def __init__(self, anno_file, chrom, start, end):
         self.anno_file = anno_file
         self.tree = IntervalTree()
-        for entry in self.anno_file.fetch("22", 0, 51304566):
-            self.tree.addi(entry.start, entry.stop, entry)
+        try:
+            for entry in self.anno_file.fetch(chrom, start, end):
+                self.tree.addi(entry.start, entry.stop, entry)
+        except Exception:
+            pass
         self.tree_bts = list(self.tree.boundary_table.keys())
         # Everything past the end would need to be pumped through
         self.tree_bts.append(sys.maxsize)
         self.n_header = None
 
-    @profile
     def load_header(self, in_vcf):
         """
         Returns the header of the information we'll be adding to the annotated vcfs
@@ -59,7 +61,6 @@ class OneKg():
                       'ALT Type">'))
         self.n_header = ret
 
-    @profile
     def annotate(self, entry, refdist=500, size_min=50, size_max=50000):
         """
         Given an pyvcf Variant entry do the matching
@@ -117,7 +118,6 @@ class OneKg():
             return self.add_info(truvari.copy_entry(entry, self.n_header), candidates[0][-1])
         return entry
 
-    @profile
     def extract_info(self, annot):
         """MSTART MLEN MEND MEINFO AF EAS_AF EUR_AF AFR_AF AMR_AF SAS_AF ALT"""
         def infoc(key):
@@ -143,7 +143,6 @@ class OneKg():
                 infoc("AFR_AF"),
                 infoc("AMR_AF"),
                 infoc("SAS_AF")]
-    @profile
     def add_info(self, entry, annot):
         """
         Put the relevant info fields into the entry to be annotated
@@ -162,21 +161,24 @@ def parse_args(args):
     setup_logging()
     pass
 
-@profile
 def main():
     ## Next -- need to figure out how to make an anno per-chromosome
     ## Then figure out how to multi-process it
     ## Also want to accept a --region chrom[:start-end]+ parameter so that I can subset
     ## and, all of that needs to be generalized such that I can reuse it as I expand into other annotations
-    logging.info("Loading annotation")
     #anno = OneKg(pysam.VariantFile("/home/english/science/english/annotation/1kg_phase3/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.vcf.gz"))
-    anno = OneKg(pysam.VariantFile(sys.argv[2]))
-    logging.info("Annotating Variants")
     in_vcf = pysam.VariantFile(sys.argv[1])
-    anno.load_header(in_vcf)
-    out_vcf = pysam.VariantFile("/dev/stdout", 'w', header=anno.n_header)
+    logging.info("Loading annotation")
+    anno = {}
+    n_header = None
+    for chrom in in_vcf.header.contigs:
+        anno[chrom] = OneKg(pysam.VariantFile(sys.argv[2]), chrom, 0, in_vcf.header.contigs[chrom].length)
+        anno[chrom].load_header(in_vcf)
+        n_header = anno[chrom].n_header
+    out_vcf = pysam.VariantFile("/dev/stdout", 'w', header=n_header)
+    logging.info("Annotating Variants")
     for entry in in_vcf:
-        out_vcf.write(anno.annotate(entry))
+        out_vcf.write(anno[entry.chrom].annotate(entry))
     out_vcf.close()
     logging.info("Finished")   
 

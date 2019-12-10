@@ -16,7 +16,7 @@ def version(args):
     print("Truvari v%s" % VERSION)
 
 TOOLS = {'bench': bench_main,
-	 'consis': consistency_main,
+	 'consistency': consistency_main,
 	 'anno': in_progress,
 	 'create-anno': in_progress,
 	 'version': version}
