@@ -63,7 +63,7 @@ The following stats are generated for benchmarking your call set.
 <tr><td>FN</td><td>Number of non-matching calls from the base vcf</td></tr>
 <tr><td>precision</td><td>TP-call / (TP-call +  FP)</td></tr>
 <tr><td>recall</td><td>TP-base / (TP-base + FN)</td></tr>
-<tr><td>f1</td><td>(recall * precision) / (recall + precision)</td></tr>
+<tr><td>f1</td><td>2 * ((recall * precision) / (recall + precision))</td></tr>
 <tr><td>base cnt</td><td>Number of calls in the base vcf</td></tr>
 <tr><td>call cnt</td><td>Number of calls in the comp vcf</td></tr>
 <tr><td>base size filtered</td><td>Number of base vcf calls outside of (sizemin, sizemax)</td></tr>
