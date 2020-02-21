@@ -52,7 +52,7 @@ def get_vcf_size_similarity(entryA, entryB):
 def gt_comp(entryA, entryB, sampleA, sampleB):
     """
     Compare the genotypes, returns if they're the same
-    Simple for now. Methodized so it's easy to expand later
+    Simple for now.
     """
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 

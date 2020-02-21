@@ -13,12 +13,11 @@ import argparse
 
 from truvari import *
 
-from collections import defaultdict
+from collections import defaultdict, namedTuple
 
 # External dependencies
 import pysam
 import pyfaidx
-
 
 def parse_args(args):
     """
@@ -128,64 +127,111 @@ def annotate_tp(entry, score, pctsim, pctsize, pctovl, szdiff, stdist, endist, o
     """
     entry.info["PctSeqSimilarity"] = pctsim
     entry.info["PctSizeSimilarity"] = pctsize
-
     entry.info["PctRecOverlap"] = pctovl
-
     entry.info["SizeDiff"] = szdiff
-
     entry.info["StartDistance"] = stdist
     entry.info["EndDistance"] = endist
 
-
-
-def bench_main(cmdargs):
-    args = parse_args(cmdargs)
-    if os.path.isdir(args.output):
-        print("Error! Output directory '%s' already exists" % args.output)
-        exit(1)
-
-    reference = pyfaidx.Fasta(args.reference) if args.reference else None
-    os.mkdir(args.output)
-
-    setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
-    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
-
-    # Check early so we don't waste users' time
-    if not os.path.exists(args.comp):
-        logging.error("File %s does not exist" % (args.comp))
-        exit(1)
-    if not os.path.exists(args.base):
-        logging.error("File %s does not exist" % (args.base))
-        exit(1)
+def check_params(args):
+    """
+    Checks parameters as much as possible.
+    All errors are written to stderr without logging since failures mean no output
+    """
     check_fail = False
+    if os.path.isdir(args.output):
+        logging.error("Output directory '%s' already exists" % args.output)
+        check_fail = True
+    if not os.path.exists(args.comp):
+        check_fail = True
+        logging.error("File %s does not exist" % (args.comp))
+    if not os.path.exists(args.base):
+        check_fail = True
+        logging.error("File %s does not exist" % (args.base))
     if not args.comp.endswith(".gz"):
         check_fail = True
         logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
     if not os.path.exists(args.comp + '.tbi'):
         check_fail = True
         logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
-    if check_fail:
-        exit(1)
 
-    vcf_base = pysam.VariantFile(args.base)
-    if args.bSample is not None:
-        sampleA = args.bSample
-        if sampleA not in vcf_base.header.samples:
-            logging.error("Sample %s not found in vcf (%s)", sampleA, [x for x in vcf_base.header.samples])
-            exit(1)
-    else:
-        sampleA = vcf_base.header.samples[0]
+    return check_fail
 
+def check_sample(vcf_fn, sampleId=None):
+    """
+    Return the given sampleId from the var_file
+    if sampleId is None, return the first sample
+    if there is no first sample in the var_file, raise an error
+    """
+    vcf_file = pysam.VariantFile(args.base)
+    check_fail = False
+    if sampleId is not None or sampleId not in vcf_file.header.samples:
+        logging.error("Sample %s not found in vcf (%s)", sampleId, vcf_fn)
+        check_fail = True
+    if len(vcf_base.header.samples) == 0:
+        logging.error("No SAMPLE columns found in vcf (%s)" vcf_fn)
+        check_fail = True
+    return check_fail
+
+def check_inputs(args):
+    """
+    Checks the inputs against the arguments as much as possible before creating any output
+    Returns:
+        vcf_bse
+    """
+    check_fail = False
+    
+    check_fail = get_sample(args.base, args.bSample)
+    check_fail = get_sample(args.comp, args.cSample)
+    
+    return check_fail
+
+def setup_outputs(args):
+    """
+    Makes all of the output files
+    return a ... to get to each of the
+    """
+    os.mkdir(args.output)
+    setup_logging(args.debug, LogFileStderr(os.path.join(args.output, "log.txt")))
+    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+    
+    ret = namedtuple("outputs", ("vcf_base n_base_header sampleBase "
+                                 "vcf_comp n_comp_header samplecomp "
+                                 "tpb_out tpc_out fn_out fp_out "
+                                 "b_filt c_filt stats_box"))
+    vcf_base = pysam.VariantFile(args.base, 'r')
+    n_base_header = edit_header(vcf_base)
+    sampleBase = args.bSample if args.bSample else vcf_base.header.samples[0]
+    
     vcf_comp = pysam.VariantFile(args.comp)
     n_comp_header = edit_header(vcf_comp)
-    if args.cSample is not None:
-        sampleB = args.cSample
-        if sampleB not in vcf_comp.header.samples:
-            logging.error("Sample %s not found in vcf (%s)", sampleB, [x for x in vcf_comp.header.samples])
-            exit(1)
-    else:
-        sampleB = vcf_comp.header.samples[0]
+    sampleComp = args.cSample if args.cSample else vcf_comp.header.samples[0]
 
+    vcf_base = pysam.VariantFile(args.base)
+    n_base_header = edit_header(vcf_base)
+    # Setup outputs
+    tpb_out = pysam.VariantFile(os.path.join(args.output, "tp-base.vcf"), 'w', header=n_base_header)
+    tpc_out = pysam.VariantFile(os.path.join(args.output, "tp-call.vcf"), 'w', header=n_comp_header)
+
+    fn_out = pysam.VariantFile(os.path.join(args.output, "fn.vcf"), 'w', header=n_base_header)
+    fp_out = pysam.VariantFile(os.path.join(args.output, "fp.vcf"), 'w', header=n_comp_header)
+
+    b_filt = pysam.VariantFile(os.path.join(args.output, "base-filter.vcf"), 'w', header=n_base_header)
+    c_filt = pysam.VariantFile(os.path.join(args.output, "call-filter.vcf"), 'w', header=n_comp_header)
+
+    stats_box = make_stats_box()   
+       
+
+def bench_main(cmdargs):
+    args = parse_args(cmdargs)
+    
+    if check_params(args) or check_iputs(args):
+        sys.stderr("Couldn't run Truvari. Please fix parameters\n")
+        exit(100)
+    
+    # We can now 'safely' perform everything
+    
+    reference = pyfaidx.Fasta(args.reference) if args.reference else None
+    
     regions = GenomeTree(vcf_base, vcf_comp, args.includebed)
 
     logging.info("Creating call interval tree for overlap search")
@@ -204,19 +250,8 @@ def bench_main(cmdargs):
         bar = setup_progressbar(num_entries)
 
     # Reset
-    vcf_base = pysam.VariantFile(args.base, 'r')
-    n_base_header = edit_header(vcf_base)
-    # Setup outputs
-    tpb_out = pysam.VariantFile(os.path.join(args.output, "tp-base.vcf"), 'w', header=n_base_header)
-    tpc_out = pysam.VariantFile(os.path.join(args.output, "tp-call.vcf"), 'w', header=n_comp_header)
+    
 
-    fn_out = pysam.VariantFile(os.path.join(args.output, "fn.vcf"), 'w', header=n_base_header)
-    fp_out = pysam.VariantFile(os.path.join(args.output, "fp.vcf"), 'w', header=n_comp_header)
-
-    b_filt = pysam.VariantFile(os.path.join(args.output, "base-filter.vcf"), 'w', header=n_base_header)
-    c_filt = pysam.VariantFile(os.path.join(args.output, "call-filter.vcf"), 'w', header=n_comp_header)
-
-    stats_box = make_stats_box()
 
     # Calls that have been matched up
     matched_calls = defaultdict(bool)
@@ -232,7 +267,7 @@ def bench_main(cmdargs):
             stats_box["base size filtered"] += 1
             b_filt.write(base_entry)
             continue
-        if args.no_ref in ["a", "b"] and not entry_is_variant(base_entry, sampleA):
+        if args.no_ref in ["a", "b"] and not entry_is_variant(base_entry, sampleBase):
             stats_box["base gt filtered"] += 1
             b_filt.write(base_entry)
             continue
@@ -300,7 +335,7 @@ def bench_main(cmdargs):
                 logging.debug("%s is uncalled", comp_entry)
                 continue
 
-            if args.gtcomp and not gt_comp(base_entry, comp_entry, sampleA, sampleB):
+            if args.gtcomp and not gt_comp(base_entry, comp_entry, sampleBase, sampleComp):
                 logging.debug("%s and %s are not the same genotype", str(base_entry), str(comp_entry))
                 continue
 
@@ -359,7 +394,7 @@ def bench_main(cmdargs):
             b_key = vcf_to_key('b', base_entry)
             if not matched_calls[b_key]:
                 stats_box["TP-base"] += 1
-                if gt_comp(base_entry, match_entry, sampleA, sampleB):
+                if gt_comp(base_entry, match_entry, sampleBase, sampleComp):
                     stats_box["TP-base_TP-gt"] += 1
                 else:
                     stats_box["TP-base_FP-gt"] += 1
@@ -379,7 +414,7 @@ def bench_main(cmdargs):
                 c_key = vcf_to_key('c', match_entry)
                 if not matched_calls[c_key]:  # unmatched
                     stats_box["TP-call"] += 1
-                    if gt_comp(base_entry, match_entry, sampleA, sampleB):
+                    if gt_comp(base_entry, match_entry, sampleBase, sampleComp):
                         stats_box["TP-call_TP-gt"] += 1
                     else:
                         stats_box["TP-call_FP-gt"] += 1
