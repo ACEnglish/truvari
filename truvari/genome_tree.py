@@ -10,13 +10,13 @@ class GenomeTree():
     Helper class to specify included regions of the genome when iterating events.
     """
 
-    def __init__(self, vcfA, vcfB, include=None):
+    def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
         contigA_set = set(vcfA.header.contigs.keys())
         contigB_set = set(vcfB.header.contigs.keys())
         all_regions = defaultdict(IntervalTree)
-        if include is not None:
+        if includebed is not None:
             counter = 0
-            with open(include, 'r') as fh:
+            with open(includebed, 'r') as fh:
                 for line in fh:
                     if line.startswith("#"):
                         continue
@@ -47,7 +47,7 @@ class GenomeTree():
         for chrom in self.tree:
             for intv in self.tree[chrom]:
                 for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
-                    if self.include(entry):
+                    if self.includebed is None or self.include(entry):
                         yield(entry)
 
     def include(self, entry):
@@ -56,6 +56,9 @@ class GenomeTree():
         Here overlap means lies completely within the boundary of an include region
         """
         astart, aend = get_vcf_boundaries(entry)
+        # Filter these early so we don't have to keep checking overlaps
+        if self.sizeMax is None or aend - astart > self.sizeMax:
+            return False
         overlaps = self.tree[entry.chrom].overlaps(astart) and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
             return overlaps
@@ -64,9 +67,10 @@ class GenomeTree():
 
 def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     """
-    Return a dictonary of {chr:[start, end,..], ...}
-    that can be queried with bisect to return a span to fetch variants against
-    could stand to make a progress bar since this now takes so long
+    Return a dictionary of IntervalTree for intersection querying
+    Return how many entries there are total in the vcf_file
+    Return how many entries pass filtering parameters in vcf_files
+
     """
     n_entries = 0
     cmp_entries = 0
