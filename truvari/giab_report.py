@@ -1,7 +1,12 @@
-
-import pysam
+"""
+When running against GIAB SVs, we can make reports
+"""
+# pylint: disable=no-member
+import os
+import logging
 from collections import defaultdict, Counter
 
+import pysam
 
 def make_giabreport(args, stats_box):
     """
@@ -89,7 +94,7 @@ def make_giabreport(args, stats_box):
             new_anno = []
             for i in calls:
                 if d[i] > 0:
-                    new_anno.append(i.rstrip("calls"))
+                    new_anno.append(i[:-5]) # .rstrip("calls"))
             d["techs"] = "+".join(new_anno)
 
     logging.info("Creating GIAB report")

@@ -1,9 +1,11 @@
+"""
+Miscellaneous utilites for truvari
+"""
 import sys
 import logging
 import warnings
-import progressbar
-
 from collections import OrderedDict
+import progressbar
 
 
 class StatsBox(OrderedDict):
@@ -12,6 +14,7 @@ class StatsBox(OrderedDict):
     """
 
     def __init__(self):
+        super().__init__()
         self["TP-base"] = 0
         self["TP-call"] = 0
         self["FP"] = 0
@@ -86,7 +89,7 @@ def setup_progressbar(size):
     ])
 
 
-class LogFileStderr(object):
+class LogFileStderr():
 
     """ Write to stderr and a file"""
 
@@ -121,7 +124,7 @@ def setup_logging(debug=False, stream=sys.stderr, log_format=None):
         Put warnings into logger
         """
         logging.warning('%s:%s: %s:%s', filename, lineno, category.__name__, message)
-        return
+
     # pylint: disable=unused-variable
     old_showwarning = warnings.showwarning
     warnings.showwarning = sendWarningsToLog

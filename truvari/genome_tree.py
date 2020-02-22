@@ -1,22 +1,33 @@
+"""
+Helper class to specify included regions of the genome when iterating events.
+"""
+import sys
 import logging
 from collections import defaultdict
 from intervaltree import IntervalTree
 
-from truvari.comparisons import *
+import truvari.comparisons as tcomp
 
 class GenomeTree():
-
     """
     Helper class to specify included regions of the genome when iterating events.
     """
-
     def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
+
+        self.includebed = includebed
+        self.max_span = max_span
+        self.tree = self.__build_tree(vcfA, vcfB)
+
+    def __build_tree(self, vcfA, vcfB):
+        """
+        Build the include regions
+        """
         contigA_set = set(vcfA.header.contigs.keys())
         contigB_set = set(vcfB.header.contigs.keys())
         all_regions = defaultdict(IntervalTree)
-        if includebed is not None:
+        if self.includebed is not None:
             counter = 0
-            with open(includebed, 'r') as fh:
+            with open(self.includebed, 'r') as fh:
                 for line in fh:
                     if line.startswith("#"):
                         continue
@@ -29,7 +40,7 @@ class GenomeTree():
             logging.info("Including %d bed regions", counter)
         else:
             excluding = contigB_set - contigA_set
-            if len(excluding):
+            if not excluding:
                 logging.warning(
                     "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
@@ -37,8 +48,7 @@ class GenomeTree():
                 name = vcfA.header.contigs[contig].name
                 length = vcfA.header.contigs[contig].length
                 all_regions[name].addi(0, length)
-
-        self.tree = all_regions
+        return all_regions
 
     def iterate(self, vcf_file):
         """
@@ -48,16 +58,16 @@ class GenomeTree():
             for intv in self.tree[chrom]:
                 for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
                     if self.includebed is None or self.include(entry):
-                        yield(entry)
+                        yield entry
 
     def include(self, entry):
         """
         Returns if this entry's start and end are within a region that is to be included
         Here overlap means lies completely within the boundary of an include region
         """
-        astart, aend = get_vcf_boundaries(entry)
+        astart, aend = tcomp.get_vcf_boundaries(entry)
         # Filter these early so we don't have to keep checking overlaps
-        if self.sizeMax is None or aend - astart > self.sizeMax:
+        if self.max_span is None or aend - astart > self.max_span:
             return False
         overlaps = self.tree[entry.chrom].overlaps(astart) and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
@@ -70,7 +80,6 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     Return a dictionary of IntervalTree for intersection querying
     Return how many entries there are total in the vcf_file
     Return how many entries pass filtering parameters in vcf_files
-
     """
     n_entries = 0
     cmp_entries = 0
@@ -78,10 +87,10 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     try:
         for entry in vcf_file:
             n_entries += 1
-            if passonly and "PASS" not in entry.filter: 
+            if passonly and "PASS" not in entry.filter:
                 continue
-            start, end = get_vcf_boundaries(entry)
-            sz = get_vcf_entry_size(entry)
+            start, end = tcomp.get_vcf_boundaries(entry)
+            sz = tcomp.get_vcf_entry_size(entry)
             if sz < sizemin or sz > sizemax:
                 continue
             cmp_entries += 1
@@ -89,7 +98,6 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     except ValueError as e:
         logging.error("Unable to parse comparison vcf file. Please check header definitions")
         logging.error("Specific error: \"%s\"", str(e))
-        exit(1)
+        sys.exit(100)
+
     return lookup, n_entries, cmp_entries
-
-
