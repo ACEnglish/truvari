@@ -2,7 +2,9 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
+# pylint: disable=no-member
 import re
+import logging
 from functools import cmp_to_key
 import Levenshtein
 
@@ -13,8 +15,7 @@ def entry_is_variant(entry, sample):
     """
     return "GT" in entry.samples[sample] and None not in entry.samples[sample]["GT"]
 
-
-def vcf_to_key(source,  entry):
+def vcf_to_key(source, entry):
     """
     Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
     setsource.chr:pos:ref:alt
@@ -36,6 +37,9 @@ def var_sizesim(sizeA, sizeB):
 
 
 def size_similarity(sizeA, sizeB):
+    """
+    Calculate the similarity pct for the two sizes
+    """
     return var_sizesim(sizeA, sizeB)
 
 
@@ -55,7 +59,6 @@ def gt_comp(entryA, entryB, sampleA, sampleB):
     Simple for now.
     """
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
-
 
 def create_haplotype(entryA, entryB, ref):
     """
@@ -91,7 +94,7 @@ def var_pctsim_lev(entryA, entryB, ref):
     # Handling of breakends should be here
     try:
         allele1, allele2 = create_haplotype(entryA, entryB, ref)
-    except Exception:
+    except Exception: #pylint: disable=broad-except
         return 0
     return Levenshtein.ratio(allele1, allele2)
 
@@ -115,7 +118,7 @@ def get_vcf_variant_type(entry):
       etc from the ALT column.
     - Otherwise, assume 'UNK'
     """
-    sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
+    sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
     ret_type = None
     if "SVTYPE" in entry.info:
@@ -125,7 +128,7 @@ def get_vcf_variant_type(entry):
             ret_type = ret_type[0]
         return ret_type
 
-    if not (entry.alts[0].count("<" or entry.alts[0].count(":"))):
+    if not (entry.alts[0].count("<") or entry.alts[0].count(":")):
         # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
         if len(entry.ref) <= len(entry.alts[0]):
             ret_type = "INS"
@@ -135,9 +138,9 @@ def get_vcf_variant_type(entry):
             # Is it really?
             ret_type = "COMPLEX"
         return ret_type
-    mat1 = sv_alt_match.match(entry.alts[0])
+    mat = sv_alt_match.match(entry.alts[0])
     if mat is not None:
-        return mat1.groupdict()["SVTYPE"]
+        return mat.groupdict()["SVTYPE"]
     logging.warning("SVTYPE is undetermined for entry, using 'UNK' - %s", str(entry))
     return "UNK"
 
@@ -245,14 +248,14 @@ def is_sv(entry, min_size=25):
     """
     Returns if the event is a variant over a minimum size
     """
-    return get_vcf_length(entry) >= min_size
+    return get_vcf_entry_size(entry) >= min_size
 
 
-def type_match(entry1, entry2, lookup=None):
-    """
-    lookup of TYPE1 that matches to TYPE2
-    """
-    pass
+#def type_match(entry1, entry2, lookup=None):
+#    """
+#    lookup of TYPE1 that matches to TYPE2
+#    """
+#    pass
 
 
 def filter_value(entry, values=None):
