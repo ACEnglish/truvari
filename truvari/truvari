@@ -205,7 +205,7 @@ def get_vcf_variant_type(entry):
             ret_type = "COMPLEX"
         return ret_type
     mat1 = sv_alt_match.match(entry.alts[0])
-    if mat is not None:
+    if mat1 is not None:
         return mat1.groupdict()["SVTYPE"]
     logging.warning("SVTYPE is undetermined for entry, using 'UNK' - %s", str(entry))
     return "UNK"
