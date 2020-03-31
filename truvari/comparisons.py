@@ -2,12 +2,13 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
+# pylint: disable=no-member
 import re
+import logging
 from functools import cmp_to_key
 import Levenshtein
 
 
-@profile
 def entry_is_variant(entry, sample):
     """
     Returns if entry is non-ref variant
@@ -15,8 +16,8 @@ def entry_is_variant(entry, sample):
     return "GT" in entry.samples[sample] and None not in entry.samples[sample]["GT"]
 
 
-@profile
 def vcf_to_key(source,  entry):
+def vcf_to_key(source, entry):
     """
     Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
     setsource.chr:pos:ref:alt
@@ -28,7 +29,6 @@ def vcf_to_key(source,  entry):
     return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0])
 
 
-@profile
 def var_sizesim(sizeA, sizeB):
     """
     Calculate the size similarity pct for the two entries
@@ -38,12 +38,13 @@ def var_sizesim(sizeA, sizeB):
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 
-@profile
 def size_similarity(sizeA, sizeB):
+    """
+    Calculate the similarity pct for the two sizes
+    """
     return var_sizesim(sizeA, sizeB)
 
 
-@profile
 def get_vcf_size_similarity(entryA, entryB):
     """
     Calculate the size similarity pct for the two entries
@@ -54,16 +55,14 @@ def get_vcf_size_similarity(entryA, entryB):
     return var_sizesim(sizeA, sizeB)
 
 
-@profile
 def gt_comp(entryA, entryB, sampleA, sampleB):
     """
     Compare the genotypes, returns if they're the same
-    Simple for now. Methodized so it's easy to expand later
+    Simple for now.
     """
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
 
-@profile
 def create_haplotype(entryA, entryB, ref):
     """
     Turn two entries into their haplotype sequence for comparison
@@ -87,7 +86,6 @@ def create_haplotype(entryA, entryB, ref):
     return str(hap1_seq), str(hap2_seq)
 
 
-@profile
 def var_pctsim_lev(entryA, entryB, ref):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
@@ -99,12 +97,11 @@ def var_pctsim_lev(entryA, entryB, ref):
     # Handling of breakends should be here
     try:
         allele1, allele2 = create_haplotype(entryA, entryB, ref)
-    except Exception:
+    except Exception: #pylint: disable=broad-except
         return 0
     return Levenshtein.ratio(allele1, allele2)
 
 
-@profile
 def overlaps(s1, e1, s2, e2):
     """
     Check if two start/end ranges have overlap
@@ -114,7 +111,6 @@ def overlaps(s1, e1, s2, e2):
     return s_cand < e_cand
 
 
-@profile
 def get_vcf_variant_type(entry):
     """
     How svtype is determined:
@@ -125,7 +121,7 @@ def get_vcf_variant_type(entry):
       etc from the ALT column.
     - Otherwise, assume 'UNK'
     """
-    sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
+    sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
     ret_type = None
     if "SVTYPE" in entry.info:
@@ -135,7 +131,7 @@ def get_vcf_variant_type(entry):
             ret_type = ret_type[0]
         return ret_type
 
-    if not (entry.alts[0].count("<" or entry.alts[0].count(":"))):
+    if not (entry.alts[0].count("<") or entry.alts[0].count(":")):
         # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
         if len(entry.ref) <= len(entry.alts[0]):
             ret_type = "INS"
@@ -145,14 +141,13 @@ def get_vcf_variant_type(entry):
             # Is it really?
             ret_type = "COMPLEX"
         return ret_type
-    mat1 = sv_alt_match.match(entry.alts[0])
+    mat = sv_alt_match.match(entry.alts[0])
     if mat is not None:
-        return mat1.groupdict()["SVTYPE"]
+        return mat.groupdict()["SVTYPE"]
     logging.warning("SVTYPE is undetermined for entry, using 'UNK' - %s", str(entry))
     return "UNK"
 
 
-@profile
 def same_variant_type(entryA, entryB):
     """
     returns if entryA svtype == entryB svtype
@@ -162,7 +157,6 @@ def same_variant_type(entryA, entryB):
     return a_type == b_type
 
 
-@profile
 def fetch_coords(lookup, entry, dist=0):
     """
     Get the minimum/maximum fetch coordinates to find all variants within dist of variant
@@ -181,7 +175,6 @@ def fetch_coords(lookup, entry, dist=0):
     return s_ret, e_ret
 
 
-@profile
 def get_vcf_boundaries(entry):
     """
     Get the start/end of an entry and order (start < end)
@@ -191,7 +184,6 @@ def get_vcf_boundaries(entry):
     return start, end
 
 
-@profile
 def get_vcf_entry_size(entry):
     """
     returns the size of the variant.
@@ -217,7 +209,6 @@ def get_vcf_entry_size(entry):
     return size
 
 
-@profile
 def get_rec_ovl(astart, aend, bstart, bend):
     """
     Compute reciprocal overlap between two spans
@@ -232,7 +223,6 @@ def get_rec_ovl(astart, aend, bstart, bend):
     return ovl_pct
 
 
-@profile
 def get_weighted_score(sim, size, ovl):
     """
     Unite the similarity measures and make a score
@@ -241,7 +231,6 @@ def get_weighted_score(sim, size, ovl):
     return (2 * sim + 1 * size + 1 * ovl) / 3.0
 
 
-@profile
 def reciprocal_overlap(astart, aend, bstart, bend):
     """
     creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
@@ -249,7 +238,6 @@ def reciprocal_overlap(astart, aend, bstart, bend):
     return get_rec_ovl(astart, aend, bstart, bend)
 
 
-@profile
 def get_vcf_reciprocal_overlap(entry1, entry2):
     """
     creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
@@ -259,23 +247,15 @@ def get_vcf_reciprocal_overlap(entry1, entry2):
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
-@profile
 def is_sv(entry, min_size=25):
     """
     Returns if the event is a variant over a minimum size
     """
-    return get_vcf_length(entry) >= min_size
+    return get_vcf_entry_size(entry) >= min_size
 
 
-@profile
-def type_match(entry1, entry2, lookup=None):
-    """
-    lookup of TYPE1 that matches to TYPE2
-    """
-    pass
 
 
-@profile
 def filter_value(entry, values=None):
     """
     Only take calls with filter values in the list provided
@@ -286,7 +266,6 @@ def filter_value(entry, values=None):
     return values.intersection(entry.filter)
 
 
-@profile
 def match_sorter(candidates):
     """
     sort a list of tuples with similarity scores by priority, ignoring the entry_idx, but still sorting deterministically
@@ -308,7 +287,6 @@ def match_sorter(candidates):
     candidates.sort(reverse=True, key=cmp_to_key(sort_cmp))
 
 
-@profile
 def copy_entry(entry, header):
     """
     For making entries editable

@@ -112,3 +112,12 @@ for it and then make sure it has the \.annotate method.
 
 I'm also going to need filtering rules. (e.g. VARTYPE== and VARSIZE(min, max) and possibly)
 and I want bcftools +fill-tags functionality, also.
+
+
+
+1) Collect the annotation sources I want to use.
+2) For each annotation source - figure out a method of how I want calls to match up to them
+	Run this with some tests/figures so you can see how what 'feels' best.
+	This will also allow you to build the `truvari anno` for each file.
+3) Pool the annotion sources, anno procedures into a single protocol. Run on everything.
+

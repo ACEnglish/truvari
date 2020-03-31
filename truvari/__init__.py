@@ -32,10 +32,9 @@ from truvari.comparisons import (
     reciprocal_overlap,
     get_vcf_reciprocal_overlap,
     is_sv,
-    type_match,
+    #type_match,
     filter_value,
     match_sorter
 )
 
 from truvari.genome_tree import *
-

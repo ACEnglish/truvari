@@ -13,7 +13,7 @@ class AnnoData:
     Holds data that can be put into an annotation
     I reckon I need to figure out a way to read the header information for these things...
     """
-    pass
+    return None
 
 class Entry:
     """
@@ -21,7 +21,7 @@ class Entry:
     """
     def __init__(self, chrom, start, stop, event_type=None, event_size=None, anno_data=None):
         """
-        We annotate over ranges, then you can use kwargs for each of 
+        We annotate over ranges, then you can use kwargs for each of
         """
         self.chrom = chrom
         self.start = start
@@ -36,7 +36,7 @@ class BEDReader:
         self.filename = fn
         # if vcf_header is none, then we can do stuff to try and predict what it would be?
         # Or should I require that they are a thing provided to create-anno
-            
+
 
     def __iter__(self):
         """ iterate all the entries """
@@ -107,7 +107,7 @@ def test():
     """
     bed = BEDReader("/home/english/truvari/tests/anno/rep.bed.gz")
     match_ops = [reciprocal_overlap(.70)]
-    
+
     anno = Annotation(bed, match_ops)
     for entry in pysam.VariantFile("/home/english/truvari/tests/anno/vars.vcf.gz"):
         if "SVLEN" in entry.info:
