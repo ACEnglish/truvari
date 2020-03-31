@@ -65,7 +65,7 @@ class GenomeTree():
         Returns if this entry's start and end are within a region that is to be included
         Here overlap means lies completely within the boundary of an include region
         """
-        astart, aend = tcomp.get_vcf_boundaries(entry)
+        astart, aend = tcomp.entry_boundaries(entry)
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is None or aend - astart > self.max_span:
             return False
@@ -89,8 +89,8 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
             n_entries += 1
             if passonly and "PASS" not in entry.filter:
                 continue
-            start, end = tcomp.get_vcf_boundaries(entry)
-            sz = tcomp.get_vcf_entry_size(entry)
+            start, end = tcomp.entry_boundaries(entry)
+            sz = tcomp.entry_size(entry)
             if sz < sizemin or sz > sizemax:
                 continue
             cmp_entries += 1

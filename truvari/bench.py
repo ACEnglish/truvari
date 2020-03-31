@@ -268,13 +268,13 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, regions, reference,
     Note - This is the crucial component of matching.. so needs to be better
     pulled apart for reusability and put into comparisons
     """
-    sizeB = truvari.get_vcf_entry_size(comp_entry)
+    sizeB = truvari.entry_size(comp_entry)
     if sizeB < args.sizefilt:
         return False
 
     # Double ensure OVERLAP - there's a weird edge case where fetch with
     # the interval tree can return non-overlaps
-    bstart, bend = truvari.get_vcf_boundaries(comp_entry)
+    bstart, bend = truvari.entry_boundaries(comp_entry)
     if not truvari.overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
         return False
 
@@ -295,19 +295,19 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, regions, reference,
         logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
         return True
 
-    size_similarity, size_diff = truvari.var_sizesim(sizeA, sizeB)
+    size_similarity, size_diff = truvari.sizesim(sizeA, sizeB)
     if size_similarity < args.pctsize:
         logging.debug("%s and %s size similarity is too low (%f)", str(base_entry),
                       str(comp_entry), size_similarity)
         return True
 
-    ovl_pct = truvari.get_rec_ovl(astart, aend, bstart, bend)
+    ovl_pct = truvari.reciprocal_overlap(astart, aend, bstart, bend)
     if ovl_pct < args.pctovl:
         logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
         return True
 
     if args.pctsim > 0:
-        seq_similarity = truvari.var_pctsim_lev(base_entry, comp_entry, reference)
+        seq_similarity = truvari.entry_pctsim_lev(base_entry, comp_entry, reference)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%f)", str(
                 base_entry), str(comp_entry), seq_similarity)
@@ -318,7 +318,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, regions, reference,
     start_distance = astart - bstart
     end_distance = aend - bend
 
-    score = truvari.get_weighted_score(seq_similarity, size_similarity, ovl_pct)
+    score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
     return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
                        start_distance, end_distance, comp_entry)
@@ -347,11 +347,11 @@ def output_base_match(base_entry, num_neighbors, thresh_neighbors, myid, matched
     outputs.tpb_out.write(base_entry)
 
     # Don't double count calls found before
-    b_key = truvari.vcf_to_key('b', base_entry)
+    b_key = truvari.entry_to_key('b', base_entry)
     if not matched_calls[b_key]:
         # Interesting...
         outputs.stats_box["TP-base"] += 1
-        if truvari.gt_comp(base_entry, thresh_neighbors[0].match_entry, outputs.sampleBase, outputs.sampleComp):
+        if truvari.entry_gt_comp(base_entry, thresh_neighbors[0].match_entry, outputs.sampleBase, outputs.sampleComp):
             outputs.stats_box["TP-base_TP-gt"] += 1
         else:
             outputs.stats_box["TP-base_FP-gt"] += 1
@@ -367,7 +367,7 @@ def report_best_match(base_entry, num_neighbors, thresh_neighbors, myid, matched
     # Work through the comp calls
     for neigh in thresh_neighbors:
         # Multimatch checking
-        c_key = truvari.vcf_to_key('c', neigh.match_entry)
+        c_key = truvari.entry_to_key('c', neigh.match_entry)
         if not matched_calls[c_key]: # unmatched
             outputs.stats_box["TP-call"] += 1
             if truvari.gt_comp(base_entry, neigh.match_entry, outputs.sampleBase, outputs.sampleComp):
@@ -406,9 +406,9 @@ def parse_fps(matched_calls, tot_comp_entries, regions, args, outputs):
             continue
         if args.prog:
             pbar.update(cnt + 1)
-        if matched_calls[truvari.vcf_to_key('c', entry)]:
+        if matched_calls[truvari.entry_to_key('c', entry)]:
             continue
-        size = truvari.get_vcf_entry_size(entry)
+        size = truvari.entry_size(entry)
         if size < args.sizemin or size > args.sizemax:
             outputs.c_filt.write(truvari.copy_entry(entry, outputs.n_comp_header))
             outputs.stats_box["call size filtered"] += 1
@@ -476,7 +476,7 @@ def bench_main(cmdargs):
         if args.prog:
             pbar.update(pbarcnt)
 
-        sizeA = truvari.get_vcf_entry_size(base_entry)
+        sizeA = truvari.entry_size(base_entry)
 
         if filter_call(base_entry, args, sizeA, outputs):
             continue
@@ -492,7 +492,7 @@ def bench_main(cmdargs):
         # We still need to fetch on the expanded boundaries so we can test them, but
         # we need to filter calls that otherwise shouldn't be considered
         # see the bstart/bend below
-        astart, aend = truvari.get_vcf_boundaries(base_entry)
+        astart, aend = truvari.entry_boundaries(base_entry)
 
         # Search for comparison vcf entries as potential matches
         thresh_neighbors = []
@@ -508,7 +508,7 @@ def bench_main(cmdargs):
             # better, it can't use it and we mismatch
             # UPDATE: by default we don't enforce one-match
             logging.debug("Comparing %s %s", str(base_entry), str(comp_entry))
-            if not args.multimatch and matched_calls[truvari.vcf_to_key('c', comp_entry)]:
+            if not args.multimatch and matched_calls[truvari.entry_to_key('c', comp_entry)]:
                 logging.debug("No match because comparison call already matched")
                 continue
             mat = match_calls(base_entry, comp_entry, astart, aend, sizeA, regions,

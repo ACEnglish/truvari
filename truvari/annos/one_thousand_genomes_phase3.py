@@ -87,7 +87,7 @@ class OneKg():
             if not (size_min <= a_size <= size_max):
                 continue
 
-            ps, sd = truvari.get_vcf_size_similarity(entry, anno_entry)
+            ps, sd = truvari.entry_size_similarity(entry, anno_entry)
             if not ps >= 0.7:
                 continue
 
@@ -107,7 +107,7 @@ class OneKg():
                 continue
 
             # RO doesn't work for INS?
-            ro = truvari.get_vcf_reciprocal_overlap(entry, anno_entry)
+            ro = truvari.entry_reciprocal_overlap(entry, anno_entry)
             if m_type != "INS" and ro < 0.5:
                 continue
 

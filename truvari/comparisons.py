@@ -16,8 +16,7 @@ def entry_is_variant(entry, sample):
     return "GT" in entry.samples[sample] and None not in entry.samples[sample]["GT"]
 
 
-def vcf_to_key(source,  entry):
-def vcf_to_key(source, entry):
+def entry_to_key(source, entry):
     """
     Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
     setsource.chr:pos:ref:alt
@@ -25,11 +24,11 @@ def vcf_to_key(source, entry):
     BUG: if a caller redundantly calls a variant exactly the same. It will be collapsed
     the
     """
-    start, end = get_vcf_boundaries(entry)
+    start, end = entry_boundaries(entry)
     return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0])
 
 
-def var_sizesim(sizeA, sizeB):
+def sizesim(sizeA, sizeB):
     """
     Calculate the size similarity pct for the two entries
     compares the longer of entryA's two alleles (REF or ALT)
@@ -38,24 +37,17 @@ def var_sizesim(sizeA, sizeB):
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 
-def size_similarity(sizeA, sizeB):
-    """
-    Calculate the similarity pct for the two sizes
-    """
-    return var_sizesim(sizeA, sizeB)
-
-
-def get_vcf_size_similarity(entryA, entryB):
+def entry_size_similarity(entryA, entryB):
     """
     Calculate the size similarity pct for the two entries
     compares the longer of entryA's two alleles (REF or ALT)
     """
     sizeA = get_vcf_entry_size(entryA)
     sizeB = get_vcf_entry_size(entryB)
-    return var_sizesim(sizeA, sizeB)
+    return sizesim(sizeA, sizeB)
 
 
-def gt_comp(entryA, entryB, sampleA, sampleB):
+def entry_gt_comp(entryA, entryB, sampleA, sampleB):
     """
     Compare the genotypes, returns if they're the same
     Simple for now.
@@ -86,7 +78,7 @@ def create_haplotype(entryA, entryB, ref):
     return str(hap1_seq), str(hap2_seq)
 
 
-def var_pctsim_lev(entryA, entryB, ref):
+def entry_pctsim_lev(entryA, entryB, ref):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
     to pct sequence similarity
@@ -97,7 +89,7 @@ def var_pctsim_lev(entryA, entryB, ref):
     # Handling of breakends should be here
     try:
         allele1, allele2 = create_haplotype(entryA, entryB, ref)
-    except Exception: #pylint: disable=broad-except
+    except Exception:  # pylint: disable=broad-except
         return 0
     return Levenshtein.ratio(allele1, allele2)
 
@@ -111,7 +103,7 @@ def overlaps(s1, e1, s2, e2):
     return s_cand < e_cand
 
 
-def get_vcf_variant_type(entry):
+def entry_variant_type(entry):
     """
     How svtype is determined:
     - Starts by trying to use INFO/SVTYPE
@@ -152,8 +144,8 @@ def same_variant_type(entryA, entryB):
     """
     returns if entryA svtype == entryB svtype
     """
-    a_type = get_vcf_variant_type(entryA)
-    b_type = get_vcf_variant_type(entryB)
+    a_type = entry_variant_type(entryA)
+    b_type = entry_variant_type(entryB)
     return a_type == b_type
 
 
@@ -161,8 +153,7 @@ def fetch_coords(lookup, entry, dist=0):
     """
     Get the minimum/maximum fetch coordinates to find all variants within dist of variant
     """
-
-    start, end = get_vcf_boundaries(entry)
+    start, end = entry_boundaries(entry)
     start -= dist
     end += dist
     # Membership queries are fastest O(1)
@@ -175,7 +166,7 @@ def fetch_coords(lookup, entry, dist=0):
     return s_ret, e_ret
 
 
-def get_vcf_boundaries(entry):
+def entry_boundaries(entry):
     """
     Get the start/end of an entry and order (start < end)
     """
@@ -184,7 +175,7 @@ def get_vcf_boundaries(entry):
     return start, end
 
 
-def get_vcf_entry_size(entry):
+def entry_size(entry):
     """
     returns the size of the variant.
 
@@ -202,28 +193,14 @@ def get_vcf_entry_size(entry):
         else:
             size = abs(entry.info["SVLEN"])
     elif entry.alts[0].count("<"):
-        start, end = get_vcf_boundaries(entry)
+        start, end = entry_boundaries(entry)
         size = end - start
     else:
         size = abs(len(entry.ref) - len(entry.alts[0]))
     return size
 
 
-def get_rec_ovl(astart, aend, bstart, bend):
-    """
-    Compute reciprocal overlap between two spans
-    backwards compatibility
-    """
-    ovl_start = max(astart, bstart)
-    ovl_end = min(aend, bend)
-    if ovl_start < ovl_end:  # Otherwise, they're not overlapping
-        ovl_pct = float(ovl_end - ovl_start) / max(aend - astart, bend - bstart)
-    else:
-        ovl_pct = 0
-    return ovl_pct
-
-
-def get_weighted_score(sim, size, ovl):
+def weighted_score(sim, size, ovl):
     """
     Unite the similarity measures and make a score
     return (2*sim + 1*size + 1*ovl) / 3.0
@@ -235,15 +212,20 @@ def reciprocal_overlap(astart, aend, bstart, bend):
     """
     creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
     """
-    return get_rec_ovl(astart, aend, bstart, bend)
+    ovl_start = max(astart, bstart)
+    ovl_end = min(aend, bend)
+    if ovl_start < ovl_end:  # Otherwise, they're not overlapping
+        ovl_pct = float(ovl_end - ovl_start) / max(aend - astart, bend - bstart)
+    else:
+        ovl_pct = 0
+    return ovl_pct
 
-
-def get_vcf_reciprocal_overlap(entry1, entry2):
+def entry_reciprocal_overlap(entry1, entry2):
     """
     creates a reciprocal overlap rule for matching two entries. Returns a method that can be used as a match operator
     """
-    astart, aend = get_vcf_boundaries(entry1)
-    bstart, bend = get_vcf_boundaries(entry2)
+    astart, aend = entry_boundaries(entry1)
+    bstart, bend = entry_boundaries(entry2)
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
@@ -252,8 +234,6 @@ def is_sv(entry, min_size=25):
     Returns if the event is a variant over a minimum size
     """
     return get_vcf_entry_size(entry) >= min_size
-
-
 
 
 def filter_value(entry, values=None):
