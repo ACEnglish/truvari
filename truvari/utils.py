@@ -24,10 +24,6 @@ class StatsBox(OrderedDict):
         self["f1"] = 0
         self["base cnt"] = 0
         self["call cnt"] = 0
-        self["base size filtered"] = 0
-        self["call size filtered"] = 0
-        self["base gt filtered"] = 0
-        self["call gt filtered"] = 0
         self["TP-call_TP-gt"] = 0
         self["TP-call_FP-gt"] = 0
         self["TP-base_TP-gt"] = 0
@@ -41,16 +37,16 @@ class StatsBox(OrderedDict):
         Calculate the precision/recall
         """
         do_stats_math = True
+        if self["TP-base"] == 0 and self["FN"] == 0:
+            logging.warning("No TP or FN calls in base!")
+            do_stats_math = False
+        elif self["TP-call"] == 0 and self["FP"] == 0:
+            logging.warning("No TP or FP calls in comp!")
+            do_stats_math = False
+        elif peek:
+            logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
+                         100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
         if peek:
-            if self["TP-base"] == 0 and self["FN"] == 0:
-                logging.warning("No TP or FN calls in base!")
-                do_stats_math = False
-            elif self["TP-call"] == 0 and self["FP"] == 0:
-                logging.warning("No TP or FP calls in base!")
-                do_stats_math = False
-            else:
-                logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
-                             100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
             return
 
         # Final calculations

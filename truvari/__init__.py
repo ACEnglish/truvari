@@ -14,14 +14,14 @@ from truvari.utils import (
 
 from truvari.comparisons import (
     entry_is_variant,
-    vcf_to_key,
+    entry_to_key,
     sizesim,
     entry_size_similarity,
     entry_gt_comp,
     create_haplotype,
     entry_pctsim_lev,
     overlaps,
-    get_vcf_variant_type,
+    entry_variant_type,
     same_variant_type,
     fetch_coords,
     entry_boundaries,
@@ -31,9 +31,11 @@ from truvari.comparisons import (
     reciprocal_overlap,
     entry_reciprocal_overlap,
     is_sv,
-    #type_match,
     filter_value,
-    match_sorter
+    match_sorter,
+    copy_entry
 )
 
 from truvari.genome_tree import *
+
+from truvari.giab_report import make_giabreport

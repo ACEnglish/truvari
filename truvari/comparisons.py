@@ -238,11 +238,12 @@ def is_sv(entry, min_size=25):
 
 def filter_value(entry, values=None):
     """
+    Returns True if it should be filtered.
     Only take calls with filter values in the list provided
-    if None provided, assume that filter_value must be PASS or blank '.')
+    if None provided, assume that filter_value must be PASS or blank '.'
     """
     if values is None:
-        return entry.filter == [] or 'PASS' in entry.filter
+        return len(entry.filter) != 0 and 'PASS' not in entry.filter
     return values.intersection(entry.filter)
 
 

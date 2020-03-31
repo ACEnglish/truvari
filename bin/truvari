@@ -26,7 +26,7 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
 
     CMDs:
         bench            Performance metrics from comparison of two VCFs 
-        consis           Consistency report between multiple VCFs
+        consistency      Consistency report between multiple VCFs
         anno             Annotate a VCF
         create-anno      Create an index of an annotation source for reuse
         version          Print the Truvari version and exit
