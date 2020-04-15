@@ -6,7 +6,7 @@ setup(
     author="ACEnglish",
     author_email="acenglish@gmail.com",
     url="https://github.com/spiralgenetics/truvari",
-    packages=['truvari'],
+    packages=['truvari', 'truvari/annos'],
     license='MIT',
     scripts=["bin/truvari"],
     description="Structural variant comparison tool for VCFs",

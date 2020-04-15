@@ -6,6 +6,7 @@ VERSION="2.0.0-dev"
 
 from truvari.bench import bench_main
 from truvari.consistency_report import consistency_main
+from truvari.annotation import anno_main
 
 def in_progress(args):
     """placeholder"""
@@ -17,9 +18,10 @@ def version(args):
 
 TOOLS = {'bench': bench_main,
 	 'consistency': consistency_main,
-	 'anno': in_progress,
-	 'create-anno': in_progress,
+	 'anno': anno_main,
 	 'version': version}
+
+# create-anno      Create an index of an annotation source for reuse
 
 USAGE = """\
 Truvari v%s - Structural Variant Benchmarking and Annotation
@@ -28,7 +30,6 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
         bench            Performance metrics from comparison of two VCFs 
         consistency      Consistency report between multiple VCFs
         anno             Annotate a VCF
-        create-anno      Create an index of an annotation source for reuse
         version          Print the Truvari version and exit
 """ % VERSION
 

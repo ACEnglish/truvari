@@ -272,9 +272,13 @@ def copy_entry(entry, header):
     """
     For making entries editable
     """
-    ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
-                            alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
-                            info=entry.info)
+    try:
+        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
+                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
+                                info=entry.info)
+    except TypeError:
+        logging.error("Entry is not copyable. Check VCF Header. (%s)", str(entry))
+        exit(1)
     # should be able to just say samples=entry.samples...
     for sample in entry.samples:
         for k, v in entry.samples[sample].items():
