@@ -1,0 +1,5 @@
+TRF:
+	Put trf executable in your environment or point to it with command XYZ
+	Lots of stuff about how this analysis is actually done
+bed:
+	How do you build the bed file to make it work?
