@@ -19,6 +19,7 @@ from truvari.comparisons import (
     entry_size_similarity,
     entry_gt_comp,
     create_haplotype,
+    create_pos_haplotype,
     entry_pctsim_lev,
     overlaps,
     entry_variant_type,

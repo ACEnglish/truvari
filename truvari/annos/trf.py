@@ -1,6 +1,8 @@
 """ Wrapper around TRF to annotate a VCF """
 import sys
 import logging
+import argparse
+import tempfile
 from collections import defaultdict
 
 import pysam
@@ -16,11 +18,13 @@ from acebinf import cmd_exe, setup_logging
 # Also, running single threaded isn't great, but also I don't care at this point...
 # It'll be a heavy step, but I'm not judging the software on speed for a bit...
 
+
 class TRFAnno():
     """ Class for trf annotation """
-    MFNAME = "output.trf"
-    TRFCOLS = [("TRF_starts", int), 
-               ("TRF_ends", int), 
+    TRNAME = tempfile.NamedTemporaryFile().name
+    FANAME = tempfile.NamedTemporaryFile().name
+    TRFCOLS = [("TRF_starts", int),
+               ("TRF_ends", int),
                ("TRF_periods", int),
                ("TRF_copies", float),
                ("TRF_consizes", int),
@@ -33,13 +37,13 @@ class TRFAnno():
                ("TRF_Ts",  int),
                ("TRF_entropies", float),
                ("TRF_repeats", str),
-               ("unk1", None), 
+               ("unk1", None),
                ("unk2", None),
                ("unk3", None)]
 
-    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64", 
-                 min_length=50, bestn=5, layered=False, full=False, 
-                 trf_params = "2 7 7 80 10 50 500 -m -f -h -d -ngs",
+    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64",
+                 min_length=50, bestn=5, layered=False, full=False,
+                 trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
                  refanno=None, ref=None, pctovl=0.2):
         """ The setup """
         self.in_vcf = in_vcf
@@ -53,91 +57,17 @@ class TRFAnno():
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
         self.trf_params = trf_params
+
         if refanno and not ref:
             logging.error("-R requires -r")
             exit(1)
+
         self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
         self.ref = pyfaidx.Fasta(ref) if ref else None
         self.pctovl = pctovl
 
         self.n_header = self.edit_header()
-        self.cmd = self.executable + ' input.fasta ' + self.trf_params + " > " + TRFAnno.MFNAME
-    
-    def run_trf(self, altseq, refseq=None):
-        """
-        Runs trf on the ref/alt sequences
-        returns {'a': [althitsdict,..], 'r':[refhitsdict]}
-        """
-        def parse_output():
-            """
-            Parse the outputs from trf, turn to a dictionary
-            """
-            hits = defaultdict(list)
-            with open(TRFAnno.MFNAME, 'r') as fh:
-                while True:
-                    # If there are multiple, need to parameters for 'take best' or take top N or something
-                    # Will need name now that there's ref/alt seq
-                    name = fh.readline()
-                    data = fh.readline()
-                    if data == "":
-                        break
-                    name = name.strip()[1:]
-                    data = data.strip().split(' ')
-                    data = {x[0]:y for x,y in zip(TRFAnno.TRFCOLS, data) if not x[0].startswith("unk")}
-                    # don't really need until parallel
-                    data["TRF_scores"] = int(data["TRF_scores"])
-                    hits[name].append(data)
-            return hits
-        
-        # UNSAFE - need to pick a NamedTemporary file and stick with it
-        # same for TRFAnno.MFNAME
-        with open("input.fasta", 'w') as fout:
-            fout.write(">a\n%s\n" % (altseq))
-            # and write refseq...
-        ret = cmd_exe(self.cmd)
-        if ret.ret_code != 0:
-            logging.error("Couldn't run trf")
-            logging.error(str(ret))
-            exit(ret.ret_code)
-        return parse_outputs()
-
-    def insertion_anno(self, entry):
-        """
-        Annotates an insertion. Insertions are assumed to have a 
-        refspan of a single anchor base and full ALT sequence
-        """
-        trf_hits = None
-        srep_hits = None
-        # Make srep_hits if we have the bed
-        if self.refanno:
-            srep_hits = self.refanno[entry.chrom].overlap(entry.start)
-        
-        # If we also have the reference, we want to do the fancy diff comparison
-        if self.refanno and self.ref:
-            #This has a whole other thing for making ref/alt
-            trf_hits = run_trf(entry.alts[0], and_refseq_whatever)
-        else:
-            trf_hits = run_trf(entry.alts[0])
-        entry = self.annotate_entry(entry, trf_hits, srep_hits)
-
-    def run(self):
-        """
-        The work
-        """
-        # should probably 'batch' it instead of running individually
-        with pysam.VariantFile(self.in_vcf) as vcf, \
-             pysam.VariantFile("/dev/stdout", 'w', header=self.n_header) as output:
-            for entry in vcf:
-                sz = truvari.entry_size(entry)
-                if sz < self.min_size:
-                    output.write(entry)
-                    continue
-                svtype = truvari.entry_variant_type(entry)
-                if svtype == "INS":
-                    entry = self.insertion_anno(entry)
-                elif svtype == "DEL"
-                    entry = self.deletion_anno(entry)
-                output.write(entry)
+        self.cmd = f"{self.executable} {TRFAnno.FANAME} {self.trf_params} > {TRFAnno.TRNAME}"
 
     def edit_header(self):
         """
@@ -154,10 +84,15 @@ class TRFAnno():
                          'Description="TRF repeat copies">'))
         header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
                          'Description="TRF repeat scores">'))
+        
         if self.refanno and self.ref:
-            header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Integer,'
-                             'Description="When an entry hits a reference STR, '
-                             'calculate the length difference">'))
+            header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
+                             'Description="Alternate allele copy number difference from '
+                             'its reference SREP_repeat copy number">'))
+        if self.refanno:
+            for headinfo  in self.refanno[1]:
+                header.add_line(headinfo)
+
         if self.full:
             header.add_line(('##INFO=<ID=TRF_starts,Number=.,Type=Integer,'
                              'Description="TRF starts">'))
@@ -186,21 +121,95 @@ class TRFAnno():
             pass
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         return header
-    
+
+    def run_trf(self, altseqs, refseqs=None):
+        """
+        Runs trf on the ref/alt sequences
+        returns {'a': [althitsdict,..], 'r':[refhitsdict]}
+        """
+        def parse_output():
+            """
+            Parse the outputs from trf, turn to a dictionary
+            """
+            hits = defaultdict(list)
+            with open(TRFAnno.TRNAME, 'r') as fh:
+                name = fh.readline()
+                if name == "": # no hits
+                    return hits
+                name = name.strip()[1:]
+                while True:
+                    # If there are multiple, need to parameters for 'take best' or take top N or something
+                    # Will need name now that there's ref/alt seq
+                    data = fh.readline()
+                    if data == "":
+                        break
+                    if data.startswith("@"):
+                        name = data.strip()[1:]
+                        continue
+                    data = data.strip().split(' ')
+                    data = {x[0]: y for x, y in zip(TRFAnno.TRFCOLS, data) if not x[0].startswith("unk")}
+                    # don't really need until parallel
+                    data["TRF_scores"] = int(data["TRF_scores"])
+                    hits[name].append(data)
+            return hits
+
+        with open(TRFAnno.FANAME, 'w') as fout:
+            for seq in altseqs:
+                fout.write(">a\n%s\n" % (seq))
+            for seq in refseqs:
+                fout.write(">r\n%s\n" % (seq))
+                
+        ret = cmd_exe(self.cmd)
+        if ret.ret_code != 0:
+            logging.error("Couldn't run trf")
+            logging.error(str(ret))
+            exit(ret.ret_code)
+        return parse_output()
+
+    def build_anno(self, entry, altseq):
+        """
+        Annotates an insertion. Insertions are assumed to have a 
+        refspan of a single anchor base and full ALT sequence
+        """
+        trf_hits = None
+        srep_hits = None
+        # Make srep_hits if we have the bed
+        if self.refanno:
+            srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
+
+        # If we also have the reference, we want to do the fancy diff comparison
+        # This wasn't working out, removing for now
+        if self.refanno and self.ref and srep_hits and False:
+            # This has a whole other thing for making ref/alt
+            refseqs = []
+            #for hit in srep_hits:
+                #seq = self.ref.get_seq(entry.chrom, hit.begin + 1, hit.end).seq
+                #altseq, refseq = truvari.create_pos_haplotype(entry.chrom, entry.start, entry.stop, entry.alts[0],\
+                                                         #hit.begin, hit.end, seq, self.ref)
+                #refseqs.append(seq)
+            trf_hits = self.run_trf([altseq], refseqs)
+        else:
+            trf_hits = self.run_trf([altseq], [])
+        entry = self.annotate_entry(entry, trf_hits, srep_hits)
+        return entry
+
     def annotate_entry(self, entry, trf_annos=None, srep_hits=None):
         """
         puts the annos in vcf entry
+        trf_annos = {'a': [hit, hit, hit], 'r':[hit, hit, hit]}
         """
-                
         if not trf_annos and not srep_hits:
             return entry
-        
-        if len(annos) > self.bestn:
-            annos = sorted(annos, key=lambda x: x["TRF_scores"], reverse=True)[:self.bestn]
-        
+       
+        # Let's assume we're only doing the alt allele
+        alt_annos = trf_annos['a']
+        alt_annos = sorted(alt_annos, key=lambda x: x["TRF_scores"], reverse=True)
+        if len(alt_annos) > self.bestn:
+            alt_annos = alt_annos[:self.bestn]
+
         entry = truvari.copy_entry(entry, self.n_header)
         n_dat = defaultdict(list)
-        for i in annos:
+        for i in alt_annos:
             if self.full:
                 for key, cnvt in TRFAnno.TRFCOLS:
                     if cnvt:
@@ -210,20 +219,70 @@ class TRFAnno():
                 n_dat["TRF_copies"].append(float(i["TRF_copies"]))
                 n_dat["TRF_scores"].append(int(i["TRF_scores"]))
         
+        # Adding srep hits to n_dat also
+        # this is getting kinda choppy with the converters
+        # may have over engineered it early
+        for i in srep_hits:
+            for k,v in i.data.items():
+                n_dat[k].extend(v)
+        
+        # Can calculate the diffs
+        if self.refanno and self.ref and srep_hits and alt_annos: 
+            lookup = {}
+            diffs = []
+            # make a lookup of the trf_annos from the reference
+            for i in srep_hits:
+                i = i.data
+                lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
+            
+            has_diff = False
+            # Subtract each alt_repeat from its corresponding ref_repeat
+            for alt_repeat, alt_copy in zip(n_dat["TRF_repeats"], n_dat["TRF_copies"]):
+                if alt_repeat in lookup:
+                    has_diff = True
+                    diffs.append(alt_copy - lookup[alt_repeat])
+                else:
+                    diffs.append(None)
+            
+            if has_diff:
+                n_dat["TRF_diffs"] = diffs
+
         for key in n_dat:
             entry.info[key] = n_dat[key]
-
+        
+                    
         return entry
+
+    def run(self):
+        """
+        The work
+        """
+        logging.info("Annotating VCF")
+        # should probably 'batch' it instead of running individually
+        with pysam.VariantFile(self.in_vcf) as vcf, \
+                pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as output:
+            for entry in vcf:
+                sz = truvari.entry_size(entry)
+                if sz < self.min_length:
+                    output.write(entry)
+                    continue
+                svtype = truvari.entry_variant_type(entry)
+                if svtype == "INS":
+                    entry = self.build_anno(entry, entry.alts[0])
+                elif svtype == "DEL":
+                    entry = self.build_anno(entry, entry.ref)
+                output.write(entry)
+
 
 def parse_args(args):
     """
     Pull the command line parameters
     """
     def restricted_float(x):
-            x = float(x)
-            if x < 0.0 or x > 1.0:
-                raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
-            return x
+        x = float(x)
+        if x < 0.0 or x > 1.0:
+            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
+        return x
     parser = argparse.ArgumentParser(prog="trf", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
@@ -244,32 +303,42 @@ def parse_args(args):
                         help="Reference bed of tandem repeat regions")
     parser.add_argument("-r", "--ref", type=str, default=None,
                         help="Reference fasta file (use with -R)")
-    parser.add_argument("-p", "--pctovl", type=restricted_float, default=0.2,
-                        help="Minimum percent reciprocal overlap (use with -R) (%(default)s)")
+    #parser.add_argument("-p", "--pctovl", type=restricted_float, default=0.2,
+                        #help="Minimum percent reciprocal overlap (use with -R) (%(default)s)")
     parser.add_argument("-l", "--layered", action="store_true",
                         help="(non-functional)")
-    parser.add_argument("--debug", action="store_true", 
+    parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     setup_logging(args.debug)
     return args
- 
-def main(cmdargs):
+
+
+def trf_main(cmdargs):
     """ Main """
     args = parse_args(cmdargs)
-    setup_logging(True)
-    anno = TRFAnno(in_vcf = args.input,
-                    out_vcf = args.output,
-                    executable = args.executable,
-                    min_length = args.min_length
-                    bestn = args.bestn,
-                    layered = args.layered,
-                    full = args.full,
-                    trf_params = args.trf_params,
-                    refanno = args.ref_bed,
-                    ref = args.ref,
-                    pctovl = args.pctovl)
+    anno = TRFAnno(in_vcf=args.input,
+                   out_vcf=args.output,
+                   executable=args.executable,
+                   min_length=args.min_length,
+                   bestn=args.bestn,
+                   layered=args.layered,
+                   full=args.full,
+                   trf_params=args.trf_params,
+                   refanno=args.ref_bed,
+                   ref=args.ref)
     anno.run()
+    logging.info("Finished")
+
 
 if __name__ == '__main__':
     main()
+
+
+"""
+1) I can't guarantee that TRF alt seq hits are going to happend
+    But I'm returning nulls - not good. need to remove I think
+
+So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
+Which at this point you should just abandon until it beocmes a feature request
+"""

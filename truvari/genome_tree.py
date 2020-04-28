@@ -124,6 +124,7 @@ def make_bedanno_tree(bed_file):
 
     returns a tuple of the (defaultdict(IntervalTree), header_lines)
     """
+    logging.info("Loading Annotation %s", bed_file)
     n_entries = 0
     lookup = defaultdict(IntervalTree)
     header_lines = []

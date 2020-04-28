@@ -54,6 +54,16 @@ def entry_gt_comp(entryA, entryB, sampleA, sampleB):
     """
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
+def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref):
+    """
+    Create haplotypes of two regions that are assumed to be overlapping
+    """
+    start = min(a1_start, a2_start)
+    end = max(a1_end, a2_end)
+
+    hap1_seq = ref.get_seq(chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(chrom, a1_end + 1, end).seq
+    hap2_seq = ref.get_seq(chrom, start + 1, a2_start).seq + a2_seq + ref.get_seq(chrom, a2_end + 1, end).seq
+    return str(hap1_seq), str(hap2_seq)
 
 def create_haplotype(entryA, entryB, ref):
     """
@@ -69,13 +79,7 @@ def create_haplotype(entryA, entryB, ref):
 
     a1_chrom, a1_start, a1_end, a1_seq = get_props(entryA)
     a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
-
-    start = min(a1_start, a2_start)
-    end = max(a1_end, a2_end)
-
-    hap1_seq = ref.get_seq(a1_chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(a1_chrom, a1_end + 1, end).seq
-    hap2_seq = ref.get_seq(a2_chrom, start + 1, a2_start).seq + a2_seq + ref.get_seq(a2_chrom, a2_end + 1, end).seq
-    return str(hap1_seq), str(hap2_seq)
+    return creat_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref)
 
 
 def entry_pctsim_lev(entryA, entryB, ref):

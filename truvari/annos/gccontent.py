@@ -61,6 +61,6 @@ def gcpct_main(cmdargs):
     vcf = pysam.VariantFile(args.input)
     n_header = edit_header(vcf)
     out = pysam.VariantFile(args.output, 'w', header=n_header)
-    for entry in add_gcpct(vcf, ref, out, n_header)
+    for entry in add_gcpct(vcf, ref, out, n_header):
         out.write(entry)
     out.close()
