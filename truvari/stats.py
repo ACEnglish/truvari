@@ -5,13 +5,37 @@ import sys
 import argparse
 import warnings
 
+from enum import Enum
 from collections import defaultdict, Counter
 
-import vpq
 import numpy
 import pysam
 import joblib
 import truvari
+
+SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
+          "[400,600)", "[600,800)", "[800,1k)", "[1k,2.5k)",
+          "[2.5k,5k)", ">=5k"]
+SZBINMAX = [50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
+QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
+
+class GT(Enum):
+    """ Genotypes """
+    NON = 3
+    REF = 0
+    HET = 1
+    HOM = 2
+    UNK = 4
+
+
+class SV(Enum):
+    """ SVtypes """
+    DEL = 0
+    INS = 1
+    DUP = 2
+    INV = 3
+    NON = 4  # Not and SV, SVTYPE
+    UNK = 5  # Unknown SVTYPE
 
 
 def parse_args(args):
@@ -33,13 +57,13 @@ def parse_args(args):
 
 def get_svtype(svtype):
     """
-    Turn to a vpq svtype
+    Turn to a svtype
     """
     try:
-        return eval(f"vpq.SV.{svtype}")
+        return eval(f"SV.{svtype}")
     except AttributeError:
         pass
-    return vpq.SV.UNK
+    return SV.UNK
 
 
 def get_sizebin(sz):
@@ -47,7 +71,7 @@ def get_sizebin(sz):
     Bin a given size
     """
     sz = abs(sz)
-    for key, maxval in zip(vpq.SZBINS, vpq.SZBINMAX):
+    for key, maxval in zip(SZBINS, SZBINMAX):
         if sz <= maxval:
             return key
     return None
@@ -58,16 +82,16 @@ def get_gt(gt):
     return GT enum
     """
     if None in gt:
-        return vpq.GT.NON
+        return GT.NON
     if len(gt) != 2:
-        return vpq.GT.UNK
+        return GT.UNK
     if gt == (0, 0):
-        return vpq.GT.REF
+        return GT.REF
     if gt[0] != gt[1]:
-        return vpq.GT.HET
+        return GT.HET
     if gt[0] == gt[1]:
-        return vpq.GT.HOM
-    return vpq.GT.UNK
+        return GT.HOM
+    return GT.UNK
 
 
 def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
@@ -97,7 +121,7 @@ def stats_main(cmdargs):
 
     output = open(args.out, 'w')
 
-    data = numpy.zeros((len(vpq.SV), len(vpq.SZBINS), len(vpq.GT), len(vpq.QUALBINS)))
+    data = numpy.zeros((len(SV), len(SZBINS), len(GT), len(QUALBINS)))
 
     for fn in args.VCF:
         vcf = pysam.VariantFile(fn)
@@ -106,44 +130,44 @@ def stats_main(cmdargs):
             sz = get_sizebin(truvari.entry_size(entry))
             gt = get_gt(entry.samples[0]["GT"])
             qual, idx = get_scalebin(entry.qual)
-            data[sv.value, vpq.SZBINS.index(sz), gt.value, idx] += 1
+            data[sv.value, SZBINS.index(sz), gt.value, idx] += 1
 
     if args.dataframe:
         joblib.dump(data, args.dataframe)
     output.write("# SV counts\n")
-    for i in vpq.SV:
+    for i in SV:
         output.write("%s\t%d\n" % (i.name, data[i.value].sum()))
 
     output.write("# SVxSZ counts\n")
-    output.write("\t%s\n" % "\t".join(x.name for x in vpq.SV))
-    for idx, sz in enumerate(vpq.SZBINS):
+    output.write("\t%s\n" % "\t".join(x.name for x in SV))
+    for idx, sz in enumerate(SZBINS):
         output.write(sz)
-        for sv in vpq.SV:
+        for sv in SV:
             output.write("\t%d\n" % (data[sv.value, idx].sum()))
         output.write('\n')
 
     output.write("# GT counts\n")
-    for i in vpq.GT:
+    for i in GT:
         output.write("%s\t%d\n" % (i.name, data[:, :, i.value].sum()))
 
     output.write("# SVxGT counts\n")
-    output.write("\t%s\n" % "\t".join(x.name for x in vpq.SV))
-    for gt in vpq.GT:
+    output.write("\t%s\n" % "\t".join(x.name for x in SV))
+    for gt in GT:
         output.write(gt.name)
-        for sv in vpq.SV:
+        for sv in SV:
             output.write("\t%d" % (data[sv.value, :, gt.value].sum()))
         output.write('\n')
 
     output.write("# Het/Hom ratio\n")
-    output.write("%f\n" % (data[:, :, vpq.GT.HET.value].sum() / data[:, :, vpq.GT.HOM.value].sum()))
+    output.write("%f\n" % (data[:, :, GT.HET.value].sum() / data[:, :, GT.HOM.value].sum()))
 
     output.write("# SVxSZ Het/Hom ratios\n")
-    output.write("\t%s\n" % "\t".join(x.name for x in vpq.SV))
-    for idx, sz in enumerate(vpq.SZBINS):
+    output.write("\t%s\n" % "\t".join(x.name for x in SV))
+    for idx, sz in enumerate(SZBINS):
         output.write(sz)
-        for sv in vpq.SV:
-            het = data[sv.value, idx, vpq.GT.HET.value].sum()
-            hom = data[sv.value, idx, vpq.GT.HOM.value].sum()
+        for sv in SV:
+            het = data[sv.value, idx, GT.HET.value].sum()
+            hom = data[sv.value, idx, GT.HOM.value].sum()
             output.write("\t%.2f" % (het / hom))
         output.write("\n")
 
