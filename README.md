@@ -176,7 +176,7 @@ to alter the report text in any way. If successul, the "Formatted" tab you will 
 While Truvari can use other benchmark sets, this formatted report currently only works with GIAB SV v0.5 and v0.6. Work
 will need to be done to ensure Truvari can parse future GIAB SV releases.
 
-<a href="ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/">GIAB v0.6 Download Link</a>
+["ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/analysis/NIST_SVs_Integration_v0.6/">GIAB v0.6 Download Link</a>
 
 Include Bed & VCF Header Contigs 
 --------------------------------
