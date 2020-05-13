@@ -1,3 +1,11 @@
+
+Need to change the readme so that it only has the pure basics
+Then we point to wiki pages for each of the submodules
+
+So I need to make detailed documentation for each of the sub-pages
+
+
+
 Original Notes:
     """ Want to pull out this structure from all of them. Need to figure out how to get the ID in there
     And I'm trying to figure out if bcftools annotate with the bed is good enough or if I need
