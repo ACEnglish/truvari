@@ -80,11 +80,13 @@ class TRFAnno():
         # Probably, actully
         header.add_line(('##INFO=<ID=TRF_repeats,Number=.,Type=String,'
                          'Description="TRF repeat sequences">'))
+        header.add_line(('##INFO=<ID=TRF_periods,Number=.,Type=Integer,'
+                             'Description="TRF periods">'))
         header.add_line(('##INFO=<ID=TRF_copies,Number=.,Type=Float,'
                          'Description="TRF repeat copies">'))
         header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
                          'Description="TRF repeat scores">'))
-        
+      
         if self.refanno and self.ref:
             header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
                              'Description="Alternate allele copy number difference from '
@@ -166,7 +168,7 @@ class TRFAnno():
             exit(ret.ret_code)
         return parse_output()
 
-    def build_anno(self, entry, altseq):
+    def annotate_entry(self, entry, altseq):
         """
         Annotates an insertion. Insertions are assumed to have a 
         refspan of a single anchor base and full ALT sequence
@@ -190,10 +192,10 @@ class TRFAnno():
             trf_hits = self.run_trf([altseq], refseqs)
         else:
             trf_hits = self.run_trf([altseq], [])
-        entry = self.annotate_entry(entry, trf_hits, srep_hits)
+        entry = self.edit_entry(entry, trf_hits, srep_hits)
         return entry
 
-    def annotate_entry(self, entry, trf_annos=None, srep_hits=None):
+    def edit_entry(self, entry, trf_annos=None, srep_hits=None):
         """
         puts the annos in vcf entry
         trf_annos = {'a': [hit, hit, hit], 'r':[hit, hit, hit]}
@@ -207,7 +209,10 @@ class TRFAnno():
         if len(alt_annos) > self.bestn:
             alt_annos = alt_annos[:self.bestn]
 
-        entry = truvari.copy_entry(entry, self.n_header)
+        try:
+            entry = truvari.copy_entry(entry, self.n_header)
+        except TypeError:
+            return entry
         n_dat = defaultdict(list)
         for i in alt_annos:
             if self.full:
@@ -216,6 +221,7 @@ class TRFAnno():
                         n_dat[key].append(cnvt(i[key]))
             else:
                 n_dat["TRF_repeats"].append(i["TRF_repeats"])
+                n_dat["TRF_periods"].append(int(i["TRF_periods"]))
                 n_dat["TRF_copies"].append(float(i["TRF_copies"]))
                 n_dat["TRF_scores"].append(int(i["TRF_scores"]))
         
@@ -268,9 +274,9 @@ class TRFAnno():
                     continue
                 svtype = truvari.entry_variant_type(entry)
                 if svtype == "INS":
-                    entry = self.build_anno(entry, entry.alts[0])
+                    entry = self.annotate_entry(entry, entry.alts[0])
                 elif svtype == "DEL":
-                    entry = self.build_anno(entry, entry.ref)
+                    entry = self.annotate_entry(entry, entry.ref)
                 output.write(entry)
 
 
@@ -338,6 +344,7 @@ if __name__ == '__main__':
 """
 1) I can't guarantee that TRF alt seq hits are going to happend
     But I'm returning nulls - not good. need to remove I think
+    | 
 
 So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
 Which at this point you should just abandon until it beocmes a feature request

@@ -13,7 +13,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="gtcnt", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
-                        help="VCF to annotate")
+                        help="VCF to annotate (stdin)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     return parser.parse_args(args)
@@ -49,7 +49,11 @@ def add_gtcnt(vcf, out, n_header=None):
                 cnt[2] += 1
             else:
                 cnt[0] += 1
-        nentry = truvari.copy_entry(entry, n_header)
+        try:
+            nentry = truvari.copy_entry(entry, n_header)
+        except TypeError:
+            yield entry
+            continue
         nentry.info["GTCNT"] = cnt 
         yield nentry
 

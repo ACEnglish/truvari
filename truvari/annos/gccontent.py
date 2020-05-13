@@ -48,7 +48,11 @@ def add_gcpct(vcf, ref, out, n_header=None):
         span = abs(end - start)
         seq =  ref.get_seq(entry.chrom, start, end).seq if span >= len(entry.alts[0]) else str(entry.alts[0])
         gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
-        nentry = truvari.copy_entry(entry, n_header)
+        try:
+            nentry = truvari.copy_entry(entry, n_header)
+        except TypeError:
+            yield entry
+            continue
         nentry.info["GCPCT"] = gcpct
         yield nentry
 
