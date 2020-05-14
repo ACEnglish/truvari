@@ -51,6 +51,10 @@ def parse_args(args):
                         help="Write dataframe joblib to file (%(default)s)")
     parser.add_argument("-o", "--out", default="/dev/stdout",
                         help="Stats output file (%(default)s")
+    parser.add_argument("--qmin", default=0, type=int,
+                        help="Minimum QUAL score found in VCF (%(default)s)")
+    parser.add_argument("--qmax", default=100, type=int,
+                        help="Maximum QUAL score found in VCF (%(default)s)")
     # need to add qualbin scaling
     return parser.parse_args(args)
 
@@ -111,29 +115,10 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
             return "[%d,%d)" % (i, i+step), pos
     return ">=%d" % (tmax), pos + 1
 
-
-def stats_main(cmdargs):
+def format_stats(data, output=sys.stdout):
     """
-    Main stats
+    Given a stats array, output
     """
-    warnings.filterwarnings('ignore')
-    args = parse_args(cmdargs)
-
-    output = open(args.out, 'w')
-
-    data = numpy.zeros((len(SV), len(SZBINS), len(GT), len(QUALBINS)))
-
-    for fn in args.VCF:
-        vcf = pysam.VariantFile(fn)
-        for entry in vcf:
-            sv = get_svtype(truvari.entry_variant_type(entry))
-            sz = get_sizebin(truvari.entry_size(entry))
-            gt = get_gt(entry.samples[0]["GT"])
-            qual, idx = get_scalebin(entry.qual)
-            data[sv.value, SZBINS.index(sz), gt.value, idx] += 1
-
-    if args.dataframe:
-        joblib.dump(data, args.dataframe)
     output.write("# SV counts\n")
     for i in SV:
         output.write("%s\t%d\n" % (i.name, data[i.value].sum()))
@@ -143,7 +128,7 @@ def stats_main(cmdargs):
     for idx, sz in enumerate(SZBINS):
         output.write(sz)
         for sv in SV:
-            output.write("\t%d\n" % (data[sv.value, idx].sum()))
+            output.write("\t%d" % (data[sv.value, idx].sum()))
         output.write('\n')
 
     output.write("# GT counts\n")
@@ -176,6 +161,45 @@ def stats_main(cmdargs):
         output.write("[%d,%d)\t%d\n" % (i, i+10, data[:, :, :, pos].sum()))
     output.write(">=%d\t%d\n" % (100, data[:, :, :, pos + 1].sum()))
 
+def generate_stat_table(vcf_fn, args):
+    """
+    Given a vcf filename, create a numpy array with dimensions counting
+    [SVTYPE, SZBINS, GT, QUALBINS]
+    """
+    data = numpy.zeros((len(SV), len(SZBINS), len(GT), len(QUALBINS)))
+
+    vcf = pysam.VariantFile(vcf_fn)
+    for entry in vcf:
+        sv = get_svtype(truvari.entry_variant_type(entry))
+        sz = get_sizebin(truvari.entry_size(entry))
+        gt = get_gt(entry.samples[0]["GT"])
+        if entry.qual is not None:
+            qual, idx = get_scalebin(entry.qual, args.qmin, args.qmax)
+        else:
+            qual, idx = 0, 0
+        data[sv.value, SZBINS.index(sz), gt.value, idx] += 1
+    return data
+
+
+def stats_main(cmdargs):
+    """
+    Main stats
+    """
+    warnings.filterwarnings('ignore')
+    args = parse_args(cmdargs)
+
+    output = open(args.out, 'w')
+    data = []
+    for vcf in args.VCF:
+        data.append(generate_stat_table(vcf, args))
+        output.write("## %s Stats:\n" % (vcf))
+        format_stats(data[-1], output)
+        
+    data = numpy.add(*data)
+    if args.dataframe:
+        joblib.dump(data, args.dataframe)
+    output.write("## Total Stats:\n")
+    format_stats(data, output)
 
 if __name__ == '__main__':
     main()
