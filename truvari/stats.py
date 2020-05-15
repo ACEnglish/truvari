@@ -189,13 +189,16 @@ def stats_main(cmdargs):
     args = parse_args(cmdargs)
 
     output = open(args.out, 'w')
-    data = []
+    data = None
     for vcf in args.VCF:
-        data.append(generate_stat_table(vcf, args))
+        cur = generate_stat_table(vcf, args)
         output.write("## %s Stats:\n" % (vcf))
-        format_stats(data[-1], output)
+        format_stats(cur, output)
+        if data is None:
+            data = cur
+        else:
+            data += cur
         
-    data = numpy.add(*data)
     if args.dataframe:
         joblib.dump(data, args.dataframe)
     output.write("## Total Stats:\n")
