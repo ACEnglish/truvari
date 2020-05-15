@@ -54,18 +54,20 @@ def entry_gt_comp(entryA, entryB, sampleA, sampleB):
     """
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
-def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref):
+def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=0):
     """
     Create haplotypes of two regions that are assumed to be overlapping
     """
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
-
-    hap1_seq = ref.get_seq(chrom, start + 1, a1_start).seq + a1_seq + ref.get_seq(chrom, a1_end + 1, end).seq
-    hap2_seq = ref.get_seq(chrom, start + 1, a2_start).seq + a2_seq + ref.get_seq(chrom, a2_end + 1, end).seq
+    buff = int((end - start) * buf_len)
+    start -= buff
+    end += buff
+    hap1_seq = ref.fetch(chrom, start, a1_start) + a1_seq + ref.fetch(chrom, a1_end, end)
+    hap2_seq = ref.fetch(chrom, start, a2_start) + a2_seq + ref.fetch(chrom, a2_end, end)
     return str(hap1_seq), str(hap2_seq)
 
-def create_haplotype(entryA, entryB, ref):
+def create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     """
     Turn two entries into their haplotype sequence for comparison
     """
@@ -73,16 +75,16 @@ def create_haplotype(entryA, entryB, ref):
         """
         We compare the longer of the ref/alt sequence to increase comparability
         """
-        if entry.alts[0] == "<DEL>" or len(entry.alts[0]) < len(entry.ref):
-            return entry.chrom, entry.start, entry.stop, ref.get_seq(entry.chrom, entry.start, entry.stop).seq
+        if use_ref_seq and (entry.alts[0] == "<DEL>" or len(entry.alts[0]) < len(entry.ref)):
+            return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
 
     a1_chrom, a1_start, a1_end, a1_seq = get_props(entryA)
     a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
-    return creat_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref)
+    return create_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
 
 
-def entry_pctsim_lev(entryA, entryB, ref):
+def entry_pctsim_lev(entryA, entryB, ref, buf_len=0):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
     to pct sequence similarity
@@ -92,8 +94,9 @@ def entry_pctsim_lev(entryA, entryB, ref):
         return 1.0
     # Handling of breakends should be here
     try:
-        allele1, allele2 = create_haplotype(entryA, entryB, ref)
-    except Exception:  # pylint: disable=broad-except
+        allele1, allele2 = create_haplotype(entryA, entryB, ref, buf_len=buf_len)
+    except Exception as e:  # pylint: disable=broad-except
+        logging.critical('Unable to compare sequence similarity\n%s\n%s\n%s', str(entryA), str(entryB), str(e))
         return 0
     return Levenshtein.ratio(allele1, allele2)
 

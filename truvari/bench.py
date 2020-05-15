@@ -51,10 +51,12 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=restricted_float, default=0.70,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
+    thresg.add_argument("-B", "--buffer", type=restricted_float, default=0.10,
+                        help="Percent of the reference span to buffer the haplotype sequence created")
     thresg.add_argument("-P", "--pctsize", type=restricted_float, default=0.70,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=restricted_float, default=0.0,
-                        help="Minimum pct reciprocal overlap (%(default)s)")
+                        help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
 
@@ -285,12 +287,12 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
         return True
 
     ovl_pct = truvari.reciprocal_overlap(astart, aend, bstart, bend)
-    if ovl_pct < args.pctovl:
+    if truvari.entry_variant_type(entryA) == "DEL" and ovl_pct < args.pctovl:
         logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
         return True
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim_lev(base_entry, comp_entry, reference)
+        seq_similarity = truvari.entry_pctsim_lev(base_entry, comp_entry, reference, buf_len=args.buffer)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%f)", str(
                 base_entry), str(comp_entry), seq_similarity)
@@ -424,7 +426,7 @@ def bench_main(cmdargs):
 
     # We can now 'safely' perform everything
     outputs = setup_outputs(args)
-    reference = pyfaidx.Fasta(args.reference) if args.reference else None
+    reference = pysam.FastaFile(args.reference) if args.reference else None
 
     logging.info("Creating call interval tree for overlap search")
     regions = truvari.GenomeTree(outputs["vcf_base"], outputs["vcf_comp"], args.includebed, args.sizemax)
