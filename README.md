@@ -11,7 +11,7 @@
 Structural variant toolkit for benchmarking, annotating and more for VCFs
 
 [WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.
-See [Updates]([https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
+See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
 ## Installation
 Truvari uses Python 3.7 and can be installed with pip:
@@ -48,4 +48,4 @@ The current most common Truvari use case is for structural variation benchmarkin
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
 
-<a href="https://www.spiralgenetics.com" rel="Spiral Genetics" style="width:400px;">![Spiral Genetics](http://static1.squarespace.com/static/5a81ef7629f187c795c973c3/t/5a986ab453450a17fc3003e8/1533115866026/?format=1500w)</a>
+[https://www.spiralgenetics.com](https://www.spiralgenetics.com)
