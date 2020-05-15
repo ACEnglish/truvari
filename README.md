@@ -39,10 +39,10 @@ The current most common Truvari use case is for structural variation benchmarkin
 ```
 ## Truvari Commands
 
- - bench - Performance metrics from comparison of two VCFs
- - stats - Basic SV relevant VCF stats
- - consistency - Consistency report between multiple VCFs
- - anno - Annotate a VCF
+ - [bench](https://github.com/spiralgenetics/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
+ - [stats](https://github.com/spiralgenetics/truvari/wiki/stats) - Basic SV relevant VCF stats
+ - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
+ - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Annotate a VCF
 
 ## More Information
 
