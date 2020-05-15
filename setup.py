@@ -13,10 +13,13 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
+        "ACEBinf>=1.0.2",
         "python-Levenshtein>=0.12.0",
         "progressbar2>=3.41.0",
         "pysam>=0.15.2",
         "pyfaidx>=0.5.5.2",
         "intervaltree>=3.0.2",
+        "joblib>=0.14.1",
+        "numpy>=1.18.1",
     ],
 )
