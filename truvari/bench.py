@@ -287,7 +287,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
         return True
 
     ovl_pct = truvari.reciprocal_overlap(astart, aend, bstart, bend)
-    if truvari.entry_variant_type(entryA) == "DEL" and ovl_pct < args.pctovl:
+    if truvari.entry_variant_type(base_entry) == "DEL" and ovl_pct < args.pctovl:
         logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
         return True
 
