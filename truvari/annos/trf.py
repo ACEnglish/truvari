@@ -228,9 +228,10 @@ class TRFAnno():
         # Adding srep hits to n_dat also
         # this is getting kinda choppy with the converters
         # may have over engineered it early
-        for i in srep_hits:
-            for k,v in i.data.items():
-                n_dat[k].extend(v)
+        if srep_hits is not None:
+            for i in srep_hits:
+                for k,v in i.data.items():
+                    n_dat[k].extend(v)
         
         # Can calculate the diffs
         if self.refanno and self.ref and srep_hits and alt_annos: 
