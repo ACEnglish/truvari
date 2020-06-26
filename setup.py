@@ -15,7 +15,7 @@ setup(
     install_requires=[
         "PyVCF==0.6.8",
         "python-Levenshtein==0.12.0",
-        "progressbar2==3.41.0",
+        "progressbar2==3.51.4",
         "pysam==0.15.2",
         "pyfaidx==0.5.5.2",
         "intervaltree==3.0.2",
