@@ -172,6 +172,7 @@ def parse_args(args):
     parser.add_argument("-t", "--threads", default=os.cpu_count(), type=int,
                         help="Number of threads (%(default)s)")
     args = parser.parse_args(args)
+    truvari.setup_logging()
     return args
 
 
@@ -185,15 +186,15 @@ def process_entry(entries, ref, aligner, kmersize):
             continue
         ref_up, ref_dn, alt_up, alt_dn = kmers
         ty = truvari.entry_variant_type(entry)
-        sz = truvari.entry_size(entry)
-        rcov, acov = entry.samples[0]["AD"]
-        try:
-            gref, ghet, ghom = entry.samples[0]["PL"]
-        except Exception:
-            gref, ghet, ghom = 0, 0, 0
+        #sz = truvari.entry_size(entry)
+        #rcov, acov = entry.samples[0]["AD"]
+        #try:
+        #   gref, ghet, ghom = entry.samples[0]["PL"]
+        #except Exception:
+        #   gref, ghet, ghom = 0, 0, 0
 
-        result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop, entry.alts[0]),
-                  ty, sz, rcov, acov, gref, ghet, ghom]
+        result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop, entry.alts[0])]
+        #         ty, sz, rcov, acov, gref, ghet, ghom]
 
         if ty == "INS":
             # Only want a single reference kmer
@@ -245,7 +246,7 @@ def grm_main(cmdargs):
     events = index(args.input, args.threads)
     logging.info("Processing")
     chunks = p_run(joblib.delayed(process_entry)(e, ref, aligner, args.kmersize) for e in events)
-    header = ["key", "svtype", "svlen", "ref_cov", "alt_cov", "gref", "ghet", "ghom"]
+    header = ["key"]
     for prefix in ["rup_", "rdn_", "aup_", "adn_"]:
         for key in ["nhits", "avg_q", "avg_ed", "avg_mat", "avg_mis", "dir_hits", "com_hits", "max_q",
                     "max_ed", "max_mat", "max_mis", "max_strand",
