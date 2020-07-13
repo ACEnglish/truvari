@@ -3,43 +3,32 @@ Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
 import os
 import re
-import queue
 import logging
 import argparse
-import itertools
+import multiprocessing
+from collections import namedtuple
+import types
 
 import pysam
+import tabix
 import joblib
 import truvari
 import pandas as pd
 
 try:
     from bwapy import BwaAligner
-    HASBWALIB=True
+    HASBWALIB = True
 except ModuleNotFoundError:
-    HASBWALIB=False
+    HASBWALIB = False
 
-def index(vcf, bufcnt=1, chunksize=100000):
-    """
-    Get the positions of chunks, yield them as they're created
-    """
-    v = pysam.VariantFile(vcf, threads=2)
-    que = queue.Queue()
-    cur = []
-    cnt = 0
-    for entry in v:
-        cur.append(entry)
-        if len(cur) >= chunksize:
-            que.put(cur)
-            cnt += 1
-            cur = []
-            if que.qsize() >= bufcnt:
-                yield que.get()
-    cnt += 1
-    que.put(cur)
-    while not que.empty():
-        yield que.get()
-    logging.info("%d chunks", cnt)
+try:
+    from setproctitle import setproctitle
+except MudleNotFoundError:
+    def setproctitle(_):
+        pass
+
+# Data shared with workers; must be populated before workers are started.
+grm_shared = types.SimpleNamespace()
 
 
 def make_kmers(ref, entry, kmer=25):
@@ -54,14 +43,14 @@ def make_kmers(ref, entry, kmer=25):
     try:
         up = ref.fetch(entry.chrom, start - kmer, start + kmer)
         dn = ref.fetch(entry.chrom, end - kmer, end + kmer)
-    except Exception:
+    except Exception as e:
+        logging.warning(e)
         return None
     seq = entry.alts[0]
     if seq[0] == up[kmer]:
         seq = seq[1:]  # trimming...
     # alternate
     hap = up[:kmer] + seq + dn[-kmer:]
-
     return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
 
 
@@ -171,31 +160,93 @@ def parse_args(args):
                         help="Size of kmer to map (%(default)s)")
     parser.add_argument("-t", "--threads", default=os.cpu_count(), type=int,
                         help="Number of threads (%(default)s)")
+    parser.add_argument("--debug", action="store_true",
+                        help="Verbose logging")
     args = parser.parse_args(args)
-    truvari.setup_logging()
+    truvari.setup_logging(args.debug)
     return args
 
 
-def process_entry(entries, ref, aligner, kmersize):
+def parse_infos(infos):
+    """
+    Convert INFO field to dict
+    """
+    for info in infos:
+        s = info.split("=", 1)
+        if len(s) == 1:
+            yield info, None
+        else:
+            yield s
+
+
+Entry = namedtuple("Entry", ["chrom", "start", "stop", "ref", "alts", "info"])
+
+
+def line_to_entry(fields):
+    """
+    Replicate pysam entries, but lighter
+    """
+    if len(fields) < 8:
+        raise RuntimeError(f"Can't parse line: {fields}")
+    info_field = fields[7].split(";")
+    info_dict = dict(parse_infos(info_field))
+    ref = fields[3]
+    alts = fields[4].split(",")
+    start = int(fields[1]) - 1
+    return Entry(fields[0],  # chrom
+                 start,
+                 start + len(ref),  # stop
+                 ref,
+                 alts,
+                 info_dict)
+
+
+def read_vcf_lines(ref_name, start, stop):
+    """
+    Faster VCF parsing
+    """
+    logging.debug(f"Starting region {ref_name}:{start}-{stop}")
+
+    tb = tabix.open(grm_shared.input)
+    try:
+        yield from tb.query(ref_name, start, stop)
+    except tabix.TabixError as e:
+        logging.warning(f"Region {ref_name}:{start}-{stop} failed: {e}")
+    setproctitle(f"grm done {ref_name}:{start}-{stop}")
+    logging.debug(f"Done region {ref_name}:{start}-{stop}")
+
+
+def process_entries(ref_section):
+    """
+    Calculate GRMs for a set of vcf entries
+    """
+    ref_name, start, stop = ref_section
+    ref = grm_shared.ref
+    aligner = grm_shared.aligner
+    kmersize = grm_shared.kmersize
+    header = grm_shared.header
     rows = []
-    for entry in entries:
+    next_progress = 0
+    for line in read_vcf_lines(ref_name, start, stop):
+        if "SVLEN" not in line[7]:
+            continue
+        entry = line_to_entry(line)
+        if next_progress == 0:
+            next_progress = 1000
+            setproctitle(f"grm processing {entry.chrom}:{entry.start} in {ref_name}:{start}-{stop}")
+        else:
+            next_progress -= 1
         if "SVLEN" not in entry.info:
             continue
+
         kmers = make_kmers(ref, entry, kmersize//2)
         if kmers is None:
             continue
+
         ref_up, ref_dn, alt_up, alt_dn = kmers
         ty = truvari.entry_variant_type(entry)
-        #sz = truvari.entry_size(entry)
-        #rcov, acov = entry.samples[0]["AD"]
-        #try:
-        #   gref, ghet, ghom = entry.samples[0]["PL"]
-        #except Exception:
-        #   gref, ghet, ghom = 0, 0, 0
 
         result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop, entry.alts[0])]
-        #         ty, sz, rcov, acov, gref, ghet, ghom]
-
         if ty == "INS":
             # Only want a single reference kmer
             ref_stats = map_stats(aligner, ref_up, entry.chrom, entry.start)
@@ -214,8 +265,24 @@ def process_entry(entries, ref, aligner, kmersize):
             result.extend(map_stats(aligner, alt_up))
             result.extend(map_stats(aligner, alt_dn))
         rows.append(result)
+    data = pd.DataFrame(rows, columns=header)
+    logging.debug(f"Chunk {ref_section} finished, shape={data.shape}")
+    return data
 
-    return rows
+
+def ref_ranges(ref, chunk_size):
+    """
+    Chunk reference into pieces
+    """
+    for ref_name in ref.references:
+        final_stop = ref.get_reference_length(ref_name)
+        start = 0
+        stop = start + chunk_size
+        while stop < final_stop:
+            yield ref_name, start, stop
+            start = stop
+            stop += chunk_size
+        yield ref_name, start, final_stop
 
 
 def grm_main(cmdargs):
@@ -228,33 +295,29 @@ def grm_main(cmdargs):
     Todo: 
     - document the bwa package and how to install
     - better column names along with documentation
-
-    Long-term: 
-    This should probably work to annotate the VCF's INFO fields
     """
     if not HASBWALIB:
         logging.error("bwapy not available. Please install https://github.com/nanoporetech/bwapy")
         exit(1)
 
     args = parse_args(cmdargs)
-    ref = pysam.FastaFile(args.reference)
-    aligner = BwaAligner(args.reference)
-
-    p_run = joblib.Parallel(n_jobs=args.threads, prefer="threads")
-
-    logging.info("Indexing")
-    events = index(args.input, args.threads)
-    logging.info("Processing")
-    chunks = p_run(joblib.delayed(process_entry)(e, ref, aligner, args.kmersize) for e in events)
+    grm_shared.ref = pysam.FastaFile(args.reference)
+    grm_shared.aligner = BwaAligner(args.reference)
     header = ["key"]
     for prefix in ["rup_", "rdn_", "aup_", "adn_"]:
         for key in ["nhits", "avg_q", "avg_ed", "avg_mat", "avg_mis", "dir_hits", "com_hits", "max_q",
                     "max_ed", "max_mat", "max_mis", "max_strand",
                     "min_q", "min_ed", "min_mat", "min_mis", "min_strand"]:
             header.append(prefix + key)
-
-    logging.info("Saving")
-    data = pd.DataFrame(itertools.chain(*chunks), columns=header)
-    joblib.dump(data, args.output)
-    logging.info("df shape %s", data.shape)
-    logging.info("Finished")
+    grm_shared.header = header
+    grm_shared.kmersize = args.kmersize
+    grm_shared.input = args.input
+    with multiprocessing.Pool(args.threads) as pool:
+        logging.info("Processing")
+        chunks = pool.imap(process_entries, ref_ranges(grm_shared.ref, chunk_size=10000000))
+        pool.close()
+        data = pd.concat(chunks, ignore_index=True)
+        logging.info("Saving; df shape %s", data.shape)
+        joblib.dump(data, args.output)
+        logging.info("Finished")
+        pool.join()
