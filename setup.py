@@ -22,5 +22,8 @@ setup(
         "joblib>=0.14.1",
         "numpy>=1.18.1",
         "pyfaidx>=0.5.8",
+        "pytabix>=0.1",
+        "bwapy>=0.1.4",
+        "pandas>=1.0.5",
     ],
 )
