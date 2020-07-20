@@ -21,5 +21,6 @@ setup(
         "intervaltree>=3.0.2",
         "joblib>=0.14.1",
         "numpy>=1.18.1",
+        "pyfaidx>=0.5.8",
     ],
 )

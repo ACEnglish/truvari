@@ -23,7 +23,7 @@ except ModuleNotFoundError:
 
 try:
     from setproctitle import setproctitle
-except MudleNotFoundError:
+except ModuleNotFoundError:
     def setproctitle(_):
         pass
 

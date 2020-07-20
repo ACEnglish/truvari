@@ -53,10 +53,13 @@ def parse_args(args):
                         help="Stats output file (%(default)s")
     parser.add_argument("--qmin", default=0, type=int,
                         help="Minimum QUAL score found in VCF (%(default)s)")
-    parser.add_argument("--qmax", default=100, type=int,
-                        help="Maximum QUAL score found in VCF (%(default)s)")
-    # need to add qualbin scaling
-    return parser.parse_args(args)
+    parser.add_argument("--qmax", default=None, type=int,
+                        help="Maximum QUAL score found in VCF (None)")
+
+    args = parser.parse_args(args)
+    if args.qmax is None:
+        args.qmax = sys.maxsize
+    return args
 
 
 def get_svtype(svtype):
@@ -141,7 +144,7 @@ def format_stats(data, sample=False, output=sys.stdout):
             else:
                 output.write("\t%d" % (data[sv.value, idx].sum()))
         output.write('\n')
-        
+
     output.write("# QUAL distribution\n")
     for pos, i in enumerate(range(0, 100, 10)):
         if sample:
@@ -200,7 +203,7 @@ def generate_stat_table(vcf_fn, args):
             gt = get_gt(entry.samples[i]["GT"])
             ret[i][sv.value, SZBINS.index(sz), idx, gt.value] += 1
         ret["total"][sv.value, SZBINS.index(sz), idx] += 1
-        
+
     return ret
 
 
@@ -220,16 +223,16 @@ def stats_main(cmdargs):
         else:
             for i in cur:
                 data[i] += cur[i]
-    
+
     output.write("## Total Stats:\n")
-    format_stats(data["total"], False, output)       
+    format_stats(data["total"], False, output)
 
     for i in [_ for _ in data if _ != 'total']:
         output.write("## %s Stats:\n" % (i))
-        format_stats(data[i], True, output)       
+        format_stats(data[i], True, output)
 
     if args.dataframe:
         joblib.dump(data, args.dataframe)
-       
+
 if __name__ == '__main__':
     main()

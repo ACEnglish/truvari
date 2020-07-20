@@ -1,3 +1,0 @@
-[submodule "bwapy"]
-	path = bwapy
-	url = https://github.com/nanoporetech/bwapy.git
