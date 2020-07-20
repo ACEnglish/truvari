@@ -46,15 +46,15 @@ def add_gcpct(vcf, ref, out, n_header=None):
     for entry in vcf:
         start, end = truvari.entry_boundaries(entry)
         span = abs(end - start)
-        seq =  ref.get_seq(entry.chrom, start, end).seq if span >= len(entry.alts[0]) else str(entry.alts[0])
-        gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
         try:
-            nentry = truvari.copy_entry(entry, n_header)
-        except TypeError:
-            yield entry
-            continue
-        nentry.info["GCPCT"] = gcpct
-        yield nentry
+            seq = ref.get_seq(entry.chrom, start, end).seq if span >= len(entry.alts[0]) else str(entry.alts[0])
+            gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
+            entry = truvari.copy_entry(entry, n_header)
+            entry.info["GCPCT"] = gcpct
+        except Exception:
+            # Silent failures aren't the best
+            pass
+        yield entry
 
 def gcpct_main(cmdargs):
     """
