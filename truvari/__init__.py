@@ -40,3 +40,17 @@ from truvari.comparisons import (
 from truvari.genome_tree import *
 
 from truvari.giab_report import make_giabreport
+
+from truvari.stats import (
+    SZBINS,
+    SZBINMAX,
+    QUALBINS,
+    GT,
+    SV,
+    get_svtype,
+    get_sizebin,
+    get_gt,
+    get_scalebin,
+    format_stats,
+    generate_stat_table
+)

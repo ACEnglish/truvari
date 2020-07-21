@@ -22,6 +22,7 @@ Truvari uses Python 3.7 and can be installed with pip:
 
 To build and install Truvari from scratch:
 ```
+  python -m pip install --upgrade pip setuptools wheel
   python setup.py sdist bdist_wheel
   pip install dist/Truvari-<version>.tar.gz
 ```
