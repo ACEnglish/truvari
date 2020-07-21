@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+import sys
+import argparse
+
+VERSION="2.0.0-dev"
+
+from truvari.bench import bench_main
+from truvari.consistency_report import consistency_main
+from truvari.annotation import anno_main
+from truvari.stats import stats_main
+
+def in_progress(args):
+    """placeholder"""
+    print('working on it...')
+
+def version(args):
+    """Print the version"""
+    print("Truvari v%s" % VERSION)
+
+TOOLS = {'bench': bench_main,
+	 'consistency': consistency_main,
+	 'anno': anno_main,
+	 'stats': stats_main,
+	 'version': version}
+
+# create-anno      Create an index of an annotation source for reuse
+
+USAGE = """\
+Truvari v%s - Structural Variant Benchmarking and Annotation
+
+    CMDs:
+        bench            Performance metrics from comparison of two VCFs 
+        consistency      Consistency report between multiple VCFs
+        anno             Annotate a VCF
+	stats		 Basic VCF stats
+        version          Print the Truvari version and exit
+""" % VERSION
+
+
+def parseArgs():
+    """
+    Argument parsing
+    """
+    parser = argparse.ArgumentParser(prog="truvari", description=USAGE,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument("cmd", metavar="CMD", choices=TOOLS.keys(), type=str,
+                        help="Command to execute")
+    parser.add_argument("options", metavar="OPTIONS", nargs=argparse.REMAINDER,
+                        help="Options to pass to the command")
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    args = parser.parse_args()
+
+    TOOLS[args.cmd](args.options)
+
+if __name__ == '__main__':
+    parseArgs()
+

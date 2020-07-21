@@ -1,0 +1,24 @@
+TRF:
+	Put trf executable in your environment or point to it with command XYZ
+	Lots of stuff about how this analysis is actually done
+bed:
+	How do you build the bed file to make it work?
+
+
+Cleaning GenomeTree:
+  Need to move the genome_tree builders into bed/vcf_anno
+  And I need to generalize the GenomeTree so I can build either anno into 
+  And that will require a refactor back of bench, need to preserve the GenomeTree functions
+  Ideally we would have a system of
+  
+  ```
+    anno = GenomeTree("file.[bed|vcf]")
+  
+    for entry_to_annotate in vcf:
+        hits = anno.hits(entry)
+        for x in hits:
+            add_fields_to(entry_to_annotate)
+  ```
+  
+  And of course hits could be filtered.
+    And add_fields_to could then be generalized and reused in multiple places
