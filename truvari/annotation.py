@@ -7,11 +7,12 @@ from truvari.annos import *
 ANNOS = {"gcpct": gcpct_main,
          "gtcnt": gtcnt_main,
          "trf": trf_main,
-         "grm": grm_main}
+         "grm": grm_main,
+         "repmask": rmk_main}
 
 USAGE = """\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm
+        gcpct, gtcnt, trf, grm, repmask
 """
 
 def parseArgs(args):
