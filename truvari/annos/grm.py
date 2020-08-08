@@ -41,8 +41,9 @@ def make_kmers(ref, entry, kmer=25):
     start = entry.start
     end = entry.stop
     try:
-        up = ref.fetch(entry.chrom, start - kmer, start + kmer)
-        dn = ref.fetch(entry.chrom, end - kmer, end + kmer)
+        reflen = ref.get_reference_length(entry.chrom)
+        up = ref.fetch(entry.chrom, max(start - kmer, 0), min(start + kmer, reflen))
+        dn = ref.fetch(entry.chrom, max(end - kmer, 0), min(end + kmer, reflen))
     except Exception as e:
         logging.warning(e)
         return None
