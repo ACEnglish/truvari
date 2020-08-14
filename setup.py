@@ -10,7 +10,7 @@ setup(
     license='MIT',
     scripts=["truvari/truvari", "truvari/consistency_report"],
     description="Structural variant comparison tool for VCFs",
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='UTF-8').read(),
     long_description_content_type='text/markdown',
     install_requires=[
         "PyVCF==0.6.8",
