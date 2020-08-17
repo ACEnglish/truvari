@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Truvari',
-    version='2.0.0',
+    version='2.0.1',
     author="ACEnglish",
     author_email="acenglish@gmail.com",
     url="https://github.com/spiralgenetics/truvari",
@@ -10,7 +10,7 @@ setup(
     license='MIT',
     scripts=["bin/truvari"],
     description="Structural variant comparison tool for VCFs",
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='UTF-8').read(),
     long_description_content_type='text/markdown',
     install_requires=[
         "ACEBinf>=1.0.2",
