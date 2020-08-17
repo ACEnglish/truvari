@@ -8,11 +8,12 @@ ANNOS = {"gcpct": gcpct_main,
          "gtcnt": gtcnt_main,
          "trf": trf_main,
          "grm": grm_main,
-         "repmask": rmk_main}
+         "repmask": rmk_main,
+         "remap": remap_main}
 
 USAGE = """\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm, repmask
+        gcpct, gtcnt, trf, grm, repmask, remap
 """
 
 def parseArgs(args):
