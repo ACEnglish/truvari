@@ -33,11 +33,19 @@ def remap_entry(aligner, entry, threshold=.8):
     """
     Map a sequence and return the information from it
     """
-    seq = entry.alts[0]
+    is_del = truvari.entry_variant_type(entry) == "DEL"
+    if is_del:
+        seq = str(entry.ref)
+    else:
+        seq = entry.alts[0]
+    
     num_hits = 0
     closest_hit = None
     close_dist = None
     for aln in aligner.align_seq(seq):
+        # Take out the 'same spot' alignment for deletions
+        if is_del and aln.rname == entry.chrom and abs(aln.pos - entry.pos) < len(seq):
+            continue
         num_hits += 1 
         if aln.rname != entry.chrom:
             continue
@@ -72,8 +80,8 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="remap", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument("-i", "--input", required=True,
-                        help="Input VCF")
+    parser.add_argument("-i", "--input", default="/dev/stdin",
+                        help="Input VCF (%(default)s)")
     parser.add_argument("-r", "--reference", required=True,
                         help="BWA indexed reference")
     parser.add_argument("-o", "--output", default="/dev/stdout",
@@ -96,10 +104,11 @@ def remap_main(cmdargs):
         header = edit_header(fh)
         out = pysam.VariantFile(args.output, 'w', header=header)
         for entry in fh:
-            if truvari.entry_size(entry) >= args.minlength and truvari.entry_variant_type(entry) == "INS":
+            if truvari.entry_size(entry) >= args.minlength:
                 entry = truvari.copy_entry(entry, header)
                 entry.info["REMAP"] = remap_entry(aligner, entry)
             out.write(entry)
+    logging.info("Finished Remap anno")
 
 if __name__ == '__main__':
     remap_main(sys.argv[1:])

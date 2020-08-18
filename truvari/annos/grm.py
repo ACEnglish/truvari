@@ -271,7 +271,7 @@ def process_entries(ref_section):
     return data
 
 
-def ref_ranges(ref, chunk_size=10000000)):
+def ref_ranges(ref, chunk_size=10000000):
     """
     Chunk reference into pieces
     """

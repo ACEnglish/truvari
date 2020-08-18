@@ -97,11 +97,14 @@ class RepMask():
             for pos, entry in enumerate(fh):
                 tot_cnt += 1
                 entry_size = truvari.entry_size(entry)
-                if entry_size >= self.min_length \
-                   and truvari.entry_variant_type(entry) == "INS":
+                #and truvari.entry_variant_type(entry) == "INS":
+                if entry_size >= self.min_length:
                     cnt += 1
                     cntbp += entry_size
-                    ret.write(f">{pos}\n{entry.alts[0]}\n")
+                    if truvari.entry_variant_type(entry) == "INS":
+                        ret.write(f">{pos}\n{entry.alts[0]}\n")
+                    else:
+                        ret.write(f">{pos}\n{entry.ref}\n")
         logging.info(f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
         return ret.name
 
@@ -143,8 +146,7 @@ class RepMask():
         """
         Annotates all the insertions in the vcf and writes to new vcf
         """
-        #hits = self.annotate_seqs(self.extract_seqs())
-        hits = self.parse_output("test.fa.out")
+        hits = self.annotate_seqs(self.extract_seqs())
         with pysam.VariantFile(self.in_vcf) as fh, \
             pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as out:
             for pos, entry in enumerate(fh):
