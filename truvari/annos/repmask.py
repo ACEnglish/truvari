@@ -52,26 +52,24 @@ class RepMask():
     def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="RepeatMasker",
                  min_length=50, threshold=0.8,  rm_params=DEFAULTPARAMS, threads=1):
         """ The setup """
-        self.in_vcf = in_vcf
+        self.in_vcf = str(in_vcf)
         self.out_vcf = out_vcf
         self.executable = executable
         self.min_length = min_length
         self.threshold = threshold
         self.rm_params = rm_params
         self.threads = threads
-        self.n_header = self.edit_header()
+        self.n_header = None
         self.cmd = f"{self.executable} {self.rm_params}"
 
 
-    def edit_header(self):
+    def edit_header(self, header=None):
         """
-        New VCF INFO fields
+        Edits and holds on to the header
         """
-        header = None
-        with pysam.VariantFile(self.in_vcf, 'r') as fh:
-            header = fh.header.copy()
-        # if intersect_only: Do I want to sometimes turn this off?
-        # Probably, actully
+        if header is None:
+            with pysam.VariantFile(self.in_vcf, 'r') as fh:
+                header = fh.header.copy()
         header.add_line(('##INFO=<ID=RM_score,Number=1,Type=Integer,'
                          'Description="RepMask bit score">'))
         header.add_line(('##INFO=<ID=RM_repeat,Number=1,Type=String,'
@@ -79,7 +77,7 @@ class RepMask():
         header.add_line(('##INFO=<ID=RM_clsfam,Number=1,Type=String,'
                          'Description="RepMask repeat class/family ">'))
         # TODO: Need to put a source line that says this thing was run with whatever parameters
-        return header
+        self.n_header = header
     
     def extract_seqs(self, fout=None):
         """
@@ -141,29 +139,36 @@ class RepMask():
         
         hits = self.parse_output(f"{fasta}.out")
         return hits
-        
+    
+    def annotate_entry(self, entry, hits):
+        """
+        Annotates a single entry with given hits
+        """
+        best_hit_pct = 0
+        best_hit = None
+        entry_size = truvari.entry_size(entry)
+        for hit in hits:
+            size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
+            pct = size_aln / entry_size  # The TR that covers the most of the sequence
+            # I'm taking the single best... So I might be 'under annotating'
+            if pct >= self.threshold and pct > best_hit_pct:
+                best_hit_pct = pct
+                best_hit = hit
+        return self.edit_entry(entry, best_hit)
+
     def annotate_vcf(self):
         """
-        Annotates all the insertions in the vcf and writes to new vcf
+        Annotates entries in the vcf and writes to new vcf
         """
         hits = self.annotate_seqs(self.extract_seqs())
-        with pysam.VariantFile(self.in_vcf) as fh, \
-            pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as out:
-            for pos, entry in enumerate(fh):
-                pos = str(pos)
-                if pos in hits:
-                    best_hit_pct = 0
-                    best_hit = None
-                    entry_size = truvari.entry_size(entry)
-                    for hit in hits[pos]:
-                        size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
-                        pct = size_aln / entry_size  # The TR that covers the most of the insertion
-                        # I'm taking the single best... So I might be 'under annotating'
-                        if pct >= self.threshold and pct > best_hit_pct:
-                            best_hit_pct = pct
-                            best_hit = hit
-                    entry = self.edit_entry(entry, best_hit)
-                out.write(entry)
+        with pysam.VariantFile(self.in_vcf, 'r') as fh:
+            self.edit_header(fh.header.copy())
+            with pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as out:
+                for pos, entry in enumerate(fh):
+                    pos = str(pos)
+                    if pos in hits:
+                        entry = self.annotate_entry(entry, hits[pos])
+                    out.write(entry)
         
     def edit_entry(self, entry, rm_hit):
         """
@@ -194,10 +199,11 @@ def parse_args(args):
         return x
     parser = argparse.ArgumentParser(prog="repmask", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
-                        help="VCF to annotate (stdin)")
+                        help="VCF to annotate (%(default)s)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
-                        help="Output filename (stdout)")
+                        help="Output filename (%(default)s)")
     parser.add_argument("-e", "--executable", type=str, default="RepeatMasker",
                         help="Path to RepeatMasker (%(default)s)")
     parser.add_argument("-m", "--min-length", type=int, default=50,
