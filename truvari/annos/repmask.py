@@ -50,12 +50,13 @@ class RepMask():
                ("RM_tleft", str)]
 
     def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="RepeatMasker",
-                 min_length=50, threshold=0.8,  rm_params=DEFAULTPARAMS, threads=1):
+                 min_length=50, max_length=50000, threshold=0.8,  rm_params=DEFAULTPARAMS, threads=1):
         """ The setup """
         self.in_vcf = str(in_vcf)
         self.out_vcf = out_vcf
         self.executable = executable
         self.min_length = min_length
+        self.max_length = max_length
         self.threshold = threshold
         self.rm_params = rm_params
         self.threads = threads
@@ -95,8 +96,7 @@ class RepMask():
             for pos, entry in enumerate(fh):
                 tot_cnt += 1
                 entry_size = truvari.entry_size(entry)
-                #and truvari.entry_variant_type(entry) == "INS":
-                if entry_size >= self.min_length:
+                if self.min_length <= entry_size <= self.max_length:
                     cnt += 1
                     cntbp += entry_size
                     if truvari.entry_variant_type(entry) == "INS":
@@ -208,6 +208,8 @@ def parse_args(args):
                         help="Path to RepeatMasker (%(default)s)")
     parser.add_argument("-m", "--min-length", type=int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
+    parser.add_argument("-M", "--max-length", type=int, default=50000,
+                        help="Maximum size of entry to annotate (%(default)s)")
     parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
                         help="Threshold for pct of allele covered (%(default)s)")
     parser.add_argument("-p", "--params", type=str, default=DEFAULTPARAMS,
@@ -228,6 +230,7 @@ def rmk_main(cmdargs):
                    out_vcf=args.output,
                    executable=args.executable,
                    min_length=args.min_length,
+                   max_length=args.max_length,
                    threshold=args.threshold,
                    rm_params=args.params,
                    threads=args.threads)
