@@ -1,5 +1,6 @@
 """
-Given a bed-file of chrom start in, output the Hom / (Het + Hom) of variants in the region
+Calcluate the the Hom / (Het + Hom) of variants in the region of SVs
+Requires the VCF to contain SVs beside SNPs/Indels
 """
 
 import sys
