@@ -73,7 +73,7 @@ class Remap():
                 continue
             dist = abs(aln.pos - entry.pos)
             if close_dist is None or dist < close_dist:
-                end, soft = get_end(aln.pos, aln.cigar)
+                end, soft = self.get_end(aln.pos, aln.cigar)
                 pct_query = 1 - soft / len(seq)
                 if pct_query >= threshold:
                     close_dist = dist
