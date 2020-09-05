@@ -200,7 +200,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="repmask", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+    parser.add_argument("-i", "--input", type=str, required=True,
                         help="VCF to annotate (%(default)s)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (%(default)s)")
@@ -235,7 +235,7 @@ def rmk_main(cmdargs):
                    rm_params=args.params,
                    threads=args.threads)
     anno.annotate_vcf()
-    logging.info("Finished")
+    logging.info("Finished repmask")
 
 
 if __name__ == '__main__':

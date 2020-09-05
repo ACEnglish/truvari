@@ -332,7 +332,7 @@ def trf_main(cmdargs):
                    refanno=args.ref_bed,
                    ref=args.ref)
     anno.run()
-    logging.info("Finished")
+    logging.info("Finished trf")
 
 
 if __name__ == '__main__':

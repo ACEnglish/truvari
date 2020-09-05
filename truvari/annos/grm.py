@@ -324,5 +324,5 @@ def grm_main(cmdargs):
         data = pd.concat(chunks, ignore_index=True)
         logging.info("Saving; df shape %s", data.shape)
         joblib.dump(data, args.output)
-        logging.info("Finished")
+        logging.info("Finished grm")
         pool.join()
