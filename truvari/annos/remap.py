@@ -34,7 +34,7 @@ class Remap():
             with pysam.VariantFile(self.in_vcf, 'r') as fh:
                 header = fh.header.copy()
         header.add_line(('##INFO=<ID=REMAP,Number=1,Type=String,'
-                        'Description="Annotation of alt-seq via">'))
+                        'Description="Annotation of alt-seq remapping">'))
         self.n_header = header
 
     def get_end(self, pos, cigar):
