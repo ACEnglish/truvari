@@ -50,7 +50,7 @@ def parse_args(args):
     parser.add_argument("-d", "--dataframe", default=None,
                         help="Write dataframe joblib to file (%(default)s)")
     parser.add_argument("-o", "--out", default="/dev/stdout",
-                        help="Stats output file (%(default)s")
+                        help="Stats output file (%(default)s)")
     parser.add_argument("--qmin", default=0, type=int,
                         help="Minimum QUAL score found in VCF (%(default)s)")
     parser.add_argument("--qmax", default=None, type=int,

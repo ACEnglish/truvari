@@ -41,17 +41,21 @@ def make_kmers(ref, entry, kmer=25):
     start = entry.start
     end = entry.stop
     try:
-        up = ref.fetch(entry.chrom, start - kmer, start + kmer)
-        dn = ref.fetch(entry.chrom, end - kmer, end + kmer)
+        reflen = ref.get_reference_length(entry.chrom)
+        up = ref.fetch(entry.chrom, max(start - kmer, 0), min(start + kmer, reflen))
+        dn = ref.fetch(entry.chrom, max(end - kmer, 0), min(end + kmer, reflen))
+
+        if len(up) < kmer or len(dn) < kmer:
+            return None
+        seq = entry.alts[0]
+        if len(seq) >= 1 and seq[0] == up[kmer]:
+            seq = seq[1:]  # trimming...
+        # alternate
+        hap = up[:kmer] + seq + dn[-kmer:]
+        return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
     except Exception as e:
-        logging.warning(e)
+        logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
-    seq = entry.alts[0]
-    if seq[0] == up[kmer]:
-        seq = seq[1:]  # trimming...
-    # alternate
-    hap = up[:kmer] + seq + dn[-kmer:]
-    return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
 
 
 cigmatch = re.compile("[0-9]+[MIDNSHPX=]")
@@ -221,7 +225,7 @@ def process_entries(ref_section):
     Calculate GRMs for a set of vcf entries
     """
     ref_name, start, stop = ref_section
-    ref = grm_shared.ref
+    ref = pysam.FastaFile(grm_shared.ref_filename)
     aligner = grm_shared.aligner
     kmersize = grm_shared.kmersize
     header = grm_shared.header
@@ -270,7 +274,7 @@ def process_entries(ref_section):
     return data
 
 
-def ref_ranges(ref, chunk_size):
+def ref_ranges(ref, chunk_size=10000000):
     """
     Chunk reference into pieces
     """
@@ -301,8 +305,8 @@ def grm_main(cmdargs):
         exit(1)
 
     args = parse_args(cmdargs)
-    grm_shared.ref = pysam.FastaFile(args.reference)
-    grm_shared.aligner = BwaAligner(args.reference)
+    ref = pysam.FastaFile(args.reference)
+    grm_shared.aligner = BwaAligner(args.reference, '-a')
     header = ["key"]
     for prefix in ["rup_", "rdn_", "aup_", "adn_"]:
         for key in ["nhits", "avg_q", "avg_ed", "avg_mat", "avg_mis", "dir_hits", "com_hits", "max_q",
@@ -310,14 +314,15 @@ def grm_main(cmdargs):
                     "min_q", "min_ed", "min_mat", "min_mis", "min_strand"]:
             header.append(prefix + key)
     grm_shared.header = header
+    grm_shared.ref_filename = args.reference
     grm_shared.kmersize = args.kmersize
     grm_shared.input = args.input
-    with multiprocessing.Pool(args.threads) as pool:
+    with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         logging.info("Processing")
-        chunks = pool.imap(process_entries, ref_ranges(grm_shared.ref, chunk_size=10000000))
+        chunks = pool.imap(process_entries, ref_ranges(ref, chunk_size=10000000))
         pool.close()
         data = pd.concat(chunks, ignore_index=True)
         logging.info("Saving; df shape %s", data.shape)
         joblib.dump(data, args.output)
-        logging.info("Finished")
+        logging.info("Finished grm")
         pool.join()
