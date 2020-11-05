@@ -18,6 +18,16 @@ sv_alt_match = re.compile("\<(?P<SVTYPE>.*)\>")
 class OneKg():
 
     def __init__(self, anno_file, chrom, start, end):
+        """
+        Initialize an annotation file.
+
+        Args:
+            self: (todo): write your description
+            anno_file: (str): write your description
+            chrom: (todo): write your description
+            start: (int): write your description
+            end: (int): write your description
+        """
         self.anno_file = anno_file
         self.tree = IntervalTree()
         try:
@@ -121,6 +131,12 @@ class OneKg():
     def extract_info(self, annot):
         """MSTART MLEN MEND MEINFO AF EAS_AF EUR_AF AFR_AF AMR_AF SAS_AF ALT"""
         def infoc(key):
+            """
+            Get infoc info from the infocococ.
+
+            Args:
+                key: (str): write your description
+            """
             if key in annot.info:
                 return key, annot.info[key]
             return None, None
@@ -158,10 +174,20 @@ class OneKg():
 
 
 def parse_args(args):
+    """
+    Parse command line arguments.
+
+    Args:
+    """
     setup_logging()
     pass
 
 def main():
+    """
+    Main entry point.
+
+    Args:
+    """
     ## Next -- need to figure out how to make an anno per-chromosome
     ## Then figure out how to multi-process it
     ## Also want to accept a --region chrom[:start-end]+ parameter so that I can subset

@@ -34,10 +34,24 @@ def parse_args(args):
     return args
 
 def hompct_main(cmd_args):
+    """
+    The main function.
+
+    Args:
+        cmd_args: (dict): write your description
+    """
     args = parse_args(cmd_args)
     
     v = pysam.VariantFile(args.input)
     def get_pct(chrom, start, end):
+        """
+        Retrieve pctvariant.
+
+        Args:
+            chrom: (todo): write your description
+            start: (int): write your description
+            end: (todo): write your description
+        """
         tot = 0
         homs = 0
         for entry in v.fetch(chrom, max(0, start - args.buffer), min(v.header.contigs[chrom].length, end + args.buffer)):

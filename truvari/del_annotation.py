@@ -33,6 +33,14 @@ class BEDReader:
     Read bed file for use by the annotation engine
     """
     def __init__(self, fn, vcf_header=None):
+        """
+        Initialize a vcf file.
+
+        Args:
+            self: (todo): write your description
+            fn: (int): write your description
+            vcf_header: (todo): write your description
+        """
         self.filename = fn
         # if vcf_header is none, then we can do stuff to try and predict what it would be?
         # Or should I require that they are a thing provided to create-anno
@@ -74,6 +82,14 @@ So instead of data-types, I can work on annotation sources
 
 class Annotation():
     def __init__(self, anno_file, match_ops):
+        """
+        Initialize an annotation file.
+
+        Args:
+            self: (todo): write your description
+            anno_file: (str): write your description
+            match_ops: (todo): write your description
+        """
         self.anno_file = anno_file
         self.match_ops = match_ops
         self.trees = defaultdict(IntervalTree)
