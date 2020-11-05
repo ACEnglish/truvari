@@ -25,6 +25,12 @@ try:
     from setproctitle import setproctitle
 except ModuleNotFoundError:
     def setproctitle(_):
+        """
+        Sets the cctitleitle.
+
+        Args:
+            _: (todo): write your description
+        """
         pass
 
 # Data shared with workers; must be populated before workers are started.

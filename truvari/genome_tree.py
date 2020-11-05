@@ -18,6 +18,16 @@ class GenomeTree():
     Helper class to specify included regions of the genome when iterating events.
     """
     def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
+        """
+        Initialize a span.
+
+        Args:
+            self: (todo): write your description
+            vcfA: (str): write your description
+            vcfB: (str): write your description
+            includebed: (bool): write your description
+            max_span: (int): write your description
+        """
 
         self.includebed = includebed
         self.max_span = max_span
@@ -134,6 +144,12 @@ def make_bedanno_tree(bed_file):
     header_dict = OrderedDict()
 
     def add_header(line):
+        """
+        Parse the header line.
+
+        Args:
+            line: (str): write your description
+        """
         header_lines.append(line)
         head = HEADERMAT.match(line)
         if not head:

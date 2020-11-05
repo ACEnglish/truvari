@@ -14,6 +14,12 @@ class StatsBox(OrderedDict):
     """
 
     def __init__(self):
+        """
+        Method to initialize the properties
+
+        Args:
+            self: (todo): write your description
+        """
         super().__init__()
         self["TP-base"] = 0
         self["TP-call"] = 0

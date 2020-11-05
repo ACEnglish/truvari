@@ -24,6 +24,12 @@ def parse_args(args):
     Pull the command line parameters
     """
     def restricted_float(x):
+        """
+        Returns a float or float.
+
+        Args:
+            x: (todo): write your description
+        """
         x = float(x)
         if x < 0.0 or x > 1.0:
             raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
