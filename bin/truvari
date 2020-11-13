@@ -5,6 +5,7 @@ import argparse
 VERSION="2.0.0-dev"
 
 from truvari.bench import bench_main
+from truvari.collapse import collapse_main
 from truvari.consistency_report import consistency_main
 from truvari.annotation import anno_main
 from truvari.stats import stats_main
@@ -21,6 +22,7 @@ TOOLS = {'bench': bench_main,
 	 'consistency': consistency_main,
 	 'anno': anno_main,
 	 'stats': stats_main,
+	 'collapse': collapse_main,
 	 'version': version}
 
 # create-anno      Create an index of an annotation source for reuse
@@ -33,6 +35,7 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
         consistency      Consistency report between multiple VCFs
         anno             Annotate a VCF
 	stats		 Basic VCF stats
+	collapse	 Collapse possibly redundant VCF entries
         version          Print the Truvari version and exit
 """ % VERSION
 
