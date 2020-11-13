@@ -33,7 +33,7 @@ For example, if we have
     chr1 6 ..
     chr1 7 ..
 
-And we collapse anything within 1bp of each other, without --chain, we output:
+When we collapse anything within 1bp of each other, without --chain, we output:
 
     chr1 5 ..
     chr1 7 ..
@@ -118,18 +118,26 @@ def parse_args(args):
 
     return args
 
-def edit_header(my_vcf):
+def output_edit_header(my_vcf, header=None):
     """
     Add INFO for new fields to vcf
     #Probably want to put in the PG whatever, too
     """
-    # Update header
     # Edit Header
-    header = my_vcf.header.copy()
+    if not header:
+        header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=NumCollapsed,Number=1,Type=Integer,'
                      'Description="Number of calls collapsed into this call by truvari">'))
     header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
+    return header
+
+def collapse_edit_header(my_vcf):
+    """
+    Add output_edit_header and info lines from truvari bench
+    """
+    header = truvari.bench.edit_header(my_vcf)
+    header = output_edit_header(my_vcf, header)
     return header
 
 def annotate_tp(entry, match_result):
@@ -181,13 +189,14 @@ def setup_outputs(args):
     outputs["input_vcf"] = pysam.VariantFile(args.input, 'r')
     # These need to be separate, there's only one seek position in a file handler
     outputs["seek_vcf"] = pysam.VariantFile(args.input, 'r')
-    outputs["header"] = edit_header(outputs["input_vcf"])
-    num_samps = len(outputs["header"].samples)
+    outputs["o_header"] = output_edit_header(outputs["input_vcf"])
+    outputs["c_header"] = collapse_edit_header(outputs["input_vcf"])
+    num_samps = len(outputs["o_header"].samples)
     if args.hap and num_samps != 1:
         logging.error("--hap mode requires exactly one sample. Found %d", num_samps)
         exit(100)
-    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w', header=outputs["header"])
-    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w', header=outputs["header"])
+    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w', header=outputs["o_header"])
+    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w', header=outputs["c_header"])
     return outputs
 
 def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs):
@@ -247,8 +256,10 @@ def edit_collap_entry(entry, match, match_id, outputs):
     """
     Edit an entry that's going to be collapsed into another entry
     """
-    new_entry = truvari.copy_entry(entry, outputs["header"])
+    new_entry = truvari.copy_entry(entry, outputs["c_header"])
     new_entry.info["CollapseId"] = match_id
+    new_entry.info["TruScore"] = match.score
+    truvari.bench.annotate_tp(new_entry, match)
     return new_entry
 
 def same_hap(entryA, entryB):
@@ -283,7 +294,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
     If hap, consolidate with haplotype mode and edit the neighs in-place 
     down to only the single best match.
     """
-    new_entry = truvari.copy_entry(entry, outputs["header"])
+    new_entry = truvari.copy_entry(entry, outputs["o_header"])
     new_entry.info["CollapseId"] = match_id
     new_entry.info["NumCollapsed"] = len(neighs)
 
@@ -310,7 +321,41 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
                 idx += 1
     return new_entry
 
+def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
+    """
+    Find all matching neighbors of a call
+    returns a list of (edited_neighbors, match_id, 
+    """
+    base_entry_size = truvari.entry_size(base_entry)
+    thresh_neighbors = []
+    astart, aend = truvari.entry_boundaries(base_entry)
+    fetch_start = max(0, astart - args.refdist - 1)
+    fetch_end = aend + args.refdist + 1
+    for comp_entry in outputs['seek_vcf'].fetch(base_entry.chrom, fetch_start, fetch_end):
+        comp_key = truvari.entry_to_key('b', comp_entry)
+        # Don't collapse with anything that's already been seen
+        # Which will include looking at itself
+        if matched_calls[comp_key]:
+            continue
+        
+        sizeB = truvari.entry_size(comp_entry)
+        if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
+            continue
 
+        if args.hap and same_hap(base_entry, comp_entry):
+            continue
+
+        mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args, outputs)
+        if isinstance(mat, bool):
+            continue
+        edited_entry = edit_collap_entry(comp_entry, mat, match_id, outputs)
+        # When chaining, mark this entry as being matched already
+        # Otherwise, we may be in --hap mode and we'll need to wait
+        if args.chain:
+            matched_calls[comp_key] = True
+        thresh_neighbors.append((edited_entry, mat, comp_key))
+    return thresh_neighbors
+    
 def collapse_main(cmdargs):
     """
     Main entry point for running Truvari collapse
@@ -332,7 +377,7 @@ def collapse_main(cmdargs):
     output_cnt = 0
     kept_cnt = 0
     collap_cnt = 0
-    for eid, base_entry in enumerate(outputs["input_vcf"]):
+    for match_id, base_entry in enumerate(outputs["input_vcf"]):
         base_key = truvari.entry_to_key('b', base_entry)
         if matched_calls[base_key]:
             continue
@@ -347,35 +392,22 @@ def collapse_main(cmdargs):
         matched_calls[base_key] = True
         
         thresh_neighbors = []
-        # if args.chain:
-        # While we have new neighbors, do the below stuff
+        new_neighs = find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs)
+        thresh_neighbors.extend(new_neighs)
+        # For all the neighbors, we want to go also collapse anything matching them
+        while args.chain and new_neighs:
+            next_new_neighs = []
+            for i in new_neighs:
+                next_new_neighs.extend(find_neighbors(i[0], match_id, reference, matched_calls, args, outputs))
+            thresh_neighbors.extend(next_new_neighs)
+            new_neighs = next_new_neighs
 
-        # should methodize this stuff so I can call it more?
-        astart, aend = truvari.entry_boundaries(base_entry)
-        fetch_start = max(0, astart - args.refdist - 1)
-        fetch_end = aend + args.refdist + 1
-        for comp_entry in outputs['seek_vcf'].fetch(base_entry.chrom, fetch_start, fetch_end):
-            comp_key = truvari.entry_to_key('b', comp_entry)
-            # Don't collapse with anything that's already been seen
-            # Which will include looking at itself
-            if matched_calls[comp_key]:
-                continue
             
-            sizeB = truvari.entry_size(comp_entry)
-            if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
-                continue
-
-            if args.hap and same_hap(base_entry, comp_entry):
-                continue
-
-            mat = match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs)
-            if isinstance(mat, bool):
-                continue
-            thresh_neighbors.append((edit_collap_entry(comp_entry, mat, eid, outputs), mat, comp_key))
-        
         if thresh_neighbors:
-            new_entry = edit_output_entry(base_entry, thresh_neighbors, eid, args.hap, outputs)
+            new_entry = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs)
             outputs["output_vcf"].write(new_entry)
+            # Also want to record it beside its' neighbors
+            outputs["collap_vcf"].write(new_entry)
             output_cnt += 1
             kept_cnt += 1
             for call, mat, key in thresh_neighbors:
@@ -385,6 +417,7 @@ def collapse_main(cmdargs):
         else:
             outputs["output_vcf"].write(base_entry)
             output_cnt += 1
+
         # Finished with this base entry
     logging.info("%d calls written to output", output_cnt)
     logging.info("%d collapsed calls", collap_cnt)
