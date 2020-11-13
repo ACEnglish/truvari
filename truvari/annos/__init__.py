@@ -6,6 +6,7 @@ from truvari.annos.grm import grm_main
 from truvari.annos.repmask import rmk_main
 from truvari.annos.remap import remap_main
 from truvari.annos.hompct import hompct_main
+from truvari.annos.numneigh import numneigh_main
 
 __all__ = [
     'gcpct_main',
@@ -15,4 +16,5 @@ __all__ = [
     'rmk_main',
     'remap_main',
     'hompct_main',
+    'numneigh_main',
 ]
