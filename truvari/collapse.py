@@ -85,7 +85,7 @@ def edit_header(my_vcf):
     header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=NumMerged,Number=1,Type=Integer,'
                      'Description="Number of calls collapsed into this call by truvari">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
+    header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
     return header
 
@@ -140,7 +140,7 @@ def setup_outputs(args):
     merfile = args.output
     if merfile.endswith(".vcf"):
         merfile = merfile[:-4] + ".collapsed.vcf"
-    outputs["colap_vcf"] = pysam.VariantFile(merfile, 'w', header=outputs["header"])
+    outputs["collap_vcf"] = pysam.VariantFile(merfile, 'w', header=outputs["header"])
     return outputs
 
 def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs):
@@ -150,13 +150,6 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
     Note - This is the crucial component of matching.. so needs to be better
     pulled apart for reusability and put into comparisons
     """
-    if sizeB < args.sizefilt:
-        return False
-    
-    if args.self and base_entry.chrom == comp_entry.chrom and base_entry.pos == comp_entry.pos \
-        and base_entry.ref == comp_entry.ref and base_entry.alts == comp_entry.alts:
-        return False
-
     bstart, bend = truvari.entry_boundaries(comp_entry)
     if not truvari.overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
         return False
@@ -201,14 +194,14 @@ def close_outputs(outputs):
     outputs["input_vcf"].close()
     outputs["seek_vcf"].close()
     outputs["output_vcf"].close()
-    outputs["colap_vcf"].close()
+    outputs["collap_vcf"].close()
 
 def edit_collap_entry(entry, match, match_id, outputs):
     """
     Edit an entry that's going to be collapsed into another entry
     """
     new_entry = truvari.copy_entry(entry, outputs["header"])
-    new_entry.info["MatchId"] = match_id
+    new_entry.info["CollapseId"] = match_id
     return new_entry
 
 def edit_output_entry(entry, neighs, match_id, outputs):
@@ -216,7 +209,7 @@ def edit_output_entry(entry, neighs, match_id, outputs):
     Edit the representative entry that's going to placed in the output vcf
     """
     new_entry = truvari.copy_entry(entry, outputs["header"])
-    new_entry.info["MatchId"] = match_id
+    new_entry.info["CollapseId"] = match_id
     new_entry.info["NumMerged"] = len(neighs)
 
     # Update with the first genotyped sample's information
@@ -227,11 +220,12 @@ def edit_output_entry(entry, neighs, match_id, outputs):
             idx = 0
             assigned = False
             while not assigned and idx < len(neighs):
-                s_gt = truvari.stats.get_gt(neighs[idx].samples[samp_name])
+                s_fmt = neighs[idx].samples[samp_name]
+                s_gt = truvari.stats.get_gt(s_fmt["GT"])
                 if s_gt != truvari.GT.NON:
                     assigned = True
                     for key in fmt:
-                        fmt[key] = neighs[idx].samples[samp_name][key]
+                        fmt[key] = s_fmt[key]
                 idx += 1
     return new_entry
 
@@ -267,7 +261,7 @@ def collapse_main(cmdargs):
         matched_calls[base_key] = True
         sizeA = truvari.entry_size(base_entry)
         if sizeA < args.sizemin or sizeA > args.sizemax or (args.passonly and truvari.filter_value(base_entry)):
-            outputs["output"].write(base_entry)
+            outputs["output_vcf"].write(base_entry)
             output_cnt += 1
             continue
         
@@ -276,7 +270,7 @@ def collapse_main(cmdargs):
         astart, aend = truvari.entry_boundaries(base_entry)
         fetch_start = max(0, astart - args.refdist - 1)
         fetch_end = aend + args.refdist + 1
-        for comp_entry in outputs['seek_vcf'].fetch(entry.chrom, fetch_start, fetch_end):
+        for comp_entry in outputs['seek_vcf'].fetch(base_entry.chrom, fetch_start, fetch_end):
             comp_key = truvari.entry_to_key('b', comp_entry)
             # Don't collapse with anything that's already been seen
             # Which will include looking at itself
@@ -295,14 +289,14 @@ def collapse_main(cmdargs):
         
         if thresh_neighbors:
             new_entry = edit_output_entry(base_entry, thresh_neighbors, eid, outputs)
-            outputs["output"].write(new_entry)
+            outputs["output_vcf"].write(new_entry)
             output_cnt += 1
             kept_cnt += 1
             for i in thresh_neighbors:
                 outputs['collap_vcf'].write(i)
             collap_cnt += len(thresh_neighbors)
         else:
-            outputs["output"].write(base_entry)
+            outputs["output_vcf"].write(base_entry)
             output_cnt += 1
         # Finished with this base entry
     logging.info("%d calls written to output", output_cnt)
