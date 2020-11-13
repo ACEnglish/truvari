@@ -79,7 +79,7 @@ def parse_args(args):
                         help="Comparison set of calls")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output vcf (stdout)")
-    parser.add_arument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
+    parser.add_argument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
                         help="Where collapsed variants are written (collapsed.vcf)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
@@ -182,7 +182,7 @@ def setup_outputs(args):
     # These need to be separate, there's only one seek position in a file handler
     outputs["seek_vcf"] = pysam.VariantFile(args.input, 'r')
     outputs["header"] = edit_header(outputs["input_vcf"])
-    num_samps = len(outputs["header"].header.samples)
+    num_samps = len(outputs["header"].samples)
     if args.hap and num_samps != 1:
         logging.error("--hap mode requires exactly one sample. Found %d", num_samps)
         exit(100)
@@ -258,7 +258,7 @@ def same_hap(entryA, entryB):
     """
     gtA = entryA.samples[0]["GT"]
     gtB = entryB.samples[0]["GT"]
-    return gtA == gtB:
+    return gtA == gtB
 
 def select_best(neighs):
     """
@@ -301,7 +301,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
             idx = 0
             assigned = False
             while not assigned and idx < len(neighs):
-                s_fmt = neighs[idx].samples[samp_name]
+                s_fmt = neighs[idx][0].samples[samp_name]
                 s_gt = truvari.stats.get_gt(s_fmt["GT"])
                 if s_gt != truvari.GT.NON:
                     assigned = True
@@ -334,16 +334,17 @@ def collapse_main(cmdargs):
     collap_cnt = 0
     for eid, base_entry in enumerate(outputs["input_vcf"]):
         base_key = truvari.entry_to_key('b', base_entry)
-        if base_key in matched_calls:
+        if matched_calls[base_key]:
             continue
         
-        # First time seeing it, last time using it
-        matched_calls[base_key] = True
         sizeA = truvari.entry_size(base_entry)
         if sizeA < args.sizemin or sizeA > args.sizemax or (args.passonly and truvari.filter_value(base_entry)):
             outputs["output_vcf"].write(base_entry)
             output_cnt += 1
             continue
+
+        # First time seeing it, last time using it
+        matched_calls[base_key] = True
         
         thresh_neighbors = []
         # if args.chain:
