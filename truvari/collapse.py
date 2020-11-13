@@ -1,13 +1,50 @@
 """
 Structural variant collapser
 
-Will collapse all variants that match over thresholds
-First variant will be kept in <output.vcf>.
-Others will be placed in <output>.collapsed.vcf
-Genotypes will be consolidated.
-Variants below sizemin will be output directly
+Will collapse all variants within sizemin/max that match over thresholds
+All variants outside size boundaries will be placed into the output
 
-I should actually edit the comp entry so that I can give it info on why it matched
+When collapsing, the first variant from a matching set of variants will 
+be written to the output while the others will be placed in collapsed output.
+
+Samples with no genotype information in the first variant will be filled by the first
+collapsed variant containing genotype information.
+
+ToDo:
+When using --hap, we assume phased variants from a single individual. Only the
+single best non-exact matching call from the other haplotype will be collapsed,
+and the consolidated genotype will become 1/1
+
+For example, if we collapse anything at the same position:
+
+    chr1 1 .. GT 0|1
+    chr1 1 .. GT 1|0
+    chr1 2 .. GT 1|0
+
+will become:
+    chr1 1 .. GT 1/1
+    chr1 2 .. GT 1|0
+
+When using --chain mode, instead of collapsing all variants matching the first variant
+together, we'll collapse all variants in a matching set together. 
+For example, if we have
+
+    chr1 5 ..
+    chr1 6 ..
+    chr1 7 ..
+
+And we collapse anything within 1bp of each other, without --chain, we output:
+
+    chr1 5 ..
+    chr1 7 ..
+
+With --chain, we would collapse `chr1 7` as well, producing
+
+    chr1 5 ..
+
+# Just turn this on by default... damn..
+When using --detail, we'll record detailed matching information into the 
+collapsed-output VCF entrie's infor fields (e.g. PctSim)
 """
 # pylint: disable=too-many-statements, no-member
 import os
@@ -40,8 +77,10 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, required=True,
                         help="Comparison set of calls")
-    parser.add_argument("-o", "--output", type=str, required=True,
-                        help="Output vcf")
+    parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
+                        help="Output vcf (stdout)")
+    parser.add_arument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
+                        help="Where collapsed variants are written (collapsed.vcf)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -60,7 +99,11 @@ def parse_args(args):
                         help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-
+    parser.add_argument("--hap", action="store_true", default=False,
+                        help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
+    parser.add_argument("--chain", action="store_true", default=False,
+                        help="Chain comparisons to extend possible collapsing (%(default)s)")
+    
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
@@ -83,7 +126,7 @@ def edit_header(my_vcf):
     # Update header
     # Edit Header
     header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=NumMerged,Number=1,Type=Integer,'
+    header.add_line(('##INFO=<ID=NumCollapsed,Number=1,Type=Integer,'
                      'Description="Number of calls collapsed into this call by truvari">'))
     header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
@@ -120,7 +163,9 @@ def check_params(args):
     if not os.path.exists(args.input + '.tbi'):
         check_fail = True
         logging.error("Input vcf index %s.tbi does not exist. Must be indexed", args.input)
-
+    if args.hap and args.chain:
+        check_fail = True
+        logging.error("Cannot specify both --hap and --chain")
     return check_fail
 
 def setup_outputs(args):
@@ -134,13 +179,15 @@ def setup_outputs(args):
     outputs = {}
 
     outputs["input_vcf"] = pysam.VariantFile(args.input, 'r')
+    # These need to be separate, there's only one seek position in a file handler
     outputs["seek_vcf"] = pysam.VariantFile(args.input, 'r')
     outputs["header"] = edit_header(outputs["input_vcf"])
+    num_samps = len(outputs["header"].header.samples)
+    if args.hap and num_samps != 1:
+        logging.error("--hap mode requires exactly one sample. Found %d", num_samps)
+        exit(100)
     outputs["output_vcf"] = pysam.VariantFile(args.output, 'w', header=outputs["header"])
-    merfile = args.output
-    if merfile.endswith(".vcf"):
-        merfile = merfile[:-4] + ".collapsed.vcf"
-    outputs["collap_vcf"] = pysam.VariantFile(merfile, 'w', header=outputs["header"])
+    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w', header=outputs["header"])
     return outputs
 
 def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs):
@@ -204,13 +251,47 @@ def edit_collap_entry(entry, match, match_id, outputs):
     new_entry.info["CollapseId"] = match_id
     return new_entry
 
-def edit_output_entry(entry, neighs, match_id, outputs):
+def same_hap(entryA, entryB):
+    """
+    Returns if two entry's first sample is on the same haplotype
+    by using GT phasing information
+    """
+    gtA = entryA.samples[0]["GT"]
+    gtB = entryB.samples[0]["GT"]
+    return gtA == gtB:
+
+def select_best(neighs):
+    """
+    Remove all but the single best neighbor from the list of neighs in0place
+    """
+    max_score = 0
+    max_score_pos = 0
+    for pos, n in enumerate(neighs):
+        if n[1].score > max_score:
+            max_score = n[1].score
+            max_score_pos = pos
+    i = len(neighs) - 1
+    while i > max_score_pos:
+        neighs.pop(i)
+        i -= 1
+    for i in range(max_score_pos):
+        neighs.pop(0)
+
+def edit_output_entry(entry, neighs, match_id, hap, outputs):
     """
     Edit the representative entry that's going to placed in the output vcf
+    If hap, consolidate with haplotype mode and edit the neighs in-place 
+    down to only the single best match.
     """
     new_entry = truvari.copy_entry(entry, outputs["header"])
     new_entry.info["CollapseId"] = match_id
-    new_entry.info["NumMerged"] = len(neighs)
+    new_entry.info["NumCollapsed"] = len(neighs)
+
+    if hap:
+        select_best(neighs)
+        new_entry.samples[0]["GT"] = (1, 1)
+        return new_entry
+
 
     # Update with the first genotyped sample's information
     for samp_name in new_entry.samples:
@@ -240,7 +321,6 @@ def collapse_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    # We can now 'safely' perform everything
     outputs = setup_outputs(args)
     reference = pysam.FastaFile(args.reference) if args.reference else None
 
@@ -266,7 +346,10 @@ def collapse_main(cmdargs):
             continue
         
         thresh_neighbors = []
- 
+        # if args.chain:
+        # While we have new neighbors, do the below stuff
+
+        # should methodize this stuff so I can call it more?
         astart, aend = truvari.entry_boundaries(base_entry)
         fetch_start = max(0, astart - args.refdist - 1)
         fetch_end = aend + args.refdist + 1
@@ -281,19 +364,22 @@ def collapse_main(cmdargs):
             if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
                 continue
 
+            if args.hap and same_hap(base_entry, comp_entry):
+                continue
+
             mat = match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs)
             if isinstance(mat, bool):
                 continue
-            matched_calls[comp_key] = True
-            thresh_neighbors.append(edit_collap_entry(comp_entry, mat, eid, outputs))
+            thresh_neighbors.append((edit_collap_entry(comp_entry, mat, eid, outputs), mat, comp_key))
         
         if thresh_neighbors:
-            new_entry = edit_output_entry(base_entry, thresh_neighbors, eid, outputs)
+            new_entry = edit_output_entry(base_entry, thresh_neighbors, eid, args.hap, outputs)
             outputs["output_vcf"].write(new_entry)
             output_cnt += 1
             kept_cnt += 1
-            for i in thresh_neighbors:
-                outputs['collap_vcf'].write(i)
+            for call, mat, key in thresh_neighbors:
+                matched_calls[key] = True
+                outputs['collap_vcf'].write(call)
             collap_cnt += len(thresh_neighbors)
         else:
             outputs["output_vcf"].write(base_entry)
