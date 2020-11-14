@@ -228,7 +228,7 @@ def same_hap(entryA, entryB):
 
 def select_best(neighs):
     """
-    Remove all but the single best neighbor from the list of neighs in0place
+    Remove all but the single best neighbor from the list of neighs in place
     """
     max_score = 0
     max_score_pos = 0
@@ -258,7 +258,6 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
         new_entry.samples[0]["GT"] = (1, 1)
         return new_entry
 
-
     # Update with the first genotyped sample's information
     for samp_name in new_entry.samples:
         fmt = new_entry.samples[samp_name]
@@ -279,7 +278,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
 def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
     """
     Find all matching neighbors of a call
-    returns a list of (edited_neighbors, match_id, 
+    returns a list of (edited_neighbors, match_id, callkey)
     """
     base_entry_size = truvari.entry_size(base_entry)
     thresh_neighbors = []
