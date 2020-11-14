@@ -1,50 +1,5 @@
 """
 Structural variant collapser
-
-Will collapse all variants within sizemin/max that match over thresholds
-All variants outside size boundaries will be placed into the output
-
-When collapsing, the first variant from a matching set of variants will 
-be written to the output while the others will be placed in collapsed output.
-
-Samples with no genotype information in the first variant will be filled by the first
-collapsed variant containing genotype information.
-
-ToDo:
-When using --hap, we assume phased variants from a single individual. Only the
-single best non-exact matching call from the other haplotype will be collapsed,
-and the consolidated genotype will become 1/1
-
-For example, if we collapse anything at the same position:
-
-    chr1 1 .. GT 0|1
-    chr1 1 .. GT 1|0
-    chr1 2 .. GT 1|0
-
-will become:
-    chr1 1 .. GT 1/1
-    chr1 2 .. GT 1|0
-
-When using --chain mode, instead of collapsing all variants matching the first variant
-together, we'll collapse all variants in a matching set together. 
-For example, if we have
-
-    chr1 5 ..
-    chr1 6 ..
-    chr1 7 ..
-
-When we collapse anything within 1bp of each other, without --chain, we output:
-
-    chr1 5 ..
-    chr1 7 ..
-
-With --chain, we would collapse `chr1 7` as well, producing
-
-    chr1 5 ..
-
-# Just turn this on by default... damn..
-When using --detail, we'll record detailed matching information into the 
-collapsed-output VCF entrie's infor fields (e.g. PctSim)
 """
 # pylint: disable=too-many-statements, no-member
 import os

@@ -151,7 +151,7 @@ def parse_args(args):
     """
     Argument parsing
     """
-    parser = argparse.ArgumentParser(prog="kmap", description=__doc__,
+    parser = argparse.ArgumentParser(prog="grm", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("-i", "--input", required=True,
