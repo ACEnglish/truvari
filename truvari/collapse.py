@@ -1,5 +1,50 @@
 """
 Structural variant collapser
+
+Will collapse all variants within sizemin/max that match over thresholds
+All variants outside size boundaries will be placed into the output
+
+When collapsing, the first variant from a matching set of variants will 
+be written to the output while the others will be placed in collapsed output.
+
+Samples with no genotype information in the first variant will be filled by the first
+collapsed variant containing genotype information.
+
+ToDo:
+When using --hap, we assume phased variants from a single individual. Only the
+single best non-exact matching call from the other haplotype will be collapsed,
+and the consolidated genotype will become 1/1
+
+For example, if we collapse anything at the same position:
+
+    chr1 1 .. GT 0|1
+    chr1 1 .. GT 1|0
+    chr1 2 .. GT 1|0
+
+will become:
+    chr1 1 .. GT 1/1
+    chr1 2 .. GT 1|0
+
+When using --chain mode, instead of collapsing all variants matching the first variant
+together, we'll collapse all variants in a matching set together. 
+For example, if we have
+
+    chr1 5 ..
+    chr1 6 ..
+    chr1 7 ..
+
+When we collapse anything within 1bp of each other, without --chain, we output:
+
+    chr1 5 ..
+    chr1 7 ..
+
+With --chain, we would collapse `chr1 7` as well, producing
+
+    chr1 5 ..
+
+# Just turn this on by default... damn..
+When using --detail, we'll record detailed matching information into the 
+collapsed-output VCF entrie's infor fields (e.g. PctSim)
 """
 # pylint: disable=too-many-statements, no-member
 import os
@@ -7,6 +52,7 @@ import sys
 import json
 import logging
 import argparse
+from functools import cmp_to_key
 from collections import defaultdict, namedtuple
 
 import pysam
@@ -38,6 +84,8 @@ def parse_args(args):
                         help="Where collapsed variants are written (collapsed.vcf)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
+    parser.add_argument("-k", "--keep", choices=["first", "maxqual"], default="first",
+                        help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -129,6 +177,9 @@ def check_params(args):
     if args.hap and args.chain:
         check_fail = True
         logging.error("Cannot specify both --hap and --chain")
+    if args.hap and args.keep != "first":
+        check_fail = True
+        logging.error("Using --hap must use --keep first")
     return check_fail
 
 def setup_outputs(args):
@@ -228,7 +279,7 @@ def same_hap(entryA, entryB):
 
 def select_best(neighs):
     """
-    Remove all but the single best neighbor from the list of neighs in place
+    Remove all but the single best neighbor from the list of neighs in-place
     """
     max_score = 0
     max_score_pos = 0
@@ -243,7 +294,7 @@ def select_best(neighs):
     for i in range(max_score_pos):
         neighs.pop(0)
 
-def edit_output_entry(entry, neighs, match_id, hap, outputs):
+def edit_output_entry(entry, neighs, match_id, hap, outputs, keep="first"):
     """
     Edit the representative entry that's going to placed in the output vcf
     If hap, consolidate with haplotype mode and edit the neighs in-place 
@@ -258,6 +309,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
         new_entry.samples[0]["GT"] = (1, 1)
         return new_entry
 
+
     # Update with the first genotyped sample's information
     for samp_name in new_entry.samples:
         fmt = new_entry.samples[samp_name]
@@ -271,14 +323,17 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs):
                 if s_gt != truvari.GT.NON:
                     assigned = True
                     for key in fmt:
-                        fmt[key] = s_fmt[key]
+                        try:
+                            fmt[key] = s_fmt[key]
+                        except Exception as e:
+                            pass
                 idx += 1
     return new_entry
 
 def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
     """
     Find all matching neighbors of a call
-    returns a list of (edited_neighbors, match_id, callkey)
+    returns a list of (edited_neighbors, match_id, 
     """
     base_entry_size = truvari.entry_size(base_entry)
     thresh_neighbors = []
@@ -303,13 +358,29 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         if isinstance(mat, bool):
             continue
         edited_entry = edit_collap_entry(comp_entry, mat, match_id, outputs)
-        # When chaining, mark this entry as being matched already
-        # Otherwise, we may be in --hap mode and we'll need to wait
-        if args.chain:
+        # When not in haplotype mode
+        # mark this entry as being matched already
+        if not args.hap:
             matched_calls[comp_key] = True
         thresh_neighbors.append((edited_entry, mat, comp_key))
     return thresh_neighbors
-    
+
+def select_maxqual(entry, neighs):
+    """
+    Swap the entry with the one containing the call with the maximum quality score
+    """
+    neighs.insert(0, (entry, None, None))
+    max_qual = entry.qual
+    max_qual_idx = 0
+    for pos, i in enumerate(neighs[1:]):
+        pos += 1
+        cmp_qual = neighs[pos][0].qual
+        if cmp_qual > max_qual:
+            max_qual_idx = pos
+            max_qual = cmp_qual
+    entry = neighs.pop(max_qual_idx)
+    return entry[0], neighs
+
 def collapse_main(cmdargs):
     """
     Main entry point for running Truvari collapse
@@ -327,7 +398,7 @@ def collapse_main(cmdargs):
     matched_calls = defaultdict(bool)
 
     # for variant in base - do filtering on it and then try to match it to comp
-    logging.info("Merging VCF")
+    logging.info("Collapsing VCF")
     output_cnt = 0
     kept_cnt = 0
     collap_cnt = 0
@@ -356,6 +427,8 @@ def collapse_main(cmdargs):
             thresh_neighbors.extend(next_new_neighs)
             new_neighs = next_new_neighs
 
+        if args.keep == "maxqual":
+            base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
             
         if thresh_neighbors:
             new_entry = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs)
