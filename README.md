@@ -11,6 +11,9 @@
 Structural variant toolkit for benchmarking, annotating and more for VCFs
 
 [WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.
+
+You can also checkout the [deployed documentation](https://docs.contour.so/spiralgenetics/truvari).
+
 See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
 ## Installation
