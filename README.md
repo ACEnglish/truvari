@@ -10,9 +10,7 @@
 
 Structural variant toolkit for benchmarking, annotating and more for VCFs
 
-[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.
-
-You can also checkout the [deployed documentation](https://docs.contour.so/spiralgenetics/truvari).
+[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation. You can also checkout the [deployed documentation](https://docs.contour.so/spiralgenetics/truvari).
 
 See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
@@ -50,6 +48,6 @@ The current most common Truvari use case is for structural variation benchmarkin
 
 ## More Information
 
-Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki) or the [documentation](https://docs.contour.so/spiralgenetics/truvari).
 
 [https://www.spiralgenetics.com](https://www.spiralgenetics.com)
