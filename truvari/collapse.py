@@ -63,7 +63,8 @@ import truvari
 MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
-
+COLLAPENTRY = namedtuple("collapentry", ("entry match match_id comp_key"))
+   
 def parse_args(args):
     """
     Pull the command line parameters
@@ -314,13 +315,13 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, keep="first"):
     for samp_name in new_entry.samples:
         fmt = new_entry.samples[samp_name]
         m_gt = truvari.stats.get_gt(fmt["GT"])
-        if m_gt == truvari.GT.NON:
+        if m_gt in [truvari.GT.NON, truvari.GT.REF]:
             idx = 0
             assigned = False
             while not assigned and idx < len(neighs):
                 s_fmt = neighs[idx][0].samples[samp_name]
                 s_gt = truvari.stats.get_gt(s_fmt["GT"])
-                if s_gt != truvari.GT.NON:
+                if s_gt not in [truvari.GT.NON, truvari.GT.REF]:
                     assigned = True
                     for key in fmt:
                         try:
@@ -357,29 +358,32 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args, outputs)
         if isinstance(mat, bool):
             continue
-        edited_entry = edit_collap_entry(comp_entry, mat, match_id, outputs)
+
         # When not in haplotype mode
         # mark this entry as being matched already
         if not args.hap:
             matched_calls[comp_key] = True
-        thresh_neighbors.append((edited_entry, mat, comp_key))
+        
+        thresh_neighbors.append(COLLAPENTRY(comp_entry, mat, match_id, comp_key))
     return thresh_neighbors
 
 def select_maxqual(entry, neighs):
     """
     Swap the entry with the one containing the call with the maximum quality score
     """
-    neighs.insert(0, (entry, None, None))
     max_qual = entry.qual
-    max_qual_idx = 0
-    for pos, i in enumerate(neighs[1:]):
-        pos += 1
-        cmp_qual = neighs[pos][0].qual
+    max_qual_idx = -1
+    for pos, i in enumerate(neighs):
+        cmp_qual = neighs[pos].entry.qual
         if cmp_qual > max_qual:
             max_qual_idx = pos
-            max_qual = cmp_qual
-    entry = neighs.pop(max_qual_idx)
-    return entry[0], neighs
+    
+    if max_qual_idx == -1:
+        base_entry = entry
+    else:
+        base_entry = neighs[max_qual_idx].entry
+        neighs[max_qual_idx].entry = entry
+    return base_entry, neighs
 
 def collapse_main(cmdargs):
     """
