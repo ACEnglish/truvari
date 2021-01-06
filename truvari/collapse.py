@@ -45,6 +45,22 @@ With --chain, we would collapse `chr1 7` as well, producing
 # Just turn this on by default... damn..
 When using --detail, we'll record detailed matching information into the 
 collapsed-output VCF entrie's infor fields (e.g. PctSim)
+
+
+--null-consolidate is for special fields that should be consolidated from the FORMAT, for example,
+imagine there is a field (FL) that may be null in some entries for a sample, but we want to preserve
+the non-nulls in our kept entry:
+
+    chr1 5 .. GT:GQ:FL 0/1:32:.
+    chr1 7 .. GT:GQ:FL 0/0:.:FLAG
+
+Without `--null-consolidate FL`, that FLAG will be lost because the call is present in the @5 call (0/1),
+so no conslidation of the collapsed entry's SAMPLE information is pulled. But with `--null-consolidate FL`,
+even though there is no consolidation triggered by the GT, we'll still preserve the FL:
+    
+    chr1 5 .. GT:GQ:FL 0/1:32:FLAG
+
+This only works with Number=1/Number=0 FORMAT fields currently
 """
 # pylint: disable=too-many-statements, no-member
 import os
@@ -59,11 +75,12 @@ import pysam
 import pyfaidx
 
 import truvari
+from truvari.bench import edit_header as bench_edit_header
 
 MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
-COLLAPENTRY = namedtuple("collapentry", ("entry match match_id comp_key"))
+COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
    
 def parse_args(args):
     """
@@ -107,7 +124,9 @@ def parse_args(args):
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
     parser.add_argument("--chain", action="store_true", default=False,
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
-    
+    parser.add_argument("--null-consolidate", type=str, default=None,
+                        help=("Comma separated list of FORMAT fields to consolidate into the kept "
+                            "entry by taking the first non-null from all neighbors (%(default)s)"))
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
@@ -119,6 +138,9 @@ def parse_args(args):
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
         parser.error("--reference is required when --pctsim is set")
+    
+    if args.null_consolidate is not None:
+        args.null_consolidate = args.null_consolidate.split(',')
 
     return args
 
@@ -140,7 +162,7 @@ def collapse_edit_header(my_vcf):
     """
     Add output_edit_header and info lines from truvari bench
     """
-    header = truvari.bench.edit_header(my_vcf)
+    header = bench_edit_header(my_vcf)
     header = output_edit_header(my_vcf, header)
     return header
 
@@ -295,12 +317,16 @@ def select_best(neighs):
     for i in range(max_score_pos):
         neighs.pop(0)
 
-def edit_output_entry(entry, neighs, match_id, hap, outputs, keep="first"):
+def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     """
     Edit the representative entry that's going to placed in the output vcf
     If hap, consolidate with haplotype mode and edit the neighs in-place 
     down to only the single best match.
+    Force is a set of FORMAT fields that will be checked for nulls and will overwrite between entries
     """
+    if nullconso is None:
+        nullconso = []
+    logging.critical(nullconso)
     new_entry = truvari.copy_entry(entry, outputs["o_header"])
     new_entry.info["CollapseId"] = match_id
     new_entry.info["NumCollapsed"] = len(neighs)
@@ -315,6 +341,21 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, keep="first"):
     for samp_name in new_entry.samples:
         fmt = new_entry.samples[samp_name]
         m_gt = truvari.stats.get_gt(fmt["GT"])
+        # Update the null_consolidates first - these will replace with the first non-null
+        for key in nullconso:
+            logging.info(fmt[key])
+            if fmt[key] is None:
+                logging.info(key)
+                idx = 0
+                assigned = False
+                while not assigned and idx < len(neighs):
+                    s_fmt = neighs[idx][0].samples[samp_name]
+                    if key in s_fmt and s_fmt[key] is not None:
+                        assigned = True
+                        fmt[key] = s_fmt[key]
+                    idx += 1
+        
+        # Now pull the rest based on GT presence
         if m_gt in [truvari.GT.NON, truvari.GT.REF]:
             idx = 0
             assigned = False
@@ -323,7 +364,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, keep="first"):
                 s_gt = truvari.stats.get_gt(s_fmt["GT"])
                 if s_gt not in [truvari.GT.NON, truvari.GT.REF]:
                     assigned = True
-                    for key in fmt:
+                    for key in [_ for _ in fmt if _ not in nullconso]:
                         try:
                             fmt[key] = s_fmt[key]
                         except Exception as e:
@@ -381,8 +422,10 @@ def select_maxqual(entry, neighs):
     if max_qual_idx == -1:
         base_entry = entry
     else:
-        base_entry = neighs[max_qual_idx].entry
-        neighs[max_qual_idx].entry = entry
+        swap = neighs[max_qual_idx]
+        base_entry = swap.entry
+        key = truvari.entry_to_key('b', entry)
+        neighs[max_qual_idx] = COLLAPENTRY(entry, swap.match, swap.match_id, key)
     return base_entry, neighs
 
 def collapse_main(cmdargs):
@@ -403,6 +446,7 @@ def collapse_main(cmdargs):
 
     # for variant in base - do filtering on it and then try to match it to comp
     logging.info("Collapsing VCF")
+    logging.critical(args.null_consolidate)
     output_cnt = 0
     kept_cnt = 0
     collap_cnt = 0
@@ -435,15 +479,21 @@ def collapse_main(cmdargs):
             base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
             
         if thresh_neighbors:
-            new_entry = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs)
+            new_entry = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
             outputs["output_vcf"].write(new_entry)
-            # Also want to record it beside its' neighbors
+            
+            # Also want to record the original beside its' collapse neighbors
+            new_entry = truvari.copy_entry(base_entry, outputs["c_header"])
+            new_entry.info["CollapseId"] = match_id
+            new_entry.info["NumCollapsed"] = len(thresh_neighbors)
             outputs["collap_vcf"].write(new_entry)
+            
             output_cnt += 1
             kept_cnt += 1
-            for call, mat, key in thresh_neighbors:
-                matched_calls[key] = True
-                outputs['collap_vcf'].write(call)
+            for neigh in thresh_neighbors:
+                matched_calls[neigh.key] = True
+                out_entry = edit_collap_entry(neigh.entry, neigh.match, neigh.match_id, outputs)
+                outputs['collap_vcf'].write(out_entry)
             collap_cnt += len(thresh_neighbors)
         else:
             outputs["output_vcf"].write(base_entry)
@@ -457,3 +507,6 @@ def collapse_main(cmdargs):
     # Close to flush vcfs
     close_outputs(outputs)
     logging.info("Finished")
+
+if __name__ == '__main__':
+    collapse_main(sys.argv[1:])
