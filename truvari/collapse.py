@@ -326,7 +326,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     """
     if nullconso is None:
         nullconso = []
-    logging.critical(nullconso)
+
     new_entry = truvari.copy_entry(entry, outputs["o_header"])
     new_entry.info["CollapseId"] = match_id
     new_entry.info["NumCollapsed"] = len(neighs)
@@ -343,9 +343,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
         m_gt = truvari.stats.get_gt(fmt["GT"])
         # Update the null_consolidates first - these will replace with the first non-null
         for key in nullconso:
-            logging.info(fmt[key])
             if fmt[key] is None:
-                logging.info(key)
                 idx = 0
                 assigned = False
                 while not assigned and idx < len(neighs):
@@ -446,7 +444,6 @@ def collapse_main(cmdargs):
 
     # for variant in base - do filtering on it and then try to match it to comp
     logging.info("Collapsing VCF")
-    logging.critical(args.null_consolidate)
     output_cnt = 0
     kept_cnt = 0
     collap_cnt = 0

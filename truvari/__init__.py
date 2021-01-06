@@ -54,3 +54,5 @@ from truvari.stats import (
     format_stats,
     generate_stat_table
 )
+
+from truvari.annos.af_calc import allele_freq_annos
