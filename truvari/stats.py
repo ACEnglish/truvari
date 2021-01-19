@@ -79,7 +79,7 @@ def get_sizebin(sz):
     """
     sz = abs(sz)
     for key, maxval in zip(SZBINS, SZBINMAX):
-        if sz <= maxval:
+        if sz < maxval:
             return key
     return None
 
