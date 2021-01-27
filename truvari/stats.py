@@ -50,7 +50,7 @@ def parse_args(args):
     parser.add_argument("-d", "--dataframe", default=None,
                         help="Write dataframe joblib to file (%(default)s)")
     parser.add_argument("-o", "--out", default="/dev/stdout",
-                        help="Stats output file (%(default)s")
+                        help="Stats output file (%(default)s)")
     parser.add_argument("--qmin", default=0, type=int,
                         help="Minimum QUAL score found in VCF (%(default)s)")
     parser.add_argument("--qmax", default=None, type=int,
@@ -79,7 +79,7 @@ def get_sizebin(sz):
     """
     sz = abs(sz)
     for key, maxval in zip(SZBINS, SZBINMAX):
-        if sz <= maxval:
+        if sz < maxval:
             return key
     return None
 

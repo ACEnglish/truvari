@@ -68,3 +68,7 @@ def gtcnt_main(cmdargs):
     for entry in add_gtcnt(vcf, out, n_header):
         out.write(entry)
     out.close()
+
+if __name__ == '__main__':
+    import sys
+    gtcnt_main(sys.argv[1:])

@@ -21,8 +21,8 @@ from acebinf import cmd_exe, setup_logging
 
 class TRFAnno():
     """ Class for trf annotation """
-    TRNAME = tempfile.NamedTemporaryFile().name
-    FANAME = tempfile.NamedTemporaryFile().name
+    TRNAME = tempfile.NamedTemporaryFile().name # Need to remove this
+    FANAME = tempfile.NamedTemporaryFile().name # Need to remove this
     TRFCOLS = [("TRF_starts", int),
                ("TRF_ends", int),
                ("TRF_periods", int),
@@ -42,7 +42,7 @@ class TRFAnno():
                ("unk3", None)]
 
     def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64",
-                 min_length=50, bestn=5, layered=False, full=False,
+                 min_length=50, threshold=0.8, full=False,
                  trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
                  refanno=None, ref=None, pctovl=0.2):
         """ The setup """
@@ -50,8 +50,7 @@ class TRFAnno():
         self.out_vcf = out_vcf
         self.executable = executable
         self.min_length = min_length
-        self.bestn = bestn
-        self.layered = layered
+        self.threshold = threshold
         self.full = full
 
         if "-ngs" not in trf_params:
@@ -81,18 +80,19 @@ class TRFAnno():
         header.add_line(('##INFO=<ID=TRF_repeats,Number=.,Type=String,'
                          'Description="TRF repeat sequences">'))
         header.add_line(('##INFO=<ID=TRF_periods,Number=.,Type=Integer,'
-                             'Description="TRF periods">'))
+                         'Description="TRF periods">'))
         header.add_line(('##INFO=<ID=TRF_copies,Number=.,Type=Float,'
                          'Description="TRF repeat copies">'))
         header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
                          'Description="TRF repeat scores">'))
       
+        # Take this out
         if self.refanno and self.ref:
             header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
                              'Description="Alternate allele copy number difference from '
                              'its reference SREP_repeat copy number">'))
         if self.refanno:
-            for headinfo  in self.refanno[1]:
+            for headinfo in self.refanno[1]:
                 header.add_line(headinfo)
 
         if self.full:
@@ -124,16 +124,16 @@ class TRFAnno():
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         return header
 
-    def run_trf(self, altseqs, refseqs=None):
+    def run_trf(self, seq):
         """
         Runs trf on the ref/alt sequences
-        returns {'a': [althitsdict,..], 'r':[refhitsdict]}
+        returns list of hits
         """
         def parse_output():
             """
             Parse the outputs from trf, turn to a dictionary
             """
-            hits = defaultdict(list)
+            hits = []
             with open(TRFAnno.TRNAME, 'r') as fh:
                 name = fh.readline()
                 if name == "": # no hits
@@ -149,17 +149,15 @@ class TRFAnno():
                         name = data.strip()[1:]
                         continue
                     data = data.strip().split(' ')
-                    data = {x[0]: y for x, y in zip(TRFAnno.TRFCOLS, data) if not x[0].startswith("unk")}
+                    data = {x[0]: x[1](y) for x, y in zip(TRFAnno.TRFCOLS, data) if not x[0].startswith("unk")}
                     # don't really need until parallel
                     data["TRF_scores"] = int(data["TRF_scores"])
-                    hits[name].append(data)
+                    hits.append(data)
             return hits
 
         with open(TRFAnno.FANAME, 'w') as fout:
-            for seq in altseqs:
-                fout.write(">a\n%s\n" % (seq))
-            for seq in refseqs:
-                fout.write(">r\n%s\n" % (seq))
+            #for seq in seqs:
+            fout.write(">a\n%s\n" % (seq))
                 
         ret = cmd_exe(self.cmd)
         if ret.ret_code != 0:
@@ -168,53 +166,63 @@ class TRFAnno():
             exit(ret.ret_code)
         return parse_output()
 
-    def annotate_entry(self, entry, altseq):
+    def __old_srep(self):
         """
-        Annotates an insertion. Insertions are assumed to have a 
-        refspan of a single anchor base and full ALT sequence
+        legacy code
         """
-        trf_hits = None
         srep_hits = None
         # Make srep_hits if we have the bed
         if self.refanno:
             srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
 
-        # If we also have the reference, we want to do the fancy diff comparison
-        # This wasn't working out, removing for now
-        if self.refanno and self.ref and srep_hits and False:
-            # This has a whole other thing for making ref/alt
-            refseqs = []
-            #for hit in srep_hits:
-                #seq = self.ref.get_seq(entry.chrom, hit.begin + 1, hit.end).seq
-                #altseq, refseq = truvari.create_pos_haplotype(entry.chrom, entry.start, entry.stop, entry.alts[0],\
-                                                         #hit.begin, hit.end, seq, self.ref)
-                #refseqs.append(seq)
-            trf_hits = self.run_trf([altseq], refseqs)
-        else:
-            trf_hits = self.run_trf([altseq], [])
-        entry = self.edit_entry(entry, trf_hits, srep_hits)
-        return entry
 
-    def edit_entry(self, entry, trf_annos=None, srep_hits=None):
+    def annotate(self, entry, altseq):
+        """
+        Annotates an Insertion, returns the annotation information
+        """
+        trf_hits = self.run_trf(altseq)
+        best_hit = None
+        entry_size = truvari.entry_size(entry)
+        for hit in trf_hits:
+            size_trf = abs(hit["TRF_ends"] - hit["TRF_starts"]) + 1
+            pct = size_trf / entry_size  # The TR that covers the most of the insertion
+            if pct < self.threshold:
+                continue
+            if best_hit is None:
+                best_hit = hit
+                continue
+            if best_hit is None \
+               or (hit["TRF_periods"] < best_hit["TRF_periods"] \
+               and hit["TRF_copies"] > best_hit["TRF_copies"]):
+                best_hit = hit
+        return best_hit
+
+    def annotate_entry(self, entry, altseq):
+        """
+        Annotates an insertion. Insertions are assumed to have a 
+        refspan of a single anchor base and full ALT sequence
+        Returns the edited entry
+        """
+        return self.edit_entry(entry, [self.annotate(entry, altseq)])
+
+    def edit_entry(self, entry, trf_annos):
         """
         puts the annos in vcf entry
-        trf_annos = {'a': [hit, hit, hit], 'r':[hit, hit, hit]}
+        return the edited entry
         """
-        if not trf_annos and not srep_hits:
+        if not trf_annos:
             return entry
        
         # Let's assume we're only doing the alt allele
-        alt_annos = trf_annos['a']
-        alt_annos = sorted(alt_annos, key=lambda x: x["TRF_scores"], reverse=True)
-        if len(alt_annos) > self.bestn:
-            alt_annos = alt_annos[:self.bestn]
-
+        srep_hits = None
         try:
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:
             return entry
         n_dat = defaultdict(list)
-        for i in alt_annos:
+        for i in trf_annos:
+            if i is None:
+                continue
             if self.full:
                 for key, cnvt in TRFAnno.TRFCOLS:
                     if cnvt:
@@ -270,16 +278,10 @@ class TRFAnno():
                 pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as output:
             for entry in vcf:
                 sz = truvari.entry_size(entry)
-                if sz < self.min_length:
-                    output.write(entry)
-                    continue
-                svtype = truvari.entry_variant_type(entry)
-                if svtype == "INS":
+                if sz >= self.min_length \
+                   and truvari.entry_variant_type(entry) == "INS":
                     entry = self.annotate_entry(entry, entry.alts[0])
-                elif svtype == "DEL":
-                    entry = self.annotate_entry(entry, entry.ref)
                 output.write(entry)
-
 
 def parse_args(args):
     """
@@ -302,18 +304,14 @@ def parse_args(args):
                         help="Write full trf output to entries")
     parser.add_argument("-m", "--min-length", type=int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    parser.add_argument("-b", "--bestn", type=int, default=5,
-                        help="Top trf hits to report (%(default)s)")
-    parser.add_argument("-t", "--trf-params", type=str, default="2 7 7 80 10 50 500 -m -f -h -d -ngs",
-                        help="Default parameters to send to tr (%(default)s)")
+    parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
+                        help="Threshold for pct of allele covered (%(default)s)")
+    parser.add_argument("-T", "--trf-params", type=str, default="2 7 7 80 10 50 500 -m -f -h -d -ngs",
+                        help="Default parameters to send to trf (%(default)s)")
     parser.add_argument("-R", "--ref-bed", type=str, default=None,
-                        help="Reference bed of tandem repeat regions")
+                        help="Reference bed of simple repeats")
     parser.add_argument("-r", "--ref", type=str, default=None,
                         help="Reference fasta file (use with -R)")
-    #parser.add_argument("-p", "--pctovl", type=restricted_float, default=0.2,
-                        #help="Minimum percent reciprocal overlap (use with -R) (%(default)s)")
-    parser.add_argument("-l", "--layered", action="store_true",
-                        help="(non-functional)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -328,18 +326,17 @@ def trf_main(cmdargs):
                    out_vcf=args.output,
                    executable=args.executable,
                    min_length=args.min_length,
-                   bestn=args.bestn,
-                   layered=args.layered,
+                   threshold=args.threshold,
                    full=args.full,
                    trf_params=args.trf_params,
                    refanno=args.ref_bed,
                    ref=args.ref)
     anno.run()
-    logging.info("Finished")
+    logging.info("Finished trf")
 
 
 if __name__ == '__main__':
-    main()
+    trf_main(sys.argv[1:])
 
 
 """

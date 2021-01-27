@@ -42,8 +42,8 @@ def entry_size_similarity(entryA, entryB):
     Calculate the size similarity pct for the two entries
     compares the longer of entryA's two alleles (REF or ALT)
     """
-    sizeA = get_vcf_entry_size(entryA)
-    sizeB = get_vcf_entry_size(entryB)
+    sizeA = entry_size(entryA)
+    sizeB = entry_size(entryB)
     return sizesim(sizeA, sizeB)
 
 
@@ -240,7 +240,7 @@ def is_sv(entry, min_size=25):
     """
     Returns if the event is a variant over a minimum size
     """
-    return get_vcf_entry_size(entry) >= min_size
+    return entry_size(entry) >= min_size
 
 
 def filter_value(entry, values=None):

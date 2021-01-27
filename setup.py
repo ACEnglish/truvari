@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='Truvari',
-    version='2.0.1',
+    version='2.0.3',
     author="ACEnglish",
     author_email="acenglish@gmail.com",
     url="https://github.com/spiralgenetics/truvari",
@@ -14,7 +14,7 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=[
         "ACEBinf>=1.0.2",
-        "python-Levenshtein>=0.12.0",
+        "python-Levenshtein==0.12.1",
         "progressbar2>=3.41.0",
         "pysam>=0.15.2",
         "pyfaidx>=0.5.5.2",
