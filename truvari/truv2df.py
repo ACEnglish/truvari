@@ -39,7 +39,7 @@ def get_files_from_truvdir(directory):
         raise FileNotFoundError(f"Couldn't parse truvari directory {directory}. See above errors")
     return ret
 
-def make_df(fn, with_info=True, with_fmt=True):
+def vcf_to_df(fn, with_info=True, with_fmt=True):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information
@@ -122,16 +122,19 @@ def parse_args(args):
     return args
 
 def truv2df_main(args):
+    """
+    Main entry point for running DataFrame builder
+    """
     args = parse_args(args)
 
     out = None
     if args.vcf:
-        out = make_df(args.directory, args.info, args.format)
+        out = vcf_to_df(args.directory, args.info, args.format)
     else:
         vcfs = get_files_from_truvdir(args.directory)
         all_dfs = []
         for key in vcfs:
-            df = make_df(vcfs[key][0], args.info, args.format)
+            df = vcf_to_df(vcfs[key][0], args.info, args.format)
             df["state"] = key
             all_dfs.append(df)
         out = pd.concat(all_dfs)
