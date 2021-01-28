@@ -71,7 +71,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
     for entry in v:
         varsize = truvari.entry_size(entry)
         filt = [_ for _ in entry.filter]
-        cur_row = [f"{entry.chrom}:{entry.start}.{entry.alts[0]}",
+        (var.chrom, var.start, var.stop, var.alts[0])
+        cur_row = [f"{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}",
                     entry.id,
                     truvari.entry_variant_type(entry),
                     varsize,
@@ -117,7 +118,7 @@ def parse_args(args):
                         help="Skip the attempt to optimize the dataframe's size")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     truvari.setup_logging(args.debug)
     return args
 
