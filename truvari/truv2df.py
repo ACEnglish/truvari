@@ -71,7 +71,6 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
     for entry in v:
         varsize = truvari.entry_size(entry)
         filt = [_ for _ in entry.filter]
-        (var.chrom, var.start, var.stop, var.alts[0])
         cur_row = [f"{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}",
                     entry.id,
                     truvari.entry_variant_type(entry),
