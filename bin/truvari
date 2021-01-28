@@ -2,7 +2,7 @@
 import sys
 import argparse
 
-VERSION="2.0.4"
+VERSION="2.1"
 
 from truvari.bench import bench_main
 from truvari.collapse import collapse_main
