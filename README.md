@@ -36,7 +36,7 @@ Each sub-command contains help documentation. Start with `truvari -h` to see ava
 
 The current most common Truvari use case is for structural variation benchmarking:
 ```
-  truvari bench -b base.vcf.gz -c comp.vcf.gz -r reference.fasta -o output_dir/
+  truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fasta -o output_dir/
 ```
 ## Truvari Commands
 
