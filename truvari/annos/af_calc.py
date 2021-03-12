@@ -81,6 +81,8 @@ def allele_freq_annos(entry, samples=None):
     cnt = Counter() # 0 or 1 allele counts
     for samp in samples:
         dat = entry.samples[samp]
+        if None in dat["GT"]:
+            continue
         n_samps += 1
         for j in dat["GT"]:
             cnt[j] += 1
