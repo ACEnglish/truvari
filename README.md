@@ -43,7 +43,9 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [bench](https://github.com/spiralgenetics/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
  - [stats](https://github.com/spiralgenetics/truvari/wiki/stats) - Basic SV relevant VCF stats
  - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
- - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Annotate a VCF
+ - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
+ - [collapse](https://github.com/spiralgenetics/truvari/wiki/collapse) - Collapse possibly redundant VCF entries
+ - [truv2df](https://github.com/spiralgenetics/truvari/wiki/truv2df) - Turn a Truvari directory's VCFs into a pandas DataFrame
 
 ## More Information
 
