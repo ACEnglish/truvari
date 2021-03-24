@@ -53,16 +53,16 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
             num = v.header.formats[key].number
             if num == 1 or num == '.':
                 header.append(key)
-                fmts.append((key, lambda x: [x]))
+                fmts.append((key, lambda x: [x] if x is not None else [None]))
             elif num == 'A':
                 header.append(key + '_ref')
                 header.append(key + '_alt')
-                fmts.append((key, lambda x: x))
+                fmts.append((key, lambda x: x if x is not None else [None, None]))
             elif num == 'G':
                 header.append(key + '_ref')
                 header.append(key + '_het')
                 header.append(key + '_hom')
-                fmts.append((key, lambda x: x))
+                fmts.append((key, lambda x: x if x is not None else [None, None, None]))
 
     infos = [_ for _ in v.header.info.keys()] if with_info else []
     header.extend(infos)
@@ -84,11 +84,11 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
             if i in entry.samples[0]:
                 cur_row.extend(op(entry.samples[0][i]))
             else:
-                cur_row.append(None)
+                cur_row.extend(op(None))
 
         for i in infos:
             if i in entry.info:
-                cur_row.append(i)
+                cur_row.append(entry.info[i])
             else:
                 cur_row.append(None)
         rows.append(cur_row)
