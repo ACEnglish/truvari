@@ -88,6 +88,9 @@ def allele_freq_annos(entry, samples=None):
             cnt[j] += 1
         n_het += 1 if dat["GT"][0] != dat["GT"][1] else 0
 
+    if n_samps == 0:
+        return {"AF":0, "MAF":0, "ExcHet":0, "HWE":0}
+
     af = cnt[1] / (n_samps * 2)
     srt = [v for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     maf = 1 - (srt[-1] / (n_samps * 2))
