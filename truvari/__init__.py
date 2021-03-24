@@ -5,6 +5,7 @@ performance
 User Manual:
     https://github.com/spiralgenetics/truvari
 """
+__version__ = '2.1.1-dev'
 from truvari.utils import (
     StatsBox,
     setup_progressbar,
