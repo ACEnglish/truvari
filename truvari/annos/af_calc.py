@@ -81,10 +81,15 @@ def allele_freq_annos(entry, samples=None):
     cnt = Counter() # 0 or 1 allele counts
     for samp in samples:
         dat = entry.samples[samp]
+        if None in dat["GT"]:
+            continue
         n_samps += 1
         for j in dat["GT"]:
             cnt[j] += 1
         n_het += 1 if dat["GT"][0] != dat["GT"][1] else 0
+
+    if n_samps == 0:
+        return {"AF":0, "MAF":0, "ExcHet":0, "HWE":0}
 
     af = cnt[1] / (n_samps * 2)
     srt = [v for k, v in sorted(cnt.items(), key=lambda item: item[1])]

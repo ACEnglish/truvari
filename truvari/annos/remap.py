@@ -1,6 +1,15 @@
 """
-Remap VCF'S alleles sequence to the reference to annotate REMAP = novel/tandem/interspersed
-Currently only works on Insertions
+Remap VCF'S alleles sequence to the reference to annotate REMAP
+
+novel - Allele has no hits in reference
+tandem - Allele's closest hit is within len(allele) bp of the SV's position
+interspersed - Allele's closest hit is not tandem
+
+Which alleles and alignments to consider can be altered with:
+--minlength - minimum SV length to considred (50)
+--dist - For deletion SVs, do not consider alignments that hit within Nbp of the SV's position 
+        (a.k.a. alignments back to the source sequence) (10)
+--threshold - Minimum percent of allele's sequence used by alignment to be considered (.8)
 """
 import sys
 import logging
@@ -16,12 +25,13 @@ from truvari.annos.grm import cigmatch
 
 class Remap():
     """ Class for remapping annotation """
-    def __init__(self, in_vcf, reference, out_vcf="/dev/stdout", min_length=50, threshold=0.8):
+    def __init__(self, in_vcf, reference, out_vcf="/dev/stdout", min_length=50, threshold=0.8, min_distance=10):
         """ The setup """
         self.in_vcf = in_vcf
         self.reference = reference
         self.out_vcf = out_vcf
         self.min_length = min_length
+        self.min_distance = 5
         self.threshold = threshold
         self.n_header = None
         self.aligner = BwaAligner(self.reference, options="-a")
@@ -66,12 +76,12 @@ class Remap():
         close_dist = None
         for aln in self.aligner.align_seq(seq):
             # Take out the 'same spot' alignment for deletions
-            if is_del and aln.rname == entry.chrom and abs(aln.pos - entry.pos) < len(seq):
+            dist = abs(aln.pos - entry.pos)
+            if is_del and aln.rname == entry.chrom and dist < self.min_distance:
                 continue
             num_hits += 1 
             if aln.rname != entry.chrom:
                 continue
-            dist = abs(aln.pos - entry.pos)
             if close_dist is None or dist < close_dist:
                 end, soft = self.get_end(aln.pos, aln.cigar)
                 pct_query = 1 - soft / len(seq)
@@ -129,6 +139,9 @@ def parse_args(args):
                         help="Smallest length of allele to remap (%(default)s)")
     parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
                         help="Threshold for pct of allele covered (%(default)s)")
+    parser.add_argument("-d", "--dist", type=int, default=10,
+                        help=("Minimum distance an alignment must be from a DEL's "
+                              "position to be considered (%(default)s))"))
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)

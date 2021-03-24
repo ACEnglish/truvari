@@ -3,64 +3,6 @@ Structural variant collapser
 
 Will collapse all variants within sizemin/max that match over thresholds
 All variants outside size boundaries will be placed into the output
-
-When collapsing, the first variant from a matching set of variants will 
-be written to the output while the others will be placed in collapsed output.
-
-Samples with no genotype information in the first variant will be filled by the first
-collapsed variant containing genotype information.
-
-ToDo:
-When using --hap, we assume phased variants from a single individual. Only the
-single best non-exact matching call from the other haplotype will be collapsed,
-and the consolidated genotype will become 1/1
-
-For example, if we collapse anything at the same position:
-
-    chr1 1 .. GT 0|1
-    chr1 1 .. GT 1|0
-    chr1 2 .. GT 1|0
-
-will become:
-    chr1 1 .. GT 1/1
-    chr1 2 .. GT 1|0
-
-When using --chain mode, instead of collapsing all variants matching the first variant
-together, we'll collapse all variants in a matching set together. 
-For example, if we have
-
-    chr1 5 ..
-    chr1 6 ..
-    chr1 7 ..
-
-When we collapse anything within 1bp of each other, without --chain, we output:
-
-    chr1 5 ..
-    chr1 7 ..
-
-With --chain, we would collapse `chr1 7` as well, producing
-
-    chr1 5 ..
-
-# Just turn this on by default... damn..
-When using --detail, we'll record detailed matching information into the 
-collapsed-output VCF entrie's infor fields (e.g. PctSim)
-
-
---null-consolidate is for special fields that should be consolidated from the FORMAT, for example,
-imagine there is a field (FL) that may be null in some entries for a sample, but we want to preserve
-the non-nulls in our kept entry:
-
-    chr1 5 .. GT:GQ:FL 0/1:32:.
-    chr1 7 .. GT:GQ:FL 0/0:.:FLAG
-
-Without `--null-consolidate FL`, that FLAG will be lost because the call is present in the @5 call (0/1),
-so no conslidation of the collapsed entry's SAMPLE information is pulled. But with `--null-consolidate FL`,
-even though there is no consolidation triggered by the GT, we'll still preserve the FL:
-    
-    chr1 5 .. GT:GQ:FL 0/1:32:FLAG
-
-This only works with Number=1/Number=0 FORMAT fields currently
 """
 # pylint: disable=too-many-statements, no-member
 import os
@@ -185,9 +127,11 @@ def check_params(args):
     All errors are written to stderr without logging since failures mean no output
     """
     check_fail = False
-    if os.path.exists(args.output):
+    if args.output and os.path.exists(args.output):
         logging.error("Output '%s' already exists", args.output)
         check_fail = True
+    elif not args.output:
+        args.output = "/dev/stdout"
     if not os.path.exists(args.input):
         check_fail = True
         logging.error("File %s does not exist", args.input)
