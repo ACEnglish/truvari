@@ -4,6 +4,7 @@ Remap VCF'S alleles sequence to the reference to annotate REMAP
 novel - Allele has no hits in reference
 tandem - Allele's closest hit is within len(allele) bp of the SV's position
 interspersed - Allele's closest hit is not tandem
+partial - Allele only has partial hit(s) less than --threshold
 
 Which alleles and alignments to consider can be altered with:
 --minlength - minimum SV length to considred (50)
@@ -72,6 +73,7 @@ class Remap():
             seq = entry.alts[0]
         
         num_hits = 0
+        partial_hits = 0
         closest_hit = None
         close_dist = None
         for aln in self.aligner.align_seq(seq):
@@ -79,20 +81,27 @@ class Remap():
             dist = abs(aln.pos - entry.pos)
             if is_del and aln.rname == entry.chrom and dist < self.min_distance:
                 continue
-            num_hits += 1 
+
+            # Filter hits below threshold
+            end, soft = self.get_end(aln.pos, aln.cigar)
+            pct_query = 1 - soft / len(seq)
+            if pct_query < threshold:
+                partial_hits += 1
+                continue
+
+            num_hits += 1
             if aln.rname != entry.chrom:
                 continue
             if close_dist is None or dist < close_dist:
-                end, soft = self.get_end(aln.pos, aln.cigar)
-                pct_query = 1 - soft / len(seq)
-                if pct_query >= threshold:
-                    close_dist = dist
-                    closest_hit = aln
-                
-        if num_hits == 0:
+                close_dist = dist
+                closest_hit = aln
+           
+        if num_hits == 0 and partial_hits == 0:
             return "novel"
         elif close_dist and close_dist <= len(seq):
             return "tandem"
+        elif num_hits == 0 and partial_hits != 0:
+            return "partial"
 
         return "interspersed"
 
@@ -138,7 +147,7 @@ def parse_args(args):
     parser.add_argument("-m", "--minlength", default=50, type=int,
                         help="Smallest length of allele to remap (%(default)s)")
     parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
-                        help="Threshold for pct of allele covered (%(default)s)")
+                        help="Threshold for pct of allele covered to consider hit (%(default)s)")
     parser.add_argument("-d", "--dist", type=int, default=10,
                         help=("Minimum distance an alignment must be from a DEL's "
                               "position to be considered (%(default)s))"))

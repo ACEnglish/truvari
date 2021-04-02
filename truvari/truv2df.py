@@ -51,10 +51,10 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
     if with_fmt: # get all the format fields, and how to parse them from header, add them to the header
         for key in v.header.formats:
             num = v.header.formats[key].number
-            if num == 1 or num == '.':
+            if num in [1, '.', "A", 0]:
                 header.append(key)
                 fmts.append((key, lambda x: [x] if x is not None else [None]))
-            elif num == 'A':
+            elif num == 'R':
                 header.append(key + '_ref')
                 header.append(key + '_alt')
                 fmts.append((key, lambda x: x if x is not None else [None, None]))
@@ -63,6 +63,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
                 header.append(key + '_het')
                 header.append(key + '_hom')
                 fmts.append((key, lambda x: x if x is not None else [None, None, None]))
+            else:
+                logging.critical(f"Unknown Number ({num}) for {key}. Skipping.")
 
     infos = [_ for _ in v.header.info.keys()] if with_info else []
     header.extend(infos)
