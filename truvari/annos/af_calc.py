@@ -68,7 +68,7 @@ def calc_hwe(nref, nalt, nhet):
 def allele_freq_annos(entry, samples=None):
     """
     Given a pysam entry, return dictonary with keys
-        AF, MAF, ExcHet, HWE
+        AF, MAF, ExcHet, HWE, AC, MAC
     samples is a list of samples to subset from the entry to calculate the allele frequency
     """
     if samples is None:
@@ -89,12 +89,14 @@ def allele_freq_annos(entry, samples=None):
         n_het += 1 if dat["GT"][0] != dat["GT"][1] else 0
 
     if n_samps == 0:
-        return {"AF":0, "MAF":0, "ExcHet":0, "HWE":0}
+        return {"AF":0, "MAF":0, "ExcHet":0, "HWE":0, "MAC":0, "AC": 0}
 
     af = cnt[1] / (n_samps * 2)
-    srt = [v for k, v in sorted(cnt.items(), key=lambda item: item[1])]
-    maf = 1 - (srt[-1] / (n_samps * 2))
+    srt = [v, k for k, v in sorted(cnt.items(), key=lambda item: item[1])]
+    ac = srt[0][1]
+    mac = srt[-1][1]
+    maf = 1 - (srt[-1][0] / (n_samps * 2))
     
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
-    return {"AF":af, "MAF":maf, "ExcHet":p_exc_het, "HWE":p_hwe}
+    return {"AF":af, "MAF":maf, "ExcHet":p_exc_het, "HWE":p_hwe, "MAC":mac, "AC": ac}
 
