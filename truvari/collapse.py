@@ -235,31 +235,32 @@ def edit_collap_entry(entry, match, match_id, outputs):
     truvari.bench.annotate_tp(new_entry, match)
     return new_entry
 
-def same_hap(entryA, entryB):
+def hap_resolve(entryA, entryB):
     """
-    Returns if two entry's first sample is on the same haplotype
-    by using GT phasing information
+    Returns true if the calls' genotypes suggest it can be collapsed
+    i.e. if either call is HOM, they can't be collapsed. 
+    If calls are on the same haplotype (1/0 & 1/0), they cannot be collapsed
     """
     gtA = entryA.samples[0]["GT"]
     gtB = entryB.samples[0]["GT"]
-    return gtA == gtB
+    if gtA == (1, 1) or gtB == (1, 1):
+        return False
+    if gtA == gtB:
+        return False
+    return True
 
 def select_best(neighs):
     """
     Remove all but the single best neighbor from the list of neighs in-place
     """
+    ret = []
     max_score = 0
     max_score_pos = 0
     for pos, n in enumerate(neighs):
         if n[1].score > max_score:
             max_score = n[1].score
             max_score_pos = pos
-    i = len(neighs) - 1
-    while i > max_score_pos:
-        neighs.pop(i)
-        i -= 1
-    for i in range(max_score_pos):
-        neighs.pop(0)
+    return [neighs[max_score_pos]]
 
 def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     """
@@ -273,12 +274,14 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
 
     new_entry = truvari.copy_entry(entry, outputs["o_header"])
     new_entry.info["CollapseId"] = match_id
-    new_entry.info["NumCollapsed"] = len(neighs)
 
     if hap:
-        select_best(neighs)
+        neighs = select_best(neighs)
         new_entry.samples[0]["GT"] = (1, 1)
-        return new_entry
+        new_entry.info["NumCollapsed"] = len(neighs)
+        return new_entry, neighs
+
+    new_entry.info["NumCollapsed"] = len(neighs)
 
 
     # Update with the first genotyped sample's information
@@ -312,7 +315,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
                         except Exception as e:
                             pass
                 idx += 1
-    return new_entry
+    return new_entry, neighs
 
 def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
     """
@@ -326,7 +329,7 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
     fetch_end = aend + args.refdist + 1
     for comp_entry in outputs['seek_vcf'].fetch(base_entry.chrom, fetch_start, fetch_end):
         comp_key = truvari.entry_to_key('b', comp_entry)
-        # Don't collapse with anything that's already been seen
+        # Don't collapse with anything that's already been matched
         # Which will include looking at itself
         if matched_calls[comp_key]:
             continue
@@ -335,7 +338,7 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
             continue
 
-        if args.hap and same_hap(base_entry, comp_entry):
+        if args.hap and not hap_resolve(base_entry, comp_entry):
             continue
 
         mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args, outputs)
@@ -420,7 +423,7 @@ def collapse_main(cmdargs):
             base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
             
         if thresh_neighbors:
-            new_entry = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
+            new_entry, thresh_neighbors = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
             outputs["output_vcf"].write(new_entry)
             
             # Also want to record the original beside its' collapse neighbors

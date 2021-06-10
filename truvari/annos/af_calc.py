@@ -92,7 +92,7 @@ def allele_freq_annos(entry, samples=None):
         return {"AF":0, "MAF":0, "ExcHet":0, "HWE":0, "MAC":0, "AC": 0}
 
     af = cnt[1] / (n_samps * 2)
-    srt = [v, k for k, v in sorted(cnt.items(), key=lambda item: item[1])]
+    srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     ac = srt[0][1]
     mac = srt[-1][1]
     maf = 1 - (srt[-1][0] / (n_samps * 2))
