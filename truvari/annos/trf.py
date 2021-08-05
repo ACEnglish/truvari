@@ -85,7 +85,7 @@ class TRFAnno():
                          'Description="TRF repeat copies">'))
         header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
                          'Description="TRF repeat scores">'))
-      
+
         # Take this out
         if self.refanno and self.ref:
             header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
@@ -158,7 +158,7 @@ class TRFAnno():
         with open(TRFAnno.FANAME, 'w') as fout:
             #for seq in seqs:
             fout.write(">a\n%s\n" % (seq))
-                
+
         ret = cmd_exe(self.cmd)
         if ret.ret_code != 0:
             logging.error("Couldn't run trf")
@@ -199,7 +199,7 @@ class TRFAnno():
 
     def annotate_entry(self, entry, altseq):
         """
-        Annotates an insertion. Insertions are assumed to have a 
+        Annotates an insertion. Insertions are assumed to have a
         refspan of a single anchor base and full ALT sequence
         Returns the edited entry
         """
@@ -212,7 +212,7 @@ class TRFAnno():
         """
         if not trf_annos:
             return entry
-       
+
         # Let's assume we're only doing the alt allele
         srep_hits = None
         try:
@@ -232,7 +232,7 @@ class TRFAnno():
                 n_dat["TRF_periods"].append(int(i["TRF_periods"]))
                 n_dat["TRF_copies"].append(float(i["TRF_copies"]))
                 n_dat["TRF_scores"].append(int(i["TRF_scores"]))
-        
+
         # Adding srep hits to n_dat also
         # this is getting kinda choppy with the converters
         # may have over engineered it early
@@ -240,16 +240,16 @@ class TRFAnno():
             for i in srep_hits:
                 for k,v in i.data.items():
                     n_dat[k].extend(v)
-        
+
         # Can calculate the diffs
-        if self.refanno and self.ref and srep_hits and alt_annos: 
+        if self.refanno and self.ref and srep_hits and alt_annos:
             lookup = {}
             diffs = []
             # make a lookup of the trf_annos from the reference
             for i in srep_hits:
                 i = i.data
                 lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
-            
+
             has_diff = False
             # Subtract each alt_repeat from its corresponding ref_repeat
             for alt_repeat, alt_copy in zip(n_dat["TRF_repeats"], n_dat["TRF_copies"]):
@@ -258,14 +258,14 @@ class TRFAnno():
                     diffs.append(alt_copy - lookup[alt_repeat])
                 else:
                     diffs.append(None)
-            
+
             if has_diff:
                 n_dat["TRF_diffs"] = diffs
 
         for key in n_dat:
             entry.info[key] = n_dat[key]
-        
-                    
+
+
         return entry
 
     def run(self):
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 """
 1) I can't guarantee that TRF alt seq hits are going to happend
     But I'm returning nulls - not good. need to remove I think
-    | 
+    |
 
 So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
 Which at this point you should just abandon until it beocmes a feature request

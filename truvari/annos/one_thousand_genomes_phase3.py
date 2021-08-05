@@ -68,13 +68,13 @@ class OneKg():
         # Biggest shortcut, only annotate SVs
         if "SVLEN" not in entry.info:
             return entry
-        
+
         if entry.stop + refdist < self.tree_bts[0]:
             return entry
 
         if entry.start - refdist > self.tree_bts[0]:
             self.tree_bts.pop(0)
-            
+
         if not (size_min <= abs(entry.info["SVLEN"]) <= size_max):
             return entry
 
@@ -96,7 +96,7 @@ class OneKg():
                 a_type = mat1.groupdict()["SVTYPE"]
             else:
                 a_type = truvari.get_vcf_variant_type(anno_entry)
-            
+
             # Don't make until we have to, and only do so once
             if m_type is None:
                 m_type = truvari.get_vcf_variant_type(entry)
@@ -180,7 +180,7 @@ def main():
     for entry in in_vcf:
         out_vcf.write(anno[entry.chrom].annotate(entry))
     out_vcf.close()
-    logging.info("Finished")   
+    logging.info("Finished")
 
 if __name__ == '__main__':
     main()

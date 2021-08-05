@@ -23,7 +23,7 @@ def get_files_from_truvdir(directory):
     return dictionary of file identifier and path (e.g. "tp-base": "dir/tp-base.vcf.gz")
     """
     ret = {}
-    pats = [("tpbase", "tp-base.vcf"), ("tp", "tp-call.vcf"), 
+    pats = [("tpbase", "tp-base.vcf"), ("tp", "tp-call.vcf"),
             ("fp", "fp.vcf"), ("fn", "fn.vcf")]
     has_error = False
     for key, name in pats:
@@ -64,7 +64,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
                 header.append(key + '_hom')
                 fmts.append((key, lambda x: x if x is not None else [None, None, None]))
             else:
-                logging.critical(f"Unknown Number ({num}) for {key}. Skipping.")
+                logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
 
     infos = [_ for _ in v.header.info.keys()] if with_info else []
     header.extend(infos)
@@ -107,13 +107,13 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("directory", metavar="DIR",
                         help="Truvari directory to parse")
-    parser.add_argument("output", metavar="JL", 
+    parser.add_argument("output", metavar="JL",
                         help="Output joblib to save")
-    parser.add_argument("-v", "--vcf", action="store_true", 
+    parser.add_argument("-v", "--vcf", action="store_true",
                         help="Input is not a directory, but a single VCF to parse")
     parser.add_argument("-i", "--info", action="store_true",
                         help="Attempt to put the INFO fields into the dataframe")
-    parser.add_argument("-f", "--format", action="store_true", 
+    parser.add_argument("-f", "--format", action="store_true",
                         help="Attempt to put the FORMAT fileds into the dataframe")
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
@@ -145,7 +145,6 @@ def truv2df_main(args):
     # Especially since nulls are highly likely
     logging.info("Optimizing memory")
     pre_size = out.memory_usage().sum()
-    any_passed = False
     for col in out.columns:
         try:
             if out[col].apply(float.is_integer).all():
@@ -155,7 +154,6 @@ def truv2df_main(args):
                     out[col] = pd.to_numeric(out[col], downcast="signed")
             else:
                 out[col] = pd.to_numeric(out[col], downcast="float")
-            any_passed = True
         except TypeError as e:
             logging.debug("Unable to downsize %s (%s)", col, str(e))
     post_size = out.memory_usage().sum()

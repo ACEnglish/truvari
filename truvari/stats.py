@@ -6,7 +6,6 @@ import argparse
 import warnings
 
 from enum import Enum
-from collections import defaultdict, Counter
 
 import numpy
 import pysam
@@ -67,7 +66,7 @@ def get_svtype(svtype):
     Turn to a svtype
     """
     try:
-        return eval(f"SV.{svtype}")
+        return truvari.SV.__members__[svtype]
     except AttributeError:
         pass
     return SV.UNK
@@ -146,6 +145,7 @@ def format_stats(data, sample=False, output=sys.stdout):
         output.write('\n')
 
     output.write("# QUAL distribution\n")
+    pos = 0
     for pos, i in enumerate(range(0, 100, 10)):
         if sample:
             output.write("[%d,%d)\t%d\n" % (i, i+10, data[:, :, pos, GT.HET.value:GT.HOM.value + 1].sum()))
@@ -187,7 +187,7 @@ def generate_stat_table(vcf_fn, args):
     [SVTYPE, SZBINS, GT, QUALBINS]
     """
 
-    vcf = pysam.VariantFile(vcf_fn)
+    vcf = pysam.VariantFile(vcf_fn) # pylint: disable=no-member
     ret = {}
     for i in vcf.header.samples:
         ret[i] = numpy.zeros((len(SV), len(SZBINS), len(QUALBINS), len(GT)))
@@ -196,9 +196,9 @@ def generate_stat_table(vcf_fn, args):
         sv = get_svtype(truvari.entry_variant_type(entry))
         sz = get_sizebin(truvari.entry_size(entry))
         if entry.qual is not None:
-            qual, idx = get_scalebin(entry.qual, args.qmin, args.qmax)
+            idx = get_scalebin(entry.qual, args.qmin, args.qmax)[1]
         else:
-            qual, idx = 0, 0
+            idx = 0
         for i in vcf.header.samples:
             gt = get_gt(entry.samples[i]["GT"])
             ret[i][sv.value, SZBINS.index(sz), idx, gt.value] += 1
@@ -221,8 +221,8 @@ def stats_main(cmdargs):
         if data is None:
             data = cur
         else:
-            for i in cur:
-                data[i] += cur[i]
+            for key, val in cur.items():
+                data[key] += val
 
     output.write("## Total Stats:\n")
     format_stats(data["total"], False, output)
@@ -235,4 +235,4 @@ def stats_main(cmdargs):
         joblib.dump(data, args.dataframe)
 
 if __name__ == '__main__':
-    main()
+    stats_main(sys.argv[1:])

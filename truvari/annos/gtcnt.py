@@ -54,7 +54,7 @@ def add_gtcnt(vcf, out, n_header=None):
         except TypeError:
             yield entry
             continue
-        nentry.info["GTCNT"] = cnt 
+        nentry.info["GTCNT"] = cnt
         yield nentry
 
 def gtcnt_main(cmdargs):

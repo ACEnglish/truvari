@@ -35,7 +35,7 @@ def parse_args(args):
 
 def hompct_main(cmd_args):
     args = parse_args(cmd_args)
-    
+
     v = pysam.VariantFile(args.input)
     def get_pct(chrom, start, end):
         tot = 0
@@ -46,15 +46,15 @@ def hompct_main(cmd_args):
             if truvari.get_gt(entry.samples[0]["GT"]).name == "HOM":
                 homs += 1
             tot += 1
-                
+
         if tot == 0:
             return float('nan')
 
         return float(format((homs / tot) * 100, ".1f"))
-            
+
     header = v.header.copy()
     header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,'
-                     'Description="Percent of calls < %dbp long within %dbp that are homozygous') 
+                     'Description="Percent of calls < %dbp long within %dbp that are homozygous')
                      % (args.maxgt, args.buffer))
 
     out = pysam.VariantFile(args.output, 'w', header=header)

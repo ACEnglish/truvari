@@ -80,7 +80,7 @@ def cig_pctsim(cigar):
 
 def map_stats(aligner, kmer, chrom=None, pos=None):
     """
-    Maps the kmer and returns the 
+    Maps the kmer and returns the
     max/min
     if chrom/pos is provided:
         remove any hits that maps over this position. This is a filter of the reference - we want to know where *else* it hits
@@ -232,7 +232,7 @@ def process_entries(ref_section):
     rows = []
     next_progress = 0
     for line in read_vcf_lines(ref_name, start, stop):
-        if "SVLEN" not in line[7]:
+        if "SVLEN" not in line[7] and abs(len(entry.ref) - len(entry.alts[0])) < 25:
             continue
         entry = line_to_entry(line)
         if next_progress == 0:
@@ -296,7 +296,7 @@ def grm_main(cmdargs):
     maps those kmers globally to the reference
     reports mapping metrics
 
-    Todo: 
+    Todo:
     - document the bwa package and how to install
     - better column names along with documentation
     """

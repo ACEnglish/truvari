@@ -1,5 +1,5 @@
 """
-For every call within size boundaries, 
+For every call within size boundaries,
 Add NumNeighbors info field of how many calls over within size boundary
 are in the neighborhood
 """
@@ -64,13 +64,13 @@ def numneigh_main(args):
     header = edit_header(in_vcf)
     out_vcf = pysam.VariantFile(args.output, 'w', header=header)
     BUF = args.refdist
-    
+
     def make_range(entry):
         start, end = truvari.entry_boundaries(entry)
         #start = max(0, start - args.refdist - 1)
         #end = end + args.refdist + 1
         return [start, end, entry, 0]
-    
+
     def overlaps(range1, range2):
         if range1[2].chrom != range2[2].chrom:
             return False
@@ -82,10 +82,10 @@ def numneigh_main(args):
         new_entry = truvari.copy_entry(entry, header)
         new_entry.info["NumNeighbors"] = neigh_cnt
         out_vcf.write(new_entry)
-   
+
     def flush_push_stack(cur_range, stack):
-        while stack and not overlaps(cur_range, stack[0]): 
-            # We know the first thing in the stack has all its downstream neighbors 
+        while stack and not overlaps(cur_range, stack[0]):
+            # We know the first thing in the stack has all its downstream neighbors
             # currently in the stack and it's been updated with itps' upstream neighbors,
             # So output that one
             to_output = stack.pop(0)
@@ -95,9 +95,9 @@ def numneigh_main(args):
             output(to_output[2], to_output[3])
             # Let the downstream vars know about their now flushed neighbor
             for i in stack:
-                i[3] += 1 
+                i[3] += 1
         stack.append(cur_range)
-    
+
     def chrom_end_flush(stack):
         # final stack flush
         for pos, i in enumerate(stack):
@@ -126,14 +126,14 @@ def numneigh_main(args):
             stack = []
 
         last_pos = [entry.chrom, entry.start]
-        
+
         if size < args.sizemin or (args.passonly and truvari.filter_value(entry)):
             out_vcf.write(entry)
             continue
-        
+
         cur_range = make_range(entry)
         flush_push_stack(cur_range, stack)
-        
+
     chrom_end_flush(stack)
 
     logging.info("Finished")

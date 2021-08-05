@@ -42,11 +42,11 @@ class RepMask():
                ("RM_qstart", int),
                ("RM_qend", int),
                ("RM_qleft", paren_int), # need custom here (it's "(int)")
-               ("RM_strand", str), 
+               ("RM_strand", str),
                ("RM_repeat", str),
                ("RM_clsfam", str), # need custom here.. usually class/family
-               ("RM_tstart", paren_int), 
-               ("RM_tend", paren_int), 
+               ("RM_tstart", paren_int),
+               ("RM_tend", paren_int),
                ("RM_tleft", str)]
 
     def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="RepeatMasker",
@@ -79,7 +79,7 @@ class RepMask():
                          'Description="RepMask repeat class/family ">'))
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         self.n_header = header
-    
+
     def extract_seqs(self, fout=None):
         """
         Create the fasta file of all the sequences
@@ -136,10 +136,10 @@ class RepMask():
             logging.error(str(ret))
             exit(ret.ret_code)
         logging.info("Finished RepeatMasker")
-        
+
         hits = self.parse_output(f"{fasta}.out")
         return hits
-    
+
     def annotate_entry(self, entry, hits):
         """
         Annotates a single entry with given hits
@@ -169,7 +169,7 @@ class RepMask():
                     if pos in hits:
                         entry = self.annotate_entry(entry, hits[pos])
                     out.write(entry)
-        
+
     def edit_entry(self, entry, rm_hit):
         """
         puts the annos in vcf entry
@@ -181,7 +181,7 @@ class RepMask():
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:
             return entry
-        
+
         entry.info["RM_score"] = rm_hit["RM_score"]
         entry.info["RM_repeat"] = rm_hit["RM_repeat"]
         entry.info["RM_clsfam"] = rm_hit["RM_clsfam"]
@@ -245,7 +245,7 @@ if __name__ == '__main__':
 """
 1) I can't guarantee that TRF alt seq hits are going to happend
     But I'm returning nulls - not good. need to remove I think
-    | 
+    |
 
 So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
 Which at this point you should just abandon until it beocmes a feature request

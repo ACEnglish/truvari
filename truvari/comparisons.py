@@ -125,7 +125,7 @@ def entry_variant_type(entry):
     ret_type = None
     if "SVTYPE" in entry.info:
         ret_type = entry.info["SVTYPE"]
-        if type(ret_type) is list:
+        if isinstance(ret_type, list):
             logging.warning("SVTYPE is list for entry %s", str(entry))
             ret_type = ret_type[0]
         return ret_type

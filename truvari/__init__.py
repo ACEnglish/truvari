@@ -28,7 +28,6 @@ from truvari.comparisons import (
     fetch_coords,
     entry_boundaries,
     entry_size,
-    reciprocal_overlap,
     weighted_score,
     reciprocal_overlap,
     entry_reciprocal_overlap,

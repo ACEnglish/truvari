@@ -120,7 +120,7 @@ def make_bedanno_tree(bed_file):
     ##INFO=<ID=SREPLEN,Number=1,Type=Integer,Description="Simple Repeat Length">
     1	10000	10468	trf	789
     1	10627	10800	.	346
-    
+
     This will add the SREP flag IF column[3] != '.'
     This will add the SREPLEN as an Integer from column[4]
     Errors will be thrown if there's a problem parsing
@@ -128,7 +128,6 @@ def make_bedanno_tree(bed_file):
     returns a tuple of the (defaultdict(IntervalTree), header_lines)
     """
     logging.info("Loading Annotation %s", bed_file)
-    n_entries = 0
     lookup = defaultdict(IntervalTree)
     header_lines = []
     header_dict = OrderedDict()
@@ -138,7 +137,7 @@ def make_bedanno_tree(bed_file):
         head = HEADERMAT.match(line)
         if not head:
             logging.error("Bad Headerline %s", line.strip())
-            exit(1)
+            sys.exit(1)
         g = head.groupdict()
         typ = None
         if g["type"] == "String":
@@ -149,11 +148,11 @@ def make_bedanno_tree(bed_file):
             typ = float
         elif g["type"] == "Flag":
             typ = bool
-        
+
         if not typ:
             logging.error("Bad Headerline Type %s", line.strip())
             exit(1)
-                
+
         num = None
         if g["num"] == '0':
             num = bool
@@ -168,19 +167,19 @@ def make_bedanno_tree(bed_file):
         fh = io.TextIOWrapper(gzip.open(bed_file))
     else:
         fh = open(bed_file, 'r')
-    
+
     for line in fh:
         # header lines - ##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)
         if line.startswith("#"):
             add_header(line)
             continue
-        
+
         # parse the rest
         data = line.strip().split('\t')
         start = int(data[1])
         end = int(data[2])
         if len(data[3:]) != len(header_dict):
-            logging.error("Bad header in file %s. %d headers and %d columns on line %s", 
+            logging.error("Bad header in file %s. %d headers and %d columns on line %s",
                           bed_file, len(header_dict), len(data[3:]), line)
             exit(1)
         m_dict = {}
@@ -188,7 +187,7 @@ def make_bedanno_tree(bed_file):
             if v != ".":
                 if header_dict[k][0] == list:
                     m_dict[k] = [header_dict[k][1](x) for x in v.split(',')]
-                elif header_dict[k][0] == bool: 
+                elif header_dict[k][0] == bool:
                     m_dict[k] = True
                 else:
                     m_dict[k] = header_dict[k][1](v)

@@ -231,7 +231,7 @@ def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=
     prefix = "base " if base else "call "
     if sizeA < sizemin or sizeA > sizemax:
         return True
-    
+
     samp = outputs["sampleBase"] if base else outputs["sampleComp"]
     if no_ref in ["a", "b"] and not truvari.entry_is_variant(entry, samp):
         return True
@@ -396,14 +396,14 @@ def parse_fps(matched_calls, tot_comp_entries, regions, args, outputs):
         # Here
         if args.prog:
             pbar.update(cnt + 1)
-        
+
         size = truvari.entry_size(entry)
         if filter_call(entry, size, args.sizemin, args.sizemax, args.no_ref, args.passonly, outputs, False):
             continue
-        
+
         if matched_calls[truvari.entry_to_key('c', entry)]:
             continue
-            
+
         if regions.include(entry):
             outputs["fp_out"].write(truvari.copy_entry(entry, outputs["n_comp_header"]))
             outputs["stats_box"]["FP"] += 1

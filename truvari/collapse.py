@@ -10,11 +10,9 @@ import sys
 import json
 import logging
 import argparse
-from functools import cmp_to_key
 from collections import defaultdict, namedtuple
 
 import pysam
-import pyfaidx
 
 import truvari
 from truvari.bench import edit_header as bench_edit_header
@@ -23,7 +21,7 @@ MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
 COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
-   
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -68,7 +66,7 @@ def parse_args(args):
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
     parser.add_argument("--null-consolidate", type=str, default=None,
                         help=("Comma separated list of FORMAT fields to consolidate into the kept "
-                            "entry by taking the first non-null from all neighbors (%(default)s)"))
+                              "entry by taking the first non-null from all neighbors (%(default)s)"))
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
@@ -80,7 +78,7 @@ def parse_args(args):
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
         parser.error("--reference is required when --pctsim is set")
-    
+
     if args.null_consolidate is not None:
         args.null_consolidate = args.null_consolidate.split(',')
 
@@ -167,12 +165,12 @@ def setup_outputs(args):
     num_samps = len(outputs["o_header"].samples)
     if args.hap and num_samps != 1:
         logging.error("--hap mode requires exactly one sample. Found %d", num_samps)
-        exit(100)
+        sys.exit(100)
     outputs["output_vcf"] = pysam.VariantFile(args.output, 'w', header=outputs["o_header"])
     outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w', header=outputs["c_header"])
     return outputs
 
-def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args, outputs):
+def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args):
     """
     Compare the base and comp entries.
     We provied astart...sizeA because we've presumably calculated it before
@@ -238,7 +236,7 @@ def edit_collap_entry(entry, match, match_id, outputs):
 def hap_resolve(entryA, entryB):
     """
     Returns true if the calls' genotypes suggest it can be collapsed
-    i.e. if either call is HOM, they can't be collapsed. 
+    i.e. if either call is HOM, they can't be collapsed.
     If calls are on the same haplotype (1/0 & 1/0), they cannot be collapsed
     """
     gtA = entryA.samples[0]["GT"]
@@ -253,7 +251,6 @@ def select_best(neighs):
     """
     Remove all but the single best neighbor from the list of neighs in-place
     """
-    ret = []
     max_score = 0
     max_score_pos = 0
     for pos, n in enumerate(neighs):
@@ -265,7 +262,7 @@ def select_best(neighs):
 def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     """
     Edit the representative entry that's going to placed in the output vcf
-    If hap, consolidate with haplotype mode and edit the neighs in-place 
+    If hap, consolidate with haplotype mode and edit the neighs in-place
     down to only the single best match.
     Force is a set of FORMAT fields that will be checked for nulls and will overwrite between entries
     """
@@ -299,7 +296,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
                         assigned = True
                         fmt[key] = s_fmt[key]
                     idx += 1
-        
+
         # Now pull the rest based on GT presence
         if m_gt in [truvari.GT.NON, truvari.GT.REF]:
             idx = 0
@@ -313,14 +310,14 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
                         try:
                             fmt[key] = s_fmt[key]
                         except Exception as e:
-                            pass
+                            logging.debug(f"Problem setting FORMAT field %s (%s)", key, str(e))
                 idx += 1
     return new_entry, neighs
 
 def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
     """
     Find all matching neighbors of a call
-    returns a list of (edited_neighbors, match_id, 
+    returns a list of (edited_neighbors, match_id,
     """
     base_entry_size = truvari.entry_size(base_entry)
     thresh_neighbors = []
@@ -333,7 +330,7 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         # Which will include looking at itself
         if matched_calls[comp_key]:
             continue
-        
+
         sizeB = truvari.entry_size(comp_entry)
         if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
             continue
@@ -341,7 +338,7 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         if args.hap and not hap_resolve(base_entry, comp_entry):
             continue
 
-        mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args, outputs)
+        mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args)
         if isinstance(mat, bool):
             continue
 
@@ -349,7 +346,7 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         # mark this entry as being matched already
         if not args.hap:
             matched_calls[comp_key] = True
-        
+
         thresh_neighbors.append(COLLAPENTRY(comp_entry, mat, match_id, comp_key))
     return thresh_neighbors
 
@@ -359,11 +356,11 @@ def select_maxqual(entry, neighs):
     """
     max_qual = entry.qual
     max_qual_idx = -1
-    for pos, i in enumerate(neighs):
+    for pos, val in enumerate(neighs):
         cmp_qual = neighs[pos].entry.qual
         if cmp_qual > max_qual:
             max_qual_idx = pos
-    
+
     if max_qual_idx == -1:
         base_entry = entry
     else:
@@ -398,7 +395,7 @@ def collapse_main(cmdargs):
         base_key = truvari.entry_to_key('b', base_entry)
         if matched_calls[base_key]:
             continue
-        
+
         sizeA = truvari.entry_size(base_entry)
         if sizeA < args.sizemin or sizeA > args.sizemax or (args.passonly and truvari.filter_value(base_entry)):
             outputs["output_vcf"].write(base_entry)
@@ -407,7 +404,7 @@ def collapse_main(cmdargs):
 
         # First time seeing it, last time using it
         matched_calls[base_key] = True
-        
+
         thresh_neighbors = []
         new_neighs = find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs)
         thresh_neighbors.extend(new_neighs)
@@ -421,17 +418,17 @@ def collapse_main(cmdargs):
 
         if args.keep == "maxqual":
             base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
-            
+
         if thresh_neighbors:
             new_entry, thresh_neighbors = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
             outputs["output_vcf"].write(new_entry)
-            
+
             # Also want to record the original beside its' collapse neighbors
             new_entry = truvari.copy_entry(base_entry, outputs["c_header"])
             new_entry.info["CollapseId"] = match_id
             new_entry.info["NumCollapsed"] = len(thresh_neighbors)
             outputs["collap_vcf"].write(new_entry)
-            
+
             output_cnt += 1
             kept_cnt += 1
             for neigh in thresh_neighbors:
@@ -447,7 +444,7 @@ def collapse_main(cmdargs):
     logging.info("%d calls written to output", output_cnt)
     logging.info("%d collapsed calls", collap_cnt)
     logging.info("%d representative calls kept", kept_cnt)
-    
+
     # Close to flush vcfs
     close_outputs(outputs)
     logging.info("Finished")
