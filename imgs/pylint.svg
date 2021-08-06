@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="26185" height="20">
+    <linearGradient id="b" x2="0" y2="100%">
+        <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+        <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <mask id="anybadge_1">
+        <rect width="26185" height="20" rx="3" fill="#fff"/>
+    </mask>
+    <g mask="url(#anybadge_1)">
+        <path fill="#555" d="M0 0h44v20H0z"/>
+        <path fill="#4c1" d="M44 0h26141v20H44z"/>
+        <path fill="url(#b)" d="M0 0h26185v20H0z"/>
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+        <text x="23.0" y="15" fill="#010101" fill-opacity=".3">pylint</text>
+        <text x="22.0" y="14">pylint</text>
+    </g>
+    <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+        <text x="13115.5" y="15" fill="#010101" fill-opacity=".3">************* Module truvari
+truvari/__init__.py:60:0: E0611: No name 'truv2df' in module 'truvari' (no-name-in-module)
+truvari/__init__.py:60:0: E0001: Cannot import 'truvari.truv2df' due to syntax error 'invalid syntax (<unknown>, line 137)' (syntax-error)
+************* Module truvari.truv2df
+truvari/truv2df.py:137:37: E0001: invalid syntax (<unknown>, line 137) (syntax-error)
+************* Module truvari.bench
+truvari/bench.py:423:0: R0914: Too many local variables (25/20) (too-many-locals)
+truvari/bench.py:14:0: W0611: Unused import pyfaidx (unused-import)
+************* Module truvari.utils
+truvari/utils.py:95:28: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+************* Module truvari.consistency_report
+truvari/consistency_report.py:25:13: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+truvari/consistency_report.py:8:0: W0611: Unused import sys (unused-import)
+************* Module truvari.annos.remap
+truvari/annos/remap.py:50:4: R0201: Method could be a function (no-self-use)
+************* Module truvari.annos.numneigh
+truvari/annos/numneigh.py:101:16: E0602: Undefined variable 'NEIGHID' (undefined-variable)
+truvari/annos/numneigh.py:53:0: R0915: Too many statements (53/50) (too-many-statements)
+************* Module truvari.annos.bed_anno
+truvari/annos/bed_anno.py:18:9: W0613: Unused argument 'self' (unused-argument)
+truvari/annos/bed_anno.py:15:0: C0411: third party import "from acebinf import setup_logging" should be placed before "import truvari" (wrong-import-order)
+************* Module truvari.annos.repmask
+truvari/annos/repmask.py:86:18: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+truvari/annos/repmask.py:103:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/repmask.py:106:4: R0201: Method could be a function (no-self-use)
+truvari/annos/repmask.py:11:0: C0411: third party import "from acebinf import cmd_exe, setup_logging" should be placed before "import truvari" (wrong-import-order)
+************* Module truvari.annos.grm
+truvari/annos/grm.py:27:4: E0401: Unable to import 'setproctitle' (import-error)
+truvari/annos/grm.py:59:11: W0703: Catching too general exception Exception (broad-except)
+truvari/annos/grm.py:60:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:84:0: R0914: Too many local variables (24/20) (too-many-locals)
+truvari/annos/grm.py:215:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:217:9: I1101: Module 'tabix' has no 'open' member, but source is unavailable. Consider adding this module to extension-pkg-allow-list if you want to perform analysis based on run-time introspection of living objects. (c-extension-no-member)
+truvari/annos/grm.py:220:11: I1101: Module 'tabix' has no 'TabixError' member, but source is unavailable. Consider adding this module to extension-pkg-allow-list if you want to perform analysis based on run-time introspection of living objects. (c-extension-no-member)
+truvari/annos/grm.py:221:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:223:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:226:0: R0914: Too many local variables (22/20) (too-many-locals)
+truvari/annos/grm.py:276:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+************* Module truvari.annos.trf
+truvari/annos/trf.py:22:0: R0902: Too many instance attributes (12/10) (too-many-instance-attributes)
+truvari/annos/trf.py:44:4: R0913: Too many arguments (11/10) (too-many-arguments)
+truvari/annos/trf.py:95:28: E1136: Value 'self.refanno' is unsubscriptable (unsubscriptable-object)
+truvari/annos/trf.py:230:21: E1133: Non-iterable value srep_hits is used in an iterating context (not-an-iterable)
+truvari/annos/trf.py:239:21: E1133: Non-iterable value srep_hits is used in an iterating context (not-an-iterable)
+
+-----------------------------------
+Your code has been rated at 9.72/10
+
+</text>
+        <text x="13114.5" y="14">************* Module truvari
+truvari/__init__.py:60:0: E0611: No name 'truv2df' in module 'truvari' (no-name-in-module)
+truvari/__init__.py:60:0: E0001: Cannot import 'truvari.truv2df' due to syntax error 'invalid syntax (<unknown>, line 137)' (syntax-error)
+************* Module truvari.truv2df
+truvari/truv2df.py:137:37: E0001: invalid syntax (<unknown>, line 137) (syntax-error)
+************* Module truvari.bench
+truvari/bench.py:423:0: R0914: Too many local variables (25/20) (too-many-locals)
+truvari/bench.py:14:0: W0611: Unused import pyfaidx (unused-import)
+************* Module truvari.utils
+truvari/utils.py:95:28: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+************* Module truvari.consistency_report
+truvari/consistency_report.py:25:13: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+truvari/consistency_report.py:8:0: W0611: Unused import sys (unused-import)
+************* Module truvari.annos.remap
+truvari/annos/remap.py:50:4: R0201: Method could be a function (no-self-use)
+************* Module truvari.annos.numneigh
+truvari/annos/numneigh.py:101:16: E0602: Undefined variable 'NEIGHID' (undefined-variable)
+truvari/annos/numneigh.py:53:0: R0915: Too many statements (53/50) (too-many-statements)
+************* Module truvari.annos.bed_anno
+truvari/annos/bed_anno.py:18:9: W0613: Unused argument 'self' (unused-argument)
+truvari/annos/bed_anno.py:15:0: C0411: third party import "from acebinf import setup_logging" should be placed before "import truvari" (wrong-import-order)
+************* Module truvari.annos.repmask
+truvari/annos/repmask.py:86:18: R1732: Consider using 'with' for resource-allocating operations (consider-using-with)
+truvari/annos/repmask.py:103:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/repmask.py:106:4: R0201: Method could be a function (no-self-use)
+truvari/annos/repmask.py:11:0: C0411: third party import "from acebinf import cmd_exe, setup_logging" should be placed before "import truvari" (wrong-import-order)
+************* Module truvari.annos.grm
+truvari/annos/grm.py:27:4: E0401: Unable to import 'setproctitle' (import-error)
+truvari/annos/grm.py:59:11: W0703: Catching too general exception Exception (broad-except)
+truvari/annos/grm.py:60:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:84:0: R0914: Too many local variables (24/20) (too-many-locals)
+truvari/annos/grm.py:215:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:217:9: I1101: Module 'tabix' has no 'open' member, but source is unavailable. Consider adding this module to extension-pkg-allow-list if you want to perform analysis based on run-time introspection of living objects. (c-extension-no-member)
+truvari/annos/grm.py:220:11: I1101: Module 'tabix' has no 'TabixError' member, but source is unavailable. Consider adding this module to extension-pkg-allow-list if you want to perform analysis based on run-time introspection of living objects. (c-extension-no-member)
+truvari/annos/grm.py:221:8: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:223:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+truvari/annos/grm.py:226:0: R0914: Too many local variables (22/20) (too-many-locals)
+truvari/annos/grm.py:276:4: W1203: Use lazy % formatting in logging functions (logging-fstring-interpolation)
+************* Module truvari.annos.trf
+truvari/annos/trf.py:22:0: R0902: Too many instance attributes (12/10) (too-many-instance-attributes)
+truvari/annos/trf.py:44:4: R0913: Too many arguments (11/10) (too-many-arguments)
+truvari/annos/trf.py:95:28: E1136: Value 'self.refanno' is unsubscriptable (unsubscriptable-object)
+truvari/annos/trf.py:230:21: E1133: Non-iterable value srep_hits is used in an iterating context (not-an-iterable)
+truvari/annos/trf.py:239:21: E1133: Non-iterable value srep_hits is used in an iterating context (not-an-iterable)
+
+-----------------------------------
+Your code has been rated at 9.72/10
+
+</text>
+    </g>
+</svg>
