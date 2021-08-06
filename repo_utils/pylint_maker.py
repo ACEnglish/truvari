@@ -27,7 +27,6 @@ thresholds = {2: 'red',
               fail_under: 'green'}
 
 badge = anybadge.Badge('pylint', pylint_score, thresholds=thresholds)
-
 badge.write_badge('imgs/pylint.svg', overwrite=True)
 
 sys.stdout.write(output)

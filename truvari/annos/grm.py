@@ -56,7 +56,7 @@ def make_kmers(ref, entry, kmer=25):
         # alternate
         hap = up[:kmer] + seq + dn[-kmer:]
         return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
-    except Exception as e:
+    except Exception as e: # pylint : disable=broad-except
         logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
 

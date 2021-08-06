@@ -47,7 +47,7 @@ class Remap():
                         'Description="Annotation of alt-seq remapping">'))
         self.n_header = header
 
-    def get_end(self, pos, cigar):
+    def get_end(self, pos, cigar): # pylint: disable=no-self-use
         """
         Expand a cigar to get the end position?
         And how much of the query is used?

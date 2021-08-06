@@ -7,8 +7,8 @@ import tempfile
 from collections import defaultdict
 
 import pysam
-import truvari
 from acebinf import cmd_exe, setup_logging
+import truvari
 
 # Start with just insertions and that sequence
 # Eventually you can intersect with known tandem repeat regions as well
@@ -83,7 +83,7 @@ class RepMask():
         Returns the fasta file
         """
         if fout is None:
-            ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
+            ret = tempfile.NamedTemporaryFile(mode='w', delete=False) # pylint: disable=consider-using-with
         else:
             ret = open(fout, 'w') # pylint: disable=consider-using-with
         tot_cnt = 0
@@ -103,7 +103,8 @@ class RepMask():
         logging.info(f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
         return ret.name
 
-    def parse_output(self, faout):
+    @staticmethod
+    def parse_output(faout):
         """
         Parses the RepeatMasker output
         """

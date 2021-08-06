@@ -11,11 +11,11 @@ must be the INFO=;oaiwef
 and the header lines "^#" must be the header information
 """
 import argparse
-import truvari
 from acebinf import setup_logging
+import truvari
 
 
-def main(self, refanno, entry, lookup, n_dat):
+def main(refanno, entry, lookup, n_dat):
     """
     Main
     """

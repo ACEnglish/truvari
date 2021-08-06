@@ -38,17 +38,121 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
-def edit_header(my_vcf):
+class NeighAnno():
     """
-    Add INFO for new fields to vcf
+    Annotates a vcf with Neighbor information
     """
-    header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=NumNeighbors,Number=1,Type=Integer,'
-                     'Description="Number of calls in the neighborhood of this call">'))
-    header.add_line(('##INFO=<ID=NeighId,Number=1,Type=Integer,'
-                     'Description="Identifier of calls in the same chained neighborhood">'))
+    def __init__(self, in_vcf, out_vcf, refdist=1000, sizemin=50, passonly=False):
+        """
+        initialize
+        """
+        self.in_vcf = pysam.VariantFile(in_vcf)
+        self.header = self.edit_header()
+        self.out_vcf = pysam.VariantFile(out_vcf, 'w', header=self.header)
+        self.refdist = refdist
+        self.sizemin = sizemin
+        self.passonly = passonly
+        self.neigh_id = 0
+        self.stack = []
 
-    return header
+    def edit_header(self):
+        """
+        Add INFO for new fields to vcf
+        """
+        header = self.in_vcf.header.copy()
+        header.add_line(('##INFO=<ID=NumNeighbors,Number=1,Type=Integer,'
+                         'Description="Number of calls in the neighborhood of this call">'))
+        header.add_line(('##INFO=<ID=NeighId,Number=1,Type=Integer,'
+                         'Description="Identifier of calls in the same chained neighborhood">'))
+        return header
+
+    def overlaps(self, range1, range2):
+        """
+        Check if two ranges overlap
+        """
+        if range1[2].chrom != range2[2].chrom:
+            return False
+        start = max(0, range1[0] - self.refdist - 1)
+        end = range1[1] + self.refdist + 1
+        return truvari.overlaps(start, end, *range2[:2])
+
+    def output(self, entry, neigh_cnt):
+        """
+        Annotate and write an entry
+        """
+        new_entry = truvari.copy_entry(entry, self.header)
+        new_entry.info["NumNeighbors"] = neigh_cnt
+        new_entry.info["NeighId"] = self.neigh_id
+        self.out_vcf.write(new_entry)
+
+    def flush_push_stack(self, cur_range):
+        """
+        Pop/output entries in stack
+        """
+        while self.stack and not self.overlaps(cur_range, self.stack[0]):
+            # We know the first thing in the stack has all its downstream neighbors
+            # currently in the stack and it's been updated with itps' upstream neighbors,
+            # So output that one
+            to_output = self.stack.pop(0)
+
+            to_output[3] += len(self.stack)
+            # the entry and it's count
+            self.output(to_output[2], to_output[3])
+            # If this event is not extending the stack, we're at the next 'locus'
+            if not self.stack:
+                self.neigh_id += 1
+            # Let the downstream vars know about their now flushed neighbor
+            for i in self.stack:
+                i[3] += 1
+        self.stack.append(cur_range)
+
+    def chrom_end_flush(self):
+        """
+        Pop/output all entries in a stack
+        """
+        # final stack flush
+        for pos, i in enumerate(self.stack):
+            for j in self.stack[pos + 1:]:
+                if self.overlaps(i, j):
+                    i[3] += 1
+                if self.overlaps(j, i):
+                    j[3] += 1
+
+        for i in self.stack:
+            self.output(i[2], i[3])
+        self.stack = []
+
+    def run(self):
+        """
+        Find neighbors through a vcf
+        """
+        last_pos = None
+        for entry in self.in_vcf:
+            size = truvari.entry_size(entry)
+            if not last_pos:
+                last_pos = [entry.chrom, entry.start]
+
+            if last_pos[0] == entry.chrom and last_pos[1] > entry.start:
+                logging.error("File is not sorted %d:%d before %s:%d",
+                              last_pos[0], last_pos[1], entry.chrom, entry.start)
+                sys.exit(1)
+
+            if entry.chrom != last_pos[0]:
+                self.chrom_end_flush()
+                self.neigh_id += 1
+
+            last_pos = [entry.chrom, entry.start]
+
+            if size < self.sizemin or (self.passonly and truvari.filter_value(entry)):
+                self.out_vcf.write(entry)
+                continue
+            # Make new range
+            start, end = truvari.entry_boundaries(entry)
+            cur_range = [start, end, entry, 0]
+
+            self.flush_push_stack(cur_range)
+
+        self.chrom_end_flush()
 
 def numneigh_main(args):
     """
@@ -63,88 +167,8 @@ def numneigh_main(args):
         logging.error("Error parsing input. Please fix before re-running")
         sys.exit(100)
 
-    in_vcf = pysam.VariantFile(args.input)
-    header = edit_header(in_vcf)
-    out_vcf = pysam.VariantFile(args.output, 'w', header=header)
-    BUF = args.refdist
-
-    def make_range(entry):
-        start, end = truvari.entry_boundaries(entry)
-        return [start, end, entry, 0]
-
-    def overlaps(range1, range2):
-        if range1[2].chrom != range2[2].chrom:
-            return False
-        start = max(0, range1[0] - BUF - 1)
-        end = range1[1] + BUF + 1
-        return truvari.overlaps(start, end, *range2[:2])
-
-    def output(entry, neigh_cnt, neigh_id):
-        new_entry = truvari.copy_entry(entry, header)
-        new_entry.info["NumNeighbors"] = neigh_cnt
-        new_entry.info["NeighId"] = neigh_id
-        out_vcf.write(new_entry)
-
-    def flush_push_stack(cur_range, stack, neigh_id):
-        while stack and not overlaps(cur_range, stack[0]):
-            # We know the first thing in the stack has all its downstream neighbors
-            # currently in the stack and it's been updated with itps' upstream neighbors,
-            # So output that one
-            to_output = stack.pop(0)
-
-            to_output[3] += len(stack)
-            # the entry and it's count
-            output(to_output[2], to_output[3], neigh_id)
-            # If this event is not extending the stack, we're at the next 'locus'
-            if not stack:
-                neigh_id += 1
-            # Let the downstream vars know about their now flushed neighbor
-            for i in stack:
-                i[3] += 1
-        stack.append(cur_range)
-        return neigh_id
-
-    def chrom_end_flush(stack, neigh_id):
-        # final stack flush
-        for pos, i in enumerate(stack):
-            for j in stack[pos + 1:]:
-                if overlaps(i, j):
-                    i[3] += 1
-                if overlaps(j, i):
-                    j[3] += 1
-
-        for i in stack:
-            output(i[2], i[3], neigh_id)
-
-    stack = []
-    last_pos = None
-    neigh_id = 0
-    for entry in in_vcf:
-        size = truvari.entry_size(entry)
-        if not last_pos:
-            last_pos = [entry.chrom, entry.start]
-
-        if last_pos[0] == entry.chrom and last_pos[1] > entry.start:
-            logging.error("File is not sorted %d:%d before %s:%d",
-                          last_pos[0], last_pos[1], entry.chrom, entry.start)
-            sys.exit(1)
-
-        if entry.chrom != last_pos[0]:
-            chrom_end_flush(stack, neigh_id)
-            neigh_id += 1
-            stack = []
-
-        last_pos = [entry.chrom, entry.start]
-
-        if size < args.sizemin or (args.passonly and truvari.filter_value(entry)):
-            out_vcf.write(entry)
-            continue
-
-        cur_range = make_range(entry)
-        neigh_id = flush_push_stack(cur_range, stack, neigh_id)
-
-    chrom_end_flush(stack, neigh_id)
-
+    anno = NeighAnno(args.input, args.output, args.refdist, args.sizemin, args.passonly)
+    anno.run()
     logging.info("Finished")
 
 if __name__ == '__main__':

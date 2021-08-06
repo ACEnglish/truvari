@@ -11,7 +11,6 @@ import argparse
 from collections import defaultdict, namedtuple
 
 import pysam
-import pyfaidx
 
 import truvari
 
