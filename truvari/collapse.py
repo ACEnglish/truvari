@@ -309,8 +309,8 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
                     for key in [_ for _ in fmt if _ not in nullconso]:
                         try:
                             fmt[key] = s_fmt[key]
-                        except Exception as e:
-                            logging.debug(f"Problem setting FORMAT field %s (%s)", key, str(e))
+                        except Exception as e: # pylint: disable=broad-except
+                            logging.debug("Problem setting FORMAT field %s (%s)", key, str(e))
                 idx += 1
     return new_entry, neighs
 
@@ -356,7 +356,7 @@ def select_maxqual(entry, neighs):
     """
     max_qual = entry.qual
     max_qual_idx = -1
-    for pos, val in enumerate(neighs):
+    for pos, val in enumerate(neighs): # pylint: disable=unused-variable
         cmp_qual = neighs[pos].entry.qual
         if cmp_qual > max_qual:
             max_qual_idx = pos

@@ -214,15 +214,15 @@ def stats_main(cmdargs):
     warnings.filterwarnings('ignore')
     args = parse_args(cmdargs)
 
-    output = open(args.out, 'w')
-    data = None
-    for vcf in args.VCF:
-        cur = generate_stat_table(vcf, args)
-        if data is None:
-            data = cur
-        else:
-            for key, val in cur.items():
-                data[key] += val
+    with open(args.out, 'w') as output:
+        data = {}
+        for vcf in args.VCF:
+            cur = generate_stat_table(vcf, args)
+            if data is None:
+                data = cur
+            else:
+                for key, val in cur.items():
+                    data[key] += val
 
     output.write("## Total Stats:\n")
     format_stats(data["total"], False, output)

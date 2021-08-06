@@ -8,8 +8,8 @@ import logging
 import argparse
 
 import pysam
-import truvari
 from acebinf import setup_logging
+import truvari
 
 def parse_args(args):
     """
@@ -34,6 +34,9 @@ def parse_args(args):
     return args
 
 def hompct_main(cmd_args):
+    """
+    Main
+    """
     args = parse_args(cmd_args)
 
     v = pysam.VariantFile(args.input)

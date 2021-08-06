@@ -9,12 +9,11 @@ import argparse
 
 import pysam
 import joblib
-import truvari
 import pandas as pd
+import truvari
 
-from pandas.api.types import CategoricalDtype
-SZBINTYPE = CategoricalDtype(categories=truvari.SZBINS, ordered=True)
-SVTYTYPE = CategoricalDtype(categories=[_.name for _ in truvari.SV], ordered=True)
+SZBINTYPE = pd.CategoricalDtype(categories=truvari.SZBINS, ordered=True)
+SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in truvari.SV], ordered=True)
 
 def get_files_from_truvdir(directory):
     """

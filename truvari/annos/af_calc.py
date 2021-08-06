@@ -22,7 +22,7 @@ def calc_hwe(nref, nalt, nhet):
     mid = nrare * (nref + nalt - nrare) // (nref + nalt)
 
     # check to ensure that midpoint and rare alleles have same parity
-    if ( (nrare & 1) ^ (mid & 1) ):
+    if (nrare & 1) ^ (mid & 1):
         mid += 1
 
     het = mid
@@ -45,7 +45,7 @@ def calc_hwe(nref, nalt, nhet):
     hom_r = (nrare - mid) // 2
     hom_c = ngt - het - hom_r
     while het <= nrare - 2:
-        probs[het + 2] = probs[het] * 4.0 * hom_r * hom_c / ((het + 2.0) * (het + 1.0));
+        probs[het + 2] = probs[het] * 4.0 * hom_r * hom_c / ((het + 2.0) * (het + 1.0))
         my_sum += probs[het + 2]
 
         # add 2 heterozygotes for next iteration -> subtract one rare, one common homozygote
@@ -58,10 +58,7 @@ def calc_hwe(nref, nalt, nhet):
 
     p_exc_het = probs[nhet:].sum()
 
-    p_hwe = probs[probs > probs[nhet]].sum()
-    if p_hwe > 1:
-        p_hwe = 1;
-    #p_hwe = 1 - prob;
+    p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
     return p_exc_het, 1 - p_hwe
 
 def allele_freq_annos(entry, samples=None):
@@ -74,8 +71,6 @@ def allele_freq_annos(entry, samples=None):
         samples = list(entry.samples.keys())
 
     n_samps = 0
-    ref_cnt = 0
-    alt_cnt = 0
     n_het = 0
     cnt = Counter() # 0 or 1 allele counts
     for samp in samples:
@@ -98,4 +93,3 @@ def allele_freq_annos(entry, samples=None):
 
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
     return {"AF":af, "MAF":maf, "ExcHet":p_exc_het, "HWE":p_hwe, "MAC":mac, "AC": ac}
-

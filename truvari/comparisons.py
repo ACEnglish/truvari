@@ -2,7 +2,7 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
-# pylint: disable=no-member
+# pylint: disable=no-member,unused-variable
 import re
 import logging
 from functools import cmp_to_key

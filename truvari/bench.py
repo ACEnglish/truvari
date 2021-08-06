@@ -253,7 +253,7 @@ def write_fn(base_entry, outputs):
     outputs["stats_box"]["FN"] += 1
     outputs["fn_out"].write(n_base_entry)
 
-def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, reference, args, outputs):
+def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, reference, args, outputs): #pylint: disable=too-many-return-statements
     """
     Compare the base and comp entries.
     We provied astart...sizeA because we've presumably calculated it before

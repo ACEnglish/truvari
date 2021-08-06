@@ -1,3 +1,6 @@
+"""
+Trash notes code
+"""
 import sys
 import pysam
 import truvari
@@ -15,4 +18,3 @@ for entry in v:
     sz = truvari.entry_size(entry)
     entry.info["SVLEN"] = sz
     o.write(entry)
-

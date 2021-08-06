@@ -2,16 +2,16 @@
 Wrapper around the different annotations available
 """
 import argparse
-from truvari.annos import *
+import truvari.annos as tannos
 
-ANNOS = {"gcpct": gcpct_main,
-         "gtcnt": gtcnt_main,
-         "trf": trf_main,
-         "grm": grm_main,
-         "repmask": rmk_main,
-         "remap": remap_main,
-         "hompct": hompct_main,
-         "numneigh": numneigh_main}
+ANNOS = {"gcpct": tannos.gcpct_main,
+         "gtcnt": tannos.gtcnt_main,
+         "trf": tannos.trf_main,
+         "grm": tannos.grm_main,
+         "repmask": tannos.rmk_main,
+         "remap": tannos.remap_main,
+         "hompct": tannos.hompct_main,
+         "numneigh": tannos.numneigh_main}
 
 USAGE = """\
 Truvari annotations:

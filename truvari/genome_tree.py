@@ -1,6 +1,8 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
+# pylint: disable=too-many-statements
+
 import io
 import re
 import sys
@@ -12,7 +14,7 @@ from intervaltree import IntervalTree
 
 import truvari.comparisons as tcomp
 
-HEADERMAT=re.compile("##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
+HEADERMAT=re.compile(r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
 class GenomeTree():
     """
     Helper class to specify included regions of the genome when iterating events.
@@ -151,7 +153,7 @@ def make_bedanno_tree(bed_file):
 
         if not typ:
             logging.error("Bad Headerline Type %s", line.strip())
-            exit(1)
+            sys.exit(1)
 
         num = None
         if g["num"] == '0':
@@ -166,7 +168,7 @@ def make_bedanno_tree(bed_file):
     if bed_file.endswith(".gz"):
         fh = io.TextIOWrapper(gzip.open(bed_file))
     else:
-        fh = open(bed_file, 'r')
+        fh = open(bed_file, 'r') # pylint: disable=consider-using-with
 
     for line in fh:
         # header lines - ##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)
@@ -181,7 +183,7 @@ def make_bedanno_tree(bed_file):
         if len(data[3:]) != len(header_dict):
             logging.error("Bad header in file %s. %d headers and %d columns on line %s",
                           bed_file, len(header_dict), len(data[3:]), line)
-            exit(1)
+            sys.exit(1)
         m_dict = {}
         for k, v in zip(header_dict.keys(), data[3:]):
             if v != ".":

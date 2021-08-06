@@ -20,4 +20,4 @@ jobs:
     - name: Analysing the code with pylint
       run: |
         python setup.py install
-        pylint --rcfile=.pylintrc truvari/
+        pylint --fail-under=9 --rcfile=.pylintrc truvari/

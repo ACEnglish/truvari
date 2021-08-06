@@ -59,7 +59,7 @@ enable=all
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=locally-disabled,locally-enalbed,suppressed-message,fixme,cyclic-import,duplicate-code,invalid-name,too-many-nested-blocks,too-many-branches
+disable=locally-disabled,locally-enalbed,suppressed-message,fixme,cyclic-import,duplicate-code,invalid-name,too-many-nested-blocks,too-many-branches,no-member
 
 
 [REPORTS]
@@ -328,7 +328,7 @@ max-args=10
 ignored-argument-names=_.*
 
 # Maximum number of locals for function / method body
-max-locals=15
+max-locals=20
 
 # Maximum number of return / yield for function / method body
 max-returns=6

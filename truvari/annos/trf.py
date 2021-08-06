@@ -7,8 +7,8 @@ from collections import defaultdict
 
 import pysam
 import pyfaidx
-import truvari
 from acebinf import cmd_exe, setup_logging
+import truvari
 
 # Start with just insertions and that sequence
 # Eventually you can intersect with known tandem repeat regions as well
@@ -21,8 +21,8 @@ from acebinf import cmd_exe, setup_logging
 
 class TRFAnno():
     """ Class for trf annotation """
-    TRNAME = tempfile.NamedTemporaryFile().name # Need to remove this
-    FANAME = tempfile.NamedTemporaryFile().name # Need to remove this
+    TRNAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
+    FANAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
     TRFCOLS = [("TRF_starts", int),
                ("TRF_ends", int),
                ("TRF_periods", int),
@@ -59,7 +59,7 @@ class TRFAnno():
 
         if refanno and not ref:
             logging.error("-R requires -r")
-            exit(1)
+            sys.exit(1)
 
         self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
         self.ref = pyfaidx.Fasta(ref) if ref else None
@@ -163,18 +163,8 @@ class TRFAnno():
         if ret.ret_code != 0:
             logging.error("Couldn't run trf")
             logging.error(str(ret))
-            exit(ret.ret_code)
+            sys.exit(ret.ret_code)
         return parse_output()
-
-    def __old_srep(self):
-        """
-        legacy code
-        """
-        srep_hits = None
-        # Make srep_hits if we have the bed
-        if self.refanno:
-            srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
-
 
     def annotate(self, entry, altseq):
         """
@@ -337,13 +327,3 @@ def trf_main(cmdargs):
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])
-
-
-"""
-1) I can't guarantee that TRF alt seq hits are going to happend
-    But I'm returning nulls - not good. need to remove I think
-    |
-
-So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
-Which at this point you should just abandon until it beocmes a feature request
-"""

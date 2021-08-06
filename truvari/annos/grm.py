@@ -3,17 +3,19 @@ Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
 import os
 import re
+import sys
+import types
 import logging
 import argparse
 import multiprocessing
 from collections import namedtuple
-import types
 
 import pysam
 import tabix
 import joblib
-import truvari
 import pandas as pd
+
+import truvari
 
 try:
     from bwapy import BwaAligner
@@ -25,6 +27,7 @@ try:
     from setproctitle import setproctitle
 except ModuleNotFoundError:
     def setproctitle(_):
+        """ dummy function """
         pass
 
 # Data shared with workers; must be populated before workers are started.
@@ -302,7 +305,7 @@ def grm_main(cmdargs):
     """
     if not HASBWALIB:
         logging.error("bwapy not available. Please install https://github.com/nanoporetech/bwapy")
-        exit(1)
+        sys.exit(1)
 
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)

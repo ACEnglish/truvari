@@ -134,7 +134,7 @@ class RepMask():
         if ret.ret_code != 0:
             logging.error("Couldn't run RepeatMasker")
             logging.error(str(ret))
-            exit(ret.ret_code)
+            sys.exit(ret.ret_code)
         logging.info("Finished RepeatMasker")
 
         hits = self.parse_output(f"{fasta}.out")
@@ -239,14 +239,4 @@ def rmk_main(cmdargs):
 
 
 if __name__ == '__main__':
-    test_main(sys.argv[1:])
-
-
-"""
-1) I can't guarantee that TRF alt seq hits are going to happend
-    But I'm returning nulls - not good. need to remove I think
-    |
-
-So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
-Which at this point you should just abandon until it beocmes a feature request
-"""
+    rmk_main(sys.argv[1:])

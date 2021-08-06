@@ -4,6 +4,7 @@ Add NumNeighbors info field of how many calls over within size boundary
 are in the neighborhood
 """
 import os
+import sys
 import logging
 import argparse
 
@@ -14,12 +15,6 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    def restricted_float(x):
-        x = float(x)
-        if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
-        return x
-
     parser = argparse.ArgumentParser(prog="numneigh", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
@@ -58,7 +53,7 @@ def numneigh_main(args):
         logging.error("File %s does not exist", args.input)
     if check_fail:
         logging.error("Error parsing input. Please fix before re-running")
-        exit(100)
+        sys.exit(100)
 
     in_vcf = pysam.VariantFile(args.input)
     header = edit_header(in_vcf)
@@ -118,8 +113,9 @@ def numneigh_main(args):
             last_pos = [entry.chrom, entry.start]
 
         if last_pos[0] == entry.chrom and last_pos[1] > entry.start:
-            logging.error(f"File is not sorted {last_pos[0]}:{last_pos[1]} before {entry.chrom}:{entry.start}")
-            exit(1)
+            logging.error("File is not sorted %d:%d before %s:%d",
+                          last_pos[0], last_pos[1], entry.chrom, entry.start)
+            sys.exit(1)
 
         if entry.chrom != last_pos[0]:
             chrom_end_flush(stack)
@@ -139,5 +135,4 @@ def numneigh_main(args):
     logging.info("Finished")
 
 if __name__ == '__main__':
-    import sys
     numneigh_main(sys.argv[1:])
