@@ -14,7 +14,7 @@ Structural variant toolkit for benchmarking, annotating and more for VCFs
 See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
 ## Installation
-Truvari uses Python 3.7 and can be installed with pip:
+Truvari uses Python 3.6+ and can be installed with pip:
 ```
   pip install Truvari 
 ```
