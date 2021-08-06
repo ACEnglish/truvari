@@ -5,6 +5,7 @@ Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
 import io
+import sys
 import gzip
 import bisect
 import argparse
