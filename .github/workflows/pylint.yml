@@ -23,7 +23,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pylint
+          pip install anybadge
       - name: Analysing the code with pylint
         run: |
           python setup.py install
-          pylint --fail-under=9.33 --rcfile=.pylintrc truvari/
+          python repo_utils/pylint_maker.py
+      - name: commit rendered README
+        run: |
+          git add imgs/pylint.svg
+          git commit -m "Update pylint score" || echo "No changes to commit"
+          git push origin $GITHUB_REF || echo "No changes to commit"
