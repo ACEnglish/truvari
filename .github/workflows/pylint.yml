@@ -24,9 +24,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint
           pip install anybadge
+          python setup.py install
       - name: Analysing the code with pylint
         run: |
-          python setup.py install
           python repo_utils/pylint_maker.py
       - name: commit rendered README
         run: |
