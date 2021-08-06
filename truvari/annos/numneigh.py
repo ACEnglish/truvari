@@ -79,14 +79,13 @@ def numneigh_main(args):
         end = range1[1] + BUF + 1
         return truvari.overlaps(start, end, *range2[:2])
 
-    NEIGHID = 0
-    def output(entry, neigh_cnt):
+    def output(entry, neigh_cnt, neigh_id):
         new_entry = truvari.copy_entry(entry, header)
         new_entry.info["NumNeighbors"] = neigh_cnt
-        new_entry.info["NeighID"] = NEIGHID
+        new_entry.info["NeighId"] = neigh_id
         out_vcf.write(new_entry)
 
-    def flush_push_stack(cur_range, stack):
+    def flush_push_stack(cur_range, stack, neigh_id):
         while stack and not overlaps(cur_range, stack[0]):
             # We know the first thing in the stack has all its downstream neighbors
             # currently in the stack and it's been updated with itps' upstream neighbors,
@@ -95,16 +94,17 @@ def numneigh_main(args):
 
             to_output[3] += len(stack)
             # the entry and it's count
-            output(to_output[2], to_output[3])
+            output(to_output[2], to_output[3], neigh_id)
             # If this event is not extending the stack, we're at the next 'locus'
             if not stack:
-                NEIGHID += 1
+                neigh_id += 1
             # Let the downstream vars know about their now flushed neighbor
             for i in stack:
                 i[3] += 1
         stack.append(cur_range)
+        return neigh_id
 
-    def chrom_end_flush(stack):
+    def chrom_end_flush(stack, neigh_id):
         # final stack flush
         for pos, i in enumerate(stack):
             for j in stack[pos + 1:]:
@@ -114,10 +114,11 @@ def numneigh_main(args):
                     j[3] += 1
 
         for i in stack:
-            output(i[2], i[3])
+            output(i[2], i[3], neigh_id)
 
     stack = []
     last_pos = None
+    neigh_id = 0
     for entry in in_vcf:
         size = truvari.entry_size(entry)
         if not last_pos:
@@ -129,7 +130,8 @@ def numneigh_main(args):
             sys.exit(1)
 
         if entry.chrom != last_pos[0]:
-            chrom_end_flush(stack)
+            chrom_end_flush(stack, neigh_id)
+            neigh_id += 1
             stack = []
 
         last_pos = [entry.chrom, entry.start]
@@ -139,9 +141,9 @@ def numneigh_main(args):
             continue
 
         cur_range = make_range(entry)
-        flush_push_stack(cur_range, stack)
+        neigh_id = flush_push_stack(cur_range, stack, neigh_id)
 
-    chrom_end_flush(stack)
+    chrom_end_flush(stack, neigh_id)
 
     logging.info("Finished")
 
