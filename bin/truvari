@@ -2,8 +2,7 @@
 import sys
 import argparse
 
-VERSION="2.1"
-
+from truvari import __version__
 from truvari.bench import bench_main
 from truvari.collapse import collapse_main
 from truvari.consistency_report import consistency_main
@@ -17,7 +16,7 @@ def in_progress(args):
 
 def version(args):
     """Print the version"""
-    print("Truvari v%s" % VERSION)
+    print("Truvari v%s" % __version__)
 
 TOOLS = {'bench': bench_main,
 	 'consistency': consistency_main,
@@ -40,7 +39,7 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
 	collapse	 Collapse possibly redundant VCF entries
         truv2df          Turn a Truvari directory's VCFs into a pandas DataFrame
         version          Print the Truvari version and exit
-""" % VERSION
+""" % __version__
 
 
 def parseArgs():
