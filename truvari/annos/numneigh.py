@@ -1,7 +1,12 @@
 """
 For every call within size boundaries,
-Add NumNeighbors info field of how many calls over within size boundary
-are in the neighborhood
+Add NumNeighbors info field of how many calls are within the distance
+Add NeighId clustering field in the same chained neighborhood
+For example,
+-- is a call, refdist is 2
+     - - -   -    - -
+nn:  1 2 1   0    1 1
+id:  0 0 0   1    2 2
 """
 import os
 import sys
@@ -40,6 +45,9 @@ def edit_header(my_vcf):
     header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=NumNeighbors,Number=1,Type=Integer,'
                      'Description="Number of calls in the neighborhood of this call">'))
+    header.add_line(('##INFO=<ID=NeighId,Number=1,Type=Integer,'
+                     'Description="Identifier of calls in the same chained neighborhood">'))
+
     return header
 
 def numneigh_main(args):
@@ -62,8 +70,6 @@ def numneigh_main(args):
 
     def make_range(entry):
         start, end = truvari.entry_boundaries(entry)
-        #start = max(0, start - args.refdist - 1)
-        #end = end + args.refdist + 1
         return [start, end, entry, 0]
 
     def overlaps(range1, range2):
@@ -73,9 +79,11 @@ def numneigh_main(args):
         end = range1[1] + BUF + 1
         return truvari.overlaps(start, end, *range2[:2])
 
+    NEIGHID = 0
     def output(entry, neigh_cnt):
         new_entry = truvari.copy_entry(entry, header)
         new_entry.info["NumNeighbors"] = neigh_cnt
+        new_entry.info["NeighID"] = NEIGHID
         out_vcf.write(new_entry)
 
     def flush_push_stack(cur_range, stack):
@@ -88,6 +96,9 @@ def numneigh_main(args):
             to_output[3] += len(stack)
             # the entry and it's count
             output(to_output[2], to_output[3])
+            # If this event is not extending the stack, we're at the next 'locus'
+            if not stack:
+                NEIGHID += 1
             # Let the downstream vars know about their now flushed neighbor
             for i in stack:
                 i[3] += 1

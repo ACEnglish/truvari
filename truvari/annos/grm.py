@@ -28,7 +28,7 @@ try:
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
-        pass
+        return
 
 # Data shared with workers; must be populated before workers are started.
 grm_shared = types.SimpleNamespace()
