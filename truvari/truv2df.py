@@ -134,7 +134,7 @@ def truv2df_main(args):
     else:
         vcfs = get_files_from_truvdir(args.directory)
         all_dfs = []
-        for key, val in vcfs.items()
+        for key, val in vcfs.items():
             df = vcf_to_df(val[0], args.info, args.format)
             df["state"] = key
             all_dfs.append(df)
