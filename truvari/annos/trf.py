@@ -19,7 +19,7 @@ import truvari
 # It'll be a heavy step, but I'm not judging the software on speed for a bit...
 
 
-class TRFAnno():
+class TRFAnno(): # pylint: disable=too-many-instance-attributes
     """ Class for trf annotation """
     TRNAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
     FANAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
@@ -41,7 +41,7 @@ class TRFAnno():
                ("unk2", None),
                ("unk3", None)]
 
-    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64",
+    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64", # pylint: disable=too-many-arguments
                  min_length=50, threshold=0.8, full=False,
                  trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
                  refanno=None, ref=None, pctovl=0.2):
@@ -61,7 +61,7 @@ class TRFAnno():
             logging.error("-R requires -r")
             sys.exit(1)
 
-        self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
+        self.refanno = truvari.make_bedanno_tree(refanno) if refanno else []
         self.ref = pyfaidx.Fasta(ref) if ref else None
         self.pctovl = pctovl
 
@@ -204,7 +204,7 @@ class TRFAnno():
             return entry
 
         # Let's assume we're only doing the alt allele
-        srep_hits = None
+        srep_hits = []
         try:
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:
@@ -226,10 +226,9 @@ class TRFAnno():
         # Adding srep hits to n_dat also
         # this is getting kinda choppy with the converters
         # may have over engineered it early
-        if srep_hits is not None:
-            for i in srep_hits:
-                for k,v in i.data.items():
-                    n_dat[k].extend(v)
+        for i in srep_hits:
+            for k,v in i.data.items():
+                n_dat[k].extend(v)
 
         # Can calculate the diffs
         if self.refanno and self.ref and srep_hits:

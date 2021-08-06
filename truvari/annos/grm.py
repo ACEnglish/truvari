@@ -1,6 +1,7 @@
 """
 Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
+# pylint: disable=too-many-locals
 import os
 import re
 import sys
@@ -24,7 +25,7 @@ except ModuleNotFoundError:
     HASBWALIB = False
 
 try:
-    from setproctitle import setproctitle
+    from setproctitle import setproctitle # pylint: disable=import-error
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
@@ -56,7 +57,7 @@ def make_kmers(ref, entry, kmer=25):
         # alternate
         hap = up[:kmer] + seq + dn[-kmer:]
         return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
-    except Exception as e: # pylint : disable=broad-except
+    except Exception as e: # pylint: disable=broad-except
         logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
 

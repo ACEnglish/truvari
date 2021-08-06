@@ -1,7 +1,7 @@
 """
 When running against GIAB SVs, we can make reports
 """
-# pylint: disable=no-member,too-many-statements
+# pylint: disable=too-many-statements
 import os
 import logging
 from collections import defaultdict, Counter

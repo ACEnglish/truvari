@@ -187,7 +187,7 @@ def generate_stat_table(vcf_fn, args):
     [SVTYPE, SZBINS, GT, QUALBINS]
     """
 
-    vcf = pysam.VariantFile(vcf_fn) # pylint: disable=no-member
+    vcf = pysam.VariantFile(vcf_fn)
     ret = {}
     for i in vcf.header.samples:
         ret[i] = numpy.zeros((len(SV), len(SZBINS), len(QUALBINS), len(GT)))

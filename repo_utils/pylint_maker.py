@@ -8,7 +8,7 @@ import anybadge
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 
-fail_under = 9.33
+fail_under = 9.75
 
 # run pylint
 output = StringIO()
@@ -24,7 +24,7 @@ pylint_score = search.groupdict()['score']
 thresholds = {2: 'red',
               4: 'orange',
               6: 'yellow',
-              fail_under: 'green'}
+              10: 'green'}
 
 badge = anybadge.Badge('pylint', pylint_score, thresholds=thresholds)
 badge.write_badge('imgs/pylint.svg', overwrite=True)

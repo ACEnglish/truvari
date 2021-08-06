@@ -4,7 +4,7 @@ Structural variant collapser
 Will collapse all variants within sizemin/max that match over thresholds
 All variants outside size boundaries will be placed into the output
 """
-# pylint: disable=too-many-statements, no-member
+# pylint: disable=too-many-statements
 import os
 import sys
 import json

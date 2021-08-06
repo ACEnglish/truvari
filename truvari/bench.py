@@ -2,7 +2,7 @@
 Structural variant caller comparison tool
 Given a benchmark and callset, calculate the recall/precision/f-measure
 """
-# pylint: disable=too-many-statements, no-member
+# pylint: disable=too-many-statements
 import os
 import sys
 import json
@@ -419,7 +419,7 @@ def close_outputs(outputs):
     outputs["fn_out"].close()
     outputs["fp_out"].close()
 
-def bench_main(cmdargs): # pylnt: disable=too-many-locals
+def bench_main(cmdargs): # pylint: disable=too-many-locals
     """
     Main entry point for running Truvari Benchmarking
     """
