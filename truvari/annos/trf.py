@@ -120,7 +120,7 @@ class TRFAnno():
                              'Description="TRF entropies">'))
             # TRF HIT - if refanno, just report if we hit a reference TRF region
             # Might want some pct/ovl -- this is handled... nowhere
-            pass
+
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         return header
 
@@ -232,7 +232,7 @@ class TRFAnno():
                     n_dat[k].extend(v)
 
         # Can calculate the diffs
-        if self.refanno and self.ref and srep_hits and alt_annos:
+        if self.refanno and self.ref and srep_hits:
             lookup = {}
             diffs = []
             # make a lookup of the trf_annos from the reference

@@ -17,18 +17,15 @@ from acebinf import cmd_exe, setup_logging
 
 # Also, running single threaded isn't great, but also I don't care at this point...
 # It'll be a heavy step, but I'm not judging the software on speed for a bit...
-"""
-And I need to do ALL of the elements at once because RM is much slower
+# And I need to do ALL of the elements at once because RM is much slower
+# And I'm going write
+# -pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
 
-And I'm going write
-
--pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
-"""
 DEFAULTPARAMS = "-pa {threads} -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
 
 def paren_int(number):
     """
-    returns an integer from a string "(\d+)"
+    returns an integer from a string "([0-9]+)"
     """
     return int(number.replace('(', '').replace(')',''))
 
@@ -88,7 +85,7 @@ class RepMask():
         if fout is None:
             ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
         else:
-            ret = open(fout, 'w')
+            ret = open(fout, 'w') # pylint: disable=consider-using-with
         tot_cnt = 0
         cnt = 0
         cntbp = 0

@@ -15,13 +15,13 @@ import truvari
 from acebinf import setup_logging
 
 
-def main():
+def main(self, refanno, entry, lookup, n_dat):
     """
     Main
     """
-    self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
+    refanno = truvari.make_bedanno_tree(refanno) if refanno else None
 
-    srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
+    srep_hits = refanno[0][entry.chrom].overlap(entry.start, entry.stop)
     for i in srep_hits:
         i = i.data
         lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
@@ -65,5 +65,3 @@ def parse_args(args):
     args = parser.parse_args(args)
     setup_logging(args.debug)
     return args
-
-

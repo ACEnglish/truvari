@@ -420,7 +420,7 @@ def close_outputs(outputs):
     outputs["fn_out"].close()
     outputs["fp_out"].close()
 
-def bench_main(cmdargs):
+def bench_main(cmdargs): # pylnt: disable=too-many-locals
     """
     Main entry point for running Truvari Benchmarking
     """

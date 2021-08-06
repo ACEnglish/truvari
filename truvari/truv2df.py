@@ -65,13 +65,13 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
             else:
                 logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
 
-    infos = [_ for _ in v.header.info.keys()] if with_info else []
+    infos = list(v.header.info.keys()) if with_info else []
     header.extend(infos)
 
     rows = []
     for entry in v:
         varsize = truvari.entry_size(entry)
-        filt = [_ for _ in entry.filter]
+        filt = list(entry.filter)
         cur_row = [f"{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}",
                     entry.id,
                     truvari.entry_variant_type(entry),
@@ -134,8 +134,8 @@ def truv2df_main(args):
     else:
         vcfs = get_files_from_truvdir(args.directory)
         all_dfs = []
-        for key in vcfs:
-            df = vcf_to_df(vcfs[key][0], args.info, args.format)
+        for key, val in vcfs.items()
+            df = vcf_to_df(val[0], args.info, args.format)
             df["state"] = key
             all_dfs.append(df)
         out = pd.concat(all_dfs)

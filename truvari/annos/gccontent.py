@@ -50,8 +50,8 @@ def add_gcpct(vcf, ref, n_header=None):
             gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
             entry = truvari.copy_entry(entry, n_header)
             entry.info["GCPCT"] = gcpct
-        except Exception:
-            # Silent failures aren't the best
+        except Exception: # pylint: disable=broad-except
+            # Silent failures aren't the best, but a lot can go wrong here
             pass
         yield entry
 
