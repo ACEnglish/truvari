@@ -21,7 +21,7 @@ from truvari.comparisons import (
     entry_gt_comp,
     create_haplotype,
     create_pos_haplotype,
-    entry_pctsim_lev,
+    entry_pctsim,
     overlaps,
     entry_variant_type,
     same_variant_type,

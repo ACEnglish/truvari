@@ -25,7 +25,7 @@ except ModuleNotFoundError:
     HASBWALIB = False
 
 try:
-    from setproctitle import setproctitle # pylint: disable=import-error
+    from setproctitle import setproctitle # pylint: disable=import-error,no-name-in-module
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
@@ -166,6 +166,8 @@ def parse_args(args):
                         help="Output dataframe (%(default)s)")
     parser.add_argument("-k", "--kmersize", default=50, type=int,
                         help="Size of kmer to map (%(default)s)")
+    parser.add_argument("-m", "--min-size", default=25, type=int,
+                        help="Minimum size of variants to map (%(default)s)")
     parser.add_argument("-t", "--threads", default=os.cpu_count(), type=int,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -233,10 +235,11 @@ def process_entries(ref_section):
     aligner = grm_shared.aligner
     kmersize = grm_shared.kmersize
     header = grm_shared.header
+    minsize = grm_shared.min_size
     rows = []
     next_progress = 0
     for line in read_vcf_lines(ref_name, start, stop):
-        if "SVLEN" not in line[7] and abs(len(entry.ref) - len(entry.alts[0])) < 25:
+        if "SVLEN" not in line[7] and abs(len(line[3]) - len(line[4])) < minsize:
             continue
         entry = line_to_entry(line)
         if next_progress == 0:
@@ -321,6 +324,7 @@ def grm_main(cmdargs):
     grm_shared.ref_filename = args.reference
     grm_shared.kmersize = args.kmersize
     grm_shared.input = args.input
+    grm_shared.min_size = args.min_size
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         logging.info("Processing")
         chunks = pool.imap(process_entries, ref_ranges(ref, chunk_size=10000000))

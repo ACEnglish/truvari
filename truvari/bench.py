@@ -58,6 +58,8 @@ def parse_args(args):
                         help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
+    thresg.add_argument("--use-lev", action="store_true",
+                        help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -297,7 +299,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
         return True
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim_lev(base_entry, comp_entry, reference, buf_len=args.buffer)
+        seq_similarity = truvari.entry_pctsim(base_entry, comp_entry, reference, args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%f)", str(
                 base_entry), str(comp_entry), seq_similarity)

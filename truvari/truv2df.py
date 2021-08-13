@@ -38,11 +38,12 @@ def get_files_from_truvdir(directory):
         raise FileNotFoundError(f"Couldn't parse truvari directory {directory}. See above errors")
     return ret
 
-def vcf_to_df(fn, with_info=True, with_fmt=True):
+def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information
     For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt
+    Specify which sample with its name or index in the VCF
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen", "szbin", "qual", "filter", "is_pass"]
@@ -82,8 +83,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True):
                     filt == [] or filt[0] == 'PASS'
                   ]
         for i, op in fmts:
-            if i in entry.samples[0]:
-                cur_row.extend(op(entry.samples[0][i]))
+            if i in entry.samples[sample]:
+                cur_row.extend(op(entry.samples[sample][i]))
             else:
                 cur_row.extend(op(None))
 
