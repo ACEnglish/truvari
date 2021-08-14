@@ -42,7 +42,7 @@ def parse_args(args):
                         help="Where collapsed variants are written (collapsed.vcf)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
-    parser.add_argument("-k", "--keep", choices=["first", "maxqual"], default="first",
+    parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
@@ -373,6 +373,27 @@ def select_maxqual(entry, neighs):
         neighs[max_qual_idx] = COLLAPENTRY(entry, swap.match, swap.match_id, key)
     return base_entry, neighs
 
+def select_common(entry, neighs):
+    """
+    Swap the entry with the one containing the highest MAC
+    """
+    most_mac = truvari.allele_freq_annos(entry)["MAC"]
+    most_mac_idx = -1
+    for pos, val in enumerate(neighs): # pylint: disable=unused-variable
+        cmp_mac = truvari.allele_freq_annos(neighs[pos].entry)["MAC"]
+        if cmp_mac > most_mac:
+            most_mac_idx = pos
+
+    if most_mac_idx == -1:
+        base_entry = entry
+    else:
+        swap = neighs[most_mac_idx]
+        base_entry = swap.entry
+        key = truvari.entry_to_key('b', entry)
+        neighs[most_mac_idx] = COLLAPENTRY(entry, swap.match, swap.match_id, key)
+    return base_entry, neighs
+
+
 def collapse_main(cmdargs):
     """
     Main entry point for running Truvari collapse
@@ -421,6 +442,8 @@ def collapse_main(cmdargs):
 
         if args.keep == "maxqual":
             base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
+        if args.keep = "common":
+            base_entry, thresh_neighbors = select_common(base_entry, thresh_neighbors)
 
         if thresh_neighbors:
             new_entry, thresh_neighbors = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
