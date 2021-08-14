@@ -1,0 +1,20 @@
+v3.0
+
+* Working on speed improvements
+
+* Added edlib as the default when calculating pctseq_sim, keeping Levenstein as an option
+* Added —keep common to collapse which allows one to choose to keep the allele with the highest MAC
+*  Collapse --hap wasn't working correctly. The assumptions about the calls
+   being phased wasn't being properly used (don't collapse 1|1) and
+   the NumCollapsed was being populated before the single-best match was chosen.
+   The latter is a reporting problem, but the former had an effect on the
+   results with ~3% of collapsed calls being mis-collapsed
+* truvari.annos.grm has min_size argument
+* truv2df’s vcf_to_df now allows a specific sample to be specified  and better Number=A handling
+* NeighId added to numneigh annotations which works like bedtools cluster
+* af_calc now makes MAC/AC
+* Added 'partial' to remap anno
+* Ubiquitous single version
+* Code and repository cleaning
+* Github actions for automated pylint and publish releases to pypi
+
