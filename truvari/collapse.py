@@ -128,11 +128,6 @@ def check_params(args):
     All errors are written to stderr without logging since failures mean no output
     """
     check_fail = False
-    if args.output and os.path.exists(args.output):
-        logging.error("Output '%s' already exists", args.output)
-        check_fail = True
-    elif not args.output:
-        args.output = "/dev/stdout"
     if not os.path.exists(args.input):
         check_fail = True
         logging.error("File %s does not exist", args.input)
