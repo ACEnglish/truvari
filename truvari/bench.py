@@ -100,7 +100,7 @@ def edit_header(my_vcf):
     # Update header
     # Edit Header
     header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Float,'
+    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
                      'Description="Truvari score for similarity of match">'))
     header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
                      'Description="Pct sequence similarity between this variant and its closest match">'))
@@ -311,7 +311,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
     end_distance = aend - bend
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
-
+    
     return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
                        start_distance, end_distance, comp_entry)
 

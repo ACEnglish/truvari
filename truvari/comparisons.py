@@ -214,9 +214,11 @@ def entry_size(entry):
 def weighted_score(sim, size, ovl):
     """
     Unite the similarity measures and make a score
-    return (2*sim + 1*size + 1*ovl) / 3.0
+    return (2*sim + 1*size + 1*ovl) / 3.0 scaled to 0-100
     """
-    return (2 * sim + 1 * size + 1 * ovl) / 3.0
+    score = (2 * sim + 1 * size + 1 * ovl) / 3.0
+    new_score = int(x / 1.333333 * 100)
+    return new_score
 
 
 def reciprocal_overlap(astart, aend, bstart, bend):
