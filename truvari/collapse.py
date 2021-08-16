@@ -437,7 +437,7 @@ def collapse_main(cmdargs):
 
         if args.keep == "maxqual":
             base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
-        if args.keep = "common":
+        if args.keep == "common":
             base_entry, thresh_neighbors = select_common(base_entry, thresh_neighbors)
 
         if thresh_neighbors:

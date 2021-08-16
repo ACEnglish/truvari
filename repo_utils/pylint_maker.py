@@ -8,7 +8,7 @@ import anybadge
 from pylint.lint import Run
 from pylint.reporters.text import TextReporter
 
-fail_under = 9.75
+fail_under = 10
 
 # run pylint
 output = StringIO()
@@ -19,6 +19,8 @@ output = output.read()
 # Get the score
 search = re.search("Your code has been rated at (?P<score>.*)/10", output)
 pylint_score = search.groupdict()['score']
+if pylint_score == 10:
+    pylint_score = int(pylint_score)
 
 # Define thresholds: <2=red, <4=orange <8=yellow <10=green
 thresholds = {2: 'red',

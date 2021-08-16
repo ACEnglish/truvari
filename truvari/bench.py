@@ -311,7 +311,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
     end_distance = aend - bend
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
-    
+
     return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
                        start_distance, end_distance, comp_entry)
 
