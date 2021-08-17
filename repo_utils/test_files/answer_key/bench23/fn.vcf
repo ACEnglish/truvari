@@ -1,0 +1,51 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
+##contig=<ID=chr3,length=198295559>
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr5,length=181538259>
+##contig=<ID=chr6,length=170805979>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr8,length=145138636>
+##contig=<ID=chr9,length=138394717>
+##contig=<ID=chr10,length=133797422>
+##contig=<ID=chr11,length=135086622>
+##contig=<ID=chr12,length=133275309>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr14,length=107043718>
+##contig=<ID=chr15,length=101991189>
+##contig=<ID=chr16,length=90338345>
+##contig=<ID=chr17,length=83257441>
+##contig=<ID=chr18,length=80373285>
+##contig=<ID=chr19,length=58617616>
+##contig=<ID=chr20,length=64444167>
+##contig=<ID=chr21,length=46709983>
+##contig=<ID=chr22,length=50818468>
+##contig=<ID=chrX,length=156040895>
+##contig=<ID=chrY,length=57227415>
+##INFO=<ID=QNAME,Number=1,Type=String,Description="Query name">
+##INFO=<ID=QSTART,Number=1,Type=Integer,Description="Query start">
+##INFO=<ID=QSTRAND,Number=1,Type=String,Description="Query strand">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##bcftools_mergeVersion=1.10.2+htslib-1.10.2
+##bcftools_mergeCommand=merge --force-samples -m none /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_NA12878_giab_pbsq2-ccs_1000-pereg.h1-un.racon-p2.fasta.gz.vcf.gz /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_NA12878_giab_pbsq2-ccs_1000-pereg.h2-un.racon-p2.fasta.gz.vcf.gz; Date=Thu Jul 22 20:43:36 2021
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SV type">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##bcftools_viewVersion=1.12+htslib-1.12
+##bcftools_viewCommand=view -r chr20:0-1000000 -O z /home/english/science/english/msru/data/unused_samples/grch38/NA12878/exact.vcf.gz; Date=Mon Aug 16 16:58:00 2021
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size(basecall) and size(evalcall)">
+##INFO=<ID=NumNeighbors,Number=1,Type=Integer,Description="Number of calls in B that were in the neighborhood (REFDIST) of this call">
+##INFO=<ID=NumThresholdNeighbors,Number=1,Type=Integer,Description="Number of calls in B that are within threshold distances of this call">
+##INFO=<ID=MatchId,Number=1,Type=Integer,Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+chr20	380878	.	T	TGATTAGCTCCGGTTTGCATCACCCGGACCGGGGGATTAGCTCCGGTTTGCATCACCCGGACCGGGG	60	.	QNAME=cluster19_000000F;QSTART=25381150;QSTRAND=-;SVTYPE=INS;SVLEN=66;NumNeighbors=1;NumThresholdNeighbors=0;MatchId=636	GT	1/0
+chr20	642207	.	T	TGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGTGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGATGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGTGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCAGGGGTGGAGTTGCCTGGGGGGGG	60	.	QNAME=cluster19_000000F;QSTART=602404;QSTRAND=+;SVTYPE=INS;SVLEN=630;NumNeighbors=5;NumThresholdNeighbors=0;MatchId=1005	GT	0/1
+chr20	642230	.	T	TGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGTGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGATGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGTGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCAGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTG	60	.	QNAME=cluster19_000000F;QSTART=25119065;QSTRAND=-;SVTYPE=INS;SVLEN=632;NumNeighbors=5;NumThresholdNeighbors=0;MatchId=1006	GT	1/0
+chr20	764537	.	A	AGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAAGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAAGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAT	60	.	QNAME=cluster19_000000F;QSTART=725358;QSTRAND=+;SVTYPE=INS;SVLEN=117;NumNeighbors=0;NumThresholdNeighbors=0;MatchId=1299	GT	0/1
