@@ -14,7 +14,6 @@ import argparse
 from acebinf import setup_logging
 import truvari
 
-
 def main(refanno, entry, lookup, n_dat):
     """
     Main

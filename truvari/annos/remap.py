@@ -12,7 +12,6 @@ Which alleles and alignments to consider can be altered with:
         (a.k.a. alignments back to the source sequence) (10)
 --threshold - Minimum percent of allele's sequence used by alignment to be considered (.8)
 """
-import sys
 import logging
 import argparse
 

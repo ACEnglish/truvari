@@ -2,8 +2,6 @@
 Calcluate the the Hom / (Het + Hom) of variants in the region of SVs
 Requires the VCF to contain SVs beside SNPs/Indels
 """
-
-import sys
 import logging
 import argparse
 

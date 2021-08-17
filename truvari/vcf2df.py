@@ -2,7 +2,6 @@
 Takes a vcf and creates a data frame. Can parse a bench output directory
 """
 import os
-import sys
 import glob
 import logging
 import argparse
