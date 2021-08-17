@@ -85,7 +85,8 @@ assert_equal $(fn_md5 $ANSDIR/multi_removed.vcf) $(fn_md5 multi_removed.vcf)
 
 run test_consistency truvari consistency $INDIR/input1.vcf.gz \
                                          $INDIR/input2.vcf.gz \
-                                         $INDIR/input3.vcf.gz
+                                         $INDIR/input3.vcf.gz \
+                                         > consistency.txt
 assert_exit_code $? 0
 
 run test_consistency_results
