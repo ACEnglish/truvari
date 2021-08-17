@@ -1,4 +1,3 @@
-
 test -e ssshtest || curl -O https://raw.githubusercontent.com/ryanlayer/ssshtest/master/ssshtest
 
 source ssshtest
@@ -120,11 +119,11 @@ assert_equal $(fn_md5 $ANSDIR/multi_removed.vcf) $(fn_md5 $OD/multi_removed.vcf)
 #                                 consistency
 # ------------------------------------------------------------
 cp $INDIR/input*.vcf.gz $OD
-run test_consistency $truv consistency input*.vcf.gz
+run test_consistency $truv consistency $OD/input*.vcf.gz
 assert_exit_code $? 0
 
 
-run test_consistency_results $truv consistency input*.vcf.gz
+run test_consistency_results $truv consistency $OD/input*.vcf.gz
 assert_equal $(fn_md5 $ANSDIR/consistency.txt) $(fn_md5 $STDOUT_FILE)
 
 # ------------------------------------------------------------
