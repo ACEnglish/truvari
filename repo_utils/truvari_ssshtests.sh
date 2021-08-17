@@ -51,7 +51,7 @@ collapse_hap() {
                      -c $OD/input${1}_removed.vcf \
                      --hap
     assert_exit_code $? 0
-    
+
     run test_collapse_${1}_collapsed
     assert_equal $(fn_md5 $ANSDIR/input${1}_collapsed.vcf) $(fn_md5 $OD/input${1}_collapsed.vcf)
 
@@ -59,9 +59,26 @@ collapse_hap() {
     assert_equal $(fn_md5 $ANSDIR/input${1}_removed.vcf) $(fn_md5 $OD/input${1}_removed.vcf)
 }
 
+collapse_multi() {
+    # tests multi sample collapse with provided keep method
+    keep=$1
+    run test_collapse_multi_$keep $truv collapse -f $INDIR/reference.fa \
+                                             -i $INDIR/multi.vcf.gz \
+                                             -o $OD/multi_collapsed_${keep}.vcf \
+                                             -c $OD/multi_removed_${keep}.vcf \
+                                             --keep $keep
+    assert_exit_code $? 0
+
+    run test_collapse_multi_${keep}_collapsed
+    assert_equal $(fn_md5 $ANSDIR/multi_collapsed_${keep}.vcf) $(fn_md5 $OD/multi_collapsed_${keep}.vcf)
+
+    run test_collapse_multi_${keep}_removed
+    assert_equal $(fn_md5 $ANSDIR/multi_removed_${keep}.vcf) $(fn_md5 $OD/multi_removed_${keep}.vcf)
+}
+
 info_tests() {
     # pull and query info fields from vcfs
-    test $(which bcftools) || sudo apt-get install bcftools 
+    test $(which bcftools) || sudo apt-get install bcftools
     name=$1
     base_vcf=$ANSDIR/anno_answers.vcf.gz
     comp_vcf=$2
@@ -118,17 +135,9 @@ collapse_hap 1
 collapse_hap 2
 collapse_hap 3
 
-run test_collapse_multi $truv collapse -f $INDIR/reference.fa \
-                                         -i $INDIR/multi.vcf.gz \
-                                         -o $OD/multi_collapsed.vcf \
-                                         -c $OD/multi_removed.vcf
-assert_exit_code $? 0
-
-run test_collapse_multi_collapsed
-assert_equal $(fn_md5 $ANSDIR/multi_collapsed.vcf) $(fn_md5 $OD/multi_collapsed.vcf)
-
-run test_collapse_multi_removed
-assert_equal $(fn_md5 $ANSDIR/multi_removed.vcf) $(fn_md5 $OD/multi_removed.vcf)
+collapse_multi first
+collapse_multi common
+collapse_multi maxqual
 
 # ------------------------------------------------------------
 #                                 consistency
