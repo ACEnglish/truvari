@@ -48,7 +48,6 @@ collapse_hap() {
                      --hap
     assert_exit_code $? 0
     
-    
     run test_collapse_${1}_collapsed
     assert_equal $(fn_md5 $ANSDIR/input${1}_collapsed.vcf) $(fn_md5 $OD/input${1}_collapsed.vcf)
 
@@ -180,3 +179,4 @@ df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
 # ------------------------------------------------------------
 coverage combine
 coverage report --include=truvari/*
+coverage html --include=truvari/* -d $OD/htmlcov/
