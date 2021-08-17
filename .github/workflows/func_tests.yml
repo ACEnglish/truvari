@@ -26,7 +26,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install pylint
           pip install anybadge
+          pip install coverage
           python setup.py install
       - name: Running ssshtest
         run: |
           bash repo_utils/truvari_ssshtests.sh
+      - name: Uploading coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: htmlcov
+          path: test_results/htmlcov

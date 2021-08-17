@@ -39,7 +39,7 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
 """ % __version__
 
 
-def parseArgs():
+def main():
     """
     Argument parsing
     """
@@ -60,5 +60,5 @@ def parseArgs():
     TOOLS[args.cmd](args.options)
 
 if __name__ == '__main__':
-    parseArgs()
+    main()
 
