@@ -469,6 +469,3 @@ def collapse_main(cmdargs):
     # Close to flush vcfs
     close_outputs(outputs)
     logging.info("Finished")
-
-if __name__ == '__main__':
-    collapse_main(sys.argv[1:])

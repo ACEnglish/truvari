@@ -1,2 +1,7 @@
 [run]
 concurrency=multiprocessing
+
+[report]
+omit = 
+    */repmask.py
+    */trf.py

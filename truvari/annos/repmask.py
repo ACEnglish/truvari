@@ -235,7 +235,3 @@ def rmk_main(cmdargs):
                    threads=args.threads)
     anno.annotate_vcf()
     logging.info("Finished repmask")
-
-
-if __name__ == '__main__':
-    rmk_main(sys.argv[1:])

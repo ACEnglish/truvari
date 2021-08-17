@@ -6,6 +6,7 @@ BASDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 INDIR=$BASDIR/test_files
 ANSDIR=$INDIR/answer_key/
 OD=test_results/
+COVERAGE_RCFILE=.coveragerc
 
 mkdir -p test_results
 
@@ -95,6 +96,17 @@ bench 1 2
 bench 1 3
 bench 2 3
 
+rm -rf $OD/bench_giab
+run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
+                                -c $INDIR/input1.vcf.gz \
+                                -f $INDIR/reference.fa \
+                                -o $OD/bench_giab/ \
+                                --includebed $INDIR/giab.bed \
+                                --giabreport
+assert_exit_code $? 0
+run test_bench_giab_report
+assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/giab_report.txt)
+
 # ------------------------------------------------------------
 #                                 collapse
 # ------------------------------------------------------------
@@ -163,10 +175,17 @@ assert_exit_code $? 0
 df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
 #                               af
+# waiting on unit tests. might make an anno tool out of this eventually, though
 
-# requires external executables
-#                                 repmask
+# requires external executables which are too large to put into the repository repo_utils/test_files/
 #                                 trf
+#                                 repmask
+#run test_anno_repmask $truv anno repmask -i $INDIR/input1.vcf.gz -e $INDIR/external/RepeatMasker -T 1 -o $OD/repmask.vcf
+#assert_exit_code $? 0
+
+#run test_anno_repmask_result
+#assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
+
 
 # ------------------------------------------------------------
 #                                 vcf2df
@@ -186,3 +205,4 @@ df_check test_vcf2df_dir_result $ANSDIR/truv2df.jl $OD/truv2df.jl
 coverage combine
 coverage report --include=truvari/*
 coverage html --include=truvari/* -d $OD/htmlcov/
+

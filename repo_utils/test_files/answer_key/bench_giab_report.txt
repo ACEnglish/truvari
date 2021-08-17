@@ -1,0 +1,241 @@
+TP	0
+FN	8
+
+TP_size
+50to99	0
+100to299	0
+300to999	0
+gt1000	0
+FN_size
+50to99	4
+100to299	4
+300to999	0
+gt1000	0
+
+TP_type
+DEL	0
+INS	0
+COMPLEX	0
+FN_type
+DEL	4
+INS	4
+COMPLEX	0
+
+TP_Type+Size
+.	DEL	INS	COMPLEX
+50to99	0	0	0
+100to299	0	0	0
+300to999	0	0	0
+gt1000	0	0	0
+FN_Type+Size
+.	DEL	INS	COMPLEX
+50to99	3	1	0
+100to299	1	3	0
+300to999	0	0	0
+gt1000	0	0	0
+
+TP_REPTYPE
+SIMPLEDEL	0
+SIMPLEINS	0
+DUP	0
+SUBSDEL	0
+SUBSINS	0
+CONTRAC	0
+FN_REPTYPE
+SIMPLEDEL	4
+SIMPLEINS	2
+DUP	2
+SUBSDEL	0
+SUBSINS	0
+CONTRAC	0
+
+TP_size+REPTYPE
+.	50to99	100to299	300to999	gt1000
+SIMPLEDEL	0	0	0	0
+SIMPLEINS	0	0	0	0
+DUP	0	0	0	0
+SUBSDEL	0	0	0	0
+SUBSINS	0	0	0	0
+CONTRAC	0	0	0	0
+FN_size+REPTYPE
+.	50to99	100to299	300to999	gt1000
+SIMPLEDEL	3	1	0	0
+SIMPLEINS	0	2	0	0
+DUP	1	1	0	0
+SUBSDEL	0	0	0	0
+SUBSINS	0	0	0	0
+CONTRAC	0	0	0	0
+
+TP_Tech
+I+PB+CG+TenX	0
+I+PB+CG	0
+I+PB+TenX	0
+PB+CG+TenX	0
+I+PB	0
+I+CG	0
+I+TenX	0
+PB+CG	0
+PB+TenX	0
+CG+TenX	0
+I	0
+PB	0
+CG	0
+TenX	0
+FN_Tech
+I+PB+CG+TenX	0
+I+PB+CG	0
+I+PB+TenX	0
+PB+CG+TenX	0
+I+PB	0
+I+CG	0
+I+TenX	0
+PB+CG	0
+PB+TenX	1
+CG+TenX	0
+I	0
+PB	1
+CG	0
+TenX	0
+
+TP_Size+Tech
+.	50to99	100to299	300to999	gt1000
+I+PB+CG+TenX	0	0	0	0
+I+PB+CG	0	0	0	0
+I+PB+TenX	0	0	0	0
+PB+CG+TenX	0	0	0	0
+I+PB	0	0	0	0
+I+CG	0	0	0	0
+I+TenX	0	0	0	0
+PB+CG	0	0	0	0
+PB+TenX	0	0	0	0
+CG+TenX	0	0	0	0
+I	0	0	0	0
+PB	0	0	0	0
+CG	0	0	0	0
+TenX	0	0	0	0
+FN_Size+Tech
+.	50to99	100to299	300to999	gt1000
+I+PB+CG+TenX	0	0	0	0
+I+PB+CG	0	0	0	0
+I+PB+TenX	0	0	0	0
+PB+CG+TenX	0	0	0	0
+I+PB	0	0	0	0
+I+CG	0	0	0	0
+I+TenX	0	0	0	0
+PB+CG	0	0	0	0
+PB+TenX	1	0	0	0
+CG+TenX	0	0	0	0
+I	0	0	0	0
+PB	0	1	0	0
+CG	0	0	0	0
+TenX	0	0	0	0
+
+TP_Type+Tech
+.	DEL	INS	COMPLEX
+I+PB+CG+TenX	0	0	0
+I+PB+CG	0	0	0
+I+PB+TenX	0	0	0
+PB+CG+TenX	0	0	0
+I+PB	0	0	0
+I+CG	0	0	0
+I+TenX	0	0	0
+PB+CG	0	0	0
+PB+TenX	0	0	0
+CG+TenX	0	0	0
+I	0	0	0
+PB	0	0	0
+CG	0	0	0
+TenX	0	0	0
+FN_Type+Tech
+.	DEL	INS	COMPLEX
+I+PB+CG+TenX	0	0	0
+I+PB+CG	0	0	0
+I+PB+TenX	0	0	0
+PB+CG+TenX	0	0	0
+I+PB	0	0	0
+I+CG	0	0	0
+I+TenX	0	0	0
+PB+CG	0	0	0
+PB+TenX	1	0	0
+CG+TenX	0	0	0
+I	0	0	0
+PB	0	1	0
+CG	0	0	0
+TenX	0	0	0
+
+Performance
+FN	8
+FP	16
+TP-base	0
+TP-base_FP-gt	0
+TP-base_TP-gt	0
+TP-call	0
+TP-call_FP-gt	0
+TP-call_TP-gt	0
+base cnt	8
+call cnt	16
+f1	NaN
+gt_f1	NaN
+gt_precision	0
+gt_recall	0
+precision	0.0
+recall	0.0
+
+Args
+bSample	None
+base	/home/english/truvari/repo_utils/test_files/giab.vcf.gz
+buffer	0.1
+cSample	None
+comp	/home/english/truvari/repo_utils/test_files/input1.vcf.gz
+debug	False
+giabreport	True
+gtcomp	False
+includebed	/home/english/truvari/repo_utils/test_files/giab.bed
+multimatch	False
+no_ref	False
+output	test_results//bench_giab/
+passonly	False
+pctovl	0.0
+pctsim	0.7
+pctsize	0.7
+prog	False
+refdist	500
+reference	/home/english/truvari/repo_utils/test_files/reference.fa
+sizefilt	30
+sizemax	50000
+sizemin	50
+typeignore	False
+use_lev	False
+
+TP_HG002GT
+0/1	0
+./1	0
+1/1	0
+FN_HG002GT
+0/1	2
+./1	0
+1/1	4
+
+TP_HG003.HG004GT
+.	./.	0/0	0/1	./1	1/1
+./.	0	0	0	0	0
+0/0	0	0	0	0	0
+0/1	0	0	0	0	0
+./1	0	0	0	0	0
+1/1	0	0	0	0	0
+FN_HG003.HG004GT
+.	./.	0/0	0/1	./1	1/1
+./.	1	0	0	0	0
+0/0	0	0	1	0	0
+0/1	0	0	1	0	0
+./1	0	0	0	0	0
+1/1	0	1	0	0	4
+
+TP TandemRepeat Anno
+.	
+FN TandemRepeat Anno
+.	FALSE	TRUE
+TRall	4	4
+TRgt100	5	3
+TRgt10k	8	0
+segdup	8	0

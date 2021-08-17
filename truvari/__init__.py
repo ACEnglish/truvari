@@ -50,9 +50,7 @@ from truvari.stats import (
     get_svtype,
     get_sizebin,
     get_gt,
-    get_scalebin,
-    format_stats,
-    generate_stat_table
+    get_scalebin
 )
 
 from truvari.annos.af_calc import allele_freq_annos

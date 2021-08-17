@@ -2,14 +2,9 @@
 VCF Stats for SVs with sizebins and svtypes
 """
 import sys
-import argparse
-import warnings
 
 from enum import Enum
 
-import numpy
-import pysam
-import joblib
 import truvari
 
 SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
@@ -33,33 +28,8 @@ class SV(Enum):
     INS = 1
     DUP = 2
     INV = 3
-    NON = 4  # Not and SV, SVTYPE
+    NON = 4  # Not an SV, SVTYPE
     UNK = 5  # Unknown SVTYPE
-
-
-def parse_args(args):
-    """
-    Pull the command line parameters
-    """
-    parser = argparse.ArgumentParser(prog="stats", description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-
-    parser.add_argument("VCF", nargs="+", default="/dev/stdin",
-                        help="VCFs to annotate (stdin)")
-    parser.add_argument("-d", "--dataframe", default=None,
-                        help="Write dataframe joblib to file (%(default)s)")
-    parser.add_argument("-o", "--out", default="/dev/stdout",
-                        help="Stats output file (%(default)s)")
-    parser.add_argument("--qmin", default=0, type=int,
-                        help="Minimum QUAL score found in VCF (%(default)s)")
-    parser.add_argument("--qmax", default=None, type=int,
-                        help="Maximum QUAL score found in VCF (None)")
-
-    args = parser.parse_args(args)
-    if args.qmax is None:
-        args.qmax = sys.maxsize
-    return args
-
 
 def get_svtype(svtype):
     """
@@ -116,123 +86,3 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
         if newx < i + step:
             return "[%d,%d)" % (i, i+step), pos
     return ">=%d" % (tmax), pos + 1
-
-def format_stats(data, sample=False, output=sys.stdout):
-    """
-    Given a stats array, output
-    """
-    output.write("# SV counts\n")
-    for i in SV:
-        if sample:
-            output.write("%s\t%d\n" % (i.name, data[i.value, :, :, GT.HET.value:GT.HOM.value + 1].sum()))
-        else:
-            output.write("%s\t%d\n" % (i.name, data[i.value].sum()))
-    if sample:
-        output.write("%s\t%d\n" % ("total", data[:, :, :, GT.HET.value:GT.HOM.value + 1].sum()))
-    else:
-        output.write("%s\t%d\n" % ("total", data.sum()))
-
-
-    output.write("# SVxSZ counts\n")
-    output.write("\t%s\n" % "\t".join(x.name for x in SV))
-    for idx, sz in enumerate(SZBINS):
-        output.write(sz)
-        for sv in SV:
-            if sample:
-                output.write("\t%d" % (data[sv.value, idx, :, GT.HET.value:GT.HOM.value + 1].sum()))
-            else:
-                output.write("\t%d" % (data[sv.value, idx].sum()))
-        output.write('\n')
-
-    output.write("# QUAL distribution\n")
-    pos = 0
-    for pos, i in enumerate(range(0, 100, 10)):
-        if sample:
-            output.write("[%d,%d)\t%d\n" % (i, i+10, data[:, :, pos, GT.HET.value:GT.HOM.value + 1].sum()))
-        else:
-            output.write("[%d,%d)\t%d\n" % (i, i+10, data[:, :, pos].sum()))
-    output.write(">=%d\t%d\n" % (100, data[:, :, pos + 1].sum()))
-
-
-    if sample:
-        output.write("# GT counts\n")
-        for i in GT:
-            output.write("%s\t%d\n" % (i.name, data[:, :, :, i.value].sum()))
-
-        output.write("# SVxGT counts\n")
-        output.write("\t%s\n" % "\t".join(x.name for x in SV))
-        for gt in GT:
-            output.write(gt.name)
-            for sv in SV:
-                output.write("\t%d" % (data[sv.value, :, :, gt.value].sum()))
-            output.write('\n')
-
-        output.write("# Het/Hom ratio\n")
-        output.write("%f\n" % (data[:, :, :, GT.HET.value].sum() / data[:, :, :, GT.HOM.value].sum()))
-
-        output.write("# SVxSZ Het/Hom ratios\n")
-        output.write("\t%s\n" % "\t".join(x.name for x in SV))
-
-        for idx, sz in enumerate(SZBINS):
-            output.write(sz)
-            for sv in SV:
-                het = data[sv.value, idx, :, GT.HET.value].sum()
-                hom = data[sv.value, idx, :, GT.HOM.value].sum()
-                output.write("\t%.2f" % (het / hom))
-            output.write("\n")
-
-def generate_stat_table(vcf_fn, args):
-    """
-    Given a vcf filename, create a numpy array with dimensions counting
-    [SVTYPE, SZBINS, GT, QUALBINS]
-    """
-
-    vcf = pysam.VariantFile(vcf_fn)
-    ret = {}
-    for i in vcf.header.samples:
-        ret[i] = numpy.zeros((len(SV), len(SZBINS), len(QUALBINS), len(GT)))
-    ret["total"] = numpy.zeros((len(SV), len(SZBINS), len(QUALBINS)))
-    for entry in vcf:
-        sv = get_svtype(truvari.entry_variant_type(entry))
-        sz = get_sizebin(truvari.entry_size(entry))
-        if entry.qual is not None:
-            idx = get_scalebin(entry.qual, args.qmin, args.qmax)[1]
-        else:
-            idx = 0
-        for i in vcf.header.samples:
-            gt = get_gt(entry.samples[i]["GT"])
-            ret[i][sv.value, SZBINS.index(sz), idx, gt.value] += 1
-        ret["total"][sv.value, SZBINS.index(sz), idx] += 1
-
-    return ret
-
-
-def stats_main(cmdargs):
-    """
-    Main stats
-    """
-    warnings.filterwarnings('ignore')
-    args = parse_args(cmdargs)
-
-    with open(args.out, 'w') as output:
-        data = {}
-        for vcf in args.VCF:
-            cur = generate_stat_table(vcf, args)
-            if data is None:
-                data = cur
-            else:
-                for key, val in cur.items():
-                    data[key] += val
-
-    output.write("## Total Stats:\n")
-    format_stats(data["total"], False, output)
-
-    for i in [_ for _ in data if _ != 'total']:
-        output.write("## %s Stats:\n" % (i))
-        format_stats(data[i], True, output)
-
-    if args.dataframe:
-        joblib.dump(data, args.dataframe)
-
-if __name__ == '__main__':
-    stats_main(sys.argv[1:])

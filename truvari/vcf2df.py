@@ -160,7 +160,3 @@ def vcf2df_main(args):
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)
     joblib.dump(out, args.output)
     logging.info("Finished")
-
-
-if __name__ == '__main__':
-    vcf2df_main(sys.argv[1:])

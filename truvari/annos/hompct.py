@@ -68,6 +68,3 @@ def hompct_main(cmd_args):
             entry.info["HOMPCT"] = get_pct(entry.chrom, *truvari.entry_boundaries(entry))
         out.write(entry)
     logging.info("Finished hompct")
-
-if __name__ == '__main__':
-    hompct_main(sys.argv[1:])

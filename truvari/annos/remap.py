@@ -166,6 +166,3 @@ def remap_main(cmdargs):
                  threshold=args.threshold)
     anno.annotate_vcf()
     logging.info("Finished Remap Anno")
-
-if __name__ == '__main__':
-    remap_main(sys.argv[1:])
