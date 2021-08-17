@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Truvari main entrypoint
+"""
 import sys
 import argparse
 
@@ -9,6 +12,7 @@ from truvari.consistency_report import consistency_main
 from truvari.annotation import anno_main
 from truvari.vcf2df import vcf2df_main
 
+# pylint: disable=unused-argument
 def in_progress(args):
     """placeholder"""
     print('working on it...')
@@ -18,11 +22,11 @@ def version(args):
     print("Truvari v%s" % __version__)
 
 TOOLS = {'bench': bench_main,
-	 'consistency': consistency_main,
-	 'anno': anno_main,
-	 'collapse': collapse_main,
+	     'consistency': consistency_main,
+	     'anno': anno_main,
+	     'collapse': collapse_main,
          'vcf2df': vcf2df_main,
-	 'version': version}
+	     'version': version}
 
 # create-anno      Create an index of an annotation source for reuse
 
@@ -30,7 +34,7 @@ USAGE = """\
 Truvari v%s - Structural Variant Benchmarking and Annotation
 
     CMDs:
-        bench            Performance metrics from comparison of two VCFs 
+        bench            Performance metrics from comparison of two VCFs
         consistency      Consistency report between multiple VCFs
         anno             Annotate a VCF
 	collapse	 Collapse possibly redundant VCF entries
@@ -61,4 +65,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
