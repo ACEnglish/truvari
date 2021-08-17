@@ -183,24 +183,24 @@ recall	0.0
 
 Args
 bSample	None
-base	/home/english/truvari/repo_utils/test_files/giab.vcf.gz
+base	repo_utils/test_files/giab.vcf.gz
 buffer	0.1
 cSample	None
-comp	/home/english/truvari/repo_utils/test_files/input1.vcf.gz
+comp	repo_utils/test_files/input1.vcf.gz
 debug	False
 giabreport	True
 gtcomp	False
-includebed	/home/english/truvari/repo_utils/test_files/giab.bed
+includebed	repo_utils/test_files/giab.bed
 multimatch	False
 no_ref	False
-output	test_results//bench_giab/
+output	test_results/bench_giab/
 passonly	False
 pctovl	0.0
 pctsim	0.7
 pctsize	0.7
 prog	False
 refdist	500
-reference	/home/english/truvari/repo_utils/test_files/reference.fa
+reference	repo_utils/test_files/reference.fa
 sizefilt	30
 sizemax	50000
 sizemin	50

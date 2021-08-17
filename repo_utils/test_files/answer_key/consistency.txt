@@ -2,9 +2,9 @@
 # Total 3513 calls across 3 VCFs
 #
 #File	NumCalls
-test_results//input1.vcf.gz	2151
-test_results//input2.vcf.gz	1783
-test_results//input3.vcf.gz	2065
+repo_utils/test_files/input1.vcf.gz	2151
+repo_utils/test_files/input2.vcf.gz	1783
+repo_utils/test_files/input3.vcf.gz	2065
 #
 # Summary of consistency
 #

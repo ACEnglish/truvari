@@ -2,13 +2,16 @@ test -e ssshtest || curl -O https://raw.githubusercontent.com/ryanlayer/ssshtest
 
 source ssshtest
 
-BASDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-INDIR=$BASDIR/test_files
-ANSDIR=$INDIR/answer_key/
-OD=test_results/
+# Work inside of the repo folder
+cd "$( dirname "${BASH_SOURCE[0]}" )"/../
+INDIR=repo_utils/test_files
+ANSDIR=$INDIR/answer_key
+OD=test_results
 COVERAGE_RCFILE=.coveragerc
 
-mkdir -p test_results
+# Reset test results
+rm -rf $OD
+mkdir -p $OD
 
 truv="coverage run --concurrency=multiprocessing -p -m truvari.__main__"
 # ------------------------------------------------------------
@@ -104,6 +107,7 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 --includebed $INDIR/giab.bed \
                                 --giabreport
 assert_exit_code $? 0
+
 run test_bench_giab_report
 assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/giab_report.txt)
 
@@ -129,12 +133,11 @@ assert_equal $(fn_md5 $ANSDIR/multi_removed.vcf) $(fn_md5 $OD/multi_removed.vcf)
 # ------------------------------------------------------------
 #                                 consistency
 # ------------------------------------------------------------
-cp $INDIR/input*.vcf.gz $OD
-run test_consistency $truv consistency $OD/input*.vcf.gz
+run test_consistency $truv consistency $INDIR/input*.vcf.gz
 assert_exit_code $? 0
 
 
-run test_consistency_results $truv consistency $OD/input*.vcf.gz
+run test_consistency_results $truv consistency $INDIR/input*.vcf.gz
 assert_equal $(fn_md5 $ANSDIR/consistency.txt) $(fn_md5 $STDOUT_FILE)
 
 # ------------------------------------------------------------
