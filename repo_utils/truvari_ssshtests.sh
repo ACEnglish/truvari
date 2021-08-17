@@ -147,5 +147,10 @@ info_tests numneigh anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
 run test_vcf2df truvari vcf2df -f -i $INDIR/input1.vcf.gz vcf2df.jl
 assert_exit_code $? 0
 
-run test_vcf2df_result
-assert_equal $(fn_md5 $ANSDIR/vcf2df.jl) $(fn_md5 vcf2df.jl)
+run test_vcf2df_result python -c """
+import joblib;
+a = joblib.load(\"$ANSDIR/vcf2df.jl\")
+b = joblib.load(\"vcf2df.jl\")
+assert a.equals(b);
+"""
+assert_exit_code $? 0
