@@ -57,7 +57,7 @@ from truvari.stats import (
 
 from truvari.annos.af_calc import allele_freq_annos
 
-from truvari.truv2df import (
+from truvari.vcf2df import (
     vcf_to_df,
     SZBINTYPE,
     SVTYTYPE
