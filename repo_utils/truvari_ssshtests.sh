@@ -94,38 +94,53 @@ assert_equal $(fn_md5 $ANSDIR/consistency.txt) $(fn_md5 consistency.txt)
 # ------------------------------------------------------------
 #                                 anno
 # ------------------------------------------------------------
+test $(which bcftools) || sudo apt-get install bcftools 
+info_tests() {
+    name=$1
+    base_vcf=$ANSDIR/anno_answers.vcf.gz
+    comp_vcf=$2
+    infos=$3
+    bcftools query -f "%CHROM\t%POS\t${INFOS}\n" $base_vcf | sort > answer.txt
+    bcftools query -f "%CHROM\t%POS\t${INFOS}\n" $comp_vcf | sort > result.txt
+    run test_infos_${name}
+    assert_equal $(fn_md5 answer.txt) $(fn_md5 result.txt)
+}
 
-#So for these, I can just do a bcftools query to compare. 
-#I can run them all into a single base VCF with the answer,
-#Then when I run this test, `bcftools query` compare the two,
-#If there are any differences then I fail the test. 
-#These tests would just be validating that
-#1 - the commands work without throwing errors
-#2 - the command outputs stay the same
+VCF=$INDIR/multi.vcf.gz
+REF=$INDIR/reference.fa
+#                                 hompct
+run test_anno_hompct truvari anno hompct -i $VCF -o anno_hompct.vcf
+assert_exit_code $? 0
+info_tests hompct anno_hompct.vcf INFO/HOMPCT
 
-#If a value needs to be changed, it will be changed in the answer key
-
+#                                 remap
+run test_anno_remap truvari anno remap -i $VCF -r $REF -o anno_remap.vcf
+assert_exit_code $? 0
+info_tests remap anno_remap.vcf INFO/REMAP
 
 #                                 gcpct
-#vcf_anno_compare answer_key.vcf.gz quiz.vcf.gz INFOA INFOB INFOC etc
+run test_anno_gcpct truvari anno gcpct -i $VCF -r $REF -o anno_gcpct.vcf
+assert_exit_code $? 0
+info_tests gcpct anno_gcpct.vcf INFO/GCPCT
 
 #                                 gtcnt
-#vcf_anno_compare INFO/A INFO/B INFO/C
-#                                 remap
+run test_anno_gtcnt truvari anno gtcnt -i $VCF -o anno_gtcnt.vcf
+assert_exit_code $? 0
+info_tests gtcnt anno_gtcnt.vcf INFO/GTCNT
+
 #                                 numneigh
-#                                 hompct
+run test_anno_numneigh truvari anno numneigh -i $VCF -o anno_numneigh.vcf
+assert_exit_code $? 0
+info_tests numneigh anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
 
 #This will need a custom checker
 #                                 grm
-
 
 #These can also be tested with the rest of the anno framework. 
 #However I need extra tools to make it happen.
 
 #                                 repmask
 #                                 trf
-
-
 
 # ------------------------------------------------------------
 #                                 truv2df
