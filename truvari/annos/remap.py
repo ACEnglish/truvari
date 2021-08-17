@@ -8,19 +8,18 @@ partial - Allele only has partial hit(s) less than --threshold
 
 Which alleles and alignments to consider can be altered with:
 --minlength - minimum SV length to considred (50)
---dist - For deletion SVs, do not consider alignments that hit within Nbp of the SV's position 
+--dist - For deletion SVs, do not consider alignments that hit within Nbp of the SV's position
         (a.k.a. alignments back to the source sequence) (10)
 --threshold - Minimum percent of allele's sequence used by alignment to be considered (.8)
 """
 import sys
 import logging
 import argparse
-import multiprocessing
 
 import pysam
-import truvari
 from bwapy import BwaAligner
 
+import truvari
 from truvari.annos.grm import cigmatch
 
 
@@ -32,11 +31,11 @@ class Remap():
         self.reference = reference
         self.out_vcf = out_vcf
         self.min_length = min_length
-        self.min_distance = 5
+        self.min_distance = min_distance
         self.threshold = threshold
         self.n_header = None
         self.aligner = BwaAligner(self.reference, options="-a")
-    
+
     def edit_header(self, header=None):
         """
         Edits and holds on to the header
@@ -48,7 +47,7 @@ class Remap():
                         'Description="Annotation of alt-seq remapping">'))
         self.n_header = header
 
-    def get_end(self, pos, cigar):
+    def get_end(self, pos, cigar): # pylint: disable=no-self-use
         """
         Expand a cigar to get the end position?
         And how much of the query is used?
@@ -71,10 +70,9 @@ class Remap():
             seq = str(entry.ref)
         else:
             seq = entry.alts[0]
-        
+
         num_hits = 0
         partial_hits = 0
-        closest_hit = None
         close_dist = None
         for aln in self.aligner.align_seq(seq):
             # Take out the 'same spot' alignment for deletions
@@ -83,7 +81,7 @@ class Remap():
                 continue
 
             # Filter hits below threshold
-            end, soft = self.get_end(aln.pos, aln.cigar)
+            soft = self.get_end(aln.pos, aln.cigar)[1]
             pct_query = 1 - soft / len(seq)
             if pct_query < threshold:
                 partial_hits += 1
@@ -94,13 +92,12 @@ class Remap():
                 continue
             if close_dist is None or dist < close_dist:
                 close_dist = dist
-                closest_hit = aln
-           
+
         if num_hits == 0 and partial_hits == 0:
             return "novel"
-        elif close_dist and close_dist <= len(seq):
+        if close_dist and close_dist <= len(seq):
             return "tandem"
-        elif num_hits == 0 and partial_hits != 0:
+        if num_hits == 0 and partial_hits != 0:
             return "partial"
 
         return "interspersed"

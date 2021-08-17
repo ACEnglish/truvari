@@ -2,14 +2,12 @@
 import sys
 import argparse
 
-VERSION="2.1"
-
+from truvari import __version__
 from truvari.bench import bench_main
 from truvari.collapse import collapse_main
 from truvari.consistency_report import consistency_main
 from truvari.annotation import anno_main
-from truvari.stats import stats_main
-from truvari.truv2df import truv2df_main
+from truvari.vcf2df import vcf2df_main
 
 def in_progress(args):
     """placeholder"""
@@ -17,14 +15,13 @@ def in_progress(args):
 
 def version(args):
     """Print the version"""
-    print("Truvari v%s" % VERSION)
+    print("Truvari v%s" % __version__)
 
 TOOLS = {'bench': bench_main,
 	 'consistency': consistency_main,
 	 'anno': anno_main,
-	 'stats': stats_main,
 	 'collapse': collapse_main,
-         'truv2df': truv2df_main,
+         'vcf2df': vcf2df_main,
 	 'version': version}
 
 # create-anno      Create an index of an annotation source for reuse
@@ -36,11 +33,10 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
         bench            Performance metrics from comparison of two VCFs 
         consistency      Consistency report between multiple VCFs
         anno             Annotate a VCF
-	stats		 Basic VCF stats
 	collapse	 Collapse possibly redundant VCF entries
-        truv2df          Turn a Truvari directory's VCFs into a pandas DataFrame
+        vcf2df           Turn a VCF into a pandas DataFrame
         version          Print the Truvari version and exit
-""" % VERSION
+""" % __version__
 
 
 def parseArgs():

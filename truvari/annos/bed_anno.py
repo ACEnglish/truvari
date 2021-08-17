@@ -3,33 +3,33 @@ Annotate over a generic bedfile
 
 Need to build the 'tree maker' first?
 
-Need to make sure and set it so 
+Need to make sure and set it so
     --multimatch
 
 And also, need to specify that col[3] (bed name)
 must be the INFO=;oaiwef
 and the header lines "^#" must be the header information
 """
-import sys
-import logging
 import argparse
-import pysam
-import truvari
 from acebinf import setup_logging
+import truvari
 
 
-def main():
-    self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
+def main(refanno, entry, lookup, n_dat):
+    """
+    Main
+    """
+    refanno = truvari.make_bedanno_tree(refanno) if refanno else None
 
-    srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
+    srep_hits = refanno[0][entry.chrom].overlap(entry.start, entry.stop)
     for i in srep_hits:
         i = i.data
         lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
 
- if srep_hits is not None:
-    for i in srep_hits:
-        for k,v in i.data.items():
-            n_dat[k].extend(v)
+    if srep_hits is not None:
+        for i in srep_hits:
+            for k,v in i.data.items():
+                n_dat[k].extend(v)
 
 def parse_args(args):
     """
@@ -65,5 +65,3 @@ def parse_args(args):
     args = parser.parse_args(args)
     setup_logging(args.debug)
     return args
-
-

@@ -7,8 +7,8 @@ from collections import defaultdict
 
 import pysam
 import pyfaidx
-import truvari
 from acebinf import cmd_exe, setup_logging
+import truvari
 
 # Start with just insertions and that sequence
 # Eventually you can intersect with known tandem repeat regions as well
@@ -19,10 +19,10 @@ from acebinf import cmd_exe, setup_logging
 # It'll be a heavy step, but I'm not judging the software on speed for a bit...
 
 
-class TRFAnno():
+class TRFAnno(): # pylint: disable=too-many-instance-attributes
     """ Class for trf annotation """
-    TRNAME = tempfile.NamedTemporaryFile().name # Need to remove this
-    FANAME = tempfile.NamedTemporaryFile().name # Need to remove this
+    TRNAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
+    FANAME = tempfile.NamedTemporaryFile().name # pylint: disable=consider-using-with
     TRFCOLS = [("TRF_starts", int),
                ("TRF_ends", int),
                ("TRF_periods", int),
@@ -41,7 +41,7 @@ class TRFAnno():
                ("unk2", None),
                ("unk3", None)]
 
-    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64",
+    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64", # pylint: disable=too-many-arguments
                  min_length=50, threshold=0.8, full=False,
                  trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
                  refanno=None, ref=None, pctovl=0.2):
@@ -59,9 +59,9 @@ class TRFAnno():
 
         if refanno and not ref:
             logging.error("-R requires -r")
-            exit(1)
+            sys.exit(1)
 
-        self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
+        self.refanno = truvari.make_bedanno_tree(refanno) if refanno else []
         self.ref = pyfaidx.Fasta(ref) if ref else None
         self.pctovl = pctovl
 
@@ -85,7 +85,7 @@ class TRFAnno():
                          'Description="TRF repeat copies">'))
         header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
                          'Description="TRF repeat scores">'))
-      
+
         # Take this out
         if self.refanno and self.ref:
             header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
@@ -120,7 +120,7 @@ class TRFAnno():
                              'Description="TRF entropies">'))
             # TRF HIT - if refanno, just report if we hit a reference TRF region
             # Might want some pct/ovl -- this is handled... nowhere
-            pass
+
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         return header
 
@@ -158,23 +158,13 @@ class TRFAnno():
         with open(TRFAnno.FANAME, 'w') as fout:
             #for seq in seqs:
             fout.write(">a\n%s\n" % (seq))
-                
+
         ret = cmd_exe(self.cmd)
         if ret.ret_code != 0:
             logging.error("Couldn't run trf")
             logging.error(str(ret))
-            exit(ret.ret_code)
+            sys.exit(ret.ret_code)
         return parse_output()
-
-    def __old_srep(self):
-        """
-        legacy code
-        """
-        srep_hits = None
-        # Make srep_hits if we have the bed
-        if self.refanno:
-            srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
-
 
     def annotate(self, entry, altseq):
         """
@@ -199,7 +189,7 @@ class TRFAnno():
 
     def annotate_entry(self, entry, altseq):
         """
-        Annotates an insertion. Insertions are assumed to have a 
+        Annotates an insertion. Insertions are assumed to have a
         refspan of a single anchor base and full ALT sequence
         Returns the edited entry
         """
@@ -212,9 +202,9 @@ class TRFAnno():
         """
         if not trf_annos:
             return entry
-       
+
         # Let's assume we're only doing the alt allele
-        srep_hits = None
+        srep_hits = []
         try:
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:
@@ -232,24 +222,23 @@ class TRFAnno():
                 n_dat["TRF_periods"].append(int(i["TRF_periods"]))
                 n_dat["TRF_copies"].append(float(i["TRF_copies"]))
                 n_dat["TRF_scores"].append(int(i["TRF_scores"]))
-        
+
         # Adding srep hits to n_dat also
         # this is getting kinda choppy with the converters
         # may have over engineered it early
-        if srep_hits is not None:
-            for i in srep_hits:
-                for k,v in i.data.items():
-                    n_dat[k].extend(v)
-        
+        for i in srep_hits:
+            for k,v in i.data.items():
+                n_dat[k].extend(v)
+
         # Can calculate the diffs
-        if self.refanno and self.ref and srep_hits and alt_annos: 
+        if self.refanno and self.ref and srep_hits:
             lookup = {}
             diffs = []
             # make a lookup of the trf_annos from the reference
             for i in srep_hits:
                 i = i.data
                 lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
-            
+
             has_diff = False
             # Subtract each alt_repeat from its corresponding ref_repeat
             for alt_repeat, alt_copy in zip(n_dat["TRF_repeats"], n_dat["TRF_copies"]):
@@ -258,14 +247,14 @@ class TRFAnno():
                     diffs.append(alt_copy - lookup[alt_repeat])
                 else:
                     diffs.append(None)
-            
+
             if has_diff:
                 n_dat["TRF_diffs"] = diffs
 
         for key in n_dat:
             entry.info[key] = n_dat[key]
-        
-                    
+
+
         return entry
 
     def run(self):
@@ -337,13 +326,3 @@ def trf_main(cmdargs):
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])
-
-
-"""
-1) I can't guarantee that TRF alt seq hits are going to happend
-    But I'm returning nulls - not good. need to remove I think
-    | 
-
-So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
-Which at this point you should just abandon until it beocmes a feature request
-"""

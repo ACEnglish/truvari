@@ -1,19 +1,22 @@
 """
 Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
+# pylint: disable=too-many-locals
 import os
 import re
+import sys
+import types
 import logging
 import argparse
 import multiprocessing
 from collections import namedtuple
-import types
 
 import pysam
 import tabix
 import joblib
-import truvari
 import pandas as pd
+
+import truvari
 
 try:
     from bwapy import BwaAligner
@@ -22,10 +25,11 @@ except ModuleNotFoundError:
     HASBWALIB = False
 
 try:
-    from setproctitle import setproctitle
+    from setproctitle import setproctitle # pylint: disable=import-error
 except ModuleNotFoundError:
     def setproctitle(_):
-        pass
+        """ dummy function """
+        return
 
 # Data shared with workers; must be populated before workers are started.
 grm_shared = types.SimpleNamespace()
@@ -53,7 +57,7 @@ def make_kmers(ref, entry, kmer=25):
         # alternate
         hap = up[:kmer] + seq + dn[-kmer:]
         return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-except
         logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
 
@@ -80,7 +84,7 @@ def cig_pctsim(cigar):
 
 def map_stats(aligner, kmer, chrom=None, pos=None):
     """
-    Maps the kmer and returns the 
+    Maps the kmer and returns the
     max/min
     if chrom/pos is provided:
         remove any hits that maps over this position. This is a filter of the reference - we want to know where *else* it hits
@@ -162,6 +166,8 @@ def parse_args(args):
                         help="Output dataframe (%(default)s)")
     parser.add_argument("-k", "--kmersize", default=50, type=int,
                         help="Size of kmer to map (%(default)s)")
+    parser.add_argument("-m", "--min-size", default=25, type=int,
+                        help="Minimum size of variants to map (%(default)s)")
     parser.add_argument("-t", "--threads", default=os.cpu_count(), type=int,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -229,10 +235,11 @@ def process_entries(ref_section):
     aligner = grm_shared.aligner
     kmersize = grm_shared.kmersize
     header = grm_shared.header
+    minsize = grm_shared.min_size
     rows = []
     next_progress = 0
     for line in read_vcf_lines(ref_name, start, stop):
-        if "SVLEN" not in line[7]:
+        if "SVLEN" not in line[7] and abs(len(line[3]) - len(line[4])) < minsize:
             continue
         entry = line_to_entry(line)
         if next_progress == 0:
@@ -296,13 +303,13 @@ def grm_main(cmdargs):
     maps those kmers globally to the reference
     reports mapping metrics
 
-    Todo: 
+    Todo:
     - document the bwa package and how to install
     - better column names along with documentation
     """
     if not HASBWALIB:
         logging.error("bwapy not available. Please install https://github.com/nanoporetech/bwapy")
-        exit(1)
+        sys.exit(1)
 
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
@@ -317,6 +324,7 @@ def grm_main(cmdargs):
     grm_shared.ref_filename = args.reference
     grm_shared.kmersize = args.kmersize
     grm_shared.input = args.input
+    grm_shared.min_size = args.min_size
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         logging.info("Processing")
         chunks = pool.imap(process_entries, ref_ranges(ref, chunk_size=10000000))

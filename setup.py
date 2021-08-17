@@ -30,7 +30,8 @@ setup(
     long_description_content_type='text/markdown',
     install_requires=[
         "ACEBinf>=1.0.2",
-        "python-Levenshtein==0.12.1",
+        "python-Levenshtein==0.12.2",
+        "edlib>=1.3.8.post2",
         "progressbar2>=3.41.0",
         "pysam>=0.15.2",
         "pyfaidx>=0.5.5.2",

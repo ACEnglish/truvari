@@ -7,8 +7,8 @@ import tempfile
 from collections import defaultdict
 
 import pysam
-import truvari
 from acebinf import cmd_exe, setup_logging
+import truvari
 
 # Start with just insertions and that sequence
 # Eventually you can intersect with known tandem repeat regions as well
@@ -17,18 +17,15 @@ from acebinf import cmd_exe, setup_logging
 
 # Also, running single threaded isn't great, but also I don't care at this point...
 # It'll be a heavy step, but I'm not judging the software on speed for a bit...
-"""
-And I need to do ALL of the elements at once because RM is much slower
+# And I need to do ALL of the elements at once because RM is much slower
+# And I'm going write
+# -pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
 
-And I'm going write
-
--pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
-"""
 DEFAULTPARAMS = "-pa {threads} -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
 
 def paren_int(number):
     """
-    returns an integer from a string "(\d+)"
+    returns an integer from a string "([0-9]+)"
     """
     return int(number.replace('(', '').replace(')',''))
 
@@ -42,11 +39,11 @@ class RepMask():
                ("RM_qstart", int),
                ("RM_qend", int),
                ("RM_qleft", paren_int), # need custom here (it's "(int)")
-               ("RM_strand", str), 
+               ("RM_strand", str),
                ("RM_repeat", str),
                ("RM_clsfam", str), # need custom here.. usually class/family
-               ("RM_tstart", paren_int), 
-               ("RM_tend", paren_int), 
+               ("RM_tstart", paren_int),
+               ("RM_tend", paren_int),
                ("RM_tleft", str)]
 
     def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="RepeatMasker",
@@ -79,16 +76,16 @@ class RepMask():
                          'Description="RepMask repeat class/family ">'))
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         self.n_header = header
-    
+
     def extract_seqs(self, fout=None):
         """
         Create the fasta file of all the sequences
         Returns the fasta file
         """
         if fout is None:
-            ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
+            ret = tempfile.NamedTemporaryFile(mode='w', delete=False) # pylint: disable=consider-using-with
         else:
-            ret = open(fout, 'w')
+            ret = open(fout, 'w') # pylint: disable=consider-using-with
         tot_cnt = 0
         cnt = 0
         cntbp = 0
@@ -106,7 +103,8 @@ class RepMask():
         logging.info(f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
         return ret.name
 
-    def parse_output(self, faout):
+    @staticmethod
+    def parse_output(faout):
         """
         Parses the RepeatMasker output
         """
@@ -134,12 +132,12 @@ class RepMask():
         if ret.ret_code != 0:
             logging.error("Couldn't run RepeatMasker")
             logging.error(str(ret))
-            exit(ret.ret_code)
+            sys.exit(ret.ret_code)
         logging.info("Finished RepeatMasker")
-        
+
         hits = self.parse_output(f"{fasta}.out")
         return hits
-    
+
     def annotate_entry(self, entry, hits):
         """
         Annotates a single entry with given hits
@@ -170,7 +168,7 @@ class RepMask():
                     if pos in hits:
                         entry = self.annotate_entry(entry, hits[pos])
                     out.write(entry)
-        
+
     def edit_entry(self, entry, rm_hit):
         """
         puts the annos in vcf entry
@@ -182,7 +180,7 @@ class RepMask():
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:
             return entry
-        
+
         entry.info["RM_score"] = rm_hit["RM_score"]
         entry.info["RM_repeat"] = rm_hit["RM_repeat"]
         entry.info["RM_clsfam"] = rm_hit["RM_clsfam"]
@@ -240,14 +238,4 @@ def rmk_main(cmdargs):
 
 
 if __name__ == '__main__':
-    test_main(sys.argv[1:])
-
-
-"""
-1) I can't guarantee that TRF alt seq hits are going to happend
-    But I'm returning nulls - not good. need to remove I think
-    | 
-
-So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
-Which at this point you should just abandon until it beocmes a feature request
-"""
+    rmk_main(sys.argv[1:])

@@ -21,7 +21,7 @@ def parse_vcf(fn):
     if fn.endswith(".gz"):
         fh = io.TextIOWrapper(gzip.open(fn))
     else:
-        fh = open(fn, 'r')
+        fh = open(fn, 'r') # pylint: disable=consider-using-with
     for line in fh:
         if line.startswith("#"):
             continue

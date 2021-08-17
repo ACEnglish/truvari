@@ -2,10 +2,11 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
-# pylint: disable=no-member
+# pylint: disable=unused-variable
 import re
 import logging
 from functools import cmp_to_key
+import edlib
 import Levenshtein
 
 
@@ -84,7 +85,7 @@ def create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     return create_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
 
 
-def entry_pctsim_lev(entryA, entryB, ref, buf_len=0):
+def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     """
     Use Levenshtein distance ratio of the larger sequence as a proxy
     to pct sequence similarity
@@ -98,8 +99,11 @@ def entry_pctsim_lev(entryA, entryB, ref, buf_len=0):
     except Exception as e:  # pylint: disable=broad-except
         logging.critical('Unable to compare sequence similarity\n%s\n%s\n%s', str(entryA), str(entryB), str(e))
         return 0
-    return Levenshtein.ratio(allele1, allele2)
-
+    if use_lev:
+        return Levenshtein.ratio(allele1, allele2)
+    scr = edlib.align(allele1, allele2)
+    totlen = len(allele1) + len(allele2)
+    return (totlen - scr["editDistance"]) / totlen
 
 def overlaps(s1, e1, s2, e2):
     """
@@ -125,7 +129,7 @@ def entry_variant_type(entry):
     ret_type = None
     if "SVTYPE" in entry.info:
         ret_type = entry.info["SVTYPE"]
-        if type(ret_type) is list:
+        if isinstance(ret_type, list):
             logging.warning("SVTYPE is list for entry %s", str(entry))
             ret_type = ret_type[0]
         return ret_type
@@ -210,9 +214,11 @@ def entry_size(entry):
 def weighted_score(sim, size, ovl):
     """
     Unite the similarity measures and make a score
-    return (2*sim + 1*size + 1*ovl) / 3.0
+    return (2*sim + 1*size + 1*ovl) / 3.0 scaled to 0-100
     """
-    return (2 * sim + 1 * size + 1 * ovl) / 3.0
+    score = (2 * sim + 1 * size + 1 * ovl) / 3.0
+    new_score = int(score / 1.333333 * 100)
+    return new_score
 
 
 def reciprocal_overlap(astart, aend, bstart, bend):

@@ -1,0 +1,54 @@
+2021-08-16 17:39:17,894 [INFO] Running /raid/home/english/pyenv/bin/truvari bench -b /home/english/truvari/repo_utils/test_files/input1.vcf.gz -c /home/english/truvari/repo_utils/test_files/input2.vcf.gz -f /home/english/truvari/repo_utils/test_files/reference.fa -o bench12/
+2021-08-16 17:39:17,895 [INFO] Params:
+{
+    "base": "/home/english/truvari/repo_utils/test_files/input1.vcf.gz",
+    "comp": "/home/english/truvari/repo_utils/test_files/input2.vcf.gz",
+    "output": "bench12/",
+    "reference": "/home/english/truvari/repo_utils/test_files/reference.fa",
+    "giabreport": false,
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "buffer": 0.1,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "use_lev": false,
+    "gtcomp": false,
+    "bSample": null,
+    "cSample": null,
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": null,
+    "multimatch": false
+}
+2021-08-16 17:39:17,898 [INFO] Creating call interval tree for overlap search
+2021-08-16 17:39:17,898 [WARNING] Excluding 0 contigs present in comparison calls header but not base calls.
+2021-08-16 17:39:17,919 [INFO] 1783 call variants in total
+2021-08-16 17:39:17,919 [INFO] 14 call variants within size range (30, 50000)
+2021-08-16 17:39:17,921 [INFO] Matching base to calls
+2021-08-16 17:39:17,954 [INFO] Results peek: 8 TP-base 8 FN 50.00% Recall
+2021-08-16 17:39:17,954 [INFO] Parsing FPs from calls
+2021-08-16 17:39:17,977 [INFO] Stats: {
+    "TP-base": 8,
+    "TP-call": 8,
+    "FP": 3,
+    "FN": 8,
+    "precision": 0.7272727272727273,
+    "recall": 0.5,
+    "f1": 0.5925925925925926,
+    "base cnt": 16,
+    "call cnt": 11,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 5,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 5,
+    "gt_precision": 0.2727272727272727,
+    "gt_recall": 0.2727272727272727,
+    "gt_f1": 0.2727272727272727
+}
+2021-08-16 17:39:17,977 [INFO] Finished

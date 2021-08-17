@@ -4,10 +4,9 @@ Calculations are python implementations of bcftools +fill_tags
 (https://samtools.github.io/bcftools/) Results are within 1e-6
 difference of bcftools +fill_tags
 """
-import sys
-import numpy as np
-
 from collections import Counter
+
+import numpy as np
 
 def calc_hwe(nref, nalt, nhet):
     """
@@ -18,12 +17,12 @@ def calc_hwe(nref, nalt, nhet):
     nrare = min(nref, nalt)
     # We got an hts_expand array for het probabilities
     probs = np.zeros(nrare + 1, dtype=np.dtype('d'))
-    
+
     # start at midpoint
     mid = nrare * (nref + nalt - nrare) // (nref + nalt)
-    
+
     # check to ensure that midpoint and rare alleles have same parity
-    if ( (nrare & 1) ^ (mid & 1) ):
+    if (nrare & 1) ^ (mid & 1):
         mid += 1
 
     het = mid
@@ -41,14 +40,14 @@ def calc_hwe(nref, nalt, nhet):
         hom_c += 1
         # loop
         het -= 2
-    
+
     het = mid
     hom_r = (nrare - mid) // 2
     hom_c = ngt - het - hom_r
     while het <= nrare - 2:
-        probs[het + 2] = probs[het] * 4.0 * hom_r * hom_c / ((het + 2.0) * (het + 1.0));
+        probs[het + 2] = probs[het] * 4.0 * hom_r * hom_c / ((het + 2.0) * (het + 1.0))
         my_sum += probs[het + 2]
-        
+
         # add 2 heterozygotes for next iteration -> subtract one rare, one common homozygote
         hom_r -= 1
         hom_c -= 1
@@ -56,13 +55,10 @@ def calc_hwe(nref, nalt, nhet):
         het += 2
 
     probs = probs / my_sum
-    
+
     p_exc_het = probs[nhet:].sum()
 
-    p_hwe = probs[probs > probs[nhet]].sum()
-    if p_hwe > 1:
-        p_hwe = 1;
-    #p_hwe = 1 - prob;
+    p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
     return p_exc_het, 1 - p_hwe
 
 def allele_freq_annos(entry, samples=None):
@@ -75,8 +71,6 @@ def allele_freq_annos(entry, samples=None):
         samples = list(entry.samples.keys())
 
     n_samps = 0
-    ref_cnt = 0
-    alt_cnt = 0
     n_het = 0
     cnt = Counter() # 0 or 1 allele counts
     for samp in samples:
@@ -96,7 +90,6 @@ def allele_freq_annos(entry, samples=None):
     ac = [cnt[_] for _ in [0, 1]]
     mac = srt[0][0]
     maf = 1 - (srt[-1][0] / (n_samps * 2))
-    
+
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
     return {"AF":af, "MAF":maf, "ExcHet":p_exc_het, "HWE":p_hwe, "MAC":mac, "AC": ac}
-

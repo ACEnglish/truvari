@@ -1,7 +1,7 @@
 """
 When running against GIAB SVs, we can make reports
 """
-# pylint: disable=no-member
+# pylint: disable=too-many-statements
 import os
 import logging
 from collections import defaultdict, Counter
@@ -99,7 +99,6 @@ def make_giabreport(args, stats_box):
 
     logging.info("Creating GIAB report")
 
-    sum_out = open(os.path.join(args.output, "giab_report.txt"), 'w')
 
     tp_base = make_entries(os.path.join(args.output, "tp-base.vcf"))
 
@@ -119,64 +118,65 @@ def make_giabreport(args, stats_box):
     gt_keys_father = {"HG003_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     gt_keys_mother = {"HG004_GT": ["./.", "0/0", "0/1", "./1", "1/1"]}
     # OverallNumbers
-    sum_out.write("TP\t%s\n" % (len(tp_base)))
-    sum_out.write("FN\t%s\n\n" % (len(fn)))
-    sum_out.write("TP_size\n")
-    count_by(size_keys, tp_base, sum_out)
-    sum_out.write("FN_size\n")
-    count_by(size_keys, fn, sum_out)
-    sum_out.write("\nTP_type\n")
-    count_by(svtype_keys, tp_base, sum_out)
-    sum_out.write("FN_type\n")
-    count_by(svtype_keys, fn, sum_out)
-    sum_out.write("\nTP_Type+Size\n")
-    twoxtable(svtype_keys, size_keys, tp_base, sum_out)
-    sum_out.write("FN_Type+Size\n")
-    twoxtable(svtype_keys, size_keys, fn, sum_out)
-    sum_out.write("\nTP_REPTYPE\n")
-    count_by(rep_keys, tp_base, sum_out)
-    sum_out.write("FN_REPTYPE\n")
-    count_by(rep_keys, fn, sum_out)
-    sum_out.write("\nTP_size+REPTYPE\n")
-    twoxtable(size_keys, rep_keys, tp_base, sum_out)
-    sum_out.write("FN_size+REPTYPE\n")
-    twoxtable(size_keys, rep_keys, fn, sum_out)
-    sum_out.write("\nTP_Tech\n")
-    count_by(tech_keys, tp_base, sum_out)
-    sum_out.write("FN_Tech\n")
-    count_by(tech_keys, fn, sum_out)
-    sum_out.write("\nTP_Size+Tech\n")
-    twoxtable(size_keys, tech_keys, tp_base, sum_out)
-    sum_out.write("FN_Size+Tech\n")
-    twoxtable(size_keys, tech_keys, fn, sum_out)
-    sum_out.write("\nTP_Type+Tech\n")
-    twoxtable(svtype_keys, tech_keys, tp_base, sum_out)
-    sum_out.write("FN_Type+Tech\n")
-    twoxtable(svtype_keys, tech_keys, fn, sum_out)
+    with open(os.path.join(args.output, "giab_report.txt"), 'w') as sum_out:
+        sum_out.write("TP\t%s\n" % (len(tp_base)))
+        sum_out.write("FN\t%s\n\n" % (len(fn)))
+        sum_out.write("TP_size\n")
+        count_by(size_keys, tp_base, sum_out)
+        sum_out.write("FN_size\n")
+        count_by(size_keys, fn, sum_out)
+        sum_out.write("\nTP_type\n")
+        count_by(svtype_keys, tp_base, sum_out)
+        sum_out.write("FN_type\n")
+        count_by(svtype_keys, fn, sum_out)
+        sum_out.write("\nTP_Type+Size\n")
+        twoxtable(svtype_keys, size_keys, tp_base, sum_out)
+        sum_out.write("FN_Type+Size\n")
+        twoxtable(svtype_keys, size_keys, fn, sum_out)
+        sum_out.write("\nTP_REPTYPE\n")
+        count_by(rep_keys, tp_base, sum_out)
+        sum_out.write("FN_REPTYPE\n")
+        count_by(rep_keys, fn, sum_out)
+        sum_out.write("\nTP_size+REPTYPE\n")
+        twoxtable(size_keys, rep_keys, tp_base, sum_out)
+        sum_out.write("FN_size+REPTYPE\n")
+        twoxtable(size_keys, rep_keys, fn, sum_out)
+        sum_out.write("\nTP_Tech\n")
+        count_by(tech_keys, tp_base, sum_out)
+        sum_out.write("FN_Tech\n")
+        count_by(tech_keys, fn, sum_out)
+        sum_out.write("\nTP_Size+Tech\n")
+        twoxtable(size_keys, tech_keys, tp_base, sum_out)
+        sum_out.write("FN_Size+Tech\n")
+        twoxtable(size_keys, tech_keys, fn, sum_out)
+        sum_out.write("\nTP_Type+Tech\n")
+        twoxtable(svtype_keys, tech_keys, tp_base, sum_out)
+        sum_out.write("FN_Type+Tech\n")
+        twoxtable(svtype_keys, tech_keys, fn, sum_out)
 
-    sum_out.write("\nPerformance\n")
-    # Add output of the stats box
-    for key in sorted(stats_box.keys()):
-        sum_out.write("%s\t%s\n" % (key, str(stats_box[key])))
+        sum_out.write("\nPerformance\n")
+        # Add output of the stats box
+        for key in sorted(stats_box.keys()):
+            sum_out.write("%s\t%s\n" % (key, str(stats_box[key])))
 
-    sum_out.write("\nArgs\n")
-    # Add output of the parameters
-    argd = vars(args)
-    for key in sorted(argd.keys()):
-        sum_out.write("%s\t%s\n" % (key, str(argd[key])))
-    #
-    sum_out.write("\nTP_HG002GT\n")
-    count_by(gt_keys_proband, tp_base, sum_out)
-    sum_out.write("FN_HG002GT\n")
-    count_by(gt_keys_proband, fn, sum_out)
+        sum_out.write("\nArgs\n")
+        # Add output of the parameters
+        argd = vars(args)
+        for key in sorted(argd.keys()):
+            sum_out.write("%s\t%s\n" % (key, str(argd[key])))
+        #
+        sum_out.write("\nTP_HG002GT\n")
+        count_by(gt_keys_proband, tp_base, sum_out)
+        sum_out.write("FN_HG002GT\n")
+        count_by(gt_keys_proband, fn, sum_out)
 
-    sum_out.write("\nTP_HG003.HG004GT\n")
-    twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
-    sum_out.write("FN_HG003.HG004GT\n")
-    twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
+        sum_out.write("\nTP_HG003.HG004GT\n")
+        twoxtable(gt_keys_father, gt_keys_mother, tp_base, sum_out)
+        sum_out.write("FN_HG003.HG004GT\n")
+        twoxtable(gt_keys_father, gt_keys_mother, fn, sum_out)
 
-    sum_out.write("\nTP TandemRepeat Anno\n")
-    bool_counter(tr_keys, tp_base, sum_out)
-    sum_out.write("FN TandemRepeat Anno\n")
-    bool_counter(tr_keys, fn, sum_out)
-    sum_out.close()
+        sum_out.write("\nTP TandemRepeat Anno\n")
+        bool_counter(tr_keys, tp_base, sum_out)
+        sum_out.write("FN TandemRepeat Anno\n")
+        bool_counter(tr_keys, fn, sum_out)
+    # Finished sum_out

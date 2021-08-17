@@ -21,14 +21,13 @@ from truvari.comparisons import (
     entry_gt_comp,
     create_haplotype,
     create_pos_haplotype,
-    entry_pctsim_lev,
+    entry_pctsim,
     overlaps,
     entry_variant_type,
     same_variant_type,
     fetch_coords,
     entry_boundaries,
     entry_size,
-    reciprocal_overlap,
     weighted_score,
     reciprocal_overlap,
     entry_reciprocal_overlap,
@@ -58,7 +57,7 @@ from truvari.stats import (
 
 from truvari.annos.af_calc import allele_freq_annos
 
-from truvari.truv2df import (
+from truvari.vcf2df import (
     vcf_to_df,
     SZBINTYPE,
     SVTYTYPE

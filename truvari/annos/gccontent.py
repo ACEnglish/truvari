@@ -2,7 +2,6 @@
 Annotates GC content of SVs
 """
 import re
-import sys
 import argparse
 
 import pysam
@@ -36,7 +35,7 @@ def edit_header(my_vcf):
                      'Description="GC Percent of the reference call range or alt sequence (whichever is longer)">'))
     return header
 
-def add_gcpct(vcf, ref, out, n_header=None):
+def add_gcpct(vcf, ref, n_header=None):
     """
     Adds GCPCT to each entry in VCF and yields them
     """
@@ -51,8 +50,8 @@ def add_gcpct(vcf, ref, out, n_header=None):
             gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
             entry = truvari.copy_entry(entry, n_header)
             entry.info["GCPCT"] = gcpct
-        except Exception:
-            # Silent failures aren't the best
+        except Exception: # pylint: disable=broad-except
+            # Silent failures aren't the best, but a lot can go wrong here
             pass
         yield entry
 
@@ -65,6 +64,6 @@ def gcpct_main(cmdargs):
     vcf = pysam.VariantFile(args.input)
     n_header = edit_header(vcf)
     out = pysam.VariantFile(args.output, 'w', header=n_header)
-    for entry in add_gcpct(vcf, ref, out, n_header):
+    for entry in add_gcpct(vcf, ref, n_header):
         out.write(entry)
     out.close()

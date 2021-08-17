@@ -92,7 +92,7 @@ class LogFileStderr():
     def __init__(self, fn):
         """ keep these props """
         self.name = fn
-        self.file_handler = open(fn, 'w')
+        self.file_handler = open(fn, 'w') # pylint: disable=consider-using-with
 
     def write(self, *args):
         """ Write to both """

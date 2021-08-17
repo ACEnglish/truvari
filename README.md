@@ -1,4 +1,3 @@
-
 ```
 ████████╗██████╗ ██╗   ██╗██╗   ██╗ █████╗ ██████╗ ██╗
 ╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██╗██║
@@ -7,6 +6,7 @@
    ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║  ██║██║  ██║██║
    ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 ```
+![pylint](imgs/pylint.svg)
 
 Structural variant toolkit for benchmarking, annotating and more for VCFs
 
@@ -14,7 +14,7 @@ Structural variant toolkit for benchmarking, annotating and more for VCFs
 See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
 ## Installation
-Truvari uses Python 3.7 and can be installed with pip:
+Truvari uses Python 3.6+ and can be installed with pip:
 ```
   pip install Truvari 
 ```
@@ -41,11 +41,10 @@ The current most common Truvari use case is for structural variation benchmarkin
 ## Truvari Commands
 
  - [bench](https://github.com/spiralgenetics/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
- - [stats](https://github.com/spiralgenetics/truvari/wiki/stats) - Basic SV relevant VCF stats
- - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
- - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
  - [collapse](https://github.com/spiralgenetics/truvari/wiki/collapse) - Collapse possibly redundant VCF entries
- - [truv2df](https://github.com/spiralgenetics/truvari/wiki/truv2df) - Turn a Truvari directory's VCFs into a pandas DataFrame
+ - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
+ - [vcf2df](https://github.com/spiralgenetics/truvari/wiki/truv2df) - Turn a VCF into a pandas DataFrame
+ - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
 
 ## More Information
 

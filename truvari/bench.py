@@ -2,7 +2,7 @@
 Structural variant caller comparison tool
 Given a benchmark and callset, calculate the recall/precision/f-measure
 """
-# pylint: disable=too-many-statements, no-member
+# pylint: disable=too-many-statements
 import os
 import sys
 import json
@@ -11,7 +11,6 @@ import argparse
 from collections import defaultdict, namedtuple
 
 import pysam
-import pyfaidx
 
 import truvari
 
@@ -59,6 +58,8 @@ def parse_args(args):
                         help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
+    thresg.add_argument("--use-lev", action="store_true",
+                        help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -99,7 +100,7 @@ def edit_header(my_vcf):
     # Update header
     # Edit Header
     header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Float,'
+    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
                      'Description="Truvari score for similarity of match">'))
     header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
                      'Description="Pct sequence similarity between this variant and its closest match">'))
@@ -231,7 +232,7 @@ def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=
     prefix = "base " if base else "call "
     if sizeA < sizemin or sizeA > sizemax:
         return True
-    
+
     samp = outputs["sampleBase"] if base else outputs["sampleComp"]
     if no_ref in ["a", "b"] and not truvari.entry_is_variant(entry, samp):
         return True
@@ -253,7 +254,7 @@ def write_fn(base_entry, outputs):
     outputs["stats_box"]["FN"] += 1
     outputs["fn_out"].write(n_base_entry)
 
-def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, reference, args, outputs):
+def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, reference, args, outputs): #pylint: disable=too-many-return-statements
     """
     Compare the base and comp entries.
     We provied astart...sizeA because we've presumably calculated it before
@@ -298,7 +299,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
         return True
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim_lev(base_entry, comp_entry, reference, buf_len=args.buffer)
+        seq_similarity = truvari.entry_pctsim(base_entry, comp_entry, reference, args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%f)", str(
                 base_entry), str(comp_entry), seq_similarity)
@@ -396,14 +397,14 @@ def parse_fps(matched_calls, tot_comp_entries, regions, args, outputs):
         # Here
         if args.prog:
             pbar.update(cnt + 1)
-        
+
         size = truvari.entry_size(entry)
         if filter_call(entry, size, args.sizemin, args.sizemax, args.no_ref, args.passonly, outputs, False):
             continue
-        
+
         if matched_calls[truvari.entry_to_key('c', entry)]:
             continue
-            
+
         if regions.include(entry):
             outputs["fp_out"].write(truvari.copy_entry(entry, outputs["n_comp_header"]))
             outputs["stats_box"]["FP"] += 1
@@ -420,7 +421,7 @@ def close_outputs(outputs):
     outputs["fn_out"].close()
     outputs["fp_out"].close()
 
-def bench_main(cmdargs):
+def bench_main(cmdargs): # pylint: disable=too-many-locals
     """
     Main entry point for running Truvari Benchmarking
     """
