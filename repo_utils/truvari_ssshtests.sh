@@ -133,7 +133,6 @@ run test_anno_numneigh truvari anno numneigh -i $VCF -o anno_numneigh.vcf
 assert_exit_code $? 0
 info_tests numneigh anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
 
-#This will need a custom checker
 #                                 grm
 
 #These can also be tested with the rest of the anno framework. 
@@ -143,15 +142,10 @@ info_tests numneigh anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
 #                                 trf
 
 # ------------------------------------------------------------
-#                                 truv2df
+#                                 vcf2df
 # ------------------------------------------------------------
-#I can probably use the same custom checker from grm for this
+run test_vcf2df truvari vcf2df -f -i $INDIR/input1.vcf.gz vcf2df.jl
+assert_exit_code $? 0
 
-
-
-# ------------------------------------------------------------
-#                                 stats
-# ------------------------------------------------------------
-#This needs to be deprecated
-
-
+run test_vcf2df_result
+assert_equal $(fn_md5 $ANSDIR/vcf2df.jl) $(fn_md5 vcf2df.jl)
