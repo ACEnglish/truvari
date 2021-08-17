@@ -9,7 +9,7 @@ OD=test_results/
 
 mkdir -p test_results
 
-truv="coverage run -p -m truvari.__main__"
+truv="coverage run --concurrency=multiprocessing -p -m truvari.__main__"
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
@@ -77,7 +77,7 @@ df_check() {
 import joblib;
 a = joblib.load(\"$base_df\")
 b = joblib.load(\"$comp_df\")
-assert a.equals(b);
+assert a.equals(b), \"$base_df != $comp_df\";
 """
     assert_exit_code $? 0
 }
@@ -162,6 +162,8 @@ assert_exit_code $? 0
 
 df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
+#                               af
+
 # requires external executables
 #                                 repmask
 #                                 trf
@@ -173,6 +175,10 @@ run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
 assert_exit_code $? 0
 
 df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
+
+run test_vcf2df_dir $truv vcf2df -f -i -b $OD/bench23/ $OD/truv2df.jl
+assert_exit_code $? 0
+df_check test_vcf2df_dir_result $ANSDIR/truv2df.jl $OD/truv2df.jl
 
 # ------------------------------------------------------------
 #                                 coverage.py
