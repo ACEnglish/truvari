@@ -3,3 +3,6 @@ build
 dist
 *__pycache__*
 *.egg-info
+test_results
+.coverage
+ssshtest
