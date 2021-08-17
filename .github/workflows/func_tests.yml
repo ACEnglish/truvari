@@ -33,6 +33,6 @@ jobs:
           bash repo_utils/truvari_ssshtests.sh
       - name: Uploading coverage
         uses: actions/upload-artifact@v2
-	with:
-	  name: htmlcov
-	  path: test_results/htmlcov
+        with:
+          name: htmlcov
+          path: test_results/htmlcov
