@@ -11,9 +11,11 @@ v3.0
    results with ~3% of collapsed calls being mis-collapsed
 * truvari.annos.grm has min_size argument
 * truv2df’s vcf_to_df now allows a specific sample to be specified  and better Number=A handling
+* reworked truv2df into vcf2df - Default is vcf conversion with options to run on a truvari directory
 * NeighId added to numneigh annotations which works like bedtools cluster
 * af_calc now makes MAC/AC
 * Added 'partial' to remap anno
+* removed `truvari stats` as vcf2df is better
 * Ubiquitous single version
 * Code and repository cleaning
 * Github actions for automated pylint and publish releases to pypi

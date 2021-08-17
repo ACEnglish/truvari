@@ -1,5 +1,5 @@
 """
-Takes a truvari directory and creates a data frame with annotations of TP/FP
+Takes a vcf and creates a data frame. Can parse a bench output directory
 """
 import os
 import sys
@@ -103,14 +103,14 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    parser = argparse.ArgumentParser(prog="truv2df", description=__doc__,
+    parser = argparse.ArgumentParser(prog="vcf2df", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("directory", metavar="DIR",
-                        help="Truvari directory to parse")
+    parser.add_argument("vcf", metavar="VCF",
+                        help="VCF to parse")
     parser.add_argument("output", metavar="JL",
                         help="Output joblib to save")
-    parser.add_argument("-v", "--vcf", action="store_true",
-                        help="Input is not a directory, but a single VCF to parse")
+    parser.add_argument("-b", "--bench-dir", action="store_true",
+                        help="Input is a truvari bench directory")
     parser.add_argument("-i", "--info", action="store_true",
                         help="Attempt to put the INFO fields into the dataframe")
     parser.add_argument("-f", "--format", action="store_true",
@@ -123,17 +123,17 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
-def truv2df_main(args):
+def vcf2df_main(args):
     """
     Main entry point for running DataFrame builder
     """
     args = parse_args(args)
 
     out = None
-    if args.vcf:
-        out = vcf_to_df(args.directory, args.info, args.format)
+    if not args.bench_dir:
+        out = vcf_to_df(args.vcf, args.info, args.format)
     else:
-        vcfs = get_files_from_truvdir(args.directory)
+        vcfs = get_files_from_truvdir(args.vcf)
         all_dfs = []
         for key, val in vcfs.items():
             df = vcf_to_df(val[0], args.info, args.format)
@@ -163,4 +163,4 @@ def truv2df_main(args):
 
 
 if __name__ == '__main__':
-    truv2df_main(sys.argv[1:])
+    vcf2df_main(sys.argv[1:])
