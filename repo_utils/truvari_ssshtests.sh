@@ -6,7 +6,7 @@ source ssshtest
 BASDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 INDIR=$BASDIR/test_files
 ANSDIR=$INDIR/answer_key/
-
+alias truvari="coverage run -m truvari.__main__"
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
@@ -171,3 +171,5 @@ run test_vcf2df truvari vcf2df -f -i $INDIR/input1.vcf.gz vcf2df.jl
 assert_exit_code $? 0
 
 df_check test_vcf2df_result $ANSDIR/vcf2df.jl vcf2df.jl
+
+coverage report $(find truvari -name "*.py")

@@ -24,10 +24,14 @@ setup(
     url="https://github.com/spiralgenetics/truvari",
     packages=['truvari', 'truvari/annos'],
     license='MIT',
-    scripts=["bin/truvari"],
     description="Structural variant comparison tool for VCFs",
     long_description=open('README.md', encoding='UTF-8').read(),
     long_description_content_type='text/markdown',
+    entry_points={
+      'console_scripts': [
+         'truvari = truvari.__main__:main'
+      ]
+    },
     install_requires=[
         "ACEBinf>=1.0.2",
         "python-Levenshtein==0.12.2",
