@@ -93,8 +93,8 @@ def allele_freq_annos(entry, samples=None):
 
     af = cnt[1] / (n_samps * 2)
     srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
-    ac = srt[0][1]
-    mac = srt[-1][1]
+    ac = [cnt[_] for _ in [0, 1]]
+    mac = srt[0][0]
     maf = 1 - (srt[-1][0] / (n_samps * 2))
     
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)

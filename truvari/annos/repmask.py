@@ -151,6 +151,7 @@ class RepMask():
             size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
             pct = size_aln / entry_size  # The TR that covers the most of the sequence
             # I'm taking the single best... So I might be 'under annotating'
+            # Also, I might want to consider the score?
             if pct >= self.threshold and pct > best_hit_pct:
                 best_hit_pct = pct
                 best_hit = hit
