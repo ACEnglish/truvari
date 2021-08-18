@@ -206,18 +206,18 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
 # requires external executables which are too large to put into the repository repo_utils/test_files/
 #                                 trf
-run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
-                                 -f \
-                                 -R $INDIR/simplerepeat.txt.gz \
-                                 -r $INDIR/reference.fa \
-                                 -e $INDIR/external/trf  \
-                                 -o $OD/trf.vcf
-assert_exit_code 0
+#run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
+                                 #-f \
+                                 #-R $INDIR/simplerepeat.txt.gz \
+                                 #-r $INDIR/reference.fa \
+                                 #-e $INDIR/external/trf  \
+                                 #-o $OD/trf.vcf
+#assert_exit_code 0
 # determinism
-sort $OD/trf.vcf > $OD/trf.sorted.vcf
-
-run test_anno_trf_result
-assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.sorted.vcf)
+#sort $OD/trf.vcf > $OD/trf.sorted.vcf
+$INDIR/external/trf
+#run test_anno_trf_result
+#assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.sorted.vcf)
 
 #                                 repmask
 #run test_anno_repmask $truv anno repmask -i $INDIR/input1.vcf.gz -e $INDIR/external/RepeatMasker -T 1 -o $OD/repmask.vcf
