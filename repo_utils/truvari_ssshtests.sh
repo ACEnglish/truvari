@@ -232,6 +232,6 @@ df_check test_vcf2df_dir_result $ANSDIR/truv2df.jl $OD/truv2df.jl
 coverage combine
 coverage report --include=truvari/*
 coverage html --include=truvari/* -d $OD/htmlcov/
-coverage json
-python repo_utils/repo_utils/coverage_maker.py coverage.json
+coverage json -o $OD/coverage.json
+python repo_utils/coverage_maker.py $OD/coverage.json
 
