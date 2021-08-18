@@ -207,11 +207,11 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 # requires external executables which are too large to put into the repository repo_utils/test_files/
 #                                 trf
 run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
-                                 -o $OD/trf.vcf \
                                  -f \
                                  -R $INDIR/simplerepeat.txt.gz \
                                  -r $INDIR/reference.fa \
-                                 -e $INDIR/external/trf
+                                 -e $INDIR/external/trf \
+                                 | sort > $OD/trf.vcf
 assert_exit_code 0
 
 run test_anno_trf_result
