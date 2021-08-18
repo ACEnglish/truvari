@@ -1,0 +1,18 @@
+usage: truvari [-h] CMD ...
+
+Truvari v2.1.1 - Structural Variant Benchmarking and Annotation
+
+    CMDs:
+        bench         Performance metrics from comparison of two VCFs
+        consistency   Consistency report between multiple VCFs
+        anno          Annotate a VCF
+        collapse      Collapse possibly redundant VCF entries
+        vcf2df        Turn a VCF into a pandas DataFrame
+        version       Print the Truvari version and exit
+
+positional arguments:
+  CMD         Command to execute
+  OPTIONS     Options to pass to the command
+
+optional arguments:
+  -h, --help  show this help message and exit

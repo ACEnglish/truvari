@@ -17,10 +17,10 @@ truv="coverage run --concurrency=multiprocessing -p -m truvari.__main__"
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
-
 fn_md5() {
+    fn=$1
     # simple md5sum checking
-    md5sum $1 | cut -f1 -d\  
+    md5sum $fn | cut -f1 -d\  
 }
 
 bench() {
@@ -33,7 +33,7 @@ bench() {
                                       -c $INDIR/input${f2}.vcf.gz \
                                       -f $INDIR/reference.fa \
                                       -o $OD/bench${k}/
-    assert_exit_code $? 0
+    assert_exit_code 0
 
     for i in $ANSDIR/bench${k}/*.vcf
     do
@@ -50,7 +50,7 @@ collapse_hap() {
                      -o $OD/input${1}_collapsed.vcf \
                      -c $OD/input${1}_removed.vcf \
                      --hap
-    assert_exit_code $? 0
+    assert_exit_code 0
 
     run test_collapse_${1}_collapsed
     assert_equal $(fn_md5 $ANSDIR/input${1}_collapsed.vcf) $(fn_md5 $OD/input${1}_collapsed.vcf)
@@ -67,7 +67,7 @@ collapse_multi() {
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
                                              --keep $keep
-    assert_exit_code $? 0
+    assert_exit_code 0
 
     run test_collapse_multi_${keep}_collapsed
     assert_equal $(fn_md5 $ANSDIR/multi_collapsed_${keep}.vcf) $(fn_md5 $OD/multi_collapsed_${keep}.vcf)
@@ -100,8 +100,23 @@ a = joblib.load(\"$base_df\")
 b = joblib.load(\"$comp_df\")
 assert a.equals(b), \"$base_df != $comp_df\";
 """
-    assert_exit_code $? 0
+    assert_exit_code 0
 }
+
+dump_logs() {
+    echo '---- STDERR ----'
+    cat $STDERR_FILE
+    echo '---- STDOUT ----'
+    cat $STDOUT_FILE
+}
+# ------------------------------------------------------------
+#                                 entry help
+# ------------------------------------------------------------
+run test_help $truv
+assert_exit_code 0
+
+run test_help2 $truv
+assert_equal $(fn_md5 $STDERR_FILE) $(fn_md5 $ANSDIR/help.txt)
 
 # ------------------------------------------------------------
 #                                 version
@@ -123,7 +138,7 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -o $OD/bench_giab/ \
                                 --includebed $INDIR/giab.bed \
                                 --giabreport
-assert_exit_code $? 0
+assert_exit_code 0
 
 run test_bench_giab_report
 assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/giab_report.txt)
@@ -143,7 +158,7 @@ collapse_multi maxqual
 #                                 consistency
 # ------------------------------------------------------------
 run test_consistency $truv consistency $INDIR/input*.vcf.gz
-assert_exit_code $? 0
+assert_exit_code 0
 
 
 run test_consistency_results $truv consistency $INDIR/input*.vcf.gz
@@ -157,32 +172,32 @@ REF=$INDIR/reference.fa
 
 #                                 hompct
 run test_anno_hompct $truv anno hompct -i $VCF -o $OD/anno_hompct.vcf
-assert_exit_code $? 0
+assert_exit_code 0
 info_tests hompct $OD/anno_hompct.vcf INFO/HOMPCT
 
 #                                 remap
 run test_anno_remap $truv anno remap -i $VCF -r $REF -o $OD/anno_remap.vcf
-assert_exit_code $? 0
+assert_exit_code 0
 info_tests remap $OD/anno_remap.vcf INFO/REMAP
 
 #                                 gcpct
 run test_anno_gcpct $truv anno gcpct -i $VCF -r $REF -o $OD/anno_gcpct.vcf
-assert_exit_code $? 0
+assert_exit_code 0
 info_tests gcpct $OD/anno_gcpct.vcf INFO/GCPCT
 
 #                                 gtcnt
 run test_anno_gtcnt $truv anno gtcnt -i $VCF -o $OD/anno_gtcnt.vcf
-assert_exit_code $? 0
+assert_exit_code 0
 info_tests gtcnt $OD/anno_gtcnt.vcf INFO/GTCNT
 
 #                                 numneigh
 run test_anno_numneigh $truv anno numneigh -i $VCF -o $OD/anno_numneigh.vcf
-assert_exit_code $? 0
+assert_exit_code 0
 info_tests numneigh $OD/anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
 
 #                                 grm
 run test_anno_grm $truv anno grm -i $INDIR/input2.vcf.gz -r $REF -o $OD/grm.jl
-assert_exit_code $? 0
+assert_exit_code 0
 
 df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
@@ -193,7 +208,7 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 #                                 trf
 #                                 repmask
 #run test_anno_repmask $truv anno repmask -i $INDIR/input1.vcf.gz -e $INDIR/external/RepeatMasker -T 1 -o $OD/repmask.vcf
-#assert_exit_code $? 0
+#assert_exit_code 0
 
 #run test_anno_repmask_result
 #assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
@@ -203,12 +218,12 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 #                                 vcf2df
 # ------------------------------------------------------------
 run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
-assert_exit_code $? 0
+assert_exit_code 0
 
 df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
 
 run test_vcf2df_dir $truv vcf2df -f -i -b $OD/bench23/ $OD/truv2df.jl
-assert_exit_code $? 0
+assert_exit_code 0
 df_check test_vcf2df_dir_result $ANSDIR/truv2df.jl $OD/truv2df.jl
 
 # ------------------------------------------------------------
