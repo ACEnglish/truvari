@@ -210,14 +210,14 @@ run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
                                  -f \
                                  -R $INDIR/simplerepeat.txt.gz \
                                  -r $INDIR/reference.fa \
-                                 -e $INDIR/external/trf \
-                                 | sort > $OD/trf.vcf
+                                 -e $INDIR/external/trf  \
+                                 -o $OD/trf.vcf
 assert_exit_code 0
-cat $STDERR_FILE
-cat $OD/trf
+# determinism
+sort $OD/trf.vcf > $OD/trf.sorted.vcf
 
 run test_anno_trf_result
-assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.vcf)
+assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.sorted.vcf)
 
 #                                 repmask
 #run test_anno_repmask $truv anno repmask -i $INDIR/input1.vcf.gz -e $INDIR/external/RepeatMasker -T 1 -o $OD/repmask.vcf
