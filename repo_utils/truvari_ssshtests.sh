@@ -213,6 +213,7 @@ run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
                                  -e $INDIR/external/trf \
                                  | sort > $OD/trf.vcf
 assert_exit_code 0
+cat $STDERR_FILE
 cat $OD/trf
 
 run test_anno_trf_result
