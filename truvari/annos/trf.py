@@ -204,7 +204,7 @@ class TRFAnno(): # pylint: disable=too-many-instance-attributes
             return entry
 
         # Let's assume we're only doing the alt allele
-        srep_hits = []
+        srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
         try:
             entry = truvari.copy_entry(entry, self.n_header)
         except TypeError:

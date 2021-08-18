@@ -109,19 +109,6 @@ def collapse_edit_header(my_vcf):
     header = output_edit_header(my_vcf, header)
     return header
 
-def annotate_tp(entry, match_result):
-    """
-    Add the matching annotations to a vcf entry
-    match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
-                    match_stdist, match_endist, match_entry
-    """
-    entry.info["PctSeqSimilarity"] = match_result.seq_similarity
-    entry.info["PctSizeSimilarity"] = match_result.size_similarity
-    entry.info["PctRecOverlap"] = match_result.ovl_pct
-    entry.info["SizeDiff"] = match_result.size_diff
-    entry.info["StartDistance"] = match_result.start_distance
-    entry.info["EndDistance"] = match_result.end_distance
-
 def check_params(args):
     """
     Checks parameters as much as possible.
