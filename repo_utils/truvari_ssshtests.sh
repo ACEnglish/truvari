@@ -215,7 +215,7 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 #assert_exit_code 0
 # determinism
 #sort $OD/trf.vcf > $OD/trf.sorted.vcf
-$INDIR/external/trf
+#$INDIR/external/trf
 #run test_anno_trf_result
 #assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.sorted.vcf)
 

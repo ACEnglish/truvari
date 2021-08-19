@@ -25,7 +25,7 @@ except ModuleNotFoundError:
     HASBWALIB = False
 
 try:
-    from setproctitle import setproctitle # pylint: disable=import-error
+    from setproctitle import setproctitle # pylint: disable=import-error,useless-suppression
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
