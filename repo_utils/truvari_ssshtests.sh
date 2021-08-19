@@ -78,13 +78,12 @@ collapse_multi() {
 
 info_tests() {
     # pull and query info fields from vcfs
-    test $(which bcftools) || sudo apt-get install bcftools
     name=$1
     base_vcf=$ANSDIR/anno_answers.vcf.gz
     comp_vcf=$2
     infos=$3
-    bcftools query -f "%CHROM\t%POS\t${INFOS}\n" $base_vcf | sort > $OD/answer.txt
-    bcftools query -f "%CHROM\t%POS\t${INFOS}\n" $comp_vcf | sort > $OD/result.txt
+    python repo_utils/info_puller.py $base_vcf ${infos} | sort > $OD/answer.txt
+    python repo_utils/info_puller.py $comp_vcf ${infos} | sort > $OD/result.txt
     run test_infos_${name}
     assert_equal $(fn_md5 $OD/answer.txt) $(fn_md5 $OD/result.txt)
 }
@@ -173,27 +172,27 @@ REF=$INDIR/reference.fa
 #                                 hompct
 run test_anno_hompct $truv anno hompct -i $VCF -o $OD/anno_hompct.vcf
 assert_exit_code 0
-info_tests hompct $OD/anno_hompct.vcf INFO/HOMPCT
+info_tests hompct $OD/anno_hompct.vcf HOMPCT
 
 #                                 remap
 run test_anno_remap $truv anno remap -i $VCF -r $REF -o $OD/anno_remap.vcf
 assert_exit_code 0
-info_tests remap $OD/anno_remap.vcf INFO/REMAP
+info_tests remap $OD/anno_remap.vcf REMAP
 
 #                                 gcpct
 run test_anno_gcpct $truv anno gcpct -i $VCF -r $REF -o $OD/anno_gcpct.vcf
 assert_exit_code 0
-info_tests gcpct $OD/anno_gcpct.vcf INFO/GCPCT
+info_tests gcpct $OD/anno_gcpct.vcf GCPCT
 
 #                                 gtcnt
 run test_anno_gtcnt $truv anno gtcnt -i $VCF -o $OD/anno_gtcnt.vcf
 assert_exit_code 0
-info_tests gtcnt $OD/anno_gtcnt.vcf INFO/GTCNT
+info_tests gtcnt $OD/anno_gtcnt.vcf GTCNT
 
 #                                 numneigh
 run test_anno_numneigh $truv anno numneigh -i $VCF -o $OD/anno_numneigh.vcf
 assert_exit_code 0
-info_tests numneigh $OD/anno_numneigh.vcf INFO/NumNeighbors,INFO/NeighId
+info_tests numneigh $OD/anno_numneigh.vcf NumNeighbors,NeighId
 
 #                                 grm
 run test_anno_grm $truv anno grm -i $INDIR/input2.vcf.gz -r $REF -o $OD/grm.jl
