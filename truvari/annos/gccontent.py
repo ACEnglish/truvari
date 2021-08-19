@@ -5,7 +5,6 @@ import re
 import argparse
 
 import pysam
-import pyfaidx
 import truvari
 
 def parse_args(args):
@@ -46,7 +45,7 @@ def add_gcpct(vcf, ref, n_header=None):
         start, end = truvari.entry_boundaries(entry)
         span = abs(end - start)
         try:
-            seq = ref.get_seq(entry.chrom, start, end).seq if span >= len(entry.alts[0]) else str(entry.alts[0])
+            seq = ref.fetch(entry.chrom, start, end) if span >= len(entry.alts[0]) else str(entry.alts[0])
             gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
             entry = truvari.copy_entry(entry, n_header)
             entry.info["GCPCT"] = gcpct
@@ -60,7 +59,7 @@ def gcpct_main(cmdargs):
     Main method
     """
     args = parse_args(cmdargs)
-    ref = pyfaidx.Fasta(args.reference)
+    ref = pysam.FastaFile(args.reference)
     vcf = pysam.VariantFile(args.input)
     n_header = edit_header(vcf)
     out = pysam.VariantFile(args.output, 'w', header=n_header)

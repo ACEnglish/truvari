@@ -80,13 +80,13 @@ class TRFAnno():
         start = srep.begin
         end = srep.end
         if entry.info["SVTYPE"] == "INS":
-            ref_seq = str(self.reference.fetch(entry.chrom, start, end))
+            ref_seq = self.reference.fetch(entry.chrom, start, end)
             m_seq = ref_seq[:entry.start - start] + entry.alts[0] + ref_seq[entry.stop - start:]
         elif entry.info["SVTYPE"] == "DEL":
             # Only want to consider the srep region
             m_start = max(start, entry.start)
             m_end = min(end, entry.stop)
-            m_seq = str(self.reference.fetch(entry.chrom, m_start, m_end))
+            m_seq = self.reference.fetch(entry.chrom, m_start, m_end)
         else:
             logging.critical("Can only consider entries with 'SVTYPE' INS/DEL")
             sys.exit(1)

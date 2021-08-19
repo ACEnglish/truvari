@@ -114,6 +114,8 @@ def parse_args(args):
                         help="Attempt to put the INFO fields into the dataframe")
     parser.add_argument("-f", "--format", action="store_true",
                         help="Attempt to put the FORMAT fileds into the dataframe")
+    parser.add_argument("-s", "--sample", default=0,
+                        help="SAMPLE name to parse when building columns for --format")
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
     parser.add_argument("--debug", action="store_true",
@@ -130,12 +132,12 @@ def vcf2df_main(args):
 
     out = None
     if not args.bench_dir:
-        out = vcf_to_df(args.vcf, args.info, args.format)
+        out = vcf_to_df(args.vcf, args.info, args.format, args.sample)
     else:
         vcfs = get_files_from_truvdir(args.vcf)
         all_dfs = []
         for key, val in vcfs.items():
-            df = vcf_to_df(val[0], args.info, args.format)
+            df = vcf_to_df(val[0], args.info, args.format, args.sample)
             df["state"] = key
             all_dfs.append(df)
         out = pd.concat(all_dfs)
