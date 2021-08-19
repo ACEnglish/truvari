@@ -82,8 +82,8 @@ info_tests() {
     base_vcf=$ANSDIR/anno_answers.vcf.gz
     comp_vcf=$2
     infos=$3
-    python repo_utils/info_puller.py $base_vcf ${infos} | sort > $OD/answer.txt
-    python repo_utils/info_puller.py $comp_vcf ${infos} | sort > $OD/result.txt
+    python3 repo_utils/info_puller.py $base_vcf ${infos} | sort > $OD/answer.txt
+    python3 repo_utils/info_puller.py $comp_vcf ${infos} | sort > $OD/result.txt
     run test_infos_${name}
     assert_equal $(fn_md5 $OD/answer.txt) $(fn_md5 $OD/result.txt)
 }
@@ -93,7 +93,7 @@ df_check() {
     test_name=$1
     base_df=$2
     comp_df=$3
-    run $test_name python -c """
+    run $test_name python3 -c """
 import joblib;
 a = joblib.load(\"$base_df\")
 b = joblib.load(\"$comp_df\")
@@ -121,7 +121,7 @@ assert_equal $(fn_md5 $STDERR_FILE) $(fn_md5 $ANSDIR/help.txt)
 #                                 version
 # ------------------------------------------------------------
 run test_version $truv version
-assert_in_stdout "$(python -c 'import truvari; print(f"Truvari v{truvari.__version__}")')"
+assert_in_stdout "$(python3 -c 'import truvari; print(f"Truvari v{truvari.__version__}")')"
 
 # ------------------------------------------------------------
 #                                 bench
@@ -248,5 +248,5 @@ coverage combine
 coverage report --include=truvari/*
 coverage html --include=truvari/* -d $OD/htmlcov/
 coverage json --include=truvari/* -o $OD/coverage.json
-python repo_utils/coverage_maker.py $OD/coverage.json
+python3 repo_utils/coverage_maker.py $OD/coverage.json
 
