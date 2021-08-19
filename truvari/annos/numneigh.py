@@ -169,4 +169,4 @@ def numneigh_main(args):
 
     anno = NeighAnno(args.input, args.output, args.refdist, args.sizemin, args.passonly)
     anno.run()
-    logging.info("Finished")
+    logging.info("Finished numneigh")

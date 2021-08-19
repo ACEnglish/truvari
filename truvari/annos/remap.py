@@ -164,4 +164,4 @@ def remap_main(cmdargs):
                  min_length=args.minlength,
                  threshold=args.threshold)
     anno.annotate_vcf()
-    logging.info("Finished Remap Anno")
+    logging.info("Finished remap")

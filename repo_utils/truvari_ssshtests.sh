@@ -194,6 +194,11 @@ run test_anno_numneigh $truv anno numneigh -i $VCF -o $OD/anno_numneigh.vcf
 assert_exit_code 0
 info_tests numneigh $OD/anno_numneigh.vcf NumNeighbors,NeighId
 
+#                                 svinfo
+run test_anno_svinfo $truv anno svinfo -i $VCF -o $OD/anno_svinfo.vcf
+assert_exit_code 0
+info_tests svinfo $OD/anno_svinfo.vcf SVTYPE,SVLEN
+
 #                                 grm
 run test_anno_grm $truv anno grm -i $INDIR/input2.vcf.gz -r $REF -o $OD/grm.jl
 assert_exit_code 0

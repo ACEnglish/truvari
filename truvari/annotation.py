@@ -11,11 +11,12 @@ ANNOS = {"gcpct": tannos.gcpct_main,
          "repmask": tannos.rmk_main,
          "remap": tannos.remap_main,
          "hompct": tannos.hompct_main,
-         "numneigh": tannos.numneigh_main}
+         "numneigh": tannos.numneigh_main,
+         "svinfo": tannos.svinfo_main}
 
 USAGE = """\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh
+        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo
 """
 
 def parseArgs(args):
@@ -29,7 +30,6 @@ def parseArgs(args):
                         help="Annotation to run")
     parser.add_argument("options", metavar="OPTIONS", nargs=argparse.REMAINDER,
                         help="Options to pass to the annotation")
-
 
     args = parser.parse_args(args)
     return args

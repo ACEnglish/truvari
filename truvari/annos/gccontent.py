@@ -2,9 +2,11 @@
 Annotates GC content of SVs
 """
 import re
+import logging
 import argparse
 
 import pysam
+from acebinf import setup_logging
 import truvari
 
 def parse_args(args):
@@ -19,13 +21,13 @@ def parse_args(args):
                         help="Output filename (stdout)")
     parser.add_argument("-r", "--reference", type=str, required=True,
                         help="Reference fasta")
+    setup_logging()
     return parser.parse_args(args)
 
 
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
-    #Probably want to put in the PG whatever, too
     """
     # Update header
     # Edit Header
@@ -66,3 +68,4 @@ def gcpct_main(cmdargs):
     for entry in add_gcpct(vcf, ref, n_header):
         out.write(entry)
     out.close()
+    logging.info("Finished gcpct")

@@ -233,6 +233,7 @@ def trf_main(cmdargs):
                 entry = truvari.copy_entry(entry, new_header)
                 entry.info["SimpleRepeatDiff"] = annos[key]
         o.write(entry)
+    logging.info("Finished trf")
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])
