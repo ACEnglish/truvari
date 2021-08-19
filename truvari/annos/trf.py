@@ -38,7 +38,7 @@ def parse_args(args):
                         help="Default parameters to send to trf (%(default)s)")
     parser.add_argument("-s", "--simple-repeats", type=str,
                         help="Simple repeats bed")
-    parser.add_argument("-r", "--refference", type=str,
+    parser.add_argument("-f", "--reference", type=str,
                         help="Reference fasta file")
     #parser.add_argument("-m", "--min-length", type=int, default=50,
                         #help="Minimum size of entry to annotate (%(default)s)")
@@ -212,7 +212,7 @@ def trf_main(cmdargs):
     tree = truvari.make_bedanno_tree(args.simple_repeats)
     trfshared.simple_repeats = tree[0]
     #vcf = "/home/english/truvari/repo_utils/test_files/multi.vcf.gz"
-    v = pysam.VariantFile(args.vcf)
+    v = pysam.VariantFile(args.input)
     to_consider = []
     for entry in v:
         # need to set a minmum length probably
@@ -222,7 +222,7 @@ def trf_main(cmdargs):
     #/home/english/truvari/repo_utils/test_files/external/trf
     annos = tanno.run_trf(to_consider)
 
-    v = pysam.VariantFile(args.vcf)
+    v = pysam.VariantFile(args.input)
     new_header = edit_header(v.header)
     o = pysam.VariantFile(args.output, 'w', header=new_header)
     decimal.getcontext().prec = 1
