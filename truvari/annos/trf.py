@@ -113,7 +113,7 @@ class TRFAnno():
             logging.debug(srep)
             repeat = srep["SREP_repeats"][0]
             copies = srep["SREP_copies"][0]
-            if repeat in trf_hits:
+            if repeat in sorted(trf_hits.keys(), reverse=True):
                 if len(repeat) >= found_len:
                     copy_diff = trf_hits[repeat]['copies'] - copies
         if copy_diff:
