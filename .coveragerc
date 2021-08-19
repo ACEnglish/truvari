@@ -5,4 +5,3 @@ branch = true
 [report]
 omit = 
     */repmask.py
-    */trf.py
