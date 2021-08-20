@@ -1,14 +1,9 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
-# pylint: disable=too-many-statements
-
-import io
 import re
 import sys
-import gzip
 import logging
-from collections import defaultdict, OrderedDict
 
 from intervaltree import IntervalTree
 
