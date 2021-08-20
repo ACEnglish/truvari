@@ -174,8 +174,6 @@ class TRFAnno():
                 if not hits:
                     continue
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
-                start = None
-                end = None
                 for srep in hits:
                     n_seqs += 1
                     self.srep_lookup[key].append(srep)
