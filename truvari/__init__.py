@@ -10,7 +10,8 @@ from truvari.utils import (
     StatsBox,
     setup_progressbar,
     LogFileStderr,
-    setup_logging
+    setup_logging,
+    cmd_exe
 )
 
 from truvari.comparisons import (

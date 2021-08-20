@@ -7,7 +7,6 @@ import tempfile
 from collections import defaultdict
 
 import pysam
-from acebinf import cmd_exe, setup_logging
 import truvari
 
 # Start with just insertions and that sequence
@@ -128,7 +127,7 @@ class RepMask():
         """
         logging.info("Starting RepeatMasker")
         cmd = self.cmd.format(threads=self.threads, fasta=fasta)
-        ret = cmd_exe(cmd)
+        ret = truvari.cmd_exe(cmd)
         if ret.ret_code != 0:
             logging.error("Couldn't run RepeatMasker")
             logging.error(str(ret))
@@ -218,7 +217,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    setup_logging(args.debug)
+    truvari.setup_logging(args.debug)
     return args
 
 

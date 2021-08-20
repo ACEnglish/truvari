@@ -6,7 +6,6 @@ import logging
 import argparse
 
 import pysam
-from acebinf import setup_logging
 import truvari
 
 def parse_args(args):
@@ -28,7 +27,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    setup_logging(args.debug)
+    truvari.setup_logging(args.debug)
     return args
 
 def hompct_main(cmd_args):

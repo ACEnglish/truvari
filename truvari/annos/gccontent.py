@@ -6,7 +6,6 @@ import logging
 import argparse
 
 import pysam
-from acebinf import setup_logging
 import truvari
 
 def parse_args(args):
@@ -21,7 +20,7 @@ def parse_args(args):
                         help="Output filename (stdout)")
     parser.add_argument("-r", "--reference", type=str, required=True,
                         help="Reference fasta")
-    setup_logging()
+    truvari.setup_logging()
     return parser.parse_args(args)
 
 

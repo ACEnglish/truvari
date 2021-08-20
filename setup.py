@@ -33,7 +33,6 @@ setup(
       ]
     },
     install_requires=[
-        "ACEBinf>=1.0.2",
         "python-Levenshtein==0.12.2",
         "edlib>=1.3.8.post2",
         "progressbar2>=3.41.0",

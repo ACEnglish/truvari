@@ -1,12 +1,26 @@
 """
 Miscellaneous utilites for truvari
 """
+import os
 import sys
+import time
+import signal
 import logging
 import warnings
-from collections import OrderedDict
+import subprocess
+from datetime import timedelta
+from collections import OrderedDict, namedtuple
+
 import progressbar
 
+class Alarm(Exception):
+
+    """ Alarm Class for command timeouts """
+    pass # pylint: disable=unnecessary-pass
+
+def alarm_handler(signum, frame=None):
+    """ Alarm handler for command timeouts """
+    raise Alarm
 
 class StatsBox(OrderedDict):
     """
@@ -124,3 +138,51 @@ def setup_logging(debug=False, stream=sys.stderr, log_format=None):
     # pylint: disable=unused-variable
     old_showwarning = warnings.showwarning
     warnings.showwarning = sendWarningsToLog
+
+def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
+    """
+    Executes a command through the shell.
+    timeout in minutes! so 1440 mean is 24 hours.
+    -1 means never
+    returns namedtuple(ret_code, stdout, stderr, run_time)
+    where ret_code is the exit code for the command executed
+    stdout/err is the Standard Output Error from the command
+    and runtime is hh:mm:ss of the execution time
+    cap_stderr will capture the stderr and return it as part of the
+    returned cmd_result. Otherwise, stderr will be streamed through.
+    set pipefail=True if you're using pipes
+    """
+    cmd_result = namedtuple("cmd_result", "ret_code stdout stderr run_time")
+    t_start = time.time()
+    stderr = subprocess.PIPE if cap_stderr else None
+    if pipefail:
+        cmd = f"set -o pipefail; {cmd}"
+    # pylint: disable=consider-using-with
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
+                            stdin=sys.stdin, stderr=stderr, close_fds=True,
+                            start_new_session=True, executable="/bin/bash")
+    signal.signal(signal.SIGALRM, alarm_handler)
+    if timeout > 0:
+        signal.alarm(int(timeout * 60))
+    try:
+        stdoutVal, stderrVal = proc.communicate()
+        signal.alarm(0)  # reset the alarm
+    except Alarm:
+        logging.error(("Command was taking too long. "
+                       "Automatic Timeout Initiated after %d"), timeout)
+        os.killpg(proc.pid, signal.SIGTERM)
+        proc.kill()
+        return cmd_result(214, None, None, timedelta(seconds=time.time() - t_start))
+    except KeyboardInterrupt:
+        logging.error("KeyboardInterrupt on cmd %s", cmd)
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.kill()
+        try:
+            sys.exit(214)
+        except SystemExit:
+            os._exit(214) # pylint: disable=protected-access
+
+    stdoutVal = bytes.decode(stdoutVal)
+    retCode = proc.returncode
+    ret = cmd_result(retCode, stdoutVal, stderrVal, timedelta(seconds=time.time() - t_start))
+    return ret

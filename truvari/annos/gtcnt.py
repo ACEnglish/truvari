@@ -5,7 +5,6 @@ import logging
 import argparse
 
 import pysam
-from acebinf import setup_logging
 import truvari
 
 def parse_args(args):
@@ -18,7 +17,7 @@ def parse_args(args):
                         help="VCF to annotate (stdin)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
-    setup_logging()
+    truvari.setup_logging()
     return parser.parse_args(args)
 
 

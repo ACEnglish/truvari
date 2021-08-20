@@ -15,7 +15,6 @@ from collections import defaultdict
 
 import pysam
 import tabix
-from acebinf import cmd_exe, setup_logging
 import truvari
 
 trfshared = types.SimpleNamespace()
@@ -101,7 +100,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    setup_logging(args.debug)
+    truvari.setup_logging(args.debug)
     return args
 
 class TRFAnno():
@@ -184,7 +183,7 @@ class TRFAnno():
             return {}
 
         # Run it
-        ret = cmd_exe(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
+        ret = truvari.cmd_exe(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
         if ret.ret_code != 0:
             logging.error("Couldn't run trf")
             logging.error(str(ret))
