@@ -4,9 +4,9 @@ Helper class to specify included regions of the genome when iterating events.
 import re
 import sys
 import logging
+from collections import defaultdict
 
 from intervaltree import IntervalTree
-
 import truvari.comparisons as tcomp
 
 HEADERMAT=re.compile(r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
