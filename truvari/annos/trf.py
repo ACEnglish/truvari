@@ -55,7 +55,7 @@ def process_entries(ref_section):
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             to_consider.append(entry)
 
-    tanno = TRFAnno(executable=trfshared.args.executable)
+    tanno = TRFAnno(executable=trfshared.args.executable, trf_params=trfshared.args.trf_params)
     annos = tanno.run_trf(to_consider)
 
     v = pysam.VariantFile(trfshared.args.input)
@@ -86,7 +86,7 @@ def parse_args(args):
                         help="Output filename (stdout)")
     parser.add_argument("-e", "--executable", type=str, default="trf409.linux64",
                         help="Path to tandem repeat finder (%(default)s)")
-    parser.add_argument("-T", "--trf-params", type=str, default="2 7 7 80 10 50 500 -m -f -h -d -ngs",
+    parser.add_argument("-T", "--trf-params", type=str, default="3 7 7 80 5 40 500 -h -ngs",
                         help="Default parameters to send to trf (%(default)s)")
     parser.add_argument("-s", "--simple-repeats", type=str,
                         help="Simple repeats bed")
@@ -155,49 +155,31 @@ class TRFAnno():
         """
         found_len = 0
         copy_diff = None
-        logging.debug('variant: %s', key)
-        logging.debug('trf_hits:')
-        for i in trf_hits.values():
-            logging.debug(i)
-        logging.debug('srep_hits:')
         for srep in self.srep_lookup[key]:
-            logging.debug(srep)
             repeat = srep["repeat"]
             copies = srep["copies"]
             if repeat in sorted(trf_hits.keys(), reverse=True):
                 if len(repeat) >= found_len:
                     copy_diff = trf_hits[repeat]['copies'] - copies
-        if copy_diff:
-            logging.debug('cdiff %.1f', copy_diff)
-        else:
-            logging.debug('no hit')
         return copy_diff
 
     def run_trf(self, entries):
         """
         Given a list of entries, run TRF on each of them
         """
-        # Write seqs
         n_seqs = 0
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
-                hits = list(fetch_simple_repeats(entry.chrom, entry.start, entry.stop))
+                hits = list(fetch_simple_repeats(entry.chrom, entry.start - 1, entry.stop + 1))
                 if not hits:
                     continue
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
                 start = None
                 end = None
                 for srep in hits:
-                    self.srep_lookup[key].append(srep)
-                    if start is None:
-                        start = srep["start"]
-                        end = srep["end"]
-                    else:
-                        start = min(srep["start"], start)
-                        end = max(srep["end"], end)
                     n_seqs += 1
-                if start:
-                    seq = self.make_seq(start, end, entry)
+                    self.srep_lookup[key].append(srep)
+                    seq = self.make_seq(srep["start"], srep["end"], entry)
                     fout.write(f">{key}\n{seq}\n")
 
         if not n_seqs:
@@ -273,7 +255,6 @@ def trf_main(cmdargs):
 
     ref = pysam.FastaFile(args.reference)
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
-        logging.info("Processing")
         chunks = pool.imap(process_entries, truvari.annos.grm.ref_ranges(ref, chunk_size=int(args.chunk_size * 1e6)))
         pool.close()
         pool.join()
