@@ -210,7 +210,7 @@ df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
 #                                 trf
 run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
-                                 -s $INDIR/simplerepeat.txt.gz \
+                                 -s $INDIR/simplerepeat.bed.gz \
                                  -f $INDIR/reference.fa \
                                  -e $INDIR/external/trf  \
                                  -o $OD/trf.vcf

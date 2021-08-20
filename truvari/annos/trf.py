@@ -9,23 +9,75 @@ import decimal
 import logging
 import argparse
 import tempfile
+import multiprocessing
+from io import StringIO
 from collections import defaultdict
 
 import pysam
+import tabix
 from acebinf import cmd_exe, setup_logging
 import truvari
 
 trfshared = types.SimpleNamespace()
 
+try:
+    from setproctitle import setproctitle # pylint: disable=import-error,useless-suppression
+except ModuleNotFoundError:
+    def setproctitle(_):
+        """ dummy function """
+        return
+
+def fetch_simple_repeats(chrom, start, stop):
+    """
+    Parse a simple repeats bed file and yield them
+    """
+    header = [('chrom', str), ('start', int), ('end', int), ('period', float),
+              ('copies', float), ('score', int), ('entropy', float), ('repeat', str)]
+    tb = tabix.open(trfshared.args.simple_repeats)
+    try:
+        for i in tb.query(chrom, start, stop):
+            yield {fmt[0]:fmt[1](x) for x,fmt in zip(i, header)}
+    except tabix.TabixError as e:
+        logging.warning(f"Region {chrom}:{start}-{stop} failed: {e}")
+    return False
+
+def process_entries(ref_section):
+    """
+    Process vcf lines from a reference section
+    """
+    chrom, start, stop = ref_section
+    logging.debug(f"Starting region {chrom}:{start}-{stop}")
+    setproctitle(f"trf {chrom}:{start}-{stop}")
+    vcf = pysam.VariantFile(trfshared.args.input)
+
+    to_consider = []
+    for entry in vcf.fetch(chrom, start, stop):
+        if truvari.entry_size(entry) >= trfshared.args.min_length:
+            to_consider.append(entry)
+
+    tanno = TRFAnno(executable=trfshared.args.executable)
+    annos = tanno.run_trf(to_consider)
+
+    v = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(v.header)
+    out = StringIO()
+    decimal.getcontext().prec = 1
+    for entry in v.fetch(chrom, start, stop):
+        if truvari.entry_size(entry) >= trfshared.args.min_length:
+            key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+            if key in annos:
+                entry = truvari.copy_entry(entry, new_header)
+                entry.info["SimpleRepeatDiff"] = annos[key]
+        out.write(str(entry))
+    out.seek(0)
+    setproctitle(f"trf done {chrom}:{start}-{stop}")
+    logging.debug(f"Done region {chrom}:{start}-{stop}")
+    return (chrom, start, stop, out.read())
+
 def parse_args(args):
     """
     Pull the command line parameters
     """
-    #def restricted_float(x):
-    #    x = float(x)
-    #    if x < 0.0 or x > 1.0:
-    #        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
-    #    return x
     parser = argparse.ArgumentParser(prog="trf", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
@@ -40,10 +92,12 @@ def parse_args(args):
                         help="Simple repeats bed")
     parser.add_argument("-f", "--reference", type=str,
                         help="Reference fasta file")
-    #parser.add_argument("-m", "--min-length", type=int, default=50,
-                        #help="Minimum size of entry to annotate (%(default)s)")
-    #parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
-                        #help="Threshold for pct of allele covered (%(default)s)")
+    parser.add_argument("-m", "--min-length", type=int, default=50,
+                        help="Minimum size of entry to annotate (%(default)s)")
+    parser.add_argument("-t" ,"--threads", type=int, default=multiprocessing.cpu_count(),
+                        help="Number of threads to use (%(default)s)")
+    parser.add_argument("-C", "--chunk-size", type=int, default=1,
+                        help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -59,8 +113,8 @@ class TRFAnno():
         # This is slow, so I only want to do it once
         # And actually, let's put it in a shared memory spot just
         # because we can
-        self.simple_repeats = simple_repeats if simple_repeats else trfshared.simple_repeats
-        self.reference = pysam.FastaFile(reference) if reference else pysam.FastaFile(trfshared.reference)
+        self.simple_repeats = simple_repeats if simple_repeats else trfshared.args.simple_repeats
+        self.reference = pysam.FastaFile(reference) if reference else pysam.FastaFile(trfshared.args.reference)
         self.executable = executable
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
@@ -73,17 +127,14 @@ class TRFAnno():
         # lookup from the vcf entries to the hits
         self.srep_lookup = defaultdict(list)
 
-    def make_seq(self, srep, entry):
+    def make_seq(self, start, end, entry):
         """
         Make the haplotype sequence
         """
-        start = srep.begin
-        end = srep.end
         if entry.info["SVTYPE"] == "INS":
             ref_seq = self.reference.fetch(entry.chrom, start, end)
             m_seq = ref_seq[:entry.start - start] + entry.alts[0] + ref_seq[entry.stop - start:]
         elif entry.info["SVTYPE"] == "DEL":
-            # Only want to consider the srep region
             m_start = max(start, entry.start)
             m_end = min(end, entry.stop)
             m_seq = self.reference.fetch(entry.chrom, m_start, m_end)
@@ -111,8 +162,8 @@ class TRFAnno():
         logging.debug('srep_hits:')
         for srep in self.srep_lookup[key]:
             logging.debug(srep)
-            repeat = srep["SREP_repeats"][0]
-            copies = srep["SREP_copies"][0]
+            repeat = srep["repeat"]
+            copies = srep["copies"]
             if repeat in sorted(trf_hits.keys(), reverse=True):
                 if len(repeat) >= found_len:
                     copy_diff = trf_hits[repeat]['copies'] - copies
@@ -127,16 +178,30 @@ class TRFAnno():
         Given a list of entries, run TRF on each of them
         """
         # Write seqs
+        n_seqs = 0
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
-                hits = self.simple_repeats[entry.chrom].overlap(entry.start, entry.stop)
+                hits = list(fetch_simple_repeats(entry.chrom, entry.start, entry.stop))
                 if not hits:
                     continue
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+                start = None
+                end = None
                 for srep in hits:
-                    self.srep_lookup[key].append(srep.data)
-                    seq = self.make_seq(srep, entry)
-                fout.write(f">{key}\n{seq}\n")
+                    self.srep_lookup[key].append(srep)
+                    if start is None:
+                        start = srep["start"]
+                        end = srep["end"]
+                    else:
+                        start = min(srep["start"], start)
+                        end = max(srep["end"], end)
+                    n_seqs += 1
+                if start:
+                    seq = self.make_seq(start, end, entry)
+                    fout.write(f">{key}\n{seq}\n")
+
+        if not n_seqs:
+            return {}
 
         # Run it
         ret = cmd_exe(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
@@ -197,8 +262,6 @@ def edit_header(header):
     New VCF INFO fields
     """
     header = header.copy()
-    # if intersect_only: Do I want to sometimes turn this off?
-    # Probably, actully
     header.add_line(('##INFO=<ID=SimpleRepeatDiff,Number=1,Type=Float,'
                      'Description="TRF simple repeat copy difference">'))
     return header
@@ -206,34 +269,23 @@ def edit_header(header):
 def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
-    trfshared.reference = args.reference
-    #"/home/english/truvari/repo_utils/test_files/reference.fa"
-    #refanno = "/home/english/truvari/repo_utils/test_files/simplerepeat.txt.gz"
-    tree = truvari.make_bedanno_tree(args.simple_repeats)
-    trfshared.simple_repeats = tree[0]
-    #vcf = "/home/english/truvari/repo_utils/test_files/multi.vcf.gz"
-    v = pysam.VariantFile(args.input)
-    to_consider = []
-    for entry in v:
-        # need to set a minmum length probably
-        if "SVTYPE" in entry.info: #and entry.info["SVTYPE"] == "INS":
-            to_consider.append(entry)
-    tanno = TRFAnno(executable=args.executable)
-    #/home/english/truvari/repo_utils/test_files/external/trf
-    annos = tanno.run_trf(to_consider)
+    trfshared.args = args
 
-    v = pysam.VariantFile(args.input)
+    ref = pysam.FastaFile(args.reference)
+    with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
+        logging.info("Processing")
+        chunks = pool.imap(process_entries, truvari.annos.grm.ref_ranges(ref, chunk_size=int(args.chunk_size * 1e6)))
+        pool.close()
+        pool.join()
+
+    chunks = sorted(list(chunks))
+    v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
-    o = pysam.VariantFile(args.output, 'w', header=new_header)
-    decimal.getcontext().prec = 1
-    for entry in v:
-        if "SVTYPE" in entry.info:
-            key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
-            if key in annos:
-                entry = truvari.copy_entry(entry, new_header)
-                entry.info["SimpleRepeatDiff"] = annos[key]
-        o.write(entry)
-    logging.info("Finished trf")
+    with open(args.output, 'w') as fout:
+        fout.write(str(new_header))
+        for i in chunks:
+            fout.write(i[3])
+    logging.info("Finished")
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])

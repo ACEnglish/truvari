@@ -4,7 +4,6 @@ Maps graph edge kmers with BWA to assess Graph Reference Mappability
 # pylint: disable=too-many-locals
 import os
 import re
-import sys
 import types
 import logging
 import argparse
@@ -16,13 +15,8 @@ import tabix
 import joblib
 import pandas as pd
 
+from bwapy import BwaAligner
 import truvari
-
-try:
-    from bwapy import BwaAligner
-    HASBWALIB = True
-except ModuleNotFoundError:
-    HASBWALIB = False
 
 try:
     from setproctitle import setproctitle # pylint: disable=import-error,useless-suppression
@@ -33,7 +27,6 @@ except ModuleNotFoundError:
 
 # Data shared with workers; must be populated before workers are started.
 grm_shared = types.SimpleNamespace()
-
 
 def make_kmers(ref, entry, kmer=25):
     """
@@ -307,10 +300,6 @@ def grm_main(cmdargs):
     - document the bwa package and how to install
     - better column names along with documentation
     """
-    if not HASBWALIB:
-        logging.error("bwapy not available. Please install https://github.com/nanoporetech/bwapy")
-        sys.exit(1)
-
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
     grm_shared.aligner = BwaAligner(args.reference, '-a')

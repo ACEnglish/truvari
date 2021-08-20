@@ -1,7 +1,6 @@
 """
 Adds SVTYPE and SVLEN INFO fields
 """
-import sys
 import logging
 import argparse
 
