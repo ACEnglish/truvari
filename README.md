@@ -10,7 +10,6 @@
 [![pylint](imgs/pylint.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
-[![issues](https://img.shields.io/github/issues/spiralgenetics/truvari?maxAge=2592000)](https://github.com/spiralgenetics/truvari/issues)
 [![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v2.1.1)](https://github.com/spiralgenetics/truvari/commits/develop)
 
 Structural variant toolkit for benchmarking, annotating and more for VCFs
