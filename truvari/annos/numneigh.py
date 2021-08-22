@@ -133,7 +133,7 @@ class NeighAnno():
                 last_pos = [entry.chrom, entry.start]
 
             if last_pos[0] == entry.chrom and last_pos[1] > entry.start:
-                logging.error("File is not sorted %d:%d before %s:%d",
+                logging.error("File is not sorted %s:%d before %s:%d",
                               last_pos[0], last_pos[1], entry.chrom, entry.start)
                 sys.exit(1)
 
