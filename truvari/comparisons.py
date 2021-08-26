@@ -8,14 +8,14 @@ import logging
 from functools import cmp_to_key
 import edlib
 import Levenshtein
-
+import truvari
 
 def entry_is_variant(entry, sample):
     """
     Returns if entry is non-ref variant
     """
-    return "GT" in entry.samples[sample] and None not in entry.samples[sample]["GT"]
-
+    return "GT" in entry.samples[sample] and \
+           truvari.get_gt(entry.samples[sample]["GT"]) in [truvari.GT.HET, truvari.GT.HOM]
 
 def entry_to_key(source, entry):
     """
