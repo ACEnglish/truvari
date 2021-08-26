@@ -175,9 +175,7 @@ TP-call_TP-gt	0
 base cnt	8
 call cnt	16
 f1	NaN
-gt_f1	NaN
-gt_precision	0
-gt_recall	0
+gt_concordance	0
 precision	0.0
 recall	0.0
 

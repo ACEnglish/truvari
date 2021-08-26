@@ -42,9 +42,7 @@ class StatsBox(OrderedDict):
         self["TP-call_FP-gt"] = 0
         self["TP-base_TP-gt"] = 0
         self["TP-base_FP-gt"] = 0
-        self["gt_precision"] = 0
-        self["gt_recall"] = 0
-        self["gt_f1"] = 0
+        self["gt_concordance"] = 0
 
     def calc_performance(self, peek=False):
         """
@@ -67,10 +65,9 @@ class StatsBox(OrderedDict):
         if do_stats_math:
             self["precision"] = float(self["TP-call"]) / (self["TP-call"] + self["FP"])
             self["recall"] = float(self["TP-base"]) / (self["TP-base"] + self["FN"])
-            if self["TP-call_TP-gt"] != 0:
-                self["gt_precision"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
-                                                                       self["FP"] + self["TP-call_FP-gt"])
-                self["gt_recall"] = float(self["TP-base_TP-gt"]) / (self["TP-base_TP-gt"] + self["FN"])
+            if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
+                self["gt_concordance"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
+                                                                         self["TP-call_FP-gt"])
 
         # f-measure
         neum = self["recall"] * self["precision"]
@@ -79,14 +76,6 @@ class StatsBox(OrderedDict):
             self["f1"] = 2 * (neum / denom)
         else:
             self["f1"] = "NaN"
-
-        neum = self["gt_recall"] * self["gt_precision"]
-        denom = self["gt_recall"] + self["gt_precision"]
-        if denom != 0:
-            self["gt_f1"] = 2 * (neum / denom)
-        else:
-            self["gt_f1"] = "NaN"
-
 
 def setup_progressbar(size):
     """
