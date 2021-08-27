@@ -290,9 +290,19 @@ def copy_entry(entry, header):
                                 alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
                                 info=entry.info)
     except TypeError as e:
-        logging.error("Entry is not copyable. Check VCF Header. (%s)", str(entry))
-        raise e
-    # should be able to just say samples=entry.samples...
+        new_entry_info = dict(entry.info)
+        for key, value in new_entry_info.items():
+            if isinstance(value, tuple):
+                if header.info[key].type != "String":
+                    logging.error("Entry is not copyable by pysam. INFO %s has Number=%s and Type=%s",
+                                  key, header.info[key].number, header.info[key].type)
+                    logging.error("Number should be changed to '.' or Type to 'String'")
+                    logging.error("Check VCF header (%s)", str(entry))
+                    raise e
+                new_entry_info[key] = ",".join([x for x in list(value)]),
+        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
+                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
+                                info=new_entry_info)
     for sample in entry.samples:
         for k, v in entry.samples[sample].items():
             try:  # this will be a problem for pVCFs with differing Number=./A/G and set on input as (None,).. maybe

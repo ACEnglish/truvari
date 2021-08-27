@@ -16,7 +16,11 @@ import logging
 import argparse
 
 import pysam
-from bwapy import BwaAligner
+try:
+    from bwapy import BwaAligner
+    HASBWALIB = True
+except OSError:
+    HASBWALIB = False
 
 import truvari
 from truvari.annos.grm import cigmatch
@@ -157,6 +161,9 @@ def remap_main(cmdargs):
     """
     Program's entry point
     """
+    if not HASBWALIB:
+        logging.error("bwapy isn't available on this machine")
+        exit(1)
     args = parse_args(cmdargs)
     anno = Remap(in_vcf=args.input,
                  reference=args.reference,

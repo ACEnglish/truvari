@@ -15,7 +15,12 @@ import tabix
 import joblib
 import pandas as pd
 
-from bwapy import BwaAligner
+try:
+    from bwapy import BwaAligner
+    HASBWALIB = True
+except OSError:
+    HASBWALIB = False
+    pass
 import truvari
 
 try:
@@ -300,6 +305,9 @@ def grm_main(cmdargs):
     - document the bwa package and how to install
     - better column names along with documentation
     """
+    if not HASBWALIB:
+        logging.error("bwapy isn't available on this machine")
+        exit(1)
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
     grm_shared.aligner = BwaAligner(args.reference, '-a')
