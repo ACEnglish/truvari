@@ -3,6 +3,7 @@ Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
 # pylint: disable=too-many-locals
 import os
+import sys
 import re
 import types
 import logging
@@ -20,7 +21,7 @@ try:
     HASBWALIB = True
 except OSError:
     HASBWALIB = False
-    pass
+
 import truvari
 
 try:
@@ -307,7 +308,7 @@ def grm_main(cmdargs):
     """
     if not HASBWALIB:
         logging.error("bwapy isn't available on this machine")
-        exit(1)
+        sys.exit(1)
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
     grm_shared.aligner = BwaAligner(args.reference, '-a')

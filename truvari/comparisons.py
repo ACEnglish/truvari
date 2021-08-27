@@ -299,7 +299,7 @@ def copy_entry(entry, header):
                     logging.error("Number should be changed to '.' or Type to 'String'")
                     logging.error("Check VCF header (%s)", str(entry))
                     raise e
-                new_entry_info[key] = ",".join([x for x in list(value)]),
+                new_entry_info[key] = ",".join(value)
         ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
                                 alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
                                 info=new_entry_info)

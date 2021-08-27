@@ -12,6 +12,7 @@ Which alleles and alignments to consider can be altered with:
         (a.k.a. alignments back to the source sequence) (10)
 --threshold - Minimum percent of allele's sequence used by alignment to be considered (.8)
 """
+import sys
 import logging
 import argparse
 
@@ -163,7 +164,7 @@ def remap_main(cmdargs):
     """
     if not HASBWALIB:
         logging.error("bwapy isn't available on this machine")
-        exit(1)
+        sys.exit(1)
     args = parse_args(cmdargs)
     anno = Remap(in_vcf=args.input,
                  reference=args.reference,
