@@ -141,6 +141,8 @@ def vcf2df_main(args):
             df["state"] = key
             all_dfs.append(df)
         out = pd.concat(all_dfs)
+        state_type = pd.CategoricalDtype(categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
+        out["state"] = out["state"].astype(state_type)
 
     # compression -- this is not super important for most VCFs
     # Especially since nulls are highly likely
@@ -160,4 +162,4 @@ def vcf2df_main(args):
     post_size = out.memory_usage().sum()
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)
     joblib.dump(out, args.output)
-    logging.info("Finished")
+    logging.info("Finished vcf2df")

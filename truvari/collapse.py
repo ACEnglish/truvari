@@ -455,4 +455,4 @@ def collapse_main(cmdargs):
 
     # Close to flush vcfs
     close_outputs(outputs)
-    logging.info("Finished")
+    logging.info("Finished collapse")

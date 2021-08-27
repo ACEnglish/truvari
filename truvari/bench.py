@@ -538,4 +538,4 @@ def bench_main(cmdargs): # pylint: disable=too-many-locals
     if args.giabreport:
         truvari.make_giabreport(args, outputs["stats_box"])
 
-    logging.info("Finished")
+    logging.info("Finished bench")
