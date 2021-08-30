@@ -64,9 +64,12 @@ def process_entries(ref_section):
     for entry in v.fetch(chrom, start, stop):
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
-            if key in annos:
+            if key in annos or tanno.srep_lookup:
                 entry = truvari.copy_entry(entry, new_header)
-                entry.info["SimpleRepeatDiff"] = annos[key]
+                if key in annos:
+                    entry.info["SimpleRepeatDiff"] = annos[key]
+                if key in tanno.srep_lookup:
+                    entry.info["SREP"] = True
         out.write(str(entry))
     out.seek(0)
     setproctitle(f"trf done {chrom}:{start}-{stop}")
@@ -93,6 +96,8 @@ def parse_args(args):
                         help="Reference fasta file")
     parser.add_argument("-m", "--min-length", type=int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
+    parser.add_argument("-M", "--max-length", type=int, default=10000,
+                        help="Maximum size of sequence to run through trf (%(default)s)")
     parser.add_argument("-t" ,"--threads", type=int, default=multiprocessing.cpu_count(),
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=int, default=1,
@@ -174,10 +179,11 @@ class TRFAnno():
                     continue
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
                 for srep in hits:
-                    n_seqs += 1
-                    self.srep_lookup[key].append(srep)
                     seq = self.make_seq(srep["start"], srep["end"], entry)
-                    fout.write(f">{key}\n{seq}\n")
+                    self.srep_lookup[key].append(srep)
+                    if len(seq) <= trfshared.args.max_length:
+                        n_seqs += 1
+                        fout.write(f">{key}\n{seq}\n")
 
         if not n_seqs:
             return {}
@@ -243,6 +249,8 @@ def edit_header(header):
     header = header.copy()
     header.add_line(('##INFO=<ID=SimpleRepeatDiff,Number=1,Type=Float,'
                      'Description="TRF simple repeat copy difference">'))
+    header.add_line(('##INFO=<ID=SREP,Number=1,Type=Flag,'
+                     'Description="Entry hits a simple repeat region">'))
     return header
 
 def trf_main(cmdargs):
