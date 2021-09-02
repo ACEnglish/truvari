@@ -79,3 +79,4 @@ def make_giabreport(args, stats_box):
         argd = vars(args)
         for key in sorted(argd.keys()):
             sum_out.write("%s\t%s\n" % (key, str(argd[key])))
+    joblib.dump(data, out_df)
