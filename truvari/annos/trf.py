@@ -55,7 +55,7 @@ def process_entries(ref_section):
             to_consider.append(entry)
 
     tanno = TRFAnno(executable=trfshared.args.executable, trf_params=trfshared.args.trf_params)
-    annos = tanno.run_trf(to_consider)
+    tanno.run_trf(to_consider)
 
     v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
@@ -64,12 +64,7 @@ def process_entries(ref_section):
     for entry in v.fetch(chrom, start, stop):
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
-            if key in annos or tanno.srep_lookup:
-                entry = truvari.copy_entry(entry, new_header)
-                if key in annos:
-                    entry.info["SimpleRepeatDiff"] = annos[key]
-                if key in tanno.srep_lookup:
-                    entry.info["SREP"] = True
+            entry = tanno.annotate(entry, key, new_header)
         out.write(str(entry))
     out.seek(0)
     setproctitle(f"trf done {chrom}:{start}-{stop}")
@@ -82,17 +77,17 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="trf", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
-                        help="VCF to annotate (stdin)")
+    parser.add_argument("-i", "--input", type=str, required=True,
+                        help="VCF to annotate")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     parser.add_argument("-e", "--executable", type=str, default="trf409.linux64",
                         help="Path to tandem repeat finder (%(default)s)")
     parser.add_argument("-T", "--trf-params", type=str, default="3 7 7 80 5 40 500 -h -ngs",
                         help="Default parameters to send to trf (%(default)s)")
-    parser.add_argument("-s", "--simple-repeats", type=str,
+    parser.add_argument("-s", "--simple-repeats", type=str, required=True,
                         help="Simple repeats bed")
-    parser.add_argument("-f", "--reference", type=str,
+    parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference fasta file")
     parser.add_argument("-m", "--min-length", type=int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
@@ -129,7 +124,8 @@ class TRFAnno():
         self.fa_fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
         self.tr_fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
         # lookup from the vcf entries to the hits
-        self.srep_lookup = defaultdict(list)
+        self.trf_lookup = defaultdict(dict)
+        self.srep_lookup = defaultdict(dict)
 
     def make_seq(self, start, end, entry):
         """
@@ -147,26 +143,6 @@ class TRFAnno():
             sys.exit(1)
         return m_seq
 
-    def calc_copy_diff(self, key, trf_hits):
-        """
-        trf_hits are on the alternate
-        srep_lookup is on the reference
-
-        Given the variant's key and the data from the trf hits
-        pick the best one
-        data is a dictionary of the hits with a key of the hits' sequence
-        seqs is the reference simple repeat hits
-        """
-        found_len = 0
-        copy_diff = None
-        for srep in self.srep_lookup[key]:
-            repeat = srep["repeat"]
-            copies = srep["copies"]
-            if repeat in sorted(trf_hits.keys(), reverse=True):
-                if len(repeat) >= found_len:
-                    copy_diff = trf_hits[repeat]['copies'] - copies
-        return copy_diff
-
     def run_trf(self, entries):
         """
         Given a list of entries, run TRF on each of them
@@ -180,13 +156,13 @@ class TRFAnno():
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
                 for srep in hits:
                     seq = self.make_seq(srep["start"], srep["end"], entry)
-                    self.srep_lookup[key].append(srep)
+                    self.srep_lookup[key][srep['repeat']] = srep
                     if len(seq) <= trfshared.args.max_length:
                         n_seqs += 1
                         fout.write(f">{key}\n{seq}\n")
 
         if not n_seqs:
-            return {}
+            return
 
         # Run it
         ret = truvari.cmd_exe(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
@@ -195,8 +171,7 @@ class TRFAnno():
             logging.error(str(ret))
             sys.exit(ret.ret_code)
 
-        #Then I need to parse and return
-        return self.parse_output()
+        self.parse_output()
 
     def parse_output(self):
         """
@@ -219,38 +194,76 @@ class TRFAnno():
                     ("unk1", None),
                     ("unk2", None),
                     ("unk3", None)]
-        hits = {}
         with open(self.tr_fn, 'r') as fh:
             name = fh.readline()
             if name == "": # no hits
-                return hits
+                return
             name = name.strip()[1:]
-            trf_hits = {} # all the seqence hits we get for this entry
             while True:
                 line = fh.readline()
                 if line == "":
                     break
                 if line.startswith("@"):
-                    key = name.strip()
-                    copy_diff = self.calc_copy_diff(key, trf_hits)
-                    if copy_diff:
-                        hits[key] = copy_diff
                     name = line.strip()[1:]
                     continue
                 line = line.strip().split(' ')
                 data = {x[0]: x[1](y) for x, y in zip(trf_cols, line) if not x[0].startswith("unk")}
-                trf_hits[data["repeat"]] = data
-        return hits
+                self.trf_lookup[name][data["repeat"]] = data
+
+    def annotate(self, entry, key, new_header):
+        """
+        Edit the entry if it has a hit
+        """
+        def edit_entry(repeat, entry, new_header, diff=None):
+            #put in the annotations
+            entry = truvari.copy_entry(entry, new_header)
+            entry.info["TRF"] = True
+            if diff:
+                entry.info["TRFDiff"] = diff
+            entry.info["TRFperiod"] = repeat["period"]
+            entry.info["TRFcopies"] = repeat["copies"]
+            #entry.info["TRFconsize"] = repeat["consize"]
+            entry.info["TRFscore"] = repeat["score"]
+            entry.info["TRFentropy"] = repeat["entropy"]
+            entry.info["TRFrepeat"] = repeat["repeat"]
+            return entry
+
+        # 1 - I want trf hits that have srep hits
+        if key in self.trf_lookup:
+            for repeat in sorted(self.trf_lookup[key].keys(), key=len, reverse=True):
+                if repeat in self.srep_lookup[key]:
+                    diff = self.trf_lookup[key][repeat]['copies'] - self.srep_lookup[key][repeat]['copies']
+                    repeat = self.trf_lookup[key][repeat]
+                    return edit_entry(repeat, entry, new_header, diff)
+
+        # 2 - if there are none, I'll take srep hits
+        if key in self.srep_lookup:
+            repeat = sorted(self.srep_lookup[key].keys(), key=len, reverse=True)[0]
+            repeat = self.srep_lookup[key][repeat]
+            return edit_entry(repeat, entry, new_header)
+        # 3 - otherwise quit
+        return entry
 
 def edit_header(header):
     """
     New VCF INFO fields
     """
     header = header.copy()
-    header.add_line(('##INFO=<ID=SimpleRepeatDiff,Number=1,Type=Float,'
-                     'Description="TRF simple repeat copy difference">'))
-    header.add_line(('##INFO=<ID=SREP,Number=1,Type=Flag,'
+    header.add_line(('##INFO=<ID=TRF,Number=1,Type=Flag,'
                      'Description="Entry hits a simple repeat region">'))
+    header.add_line(('##INFO=<ID=TRFDiff,Number=1,Type=Float,'
+                     'Description="Simple repeat copy difference">'))
+    header.add_line(('##INFO=<ID=TRFperiod,Number=1,Type=Integer,'
+                     'Description="Period size of the repeat">'))
+    header.add_line(('##INFO=<ID=TRFcopies,Number=1,Type=Float,'
+                     'Description="Number of copies aligned with the consensus pattern">'))
+    header.add_line(('##INFO=<ID=TRFscore,Number=1,Type=Integer,'
+                     'Description="TRF Alignment score">'))
+    header.add_line(('##INFO=<ID=TRFentropy,Number=1,Type=Float,'
+                     'Description="TRF Entropy measure">'))
+    header.add_line(('##INFO=<ID=TRFrepeat,Number=1,Type=String,'
+                     'Description="TRF Repeat found on entry">'))
+
     return header
 
 def trf_main(cmdargs):
