@@ -278,9 +278,9 @@ def trf_main(cmdargs):
         chunks = pool.imap(process_entries, truvari.annos.grm.ref_ranges(ref, chunk_size=int(args.chunk_size * 1e6)))
         pool.close()
         with open(args.output, 'w') as fout:
-                fout.write(str(new_header))
-                for i in chunks:
-                    fout.write(i[3])
+            fout.write(str(new_header))
+            for i in chunks:
+                fout.write(i[3])
         pool.join()
 
     logging.info("Finished trf")
