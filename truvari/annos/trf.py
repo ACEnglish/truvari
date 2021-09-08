@@ -272,19 +272,18 @@ def trf_main(cmdargs):
     trfshared.args = args
 
     ref = pysam.FastaFile(args.reference)
+    v = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(v.header)
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         chunks = pool.imap(process_entries, truvari.annos.grm.ref_ranges(ref, chunk_size=int(args.chunk_size * 1e6)))
         pool.close()
+        with open(args.output, 'w') as fout:
+                fout.write(str(new_header))
+                for i in chunks:
+                    fout.write(i[3])
         pool.join()
 
-    chunks = sorted(list(chunks))
-    v = pysam.VariantFile(trfshared.args.input)
-    new_header = edit_header(v.header)
-    with open(args.output, 'w') as fout:
-        fout.write(str(new_header))
-        for i in chunks:
-            fout.write(i[3])
-    logging.info("Finished")
+    logging.info("Finished trf")
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])
