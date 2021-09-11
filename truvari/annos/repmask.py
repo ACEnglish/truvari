@@ -20,7 +20,7 @@ import truvari
 # And I'm going write
 # -pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
 
-DEFAULTPARAMS = "-pa {threads} -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
+DEFAULTPARAMS = "-pa {threads} -qq -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
 
 def paren_int(number):
     """

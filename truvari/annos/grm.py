@@ -161,6 +161,8 @@ def parse_args(args):
                         help="Input VCF")
     parser.add_argument("-r", "--reference", required=True,
                         help="BWA indexed reference")
+    parser.add_argument("-R", "--regions", default=None,
+                        help="Bed file of regions to parse (None)")
     parser.add_argument("-o", "--output", default="results.jl",
                         help="Output dataframe (%(default)s)")
     parser.add_argument("-k", "--kmersize", default=50, type=int,
@@ -280,11 +282,12 @@ def process_entries(ref_section):
     return data
 
 
-def ref_ranges(ref, chunk_size=10000000):
+def ref_ranges(reference, chunk_size=10000000):
     """
     Chunk reference into pieces
     """
-    for ref_name in ref.references:
+    ref = pysam.FastaFile(reference)
+    for ref_name in ref.references: # pylint: disable=not-an-iterable
         final_stop = ref.get_reference_length(ref_name)
         start = 0
         stop = start + chunk_size
@@ -294,6 +297,21 @@ def ref_ranges(ref, chunk_size=10000000):
             stop += chunk_size
         yield ref_name, start, final_stop
 
+def bed_ranges(bed, chunk_size=10000000):
+    """
+    Chunk bed ranges into pieces
+    """
+    with open(bed, 'r') as fh:
+        for line in fh:
+            data = line.strip().split('\t')
+            start = int(data[1])
+            final_stop = int(data[2])
+            stop = start + chunk_size
+            while stop < final_stop:
+                yield data[0], start, stop
+                start = stop
+                stop += chunk_size
+            yield data[0], start, final_stop
 
 def grm_main(cmdargs):
     """
@@ -310,7 +328,11 @@ def grm_main(cmdargs):
         logging.error("bwapy isn't available on this machine")
         sys.exit(1)
     args = parse_args(cmdargs)
-    ref = pysam.FastaFile(args.reference)
+    if not args.regions:
+        m_ranges = ref_ranges(args.reference)
+    else:
+        m_ranges = bed_ranges(args.regions)
+
     grm_shared.aligner = BwaAligner(args.reference, '-a')
     header = ["key"]
     for prefix in ["rup_", "rdn_", "aup_", "adn_"]:
@@ -325,7 +347,7 @@ def grm_main(cmdargs):
     grm_shared.min_size = args.min_size
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         logging.info("Processing")
-        chunks = pool.imap(process_entries, ref_ranges(ref, chunk_size=10000000))
+        chunks = pool.imap(process_entries, m_ranges)
         pool.close()
         data = pd.concat(chunks, ignore_index=True)
         logging.info("Saving; df shape %s", data.shape)
