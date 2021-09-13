@@ -42,7 +42,7 @@ class GenomeTree():
             logging.info("Including %d bed regions", counter)
         else:
             excluding = contigB_set - contigA_set
-            if not excluding:
+            if excluding:
                 logging.warning(
                     "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
