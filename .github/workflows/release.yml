@@ -6,7 +6,11 @@ on:
       branch:
         description: 'Tag or branch to build'
         required: true
-      test:
+      skip_test:
+        description: 'Type "skip" to bypass test.pypi push'
+        required: true
+        default: run
+      official:
         description: 'Type "PUBLISH TO PYPI" to do an official pypi release'
         required: true
         default: test
@@ -33,6 +37,7 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python setup.py sdist bdist_wheel
       - name: Publish distribution 📦 to Test PyPI
+        if: github.event.inputs.skip_test != 'skip'
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -44,7 +49,7 @@ jobs:
           path: dist/Truvari*.tar.gz
           # if-no-files-found: ignore
       - name: Publish distribution 📦 to PyPI
-        if: github.event.inputs.test == 'PUBLISH TO PYPI'
+        if: github.event.inputs.official == 'PUBLISH TO PYPI'
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
