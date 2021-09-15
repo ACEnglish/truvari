@@ -5,11 +5,13 @@ performance
 User Manual:
     https://github.com/spiralgenetics/truvari
 """
+__version__ = '3.0.0'
 from truvari.utils import (
     StatsBox,
     setup_progressbar,
     LogFileStderr,
-    setup_logging
+    setup_logging,
+    cmd_exe
 )
 
 from truvari.comparisons import (
@@ -20,14 +22,13 @@ from truvari.comparisons import (
     entry_gt_comp,
     create_haplotype,
     create_pos_haplotype,
-    entry_pctsim_lev,
+    entry_pctsim,
     overlaps,
     entry_variant_type,
     same_variant_type,
     fetch_coords,
     entry_boundaries,
     entry_size,
-    reciprocal_overlap,
     weighted_score,
     reciprocal_overlap,
     entry_reciprocal_overlap,
@@ -50,7 +51,13 @@ from truvari.stats import (
     get_svtype,
     get_sizebin,
     get_gt,
-    get_scalebin,
-    format_stats,
-    generate_stat_table
+    get_scalebin
+)
+
+from truvari.annos.af_calc import allele_freq_annos
+
+from truvari.vcf2df import (
+    vcf_to_df,
+    SZBINTYPE,
+    SVTYTYPE
 )

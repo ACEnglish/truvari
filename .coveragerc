@@ -1,0 +1,7 @@
+[run]
+concurrency = multiprocessing
+branch = true
+
+[report]
+omit = 
+    */repmask.py

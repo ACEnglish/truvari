@@ -1,4 +1,3 @@
-
 ```
 ████████╗██████╗ ██╗   ██╗██╗   ██╗ █████╗ ██████╗ ██╗
 ╚══██╔══╝██╔══██╗██║   ██║██║   ██║██╔══██╗██╔══██╗██║
@@ -7,6 +6,11 @@
    ██║   ██║  ██║╚██████╔╝ ╚████╔╝ ██║  ██║██║  ██║██║
    ╚═╝   ╚═╝  ╚═╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝
 ```
+[![PyPI version](https://badge.fury.io/py/Truvari.svg)](https://badge.fury.io/py/Truvari)
+[![pylint](imgs/pylint.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/pylint.yml)
+[![FuncTests](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
+[![coverage](imgs/coverage.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
+[![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v2.1.1)](https://github.com/spiralgenetics/truvari/commits/develop)
 
 Structural variant toolkit for benchmarking, annotating and more for VCFs
 
@@ -14,36 +18,37 @@ Structural variant toolkit for benchmarking, annotating and more for VCFs
 See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
 
 ## Installation
-Truvari uses Python 3.7 and can be installed with pip:
+Truvari uses Python 3.6+ and can be installed with pip:
 ```
-  pip install Truvari 
+  python3 -m pip install Truvari 
 ```
 [PyPi](https://pypi.org/project/Truvari/#history) has a history of all versions available. Pip installs all requirements EXCEPT external tools needed for running some annotations. See [anno](https://github.com/spiralgenetics/truvari/wiki/anno) for details. 
 
 To build and install Truvari from scratch:
 ```
-  python -m pip install --upgrade pip setuptools wheel
-  python setup.py sdist bdist_wheel
-  pip install dist/Truvari-<version>.tar.gz
+  python3 setup.py install
 ```
-Where `<version>` is which version you just built.
  
- See [tags/](https://github.com/spiralgenetics/truvari/tags/) for a list of all available versions.
- 
+See [tags/](https://github.com/spiralgenetics/truvari/tags/) for a list of all available versions.
+
+See [Development/docker](https://github.com/spiralgenetics/truvari/wiki/Development#docker) for instructions on how to
+build and use a Truvari Docker container.
+
 ## Quick Start
 
 Each sub-command contains help documentation. Start with `truvari -h` to see available commands.
 
 The current most common Truvari use case is for structural variation benchmarking:
 ```
-  truvari bench -b base.vcf.gz -c comp.vcf.gz -r reference.fasta -o output_dir/
+  truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fasta -o output_dir/
 ```
 ## Truvari Commands
 
  - [bench](https://github.com/spiralgenetics/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
- - [stats](https://github.com/spiralgenetics/truvari/wiki/stats) - Basic SV relevant VCF stats
+ - [collapse](https://github.com/spiralgenetics/truvari/wiki/collapse) - Collapse possibly redundant VCF entries
+ - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
+ - [vcf2df](https://github.com/spiralgenetics/truvari/wiki/vcf2df) - Turn a VCF into a pandas DataFrame
  - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
- - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Annotate a VCF
 
 ## More Information
 

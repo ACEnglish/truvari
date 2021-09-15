@@ -21,7 +21,7 @@ def parse_vcf(fn):
     if fn.endswith(".gz"):
         fh = io.TextIOWrapper(gzip.open(fn))
     else:
-        fh = open(fn, 'r')
+        fh = open(fn, 'r') # pylint: disable=consider-using-with
     for line in fh:
         if line.startswith("#"):
             continue
@@ -96,9 +96,9 @@ def parse_args(args):
 
 def make_consistency_overlap(count_lookup, file_abscnt, allVCFs):
     """
-    # 1 I want to make a key "101010" so that they can be viz'd easier
-    # 2 - I want to sort the count_lookup by their value so that we output them in order
-    # The group
+    1 I want to make a key "101010" so that they can be viz'd easier
+    2 - I want to sort the count_lookup by their value so that we output them in order
+    The group
     """
     all_consistency = Counter()
     all_overlap = []
@@ -116,12 +116,12 @@ def make_consistency_overlap(count_lookup, file_abscnt, allVCFs):
             m_cnt += 1
         cur_data.append("".join(my_group))
         cur_data.append(value)
-        cur_data.append([])
+        cur_data.append(["0%"] * len(allVCFs))
 
         all_consistency[m_cnt] += value
         for fkey in combo:
             if file_abscnt[fkey] > 0:
-                cur_data[-1].append("%.2f%%" % (count_lookup[combo] / file_abscnt[fkey] * 100))
+                cur_data[-1][allVCFs.index(fkey)] = "%.2f%%" % (count_lookup[combo] / file_abscnt[fkey] * 100)
         all_overlap.append(cur_data)
     return all_consistency, all_overlap
 
@@ -146,11 +146,8 @@ def write_report(total_unique_calls, allVCFs, file_abscnt, all_consistency, all_
         c_text = ""
         pos = 0
         for i in my_group:
-            if i == '1':
-                c_text += combo[pos] + " "
-                pos += 1
-            else:
-                c_text += "0% "
+            c_text += combo[pos] + " "
+            pos += 1
         print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, c_text))
 
 def consistency_main(args):

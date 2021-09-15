@@ -1,18 +1,15 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
-import io
 import re
 import sys
-import gzip
 import logging
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 
 from intervaltree import IntervalTree
-
 import truvari.comparisons as tcomp
 
-HEADERMAT=re.compile("##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
+HEADERMAT=re.compile(r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
 class GenomeTree():
     """
     Helper class to specify included regions of the genome when iterating events.
@@ -45,7 +42,7 @@ class GenomeTree():
             logging.info("Including %d bed regions", counter)
         else:
             excluding = contigB_set - contigA_set
-            if not excluding:
+            if excluding:
                 logging.warning(
                     "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
@@ -106,91 +103,3 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
         sys.exit(100)
 
     return lookup, n_entries, cmp_entries
-
-def make_bedanno_tree(bed_file):
-    """
-    Expecting a bedfile formatted with new vcf headerlines
-    at the top then bed entries the rest of the way
-    Okay = you need VCF HEADER lines at the top
-    For now, this will only annotate INFO fields
-    Those header lines must be in order of the bed columns' annotations
-    So as an example:
-
-    ##INFO=<ID=SREP,Number=0,Type=Flag,Description="Simple Repeat">
-    ##INFO=<ID=SREPLEN,Number=1,Type=Integer,Description="Simple Repeat Length">
-    1	10000	10468	trf	789
-    1	10627	10800	.	346
-    
-    This will add the SREP flag IF column[3] != '.'
-    This will add the SREPLEN as an Integer from column[4]
-    Errors will be thrown if there's a problem parsing
-
-    returns a tuple of the (defaultdict(IntervalTree), header_lines)
-    """
-    logging.info("Loading Annotation %s", bed_file)
-    n_entries = 0
-    lookup = defaultdict(IntervalTree)
-    header_lines = []
-    header_dict = OrderedDict()
-
-    def add_header(line):
-        header_lines.append(line)
-        head = HEADERMAT.match(line)
-        if not head:
-            logging.error("Bad Headerline %s", line.strip())
-            exit(1)
-        g = head.groupdict()
-        typ = None
-        if g["type"] == "String":
-            typ = str
-        elif g["type"] == "Integer":
-            typ = int
-        elif g["type"] == "Float":
-            typ = float
-        elif g["type"] == "Flag":
-            typ = bool
-        
-        if not typ:
-            logging.error("Bad Headerline Type %s", line.strip())
-            exit(1)
-                
-        num = None
-        if g["num"] == '0':
-            num = bool
-        elif g["num"] != 1:
-            num = list
-        else:
-            num = typ
-        header_dict[g["name"]] = (num, typ)
-
-    # I think I'm going to need to build a header parser that will convert the things
-    if bed_file.endswith(".gz"):
-        fh = io.TextIOWrapper(gzip.open(bed_file))
-    else:
-        fh = open(bed_file, 'r')
-    
-    for line in fh:
-        # header lines - ##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)
-        if line.startswith("#"):
-            add_header(line)
-            continue
-        
-        # parse the rest
-        data = line.strip().split('\t')
-        start = int(data[1])
-        end = int(data[2])
-        if len(data[3:]) != len(header_dict):
-            logging.error("Bad header in file %s. %d headers and %d columns on line %s", 
-                          bed_file, len(header_dict), len(data[3:]), line)
-            exit(1)
-        m_dict = {}
-        for k, v in zip(header_dict.keys(), data[3:]):
-            if v != ".":
-                if header_dict[k][0] == list:
-                    m_dict[k] = [header_dict[k][1](x) for x in v.split(',')]
-                elif header_dict[k][0] == bool: 
-                    m_dict[k] = True
-                else:
-                    m_dict[k] = header_dict[k][1](v)
-        lookup[data[0]].addi(start, end, m_dict)
-    return lookup, header_lines
