@@ -6,6 +6,10 @@ on:
       branch:
         description: 'Tag or branch to build'
         required: true
+      test:
+        description: 'Type "PUBLISH TO PYPI" to do an official pypi release'
+        required: true
+        default: test
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -40,7 +44,7 @@ jobs:
           path: dist/Truvari*.tar.gz
           # if-no-files-found: ignore
       - name: Publish distribution 📦 to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: github.event.inputs.test == 'PUBLISH TO PYPI'
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
