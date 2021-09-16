@@ -4,6 +4,7 @@ Over multiple vcfs, calculate their intersection/consistency.
 Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
+# pylint: disable=consider-using-f-string
 import io
 import gzip
 import bisect

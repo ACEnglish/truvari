@@ -26,7 +26,7 @@ def entry_to_key(source, entry):
     the
     """
     start, end = entry_boundaries(entry)
-    return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0])
+    return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0]) # pylint: disable=consider-using-f-string
 
 
 def sizesim(sizeA, sizeB):

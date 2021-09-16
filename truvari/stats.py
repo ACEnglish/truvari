@@ -84,5 +84,5 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     pos = 0
     for pos, i in enumerate(range(tmin, tmax, step)):
         if newx < i + step:
-            return "[%d,%d)" % (i, i+step), pos
-    return ">=%d" % (tmax), pos + 1
+            return f"[{i},{i+step})", pos
+    return f">={tmax}", pos + 1

@@ -25,7 +25,7 @@ def parse_args(args):
     def restricted_float(x):
         x = float(x)
         if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
+            raise argparse.ArgumentTypeError(f"{x} not in range [0.0, 1.0]")
         return x
 
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
@@ -200,7 +200,7 @@ def setup_outputs(args):
     os.mkdir(args.output)
     truvari.setup_logging(args.debug, truvari.LogFileStderr(os.path.join(args.output, "log.txt")))
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
-
+    logging.info(f"Truvari version: {truvari.__version__}")
     outputs = {}
 
     outputs["vcf_base"] = pysam.VariantFile(args.base, 'r')

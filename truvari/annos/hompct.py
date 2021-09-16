@@ -53,7 +53,7 @@ def hompct_main(cmd_args):
         return float(format((homs / tot) * 100, ".1f"))
 
     header = v.header.copy()
-    header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,'
+    header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,' # pylint: disable=consider-using-f-string
                      'Description="Percent of calls < %dbp long within %dbp that are homozygous')
                      % (args.maxgt, args.buffer))
 

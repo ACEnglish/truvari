@@ -134,7 +134,7 @@ def parse_args(args):
     def restricted_float(x):
         x = float(x)
         if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
+            raise argparse.ArgumentTypeError(f"{x} not in range [0.0, 1.0]")
         return x
 
     parser = argparse.ArgumentParser(prog="remap", description=__doc__,

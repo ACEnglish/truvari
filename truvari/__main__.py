@@ -19,7 +19,7 @@ def in_progress(args):
 
 def version(args):
     """Print the version"""
-    print("Truvari v%s" % __version__)
+    print(f"Truvari v{__version__}")
 
 TOOLS = {'bench': bench_main,
          'consistency': consistency_main,
@@ -30,8 +30,8 @@ TOOLS = {'bench': bench_main,
 
 # create-anno      Create an index of an annotation source for reuse
 
-USAGE = """\
-Truvari v%s - Structural Variant Benchmarking and Annotation
+USAGE = f"""\
+Truvari v{__version__} - Structural Variant Benchmarking and Annotation
 
     CMDs:
         bench         Performance metrics from comparison of two VCFs
@@ -40,7 +40,7 @@ Truvari v%s - Structural Variant Benchmarking and Annotation
         collapse      Collapse possibly redundant VCF entries
         vcf2df        Turn a VCF into a pandas DataFrame
         version       Print the Truvari version and exit
-""" % __version__
+"""
 
 
 def main():
