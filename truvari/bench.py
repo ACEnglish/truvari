@@ -203,7 +203,7 @@ def setup_outputs(args):
     logging.info(f"Truvari version: {truvari.__version__}")
     outputs = {}
 
-    outputs["vcf_base"] = pysam.VariantFile(args.base, 'r')
+    outputs["vcf_base"] = pysam.VariantFile(args.base)
     outputs["n_base_header"] = edit_header(outputs["vcf_base"])
     outputs["sampleBase"] = args.bSample if args.bSample else outputs["vcf_base"].header.samples[0]
 
@@ -211,8 +211,6 @@ def setup_outputs(args):
     outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
     outputs["sampleComp"] = args.cSample if args.cSample else outputs["vcf_comp"].header.samples[0]
 
-    outputs["vcf_base"] = pysam.VariantFile(args.base)
-    outputs["n_base_header"] = edit_header(outputs["vcf_base"])
     # Setup outputs
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
     outputs["tpc_out"] = pysam.VariantFile(os.path.join(args.output, "tp-call.vcf"), 'w', header=outputs["n_comp_header"])
