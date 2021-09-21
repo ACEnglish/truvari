@@ -44,10 +44,19 @@ SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
 
 def get_svtype(svtype):
     """
-    Turn to a svtype
+    Turn to an SV
+
+    Parameters
+    ----------
+    svtype : string
+        SVTYPE string to turn into SV object
+
+    Returns
+    -------
+    SV : enum
     """
     try:
-        return truvari.SV.__members__[svtype]
+        return SV.__members__[svtype]
     except AttributeError:
         pass
     return SV.UNK
@@ -56,6 +65,15 @@ def get_svtype(svtype):
 def get_sizebin(sz):
     """
     Bin a given size
+
+    Parameters
+    ----------
+    sz : integer
+        SVLEN to bin into the SZBINS
+
+    Returns
+    -------
+    SZBINS : string
     """
     sz = abs(sz)
     for key, maxval in zip(SZBINS, SZBINMAX):
@@ -66,7 +84,16 @@ def get_sizebin(sz):
 
 def get_gt(gt):
     """
-    return GT enum
+    Turn a genotype tuple into a GT object
+
+    Parameters
+    ----------
+    gt : tuple (int, int)
+        Genotype tuple
+
+    Returns
+    -------
+    GT : enum
     """
     if None in gt:
         return GT.NON
@@ -85,11 +112,26 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     """
     Scale variable x from rdomain to tdomain with step sizes
     return key, index
+    
 
-    rmin denote the minimum of the range of your measurement
-    tmax denote the maximum of the range of your measurement
-    tmin denote the minimum of the range of your desired target scaling
-    tmax denote the maximum of the range of your desired target scaling
+    Parameters
+    ----------
+    x : number
+        Number to scale
+    rmin : number, optional
+        The minimum of the range of your measurement
+    rmax : number, optional
+        The maximum of the range of your measurement
+    tmin : number, optional
+        The minimum of the range of your desired target scaling
+    tmax : number, optional
+        The maximum of the range of your measurement
+    step : number, optional
+        The step size of bins of target range 
+
+    Returns
+    -------
+    string : The bin-string of the scaled variable
     """
     newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
     pos = 0
@@ -131,6 +173,21 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     Tries its best to pull info/format tags from the sample information
     For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt
     Specify which sample with its name or index in the VCF
+
+    Parameters
+    ----------
+    fn : string
+        File name of VCF to open and turn into a DataFrame
+    with_info : boolean, optional
+        Add the INFO fields from the VCF to the DataFrame columns
+    with_fmt : boolean, optional
+        Add the FORMAT fields from the VCF to the DataFrame columns
+    sample : int/string, optional
+        Sample from the VCF to parse. Only used when with_fmt==True
+
+    Returns
+    -------
+    pandas.DataFrame : Converted VCF
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen",

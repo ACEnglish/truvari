@@ -15,11 +15,9 @@ from collections import namedtuple
 
 import progressbar
 
-# regular expression to match vcf header INFO/FORMAT fields with match groups
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
 
-# named tuple of match files
 MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
@@ -44,8 +42,10 @@ def restricted_float(x, lower=0.0, upper=1.0):
     """
     x = float(x)
     if x < lower or x > upper:
-        raise argparse.ArgumentTypeError(f"{x} not in range ({lower}, {upper})")
+        raise argparse.ArgumentTypeError(
+            f"{x} not in range ({lower}, {upper})")
     return x
+
 
 def setup_progressbar(size):
     """
