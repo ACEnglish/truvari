@@ -112,7 +112,7 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     """
     Scale variable x from rdomain to tdomain with step sizes
     return key, index
-    
+
 
     Parameters
     ----------
@@ -127,7 +127,7 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     tmax : number, optional
         The maximum of the range of your measurement
     step : number, optional
-        The step size of bins of target range 
+        The step size of bins of target range
 
     Returns
     -------
