@@ -102,7 +102,3 @@ def segment_main(args):
                 new_entry.samples[samp]["SEG"] = int(dat)
 
             out.write(new_entry)
-
-
-if __name__ == '__main__':
-    segment_main(sys.argv[1:])

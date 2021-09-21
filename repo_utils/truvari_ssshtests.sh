@@ -242,6 +242,15 @@ assert_exit_code 0
 df_check test_vcf2df_dir_result $ANSDIR/truv2df.jl $OD/truv2df.jl
 
 # ------------------------------------------------------------
+#                                 segment
+# ------------------------------------------------------------
+run test_segment $truv segment $ANSDIR/anno_answers.vcf.gz $OD/segment.vcf
+assert_exit_code 0
+
+run test_segment_result
+assert_equal $(fn_md5 $ANSDIR/segment.vcf) $(fn_md5 $OD/segment.vcf)
+
+# ------------------------------------------------------------
 #                                 coverage.py
 # ------------------------------------------------------------
 coverage combine
