@@ -13,15 +13,6 @@ import joblib
 import pandas as pd
 import truvari
 
-SZBINTYPE = pd.CategoricalDtype(categories=truvari.SZBINS, ordered=True)
-SVTYTYPE = pd.CategoricalDtype(
-    categories=[_.name for _ in truvari.SV], ordered=True)
-SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
-          "[400,600)", "[600,800)", "[800,1k)", "[1k,2.5k)",
-          "[2.5k,5k)", ">=5k"]
-SZBINMAX = [50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
-QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
-
 
 class GT(Enum):
     """ Genotypes """
@@ -40,6 +31,15 @@ class SV(Enum):
     INV = 3
     NON = 4  # Not an SV, SVTYPE
     UNK = 5  # Unknown SVTYPE
+
+
+SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
+          "[400,600)", "[600,800)", "[800,1k)", "[1k,2.5k)",
+          "[2.5k,5k)", ">=5k"]
+SZBINMAX = [50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
+QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
+SZBINTYPE = pd.CategoricalDtype(categories=SZBINS, ordered=True)
+SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
 
 
 def get_svtype(svtype):

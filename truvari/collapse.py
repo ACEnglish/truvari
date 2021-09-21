@@ -284,7 +284,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     # Update with the first genotyped sample's information
     for samp_name in new_entry.samples:
         fmt = new_entry.samples[samp_name]
-        m_gt = truvari.stats.get_gt(fmt["GT"])
+        m_gt = truvari.get_gt(fmt["GT"])
         # Update the null_consolidates first - these will replace with the first non-null
         for key in nullconso:
             if fmt[key] is None:
@@ -303,7 +303,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
             assigned = False
             while not assigned and idx < len(neighs):
                 s_fmt = neighs[idx][0].samples[samp_name]
-                s_gt = truvari.stats.get_gt(s_fmt["GT"])
+                s_gt = truvari.get_gt(s_fmt["GT"])
                 if s_gt not in [truvari.GT.NON, truvari.GT.REF]:
                     assigned = True
                     for key in [_ for _ in fmt if _ not in nullconso]:

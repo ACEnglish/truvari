@@ -48,13 +48,13 @@ from truvari.annos.af_calc import (
 
 from truvari.vcf2df import (
     vcf_to_df,
+    SV,
+    GT,
     SZBINTYPE,
     SVTYTYPE,
     SZBINS,
     SZBINMAX,
     QUALBINS,
-    GT,
-    SV,
     get_svtype,
     get_sizebin,
     get_gt,
