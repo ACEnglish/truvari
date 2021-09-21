@@ -7,10 +7,11 @@ import argparse
 
 from truvari import __version__
 from truvari.bench import bench_main
-from truvari.collapse import collapse_main
-from truvari.consistency_report import consistency_main
-from truvari.annotation import anno_main
 from truvari.vcf2df import vcf2df_main
+from truvari.annotation import anno_main
+from truvari.collapse import collapse_main
+from truvari.segmentation import segment_main
+from truvari.consistency_report import consistency_main
 
 # pylint: disable=unused-argument
 def in_progress(args):
@@ -26,6 +27,7 @@ TOOLS = {'bench': bench_main,
          'anno': anno_main,
          'collapse': collapse_main,
          'vcf2df': vcf2df_main,
+         'segment': segment_main,
          'version': version}
 
 # create-anno      Create an index of an annotation source for reuse
@@ -39,6 +41,7 @@ Truvari v{__version__} - Structural Variant Benchmarking and Annotation
         anno          Annotate a VCF
         collapse      Collapse possibly redundant VCF entries
         vcf2df        Turn a VCF into a pandas DataFrame
+        segment       Normalization of SVs into disjointed genomic regions
         version       Print the Truvari version and exit
 """
 
