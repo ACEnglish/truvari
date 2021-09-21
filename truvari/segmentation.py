@@ -62,12 +62,12 @@ def segment_main(args):
         if "SVTYPE" not in entry.info or entry.info["SVTYPE"] != "DEL":
             out.write(entry)
             continue
-        data = np.array([gtcnt[truvari.get_gt(x["GT"]).name] for x in entry.samples.values()], dtype=np.int8)
+        data = [gtcnt[truvari.get_gt(x["GT"]).name] for x in entry.samples.values()]
         tree[entry.chrom].addi(entry.start, entry.stop, data=([entry], data))
 
     # This should probably be its own method so that as I'm splitting by chrom, I don't have to
     # hold everything in memory
-    reducer = lambda x, y: (x[0] + y[0], np.array(x[1]) + np.array(y[1]))
+    reducer = lambda x, y: (x[0] + y[0], np.array(x[1], dtype=np.int8) + np.array(y[1], dtype=np.int8))
     for chrom, chr_tree in tree.items():
         logging.info(f"Segmenting {chrom}")
         chr_tree.split_overlaps()
