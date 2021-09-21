@@ -9,7 +9,9 @@ from truvari.utils import (
     setup_progressbar,
     LogFileStderr,
     setup_logging,
-    cmd_exe
+    cmd_exe,
+    HEADERMAT,
+    MATCHRESULT
 )
 
 from truvari.comparisons import (
@@ -30,17 +32,24 @@ from truvari.comparisons import (
     weighted_score,
     reciprocal_overlap,
     entry_reciprocal_overlap,
-    is_sv,
     filter_value,
     match_sorter,
     copy_entry
 )
 
-from truvari.genome_tree import *
+from truvari.genome_tree import (
+    GenomeTree,
+    make_interval_tree
+)
 
-from truvari.giab_report import make_giabreport
+from truvari.annos.af_calc import (
+    allele_freq_annos
+)
 
-from truvari.stats import (
+from truvari.vcf2df import (
+    vcf_to_df,
+    SZBINTYPE,
+    SVTYTYPE,
     SZBINS,
     SZBINMAX,
     QUALBINS,
@@ -50,12 +59,5 @@ from truvari.stats import (
     get_sizebin,
     get_gt,
     get_scalebin
-)
 
-from truvari.annos.af_calc import allele_freq_annos
-
-from truvari.vcf2df import (
-    vcf_to_df,
-    SZBINTYPE,
-    SVTYTYPE
 )

@@ -7,6 +7,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -29,6 +30,7 @@ def edit_header(my_vcf):
     header.add_line(('##INFO=<ID=GTCNT,Number=.,Type=Integer,'
                      'Description="Counts of genotypes for the allele (UNK, REF, HET, HOM)">'))
     return header
+
 
 def add_gtcnt(vcf, n_header=None):
     """
@@ -58,6 +60,7 @@ def add_gtcnt(vcf, n_header=None):
             continue
         nentry.info["GTCNT"] = cnt
         yield nentry
+
 
 def gtcnt_main(cmdargs):
     """

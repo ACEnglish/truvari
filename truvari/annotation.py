@@ -19,6 +19,7 @@ Truvari annotations:
         gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo
 """
 
+
 def parseArgs(args):
     """
     Argument parsing
@@ -33,6 +34,7 @@ def parseArgs(args):
 
     args = parser.parse_args(args)
     return args
+
 
 def anno_main(args):
     """

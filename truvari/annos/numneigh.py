@@ -16,6 +16,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -38,10 +39,12 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
+
 class NeighAnno():
     """
     Annotates a vcf with Neighbor information
     """
+
     def __init__(self, in_vcf, out_vcf, refdist=1000, sizemin=50, passonly=False):
         """
         initialize
@@ -154,6 +157,7 @@ class NeighAnno():
 
         self.chrom_end_flush()
 
+
 def numneigh_main(args):
     """
     Main
@@ -167,6 +171,7 @@ def numneigh_main(args):
         logging.error("Error parsing input. Please fix before re-running")
         sys.exit(100)
 
-    anno = NeighAnno(args.input, args.output, args.refdist, args.sizemin, args.passonly)
+    anno = NeighAnno(args.input, args.output, args.refdist,
+                     args.sizemin, args.passonly)
     anno.run()
     logging.info("Finished numneigh")

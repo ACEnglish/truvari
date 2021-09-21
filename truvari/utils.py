@@ -2,6 +2,7 @@
 Miscellaneous utilites for truvari
 """
 import os
+import re
 import sys
 import time
 import signal
@@ -12,6 +13,16 @@ from datetime import timedelta
 from collections import namedtuple
 
 import progressbar
+
+# regular expression to match vcf header INFO/FORMAT fields with match groups
+HEADERMAT = re.compile(
+    r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
+
+# named tuple of match files
+MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
+                                         "ovl_pct size_diff start_distance "
+                                         "end_distance match_entry"))
+
 
 def setup_progressbar(size):
     """
@@ -41,7 +52,8 @@ class LogFileStderr():
     def __init__(self, fn):
         """ keep these props """
         self.name = fn
-        self.file_handler = open(fn, 'w') # pylint: disable=consider-using-with
+        # pylint: disable=consider-using-with
+        self.file_handler = open(fn, 'w')
 
     def write(self, *args):
         """ Write to both """
@@ -75,14 +87,15 @@ def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(lev
         """
         Put warnings into logger
         """
-        logging.warning('%s:%s: %s:%s', filename, lineno, category.__name__, message)
+        logging.warning('%s:%s: %s:%s', filename, lineno,
+                        category.__name__, message)
 
     warnings.showwarning = sendWarningsToLog
 
 
 class Alarm(Exception):
     """ Alarm Class for command timeouts """
-    pass # pylint: disable=unnecessary-pass
+    pass  # pylint: disable=unnecessary-pass
 
 
 def alarm_handler(signum, frame=None):
@@ -150,9 +163,10 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
         try:
             sys.exit(214)
         except SystemExit:
-            os._exit(214) # pylint: disable=protected-access
+            os._exit(214)  # pylint: disable=protected-access
 
     stdoutVal = bytes.decode(stdoutVal)
     retCode = proc.returncode
-    ret = cmd_result(retCode, stdoutVal, stderrVal, timedelta(seconds=time.time() - t_start))
+    ret = cmd_result(retCode, stdoutVal, stderrVal,
+                     timedelta(seconds=time.time() - t_start))
     return ret

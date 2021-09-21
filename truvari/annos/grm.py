@@ -25,7 +25,7 @@ except OSError:
 import truvari
 
 try:
-    from setproctitle import setproctitle # pylint: disable=import-error,useless-suppression
+    from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
@@ -33,6 +33,7 @@ except ModuleNotFoundError:
 
 # Data shared with workers; must be populated before workers are started.
 grm_shared = types.SimpleNamespace()
+
 
 def make_kmers(ref, entry, kmer=25):
     """
@@ -45,8 +46,10 @@ def make_kmers(ref, entry, kmer=25):
     end = entry.stop
     try:
         reflen = ref.get_reference_length(entry.chrom)
-        up = ref.fetch(entry.chrom, max(start - kmer, 0), min(start + kmer, reflen))
-        dn = ref.fetch(entry.chrom, max(end - kmer, 0), min(end + kmer, reflen))
+        up = ref.fetch(entry.chrom, max(start - kmer, 0),
+                       min(start + kmer, reflen))
+        dn = ref.fetch(entry.chrom, max(end - kmer, 0),
+                       min(end + kmer, reflen))
 
         if len(up) < kmer or len(dn) < kmer:
             return None
@@ -56,7 +59,7 @@ def make_kmers(ref, entry, kmer=25):
         # alternate
         hap = up[:kmer] + seq + dn[-kmer:]
         return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except
         logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
 
@@ -245,7 +248,8 @@ def process_entries(ref_section):
         entry = line_to_entry(line)
         if next_progress == 0:
             next_progress = 1000
-            setproctitle(f"grm processing {entry.chrom}:{entry.start} in {ref_name}:{start}-{stop}")
+            setproctitle(
+                f"grm processing {entry.chrom}:{entry.start} in {ref_name}:{start}-{stop}")
         else:
             next_progress -= 1
         if "SVLEN" not in entry.info:
@@ -258,7 +262,8 @@ def process_entries(ref_section):
         ref_up, ref_dn, alt_up, alt_dn = kmers
         ty = truvari.entry_variant_type(entry)
 
-        result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop, entry.alts[0])] # pylint: disable=consider-using-f-string
+        result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop,
+                                   entry.alts[0])]  # pylint: disable=consider-using-f-string
         if ty == "INS":
             # Only want a single reference kmer
             ref_stats = map_stats(aligner, ref_up, entry.chrom, entry.start)
@@ -287,7 +292,7 @@ def ref_ranges(reference, chunk_size=10000000):
     Chunk reference into pieces
     """
     ref = pysam.FastaFile(reference)
-    for ref_name in ref.references: # pylint: disable=not-an-iterable
+    for ref_name in ref.references:  # pylint: disable=not-an-iterable
         final_stop = ref.get_reference_length(ref_name)
         start = 0
         stop = start + chunk_size
@@ -296,6 +301,7 @@ def ref_ranges(reference, chunk_size=10000000):
             start = stop
             stop += chunk_size
         yield ref_name, start, final_stop
+
 
 def bed_ranges(bed, chunk_size=10000000):
     """
@@ -312,6 +318,7 @@ def bed_ranges(bed, chunk_size=10000000):
                 start = stop
                 stop += chunk_size
             yield data[0], start, final_stop
+
 
 def grm_main(cmdargs):
     """

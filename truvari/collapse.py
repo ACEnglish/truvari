@@ -17,10 +17,8 @@ import pysam
 import truvari
 from truvari.bench import edit_header as bench_edit_header
 
-MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
-                                         "ovl_pct size_diff start_distance "
-                                         "end_distance match_entry"))
 COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
+
 
 def parse_args(args):
     """
@@ -87,6 +85,7 @@ def parse_args(args):
 
     return args
 
+
 def output_edit_header(my_vcf, header=None):
     """
     Add INFO for new fields to vcf
@@ -101,6 +100,7 @@ def output_edit_header(my_vcf, header=None):
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
     return header
 
+
 def collapse_edit_header(my_vcf):
     """
     Add output_edit_header and info lines from truvari bench
@@ -108,6 +108,7 @@ def collapse_edit_header(my_vcf):
     header = bench_edit_header(my_vcf)
     header = output_edit_header(my_vcf, header)
     return header
+
 
 def check_params(args):
     """
@@ -120,10 +121,12 @@ def check_params(args):
         logging.error("File %s does not exist", args.input)
     if not args.input.endswith(".gz"):
         check_fail = True
-        logging.error("Input vcf %s does not end with .gz. Must be bgzip'd", args.input)
+        logging.error(
+            "Input vcf %s does not end with .gz. Must be bgzip'd", args.input)
     if not os.path.exists(args.input + '.tbi'):
         check_fail = True
-        logging.error("Input vcf index %s.tbi does not exist. Must be indexed", args.input)
+        logging.error(
+            "Input vcf index %s.tbi does not exist. Must be indexed", args.input)
     if args.hap and args.chain:
         check_fail = True
         logging.error("Cannot specify both --hap and --chain")
@@ -131,6 +134,7 @@ def check_params(args):
         check_fail = True
         logging.error("Using --hap must use --keep first")
     return check_fail
+
 
 def setup_outputs(args):
     """
@@ -149,11 +153,15 @@ def setup_outputs(args):
     outputs["c_header"] = collapse_edit_header(outputs["input_vcf"])
     num_samps = len(outputs["o_header"].samples)
     if args.hap and num_samps != 1:
-        logging.error("--hap mode requires exactly one sample. Found %d", num_samps)
+        logging.error(
+            "--hap mode requires exactly one sample. Found %d", num_samps)
         sys.exit(100)
-    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w', header=outputs["o_header"])
-    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w', header=outputs["c_header"])
+    outputs["output_vcf"] = pysam.VariantFile(
+        args.output, 'w', header=outputs["o_header"])
+    outputs["collap_vcf"] = pysam.VariantFile(
+        args.collapsed_output, 'w', header=outputs["c_header"])
     return outputs
+
 
 def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, args):
     """
@@ -168,7 +176,8 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
 
     # Someone in the Base call's neighborhood, we'll see if it passes comparisons
     if not args.typeignore and not truvari.entry_same_variant_type(base_entry, comp_entry):
-        logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
+        logging.debug("%s and %s are not the same SVTYPE",
+                      str(base_entry), str(comp_entry))
         return True
 
     size_similarity, size_diff = truvari.sizesim(sizeA, sizeB)
@@ -179,11 +188,13 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
 
     ovl_pct = truvari.reciprocal_overlap(astart, aend, bstart, bend)
     if truvari.entry_variant_type(base_entry) == "DEL" and ovl_pct < args.pctovl:
-        logging.debug("%s and %s overlap percent is too low (%f)", str(base_entry), str(comp_entry), ovl_pct)
+        logging.debug("%s and %s overlap percent is too low (%f)",
+                      str(base_entry), str(comp_entry), ovl_pct)
         return True
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim(base_entry, comp_entry, reference, args.buffer, args.use_lev)
+        seq_similarity = truvari.entry_pctsim(
+            base_entry, comp_entry, reference, args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%f)", str(
                 base_entry), str(comp_entry), seq_similarity)
@@ -196,8 +207,9 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
-    return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
-                       start_distance, end_distance, comp_entry)
+    return truvari.MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
+                               start_distance, end_distance, comp_entry)
+
 
 def close_outputs(outputs):
     """
@@ -208,6 +220,7 @@ def close_outputs(outputs):
     outputs["output_vcf"].close()
     outputs["collap_vcf"].close()
 
+
 def edit_collap_entry(entry, match, match_id, outputs):
     """
     Edit an entry that's going to be collapsed into another entry
@@ -217,6 +230,7 @@ def edit_collap_entry(entry, match, match_id, outputs):
     new_entry.info["TruScore"] = match.score
     truvari.bench.annotate_tp(new_entry, match)
     return new_entry
+
 
 def hap_resolve(entryA, entryB):
     """
@@ -232,6 +246,7 @@ def hap_resolve(entryA, entryB):
         return False
     return True
 
+
 def select_best(neighs):
     """
     Remove all but the single best neighbor from the list of neighs in-place
@@ -243,6 +258,7 @@ def select_best(neighs):
             max_score = n[1].score
             max_score_pos = pos
     return [neighs[max_score_pos]]
+
 
 def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
     """
@@ -264,7 +280,6 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
         return new_entry, neighs
 
     new_entry.info["NumCollapsed"] = len(neighs)
-
 
     # Update with the first genotyped sample's information
     for samp_name in new_entry.samples:
@@ -294,10 +309,12 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
                     for key in [_ for _ in fmt if _ not in nullconso]:
                         try:
                             fmt[key] = s_fmt[key]
-                        except Exception as e: # pylint: disable=broad-except
-                            logging.debug("Problem setting FORMAT field %s (%s)", key, str(e))
+                        except Exception as e:  # pylint: disable=broad-except
+                            logging.debug(
+                                "Problem setting FORMAT field %s (%s)", key, str(e))
                 idx += 1
     return new_entry, neighs
+
 
 def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs):
     """
@@ -323,7 +340,8 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         if args.hap and not hap_resolve(base_entry, comp_entry):
             continue
 
-        mat = match_calls(base_entry, comp_entry, astart, aend, base_entry_size, sizeB, reference, args)
+        mat = match_calls(base_entry, comp_entry, astart, aend,
+                          base_entry_size, sizeB, reference, args)
         if isinstance(mat, bool):
             continue
 
@@ -332,8 +350,10 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
         if not args.hap:
             matched_calls[comp_key] = True
 
-        thresh_neighbors.append(COLLAPENTRY(comp_entry, mat, match_id, comp_key))
+        thresh_neighbors.append(COLLAPENTRY(
+            comp_entry, mat, match_id, comp_key))
     return thresh_neighbors
+
 
 def select_maxqual(entry, neighs):
     """
@@ -341,7 +361,7 @@ def select_maxqual(entry, neighs):
     """
     max_qual = entry.qual
     max_qual_idx = -1
-    for pos, val in enumerate(neighs): # pylint: disable=unused-variable
+    for pos, val in enumerate(neighs):  # pylint: disable=unused-variable
         cmp_qual = neighs[pos].entry.qual
         if cmp_qual > max_qual:
             max_qual_idx = pos
@@ -352,8 +372,10 @@ def select_maxqual(entry, neighs):
         swap = neighs[max_qual_idx]
         base_entry = swap.entry
         key = truvari.entry_to_key('b', entry)
-        neighs[max_qual_idx] = COLLAPENTRY(entry, swap.match, swap.match_id, key)
+        neighs[max_qual_idx] = COLLAPENTRY(
+            entry, swap.match, swap.match_id, key)
     return base_entry, neighs
+
 
 def select_common(entry, neighs):
     """
@@ -361,7 +383,7 @@ def select_common(entry, neighs):
     """
     most_mac = truvari.allele_freq_annos(entry)["MAC"]
     most_mac_idx = -1
-    for pos, val in enumerate(neighs): # pylint: disable=unused-variable
+    for pos, val in enumerate(neighs):  # pylint: disable=unused-variable
         cmp_mac = truvari.allele_freq_annos(neighs[pos].entry)["MAC"]
         if cmp_mac > most_mac:
             most_mac_idx = pos
@@ -372,7 +394,8 @@ def select_common(entry, neighs):
         swap = neighs[most_mac_idx]
         base_entry = swap.entry
         key = truvari.entry_to_key('b', entry)
-        neighs[most_mac_idx] = COLLAPENTRY(entry, swap.match, swap.match_id, key)
+        neighs[most_mac_idx] = COLLAPENTRY(
+            entry, swap.match, swap.match_id, key)
     return base_entry, neighs
 
 
@@ -412,23 +435,28 @@ def collapse_main(cmdargs):
         matched_calls[base_key] = True
 
         thresh_neighbors = []
-        new_neighs = find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs)
+        new_neighs = find_neighbors(
+            base_entry, match_id, reference, matched_calls, args, outputs)
         thresh_neighbors.extend(new_neighs)
         # For all the neighbors, we want to go also collapse anything matching them
         while args.chain and new_neighs:
             next_new_neighs = []
             for i in new_neighs:
-                next_new_neighs.extend(find_neighbors(i[0], match_id, reference, matched_calls, args, outputs))
+                next_new_neighs.extend(find_neighbors(
+                    i[0], match_id, reference, matched_calls, args, outputs))
             thresh_neighbors.extend(next_new_neighs)
             new_neighs = next_new_neighs
 
         if args.keep == "maxqual":
-            base_entry, thresh_neighbors = select_maxqual(base_entry, thresh_neighbors)
+            base_entry, thresh_neighbors = select_maxqual(
+                base_entry, thresh_neighbors)
         if args.keep == "common":
-            base_entry, thresh_neighbors = select_common(base_entry, thresh_neighbors)
+            base_entry, thresh_neighbors = select_common(
+                base_entry, thresh_neighbors)
 
         if thresh_neighbors:
-            new_entry, thresh_neighbors = edit_output_entry(base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
+            new_entry, thresh_neighbors = edit_output_entry(
+                base_entry, thresh_neighbors, match_id, args.hap, outputs, args.null_consolidate)
             outputs["output_vcf"].write(new_entry)
 
             # Also want to record the original beside its' collapse neighbors
@@ -441,7 +469,8 @@ def collapse_main(cmdargs):
             kept_cnt += 1
             for neigh in thresh_neighbors:
                 matched_calls[neigh.key] = True
-                out_entry = edit_collap_entry(neigh.entry, neigh.match, neigh.match_id, outputs)
+                out_entry = edit_collap_entry(
+                    neigh.entry, neigh.match, neigh.match_id, outputs)
                 outputs['collap_vcf'].write(out_entry)
             collap_cnt += len(thresh_neighbors)
         else:

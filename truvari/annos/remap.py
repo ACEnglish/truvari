@@ -29,6 +29,7 @@ from truvari.annos.grm import cigmatch
 
 class Remap():
     """ Class for remapping annotation """
+
     def __init__(self, in_vcf, reference, out_vcf="/dev/stdout", min_length=50, threshold=0.8, min_distance=10):
         """ The setup """
         self.in_vcf = in_vcf
@@ -48,10 +49,10 @@ class Remap():
             with pysam.VariantFile(self.in_vcf, 'r') as fh:
                 header = fh.header.copy()
         header.add_line(('##INFO=<ID=REMAP,Number=1,Type=String,'
-                        'Description="Annotation of alt-seq remapping">'))
+                         'Description="Annotation of alt-seq remapping">'))
         self.n_header = header
 
-    def get_end(self, pos, cigar): # pylint: disable=no-self-use
+    def get_end(self, pos, cigar):  # pylint: disable=no-self-use
         """
         Expand a cigar to get the end position?
         And how much of the query is used?
@@ -63,7 +64,6 @@ class Remap():
             elif i[-1] in ["M", "D"]:
                 pos += int(i[:-1])
         return pos, soft_bases
-
 
     def remap_entry(self, entry, threshold=.8):
         """
@@ -157,6 +157,7 @@ def parse_args(args):
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug)
     return args
+
 
 def remap_main(cmdargs):
     """

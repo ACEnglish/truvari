@@ -34,4 +34,3 @@ sys.stdout.write(output)
 # failunder
 if pylint_score != 10:
     exit(1)
-

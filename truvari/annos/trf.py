@@ -20,11 +20,12 @@ import truvari
 trfshared = types.SimpleNamespace()
 
 try:
-    from setproctitle import setproctitle # pylint: disable=import-error,useless-suppression
+    from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
 except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
         return
+
 
 def fetch_simple_repeats(chrom, start, stop):
     """
@@ -35,10 +36,11 @@ def fetch_simple_repeats(chrom, start, stop):
     tb = tabix.open(trfshared.args.simple_repeats)
     try:
         for i in tb.query(chrom, start, stop):
-            yield {fmt[0]:fmt[1](x) for x,fmt in zip(i, header)}
+            yield {fmt[0]: fmt[1](x) for x, fmt in zip(i, header)}
     except tabix.TabixError as e:
         logging.warning(f"Region {chrom}:{start}-{stop} failed: {e}")
     return False
+
 
 def process_entries(ref_section):
     """
@@ -54,7 +56,8 @@ def process_entries(ref_section):
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             to_consider.append(entry)
 
-    tanno = TRFAnno(executable=trfshared.args.executable, trf_params=trfshared.args.trf_params)
+    tanno = TRFAnno(executable=trfshared.args.executable,
+                    trf_params=trfshared.args.trf_params)
     tanno.run_trf(to_consider)
 
     v = pysam.VariantFile(trfshared.args.input)
@@ -70,6 +73,7 @@ def process_entries(ref_section):
     setproctitle(f"trf done {chrom}:{start}-{stop}")
     logging.debug(f"Done region {chrom}:{start}-{stop}")
     return (chrom, start, stop, out.read())
+
 
 def parse_args(args):
     """
@@ -93,7 +97,7 @@ def parse_args(args):
                         help="Minimum size of entry to annotate (%(default)s)")
     parser.add_argument("-M", "--max-length", type=int, default=10000,
                         help="Maximum size of sequence to run through trf (%(default)s)")
-    parser.add_argument("-t" ,"--threads", type=int, default=multiprocessing.cpu_count(),
+    parser.add_argument("-t", "--threads", type=int, default=multiprocessing.cpu_count(),
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=int, default=1,
                         help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
@@ -103,8 +107,10 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
+
 class TRFAnno():
     """ Class for trf annotation """
+
     def __init__(self, executable="trf409.linux64",
                  trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
                  tmpdir=None, simple_repeats=None, reference=None):
@@ -113,7 +119,8 @@ class TRFAnno():
         # And actually, let's put it in a shared memory spot just
         # because we can
         self.simple_repeats = simple_repeats if simple_repeats else trfshared.args.simple_repeats
-        self.reference = pysam.FastaFile(reference) if reference else pysam.FastaFile(trfshared.args.reference)
+        self.reference = pysam.FastaFile(
+            reference) if reference else pysam.FastaFile(trfshared.args.reference)
         self.executable = executable
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
@@ -121,8 +128,10 @@ class TRFAnno():
         if tmpdir is None:
             tmpdir = tempfile._get_default_tempdir()
         # Where we write the fasta entries
-        self.fa_fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
-        self.tr_fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
+        self.fa_fn = os.path.join(tmpdir, next(
+            tempfile._get_candidate_names()))
+        self.tr_fn = os.path.join(tmpdir, next(
+            tempfile._get_candidate_names()))
         # lookup from the vcf entries to the hits
         self.trf_lookup = defaultdict(dict)
         self.srep_lookup = defaultdict(dict)
@@ -133,7 +142,8 @@ class TRFAnno():
         """
         if entry.info["SVTYPE"] == "INS":
             ref_seq = self.reference.fetch(entry.chrom, start, end)
-            m_seq = ref_seq[:entry.start - start] + entry.alts[0] + ref_seq[entry.stop - start:]
+            m_seq = ref_seq[:entry.start - start] + \
+                entry.alts[0] + ref_seq[entry.stop - start:]
         elif entry.info["SVTYPE"] == "DEL":
             m_start = max(start, entry.start)
             m_end = min(end, entry.stop)
@@ -150,7 +160,8 @@ class TRFAnno():
         n_seqs = 0
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
-                hits = list(fetch_simple_repeats(entry.chrom, entry.start - 1, entry.stop + 1))
+                hits = list(fetch_simple_repeats(
+                    entry.chrom, entry.start - 1, entry.stop + 1))
                 if not hits:
                     continue
                 key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
@@ -165,7 +176,8 @@ class TRFAnno():
             return
 
         # Run it
-        ret = truvari.cmd_exe(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
+        ret = truvari.cmd_exe(
+            f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
         if ret.ret_code != 0:
             logging.error("Couldn't run trf")
             logging.error(str(ret))
@@ -196,7 +208,7 @@ class TRFAnno():
                     ("unk3", None)]
         with open(self.tr_fn, 'r') as fh:
             name = fh.readline()
-            if name == "": # no hits
+            if name == "":  # no hits
                 return
             name = name.strip()[1:]
             while True:
@@ -207,7 +219,8 @@ class TRFAnno():
                     name = line.strip()[1:]
                     continue
                 line = line.strip().split(' ')
-                data = {x[0]: x[1](y) for x, y in zip(trf_cols, line) if not x[0].startswith("unk")}
+                data = {x[0]: x[1](y) for x, y in zip(
+                    trf_cols, line) if not x[0].startswith("unk")}
                 self.trf_lookup[name][data["repeat"]] = data
 
     def annotate(self, entry, key, new_header):
@@ -215,7 +228,7 @@ class TRFAnno():
         Edit the entry if it has a hit
         """
         def edit_entry(repeat, entry, new_header, diff=None):
-            #put in the annotations
+            # put in the annotations
             entry = truvari.copy_entry(entry, new_header)
             entry.info["TRF"] = True
             if diff:
@@ -232,17 +245,20 @@ class TRFAnno():
         if key in self.trf_lookup:
             for repeat in sorted(self.trf_lookup[key].keys(), key=len, reverse=True):
                 if repeat in self.srep_lookup[key]:
-                    diff = self.trf_lookup[key][repeat]['copies'] - self.srep_lookup[key][repeat]['copies']
+                    diff = self.trf_lookup[key][repeat]['copies'] - \
+                        self.srep_lookup[key][repeat]['copies']
                     repeat = self.trf_lookup[key][repeat]
                     return edit_entry(repeat, entry, new_header, diff)
 
         # 2 - if there are none, I'll take srep hits
         if key in self.srep_lookup:
-            repeat = sorted(self.srep_lookup[key].keys(), key=len, reverse=True)[0]
+            repeat = sorted(
+                self.srep_lookup[key].keys(), key=len, reverse=True)[0]
             repeat = self.srep_lookup[key][repeat]
             return edit_entry(repeat, entry, new_header)
         # 3 - otherwise quit
         return entry
+
 
 def edit_header(header):
     """
@@ -266,6 +282,7 @@ def edit_header(header):
 
     return header
 
+
 def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
@@ -274,7 +291,8 @@ def trf_main(cmdargs):
     v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
 
-    m_regions = truvari.annos.grm.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
+    m_regions = truvari.annos.grm.ref_ranges(
+        args.reference, chunk_size=int(args.chunk_size * 1e6))
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         chunks = pool.imap_unordered(process_entries, m_regions)
         pool.close()
@@ -285,6 +303,7 @@ def trf_main(cmdargs):
         pool.join()
 
     logging.info("Finished trf")
+
 
 if __name__ == '__main__':
     trf_main(sys.argv[1:])

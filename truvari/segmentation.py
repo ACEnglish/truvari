@@ -12,6 +12,7 @@ from intervaltree import IntervalTree
 
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -23,13 +24,14 @@ def parse_args(args):
                         help="VCF to parse")
     parser.add_argument("output", metavar="OUT",
                         help="Output VCF")
-    #parser.add_argument("-m", "--min", default=10, type=int,
-                        #help="Minimum span of variants to segment")
-    #parser.add_argument("--alter", action="store_true",
-                        #help="Add SEG Format field to all variants (false)")
+    # parser.add_argument("-m", "--min", default=10, type=int,
+    # help="Minimum span of variants to segment")
+    # parser.add_argument("--alter", action="store_true",
+    # help="Add SEG Format field to all variants (false)")
     args = parser.parse_args(args)
     truvari.setup_logging()
     return args
+
 
 def edit_header(vcf):
     """
@@ -41,6 +43,7 @@ def edit_header(vcf):
     header.add_line(('##FORMAT=<ID=SEG,Number=1,Type=Integer,'
                      'Definition="Segmentation\'s disjoint region coverage (may be > ploidy)">'))
     return header
+
 
 def segment_main(args):
     """
@@ -62,12 +65,14 @@ def segment_main(args):
         if "SVTYPE" not in entry.info or entry.info["SVTYPE"] != "DEL":
             out.write(entry)
             continue
-        data = [gtcnt[truvari.get_gt(x["GT"]).name] for x in entry.samples.values()]
+        data = [gtcnt[truvari.get_gt(x["GT"]).name]
+                for x in entry.samples.values()]
         tree[entry.chrom].addi(entry.start, entry.stop, data=([entry], data))
 
+    def reducer(x, y):
+        return (x[0] + y[0], np.array(x[1], dtype=np.int8) + np.array(y[1], dtype=np.int8))
     # This should probably be its own method so that as I'm splitting by chrom, I don't have to
     # hold everything in memory
-    reducer = lambda x, y: (x[0] + y[0], np.array(x[1], dtype=np.int8) + np.array(y[1], dtype=np.int8))
     for chrom, chr_tree in tree.items():
         logging.info(f"Segmenting {chrom}")
         chr_tree.split_overlaps()
@@ -84,7 +89,8 @@ def segment_main(args):
             new_entry.chrom = entry.chrom
             new_entry.start = reg.begin
             new_entry.stop = reg.end
-            new_entry.alts = ['<DEL>'] # assuming they're DEL, but DUP/INV/etc also exist..
+            # assuming they're DEL, but DUP/INV/etc also exist..
+            new_entry.alts = ['<DEL>']
             new_entry.info["SEGCNT"] = segcnt
             for samp, dat in zip(new_entry.samples, reg.data[1]):
                 if dat == 0:
@@ -96,6 +102,7 @@ def segment_main(args):
                 new_entry.samples[samp]["SEG"] = int(dat)
 
             out.write(new_entry)
+
 
 if __name__ == '__main__':
     segment_main(sys.argv[1:])
