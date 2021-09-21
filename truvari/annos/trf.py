@@ -276,7 +276,7 @@ def trf_main(cmdargs):
 
     m_regions = truvari.annos.grm.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
-        chunks = pool.imap(process_entries, m_regions)
+        chunks = pool.imap_unordered(process_entries, m_regions)
         pool.close()
         with open(args.output, 'w') as fout:
             fout.write(str(new_header))
