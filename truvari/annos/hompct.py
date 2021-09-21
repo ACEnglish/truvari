@@ -8,6 +8,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -30,6 +31,7 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
+
 def hompct_main(cmd_args):
     """
     Main
@@ -37,6 +39,7 @@ def hompct_main(cmd_args):
     args = parse_args(cmd_args)
 
     v = pysam.VariantFile(args.input)
+
     def get_pct(chrom, start, end):
         tot = 0
         homs = 0
@@ -53,15 +56,16 @@ def hompct_main(cmd_args):
         return float(format((homs / tot) * 100, ".1f"))
 
     header = v.header.copy()
-    header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,' # pylint: disable=consider-using-f-string
+    header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,'  # pylint: disable=consider-using-f-string
                      'Description="Percent of calls < %dbp long within %dbp that are homozygous')
-                     % (args.maxgt, args.buffer))
+                    % (args.maxgt, args.buffer))
 
     out = pysam.VariantFile(args.output, 'w', header=header)
     v2 = pysam.VariantFile(args.input)
     for entry in v2:
         if truvari.entry_size(entry) >= args.minanno:
             entry = truvari.copy_entry(entry, header)
-            entry.info["HOMPCT"] = get_pct(entry.chrom, *truvari.entry_boundaries(entry))
+            entry.info["HOMPCT"] = get_pct(
+                entry.chrom, *truvari.entry_boundaries(entry))
         out.write(entry)
     logging.info("Finished hompct")

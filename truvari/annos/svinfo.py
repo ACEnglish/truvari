@@ -7,6 +7,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -22,14 +23,18 @@ def parse_args(args):
     truvari.setup_logging()
     return parser.parse_args(args)
 
+
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
     """
     header = my_vcf.header.copy()
-    header.add_line('##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SVTYPE">')
-    header.add_line('##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SVLEN">')
+    header.add_line(
+        '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SVTYPE">')
+    header.add_line(
+        '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SVLEN">')
     return header
+
 
 def svinfo_main(cmdargs):
     """

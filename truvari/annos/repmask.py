@@ -9,24 +9,15 @@ from collections import defaultdict
 import pysam
 import truvari
 
-# Start with just insertions and that sequence
-# Eventually you can intersect with known tandem repeat regions as well
-# and use those regions (with the edit) to better predict a 'difference' in number of copies
-# Or you can just annotate the absolute number of the individual... probably bot
-
-# Also, running single threaded isn't great, but also I don't care at this point...
-# It'll be a heavy step, but I'm not judging the software on speed for a bit...
-# And I need to do ALL of the elements at once because RM is much slower
-# And I'm going write
-# -pa 8 -e hmmer -species human -gff -lcambig -nocut -div 50 -no_id -s all_ins.fa
-
 DEFAULTPARAMS = "-pa {threads} -qq -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
+
 
 def paren_int(number):
     """
     returns an integer from a string "([0-9]+)"
     """
-    return int(number.replace('(', '').replace(')',''))
+    return int(number.replace('(', '').replace(')', ''))
+
 
 class RepMask():
     """ Class for RepeatMasker annotation """
@@ -37,10 +28,10 @@ class RepMask():
                ("RM_query", str),
                ("RM_qstart", int),
                ("RM_qend", int),
-               ("RM_qleft", paren_int), # need custom here (it's "(int)")
+               ("RM_qleft", paren_int),  # need custom here (it's "(int)")
                ("RM_strand", str),
                ("RM_repeat", str),
-               ("RM_clsfam", str), # need custom here.. usually class/family
+               ("RM_clsfam", str),  # need custom here.. usually class/family
                ("RM_tstart", paren_int),
                ("RM_tend", paren_int),
                ("RM_tleft", str)]
@@ -58,7 +49,6 @@ class RepMask():
         self.threads = threads
         self.n_header = None
         self.cmd = f"{self.executable} {self.rm_params}"
-
 
     def edit_header(self, header=None):
         """
@@ -82,9 +72,10 @@ class RepMask():
         Returns the fasta file
         """
         if fout is None:
-            ret = tempfile.NamedTemporaryFile(mode='w', delete=False) # pylint: disable=consider-using-with
+            # pylint: disable=consider-using-with
+            ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
         else:
-            ret = open(fout, 'w') # pylint: disable=consider-using-with
+            ret = open(fout, 'w')  # pylint: disable=consider-using-with
         tot_cnt = 0
         cnt = 0
         cntbp = 0
@@ -99,7 +90,8 @@ class RepMask():
                         ret.write(f">{pos}\n{entry.alts[0]}\n")
                     else:
                         ret.write(f">{pos}\n{entry.ref}\n")
-        logging.info(f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
+        logging.info(
+            f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
         return ret.name
 
     @staticmethod
@@ -185,6 +177,7 @@ class RepMask():
         entry.info["RM_clsfam"] = rm_hit["RM_clsfam"]
 
         return entry
+
 
 def parse_args(args):
     """

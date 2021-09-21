@@ -2,17 +2,102 @@
 Takes a vcf and creates a data frame. Can parse a bench output directory
 """
 import os
+import sys
 import glob
 import logging
 import argparse
+from enum import Enum
 
 import pysam
 import joblib
 import pandas as pd
 import truvari
 
-SZBINTYPE = pd.CategoricalDtype(categories=truvari.SZBINS, ordered=True)
-SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in truvari.SV], ordered=True)
+
+class GT(Enum):
+    """ Genotypes """
+    NON = 3
+    REF = 0
+    HET = 1
+    HOM = 2
+    UNK = 4
+
+
+class SV(Enum):
+    """ SVtypes """
+    DEL = 0
+    INS = 1
+    DUP = 2
+    INV = 3
+    NON = 4  # Not an SV, SVTYPE
+    UNK = 5  # Unknown SVTYPE
+
+
+SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
+          "[400,600)", "[600,800)", "[800,1k)", "[1k,2.5k)",
+          "[2.5k,5k)", ">=5k"]
+SZBINMAX = [50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
+QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
+SZBINTYPE = pd.CategoricalDtype(categories=SZBINS, ordered=True)
+SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
+
+
+def get_svtype(svtype):
+    """
+    Turn to a svtype
+    """
+    try:
+        return truvari.SV.__members__[svtype]
+    except AttributeError:
+        pass
+    return SV.UNK
+
+
+def get_sizebin(sz):
+    """
+    Bin a given size
+    """
+    sz = abs(sz)
+    for key, maxval in zip(SZBINS, SZBINMAX):
+        if sz < maxval:
+            return key
+    return None
+
+
+def get_gt(gt):
+    """
+    return GT enum
+    """
+    if None in gt:
+        return GT.NON
+    if len(gt) != 2:
+        return GT.UNK
+    if gt == (0, 0):
+        return GT.REF
+    if gt[0] != gt[1]:
+        return GT.HET
+    if gt[0] == gt[1]:
+        return GT.HOM
+    return GT.UNK
+
+
+def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
+    """
+    Scale variable x from rdomain to tdomain with step sizes
+    return key, index
+
+    rmin denote the minimum of the range of your measurement
+    tmax denote the maximum of the range of your measurement
+    tmin denote the minimum of the range of your desired target scaling
+    tmax denote the maximum of the range of your desired target scaling
+    """
+    newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
+    pos = 0
+    for pos, i in enumerate(range(tmin, tmax, step)):
+        if newx < i + step:
+            return f"[{i},{i+step})", pos
+    return f">={tmax}", pos + 1
+
 
 def get_files_from_truvdir(directory):
     """
@@ -29,13 +114,16 @@ def get_files_from_truvdir(directory):
         ret[key] = glob.glob(fname)
         ret[key].extend(glob.glob(fname + '.gz'))
         if len(ret[key]) != 1:
-            logging.error("Expected 1 file for %s[.gz] found %d", fname, len(ret[key]))
+            logging.error(
+                "Expected 1 file for %s[.gz] found %d", fname, len(ret[key]))
             has_error = True
     #summary = glob.glob(os.path.join(directory, "summary.txt"))
-    #ret["summary"]
+    # ret["summary"]
     if has_error:
-        raise FileNotFoundError(f"Couldn't parse truvari directory {directory}. See above errors")
+        raise FileNotFoundError(
+            f"Couldn't parse truvari directory {directory}. See above errors")
     return ret
+
 
 def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     """
@@ -45,9 +133,10 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     Specify which sample with its name or index in the VCF
     """
     v = pysam.VariantFile(fn)
-    header = ["key", "id", "svtype", "svlen", "szbin", "qual", "filter", "is_pass"]
+    header = ["key", "id", "svtype", "svlen",
+              "szbin", "qual", "filter", "is_pass"]
     fmts = []
-    if with_fmt: # get all the format fields, and how to parse them from header, add them to the header
+    if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         for key in v.header.formats:
             num = v.header.formats[key].number
             if num in [1, '.', "A", 0]:
@@ -56,14 +145,17 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
             elif num == 'R':
                 header.append(key + '_ref')
                 header.append(key + '_alt')
-                fmts.append((key, lambda x: x if x is not None else [None, None]))
+                fmts.append(
+                    (key, lambda x: x if x is not None else [None, None]))
             elif num == 'G':
                 header.append(key + '_ref')
                 header.append(key + '_het')
                 header.append(key + '_hom')
-                fmts.append((key, lambda x: x if x is not None else [None, None, None]))
+                fmts.append(
+                    (key, lambda x: x if x is not None else [None, None, None]))
             else:
-                logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
+                logging.critical(
+                    "Unknown Number (%s) for %s. Skipping.", num, key)
 
     infos = list(v.header.info.keys()) if with_info else []
     header.extend(infos)
@@ -73,14 +165,14 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
         varsize = truvari.entry_size(entry)
         filt = list(entry.filter)
         cur_row = [f"{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}",
-                    entry.id,
-                    truvari.entry_variant_type(entry),
-                    varsize,
-                    truvari.get_sizebin(varsize),
-                    entry.qual,
-                    filt,
-                    filt == [] or filt[0] == 'PASS'
-                  ]
+                   entry.id,
+                   truvari.entry_variant_type(entry),
+                   varsize,
+                   truvari.get_sizebin(varsize),
+                   entry.qual,
+                   filt,
+                   filt == [] or filt[0] == 'PASS'
+                   ]
         for i, op in fmts:
             if i in entry.samples[sample]:
                 cur_row.extend(op(entry.samples[sample][i]))
@@ -97,6 +189,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
     return ret.set_index("key")
+
 
 def parse_args(args):
     """
@@ -124,6 +217,7 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
+
 def vcf2df_main(args):
     """
     Main entry point for running DataFrame builder
@@ -141,7 +235,8 @@ def vcf2df_main(args):
             df["state"] = key
             all_dfs.append(df)
         out = pd.concat(all_dfs)
-        state_type = pd.CategoricalDtype(categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
+        state_type = pd.CategoricalDtype(
+            categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
         out["state"] = out["state"].astype(state_type)
 
     # compression -- this is not super important for most VCFs

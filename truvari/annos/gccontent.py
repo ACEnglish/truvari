@@ -8,6 +8,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -35,6 +36,7 @@ def edit_header(my_vcf):
                      'Description="GC Percent of the reference call range or alt sequence (whichever is longer)">'))
     return header
 
+
 def add_gcpct(vcf, ref, n_header=None):
     """
     Adds GCPCT to each entry in VCF and yields them
@@ -46,14 +48,17 @@ def add_gcpct(vcf, ref, n_header=None):
         start, end = truvari.entry_boundaries(entry)
         span = abs(end - start)
         try:
-            seq = ref.fetch(entry.chrom, start, end) if span >= len(entry.alts[0]) else str(entry.alts[0])
-            gcpct = int((sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
+            seq = ref.fetch(entry.chrom, start, end) if span >= len(
+                entry.alts[0]) else str(entry.alts[0])
+            gcpct = int(
+                (sum(1 for m in re.finditer("[GC]", seq)) / len(seq)) * 100)
             entry = truvari.copy_entry(entry, n_header)
             entry.info["GCPCT"] = gcpct
-        except Exception: # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except
             # Silent failures aren't the best, but a lot can go wrong here
             pass
         yield entry
+
 
 def gcpct_main(cmdargs):
     """

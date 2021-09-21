@@ -17,10 +17,10 @@ thresholds = {20: 'red',
               60: 'yellow',
               85: 'green'}
 
-badge = anybadge.Badge('coverage', coverage_pct, thresholds=thresholds, value_suffix="%")
+badge = anybadge.Badge('coverage', coverage_pct,
+                       thresholds=thresholds, value_suffix="%")
 badge.write_badge('imgs/coverage.svg', overwrite=True)
 
 # failunder
 if coverage_pct < 80:
     exit(1)
-

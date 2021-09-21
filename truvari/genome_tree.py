@@ -1,7 +1,6 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
-import re
 import sys
 import logging
 from collections import defaultdict
@@ -9,13 +8,14 @@ from collections import defaultdict
 from intervaltree import IntervalTree
 import truvari.comparisons as tcomp
 
-HEADERMAT=re.compile(r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
+
 class GenomeTree():
     """
     Helper class to specify included regions of the genome when iterating events.
     """
-    def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
 
+    def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
+        """ init """
         self.includebed = includebed
         self.max_span = max_span
         self.tree = self.__build_tree(vcfA, vcfB)
@@ -71,7 +71,8 @@ class GenomeTree():
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is None or aend - astart > self.max_span:
             return False
-        overlaps = self.tree[entry.chrom].overlaps(astart) and self.tree[entry.chrom].overlaps(aend)
+        overlaps = self.tree[entry.chrom].overlaps(
+            astart) and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
@@ -98,7 +99,8 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
             cmp_entries += 1
             lookup[entry.chrom].addi(start, end, entry.start)
     except ValueError as e:
-        logging.error("Unable to parse comparison vcf file. Please check header definitions")
+        logging.error(
+            "Unable to parse comparison vcf file. Please check header definitions")
         logging.error("Specific error: \"%s\"", str(e))
         sys.exit(100)
 
