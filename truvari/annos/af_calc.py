@@ -10,7 +10,21 @@ import numpy as np
 
 def calc_hwe(nref, nalt, nhet):
     """
-    Returns tuple of the HWE and the ExeHet
+    Calculate Hardy Weinberg equilibrium and excess heterozygosity
+
+    Parameters
+    ----------
+    nref : int
+        Number of reference alleles
+    nalt : int
+        Number of alternate alleles
+    nhet :
+        Number of heterozygous sites
+
+    Returns
+    -------
+    tuple : (float, float)
+        The HWE and ExcHet calculated
     """
     #void calc_hwe(args_t *args, int nref, int nalt, int nhet, float *p_hwe, float *p_exc_het)
     ngt = (nref + nalt) // 2 # also, just nsamples
@@ -63,9 +77,24 @@ def calc_hwe(nref, nalt, nhet):
 
 def allele_freq_annos(entry, samples=None):
     """
-    Given a pysam entry, return dictonary with keys
-        AF, MAF, ExcHet, HWE, AC, MAC
-    samples is a list of samples to subset from the entry to calculate the allele frequency
+    Calculate allele annotations for a VCF Entry
+
+    Parameters
+    ----------
+    entry : pysam.VariantRecord
+        Entry with samples to parse
+    samples : list of strings, optional
+        Subset of samples from the entry over which to calculate annos
+
+    Returns
+    -------
+    dict : floats
+        AF: allele frequency
+        MAF: minor allele frequency
+        ExcHet: excess heterozygosity
+        HWE: hardy weinberg equilibrium
+        AC: allele count
+        MAC: minor allele count
     """
     if samples is None:
         samples = list(entry.samples.keys())

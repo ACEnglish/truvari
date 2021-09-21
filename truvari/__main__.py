@@ -30,8 +30,6 @@ TOOLS = {'bench': bench_main,
          'segment': segment_main,
          'version': version}
 
-# create-anno      Create an index of an annotation source for reuse
-
 USAGE = f"""\
 Truvari v{__version__} - Structural Variant Benchmarking and Annotation
 
@@ -48,7 +46,7 @@ Truvari v{__version__} - Structural Variant Benchmarking and Annotation
 
 def main():
     """
-    Argument parsing
+    Main entrypoint for truvari tools
     """
     parser = argparse.ArgumentParser(prog="truvari", description=USAGE,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)

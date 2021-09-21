@@ -1,13 +1,11 @@
 """
-The ``truvari` library provides methods for comparing vcf entries and calculating performance metrics for discovery
-performance
+Truvari
 
 User Manual:
     https://github.com/spiralgenetics/truvari
 """
 __version__ = '3.0.0-dev'
 from truvari.utils import (
-    StatsBox,
     setup_progressbar,
     LogFileStderr,
     setup_logging,
@@ -15,17 +13,17 @@ from truvari.utils import (
 )
 
 from truvari.comparisons import (
-    entry_is_variant,
+    entry_is_present,
     entry_to_key,
     sizesim,
     entry_size_similarity,
     entry_gt_comp,
-    create_haplotype,
+    entry_create_haplotype,
     create_pos_haplotype,
     entry_pctsim,
     overlaps,
     entry_variant_type,
-    same_variant_type,
+    entry_same_variant_type,
     fetch_coords,
     entry_boundaries,
     entry_size,

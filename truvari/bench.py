@@ -8,7 +8,7 @@ import sys
 import json
 import logging
 import argparse
-from collections import defaultdict, namedtuple
+from collections import defaultdict, namedtuple, OrderedDict
 
 import pysam
 
@@ -17,6 +17,61 @@ import truvari
 MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
+class StatsBox(OrderedDict):
+    """
+    Make a blank stats box for counting TP/FP/FN and calculating performance
+    """
+
+    def __init__(self):
+        super().__init__()
+        self["TP-base"] = 0
+        self["TP-call"] = 0
+        self["FP"] = 0
+        self["FN"] = 0
+        self["precision"] = 0
+        self["recall"] = 0
+        self["f1"] = 0
+        self["base cnt"] = 0
+        self["call cnt"] = 0
+        self["TP-call_TP-gt"] = 0
+        self["TP-call_FP-gt"] = 0
+        self["TP-base_TP-gt"] = 0
+        self["TP-base_FP-gt"] = 0
+        self["gt_concordance"] = 0
+
+    def calc_performance(self, peek=False):
+        """
+        Calculate the precision/recall
+        """
+        do_stats_math = True
+        if self["TP-base"] == 0 and self["FN"] == 0:
+            logging.warning("No TP or FN calls in base!")
+            do_stats_math = False
+        elif self["TP-call"] == 0 and self["FP"] == 0:
+            logging.warning("No TP or FP calls in comp!")
+            do_stats_math = False
+        elif peek:
+            logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
+                         100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
+        if peek:
+            return
+
+        # Final calculations
+        if do_stats_math:
+            self["precision"] = float(self["TP-call"]) / (self["TP-call"] + self["FP"])
+            self["recall"] = float(self["TP-base"]) / (self["TP-base"] + self["FN"])
+            if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
+                self["gt_concordance"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
+                                                                         self["TP-call_FP-gt"])
+
+        # f-measure
+        neum = self["recall"] * self["precision"]
+        denom = self["recall"] + self["precision"]
+        if denom != 0:
+            self["f1"] = 2 * (neum / denom)
+        else:
+            self["f1"] = "NaN"
+
 
 def parse_args(args):
     """
@@ -220,7 +275,7 @@ def setup_outputs(args):
     outputs["fn_out"] = pysam.VariantFile(os.path.join(args.output, "fn.vcf"), 'w', header=outputs["n_base_header"])
     outputs["fp_out"] = pysam.VariantFile(os.path.join(args.output, "fp.vcf"), 'w', header=outputs["n_comp_header"])
 
-    outputs["stats_box"] = truvari.StatsBox()
+    outputs["stats_box"] = StatsBox()
 
     return outputs
 
@@ -234,7 +289,7 @@ def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=
         return True
 
     samp = outputs["sampleBase"] if base else outputs["sampleComp"]
-    if no_ref in ["a", "b"] and not truvari.entry_is_variant(entry, samp):
+    if no_ref in ["a", "b"] and not truvari.entry_is_present(entry, samp):
         return True
 
     if passonly and truvari.filter_value(entry):
@@ -275,7 +330,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
 
     # Someone in the Base call's neighborhood, we'll see if it passes comparisons
 
-    if args.no_ref in ["a", "c"] and not truvari.entry_is_variant(comp_entry, outputs["sampleBase"]):
+    if args.no_ref in ["a", "c"] and not truvari.entry_is_present(comp_entry, outputs["sampleBase"]):
         logging.debug("%s is uncalled", comp_entry)
         return True
 
@@ -283,7 +338,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
         logging.debug("%s and %s are not the same genotype", str(base_entry), str(comp_entry))
         return True
 
-    if not args.typeignore and not truvari.same_variant_type(base_entry, comp_entry):
+    if not args.typeignore and not truvari.entry_same_variant_type(base_entry, comp_entry):
         logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
         return True
 

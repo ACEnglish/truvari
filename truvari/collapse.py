@@ -167,7 +167,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
         return False
 
     # Someone in the Base call's neighborhood, we'll see if it passes comparisons
-    if not args.typeignore and not truvari.same_variant_type(base_entry, comp_entry):
+    if not args.typeignore and not truvari.entry_same_variant_type(base_entry, comp_entry):
         logging.debug("%s and %s are not the same SVTYPE", str(base_entry), str(comp_entry))
         return True
 
