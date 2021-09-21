@@ -7,6 +7,7 @@ import sys
 import time
 import signal
 import logging
+import argparse
 import warnings
 import subprocess
 from datetime import timedelta
@@ -23,6 +24,28 @@ MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
 
+
+def restricted_float(x, lower=0.0, upper=1.0):
+    """
+    Restrict float x to range (lower, upper). Raises argparse.ArgumentTypeError if float is out of range
+
+    Parameters
+    ----------
+    x : float
+        number to check
+    lower : float, optional
+        lower limit (inclusive) of float range
+    upper : float, optional
+        upper limit (inclusive of float range
+
+    Return
+    ------
+    float : input float
+    """
+    x = float(x)
+    if x < lower or x > upper:
+        raise argparse.ArgumentTypeError(f"{x} not in range ({lower}, {upper})")
+    return x
 
 def setup_progressbar(size):
     """

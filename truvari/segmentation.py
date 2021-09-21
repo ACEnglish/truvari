@@ -1,7 +1,6 @@
 """
 Segmentation: Normalization of SVs into disjointed genomic regions
 """
-import sys
 import logging
 import argparse
 from collections import defaultdict

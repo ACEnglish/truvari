@@ -131,12 +131,6 @@ def parse_args(args):
     """
     Argument parsing
     """
-    def restricted_float(x):
-        x = float(x)
-        if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError(f"{x} not in range [0.0, 1.0]")
-        return x
-
     parser = argparse.ArgumentParser(prog="remap", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", default="/dev/stdin",
@@ -147,7 +141,7 @@ def parse_args(args):
                         help="Output VCF (%(default)s)")
     parser.add_argument("-m", "--minlength", default=50, type=int,
                         help="Smallest length of allele to remap (%(default)s)")
-    parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
+    parser.add_argument("-t", "--threshold", type=truvari.restricted_float, default=.8,
                         help="Threshold for pct of allele covered to consider hit (%(default)s)")
     parser.add_argument("-d", "--dist", type=int, default=10,
                         help=("Minimum distance an alignment must be from a DEL's "

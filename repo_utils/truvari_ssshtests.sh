@@ -135,12 +135,16 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -c $INDIR/input1.vcf.gz \
                                 -f $INDIR/reference.fa \
                                 -o $OD/bench_giab/ \
+                                -P 0.7 \
                                 --includebed $INDIR/giab.bed \
                                 --giabreport
 assert_exit_code 0
 
 run test_bench_giab_report
 assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/giab_report.txt)
+
+run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
+assert_exit_code 100
 
 # ------------------------------------------------------------
 #                                 collapse
@@ -152,6 +156,9 @@ collapse_hap 3
 collapse_multi first
 collapse_multi common
 collapse_multi maxqual
+
+run test_collapse_badparams $truv collapse -i nofile.vcf -c nofile.aga -f notref.fa -o $OD --hap --chain --keep common
+assert_exit_code 100
 
 # ------------------------------------------------------------
 #                                 consistency

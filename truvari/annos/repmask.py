@@ -72,7 +72,7 @@ class RepMask():
         Returns the fasta file
         """
         if fout is None:
-            # pylint: disable=consider-using-with
+            # pylint: disable=consider-using-with,useless-suppression
             ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
         else:
             ret = open(fout, 'w')  # pylint: disable=consider-using-with
@@ -183,11 +183,6 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    def restricted_float(x):
-        x = float(x)
-        if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError(f"{x} not in range [0.0, 1.0]")
-        return x
     parser = argparse.ArgumentParser(prog="repmask", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -201,7 +196,7 @@ def parse_args(args):
                         help="Minimum size of entry to annotate (%(default)s)")
     parser.add_argument("-M", "--max-length", type=int, default=50000,
                         help="Maximum size of entry to annotate (%(default)s)")
-    parser.add_argument("-t", "--threshold", type=restricted_float, default=.8,
+    parser.add_argument("-t", "--threshold", type=truvari.restricted_float, default=.8,
                         help="Threshold for pct of allele covered (%(default)s)")
     parser.add_argument("-p", "--params", type=str, default=DEFAULTPARAMS,
                         help="Default parameter string to send to RepeatMasker (%(default)s)")

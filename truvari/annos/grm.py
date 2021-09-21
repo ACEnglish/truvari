@@ -262,8 +262,8 @@ def process_entries(ref_section):
         ref_up, ref_dn, alt_up, alt_dn = kmers
         ty = truvari.entry_variant_type(entry)
 
-        result = ["%s:%d-%d.%s" % (entry.chrom, entry.start, entry.stop,
-                                   entry.alts[0])]  # pylint: disable=consider-using-f-string
+        result = ["%s:%d-%d.%s" % # pylint: disable=consider-using-f-string
+                  (entry.chrom, entry.start, entry.stop, entry.alts[0])]
         if ty == "INS":
             # Only want a single reference kmer
             ref_stats = map_stats(aligner, ref_up, entry.chrom, entry.start)

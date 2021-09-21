@@ -16,11 +16,6 @@ from truvari.consistency_report import consistency_main
 # pylint: disable=unused-argument
 
 
-def in_progress(args):
-    """placeholder"""
-    print('working on it...')
-
-
 def version(args):
     """Print the version"""
     print(f"Truvari v{__version__}")

@@ -78,12 +78,6 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    def restricted_float(x):
-        x = float(x)
-        if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError(f"{x} not in range [0.0, 1.0]")
-        return x
-
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
@@ -104,13 +98,13 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=int, default=500,
                         help="Max reference location distance (%(default)s)")
-    thresg.add_argument("-p", "--pctsim", type=restricted_float, default=0.70,
+    thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.70,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=restricted_float, default=0.10,
+    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=0.10,
                         help="Percent of the reference span to buffer the haplotype sequence created")
-    thresg.add_argument("-P", "--pctsize", type=restricted_float, default=0.70,
+    thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.70,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
-    thresg.add_argument("-O", "--pctovl", type=restricted_float, default=0.0,
+    thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,
                         help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")

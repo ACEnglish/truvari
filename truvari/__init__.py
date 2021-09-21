@@ -11,7 +11,8 @@ from truvari.utils import (
     setup_logging,
     cmd_exe,
     HEADERMAT,
-    MATCHRESULT
+    MATCHRESULT,
+    restricted_float
 )
 
 from truvari.comparisons import (
