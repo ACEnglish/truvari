@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>truvari.annos.grm &mdash; truvari  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> truvari
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../truvari.html">truvari package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">truvari</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>truvari.annos.grm</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for truvari.annos.grm</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Maps graph edge kmers with BWA to assess Graph Reference Mappability</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=too-many-locals</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">namedtuple</span>
+
+<span class="kn">import</span> <span class="nn">pysam</span>
+<span class="kn">import</span> <span class="nn">tabix</span>
+<span class="kn">import</span> <span class="nn">joblib</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">bwapy</span> <span class="kn">import</span> <span class="n">BwaAligner</span>
+    <span class="n">HASBWALIB</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+    <span class="n">HASBWALIB</span> <span class="o">=</span> <span class="kc">False</span>
+
+<span class="kn">import</span> <span class="nn">truvari</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">setproctitle</span> <span class="kn">import</span> <span class="n">setproctitle</span>  <span class="c1"># pylint: disable=import-error,useless-suppression</span>
+<span class="k">except</span> <span class="ne">ModuleNotFoundError</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">setproctitle</span><span class="p">(</span><span class="n">_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; dummy function &quot;&quot;&quot;</span>
+        <span class="k">return</span>
+
+<span class="c1"># Data shared with workers; must be populated before workers are started.</span>
+<span class="n">grm_shared</span> <span class="o">=</span> <span class="n">types</span><span class="o">.</span><span class="n">SimpleNamespace</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="make_kmers"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.make_kmers">[docs]</a><span class="k">def</span> <span class="nf">make_kmers</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">kmer</span><span class="o">=</span><span class="mi">25</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make ref/alt kmers</span>
+<span class="sd">    kmer should be half the kmer size you&#39;re actually trying to make</span>
+<span class="sd">    Returns 4 kmers</span>
+<span class="sd">    ref up, ref dn, alt up, alt dn</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">start</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">stop</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">reflen</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">get_reference_length</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">)</span>
+        <span class="n">up</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">start</span> <span class="o">-</span> <span class="n">kmer</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                       <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">reflen</span><span class="p">))</span>
+        <span class="n">dn</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">kmer</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                       <span class="nb">min</span><span class="p">(</span><span class="n">end</span> <span class="o">+</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">reflen</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">up</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">kmer</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">dn</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">kmer</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">seq</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">alts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">seq</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">up</span><span class="p">[</span><span class="n">kmer</span><span class="p">]:</span>
+            <span class="n">seq</span> <span class="o">=</span> <span class="n">seq</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>  <span class="c1"># trimming...</span>
+        <span class="c1"># alternate</span>
+        <span class="n">hap</span> <span class="o">=</span> <span class="n">up</span><span class="p">[:</span><span class="n">kmer</span><span class="p">]</span> <span class="o">+</span> <span class="n">seq</span> <span class="o">+</span> <span class="n">dn</span><span class="p">[</span><span class="o">-</span><span class="n">kmer</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">up</span><span class="p">,</span> <span class="n">dn</span><span class="p">,</span> <span class="n">hap</span><span class="p">[:</span><span class="n">kmer</span> <span class="o">*</span> <span class="mi">2</span><span class="p">],</span> <span class="n">hap</span><span class="p">[</span><span class="o">-</span><span class="n">kmer</span> <span class="o">*</span> <span class="mi">2</span><span class="p">:]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">entry</span><span class="p">)[:</span><span class="mi">20</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<span class="n">cigmatch</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;[0-9]+[MIDNSHPX=]&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="cig_pctsim"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.cig_pctsim">[docs]</a><span class="k">def</span> <span class="nf">cig_pctsim</span><span class="p">(</span><span class="n">cigar</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cheap way to count how many non-matches there are.</span>
+<span class="sd">    Note M just means the bases are Matched up in the alignment,</span>
+<span class="sd">    not that the matched bases are the same. Therfore, M&#39;s could</span>
+<span class="sd">    be &quot;mis-matches&quot;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">miss</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">cigmatch</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">cigar</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;M&quot;</span><span class="p">:</span>
+            <span class="n">match</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">miss</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">match</span><span class="p">,</span> <span class="n">miss</span></div>
+
+
+<div class="viewcode-block" id="map_stats"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.map_stats">[docs]</a><span class="k">def</span> <span class="nf">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">kmer</span><span class="p">,</span> <span class="n">chrom</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pos</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Maps the kmer and returns the</span>
+<span class="sd">    max/min</span>
+<span class="sd">    if chrom/pos is provided:</span>
+<span class="sd">        remove any hits that maps over this position. This is a filter of the reference - we want to know where *else* it hits</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">nhits</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">dir_hits</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">com_hits</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_q</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">max_strand</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_ed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_mat</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_mis</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">min_q</span> <span class="o">=</span> <span class="mi">1000</span>
+    <span class="n">min_strand</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">min_ed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">min_mat</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">min_mis</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">avg_q</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">avg_ed</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">avg_mat</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">avg_mis</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">aln</span> <span class="ow">in</span> <span class="n">aligner</span><span class="o">.</span><span class="n">align_seq</span><span class="p">(</span><span class="n">kmer</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">chrom</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">aln</span><span class="o">.</span><span class="n">rname</span> <span class="o">==</span> <span class="n">chrom</span> <span class="ow">and</span> <span class="n">aln</span><span class="o">.</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="n">pos</span> <span class="o">&lt;</span> <span class="n">aln</span><span class="o">.</span><span class="n">pos</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">kmer</span><span class="p">):</span>
+            <span class="k">continue</span>  <span class="c1"># Skipping reference hitting where it came from</span>
+        <span class="n">match</span><span class="p">,</span> <span class="n">miss</span> <span class="o">=</span> <span class="n">cig_pctsim</span><span class="p">(</span><span class="n">aln</span><span class="o">.</span><span class="n">cigar</span><span class="p">)</span>
+
+        <span class="n">nhits</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">avg_q</span> <span class="o">+=</span> <span class="n">aln</span><span class="o">.</span><span class="n">mapq</span>
+        <span class="n">avg_ed</span> <span class="o">+=</span> <span class="n">aln</span><span class="o">.</span><span class="n">NM</span>
+        <span class="n">avg_mat</span> <span class="o">+=</span> <span class="n">match</span>
+        <span class="n">avg_mis</span> <span class="o">+=</span> <span class="n">miss</span>
+
+        <span class="k">if</span> <span class="n">aln</span><span class="o">.</span><span class="n">orient</span> <span class="o">==</span> <span class="s2">&quot;+&quot;</span><span class="p">:</span>
+            <span class="n">dir_hits</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">com_hits</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># MAX</span>
+        <span class="k">if</span> <span class="n">aln</span><span class="o">.</span><span class="n">mapq</span> <span class="o">&gt;</span> <span class="n">max_q</span><span class="p">:</span>
+            <span class="n">max_q</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">mapq</span>
+            <span class="n">max_strand</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">orient</span>
+            <span class="n">max_ed</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">NM</span>
+            <span class="n">max_mat</span> <span class="o">=</span> <span class="n">match</span>
+            <span class="n">max_mis</span> <span class="o">=</span> <span class="n">miss</span>
+
+        <span class="c1"># MIN</span>
+        <span class="k">if</span> <span class="n">aln</span><span class="o">.</span><span class="n">mapq</span> <span class="o">&lt;</span> <span class="n">min_q</span><span class="p">:</span>
+            <span class="n">min_q</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">mapq</span>
+            <span class="n">min_strand</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">orient</span>
+            <span class="n">min_ed</span> <span class="o">=</span> <span class="n">aln</span><span class="o">.</span><span class="n">NM</span>
+            <span class="n">min_mat</span> <span class="o">=</span> <span class="n">match</span>
+            <span class="n">min_mis</span> <span class="o">=</span> <span class="n">miss</span>
+
+    <span class="k">if</span> <span class="n">nhits</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">avg_q</span> <span class="o">/=</span> <span class="n">nhits</span>
+        <span class="n">avg_ed</span> <span class="o">/=</span> <span class="n">nhits</span>
+        <span class="n">avg_mat</span> <span class="o">/=</span> <span class="n">nhits</span>
+        <span class="n">avg_mis</span> <span class="o">/=</span> <span class="n">nhits</span>
+    <span class="k">return</span> <span class="n">nhits</span><span class="p">,</span> <span class="n">avg_q</span><span class="p">,</span> <span class="n">avg_ed</span><span class="p">,</span> <span class="n">avg_mat</span><span class="p">,</span> <span class="n">avg_mis</span><span class="p">,</span> <span class="n">dir_hits</span><span class="p">,</span> <span class="n">com_hits</span><span class="p">,</span> \
+        <span class="n">max_q</span><span class="p">,</span> <span class="n">max_ed</span><span class="p">,</span> <span class="n">max_mat</span><span class="p">,</span> <span class="n">max_mis</span><span class="p">,</span> <span class="n">max_strand</span><span class="p">,</span> \
+        <span class="n">min_q</span><span class="p">,</span> <span class="n">min_ed</span><span class="p">,</span> <span class="n">min_mat</span><span class="p">,</span> <span class="n">min_mis</span><span class="p">,</span> <span class="n">min_strand</span></div>
+
+
+<div class="viewcode-block" id="parse_args"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.parse_args">[docs]</a><span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Argument parsing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="s2">&quot;grm&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span>
+                                     <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input VCF&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--reference&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;BWA indexed reference&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-R&quot;</span><span class="p">,</span> <span class="s2">&quot;--regions&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Bed file of regions to parse (None)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;results.jl&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output dataframe (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--kmersize&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Size of kmer to map (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-m&quot;</span><span class="p">,</span> <span class="s2">&quot;--min-size&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">25</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum size of variants to map (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--threads&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">(),</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Number of threads (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--debug&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Verbose logging&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">args</span></div>
+
+
+<div class="viewcode-block" id="parse_infos"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.parse_infos">[docs]</a><span class="k">def</span> <span class="nf">parse_infos</span><span class="p">(</span><span class="n">infos</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert INFO field to dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">info</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">s</span></div>
+
+
+<span class="n">Entry</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;Entry&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;chrom&quot;</span><span class="p">,</span> <span class="s2">&quot;start&quot;</span><span class="p">,</span> <span class="s2">&quot;stop&quot;</span><span class="p">,</span> <span class="s2">&quot;ref&quot;</span><span class="p">,</span> <span class="s2">&quot;alts&quot;</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="line_to_entry"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.line_to_entry">[docs]</a><span class="k">def</span> <span class="nf">line_to_entry</span><span class="p">(</span><span class="n">fields</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Replicate pysam entries, but lighter</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Can&#39;t parse line: </span><span class="si">{</span><span class="n">fields</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">info_field</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">)</span>
+    <span class="n">info_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parse_infos</span><span class="p">(</span><span class="n">info_field</span><span class="p">))</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">alts</span> <span class="o">=</span> <span class="n">fields</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">Entry</span><span class="p">(</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>  <span class="c1"># chrom</span>
+                 <span class="n">start</span><span class="p">,</span>
+                 <span class="n">start</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref</span><span class="p">),</span>  <span class="c1"># stop</span>
+                 <span class="n">ref</span><span class="p">,</span>
+                 <span class="n">alts</span><span class="p">,</span>
+                 <span class="n">info_dict</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="read_vcf_lines"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.read_vcf_lines">[docs]</a><span class="k">def</span> <span class="nf">read_vcf_lines</span><span class="p">(</span><span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Faster VCF parsing</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting region </span><span class="si">{</span><span class="n">ref_name</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">stop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">tb</span> <span class="o">=</span> <span class="n">tabix</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">grm_shared</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">yield from</span> <span class="n">tb</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">tabix</span><span class="o">.</span><span class="n">TabixError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Region </span><span class="si">{</span><span class="n">ref_name</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">stop</span><span class="si">}</span><span class="s2"> failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">setproctitle</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;grm done </span><span class="si">{</span><span class="n">ref_name</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">stop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Done region </span><span class="si">{</span><span class="n">ref_name</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">stop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="process_entries"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.process_entries">[docs]</a><span class="k">def</span> <span class="nf">process_entries</span><span class="p">(</span><span class="n">ref_section</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate GRMs for a set of vcf entries</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">ref_section</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">FastaFile</span><span class="p">(</span><span class="n">grm_shared</span><span class="o">.</span><span class="n">ref_filename</span><span class="p">)</span>
+    <span class="n">aligner</span> <span class="o">=</span> <span class="n">grm_shared</span><span class="o">.</span><span class="n">aligner</span>
+    <span class="n">kmersize</span> <span class="o">=</span> <span class="n">grm_shared</span><span class="o">.</span><span class="n">kmersize</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">grm_shared</span><span class="o">.</span><span class="n">header</span>
+    <span class="n">minsize</span> <span class="o">=</span> <span class="n">grm_shared</span><span class="o">.</span><span class="n">min_size</span>
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">next_progress</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">read_vcf_lines</span><span class="p">(</span><span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;SVLEN&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">line</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span> <span class="ow">and</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">])</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">4</span><span class="p">]))</span> <span class="o">&lt;</span> <span class="n">minsize</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">entry</span> <span class="o">=</span> <span class="n">line_to_entry</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">next_progress</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">next_progress</span> <span class="o">=</span> <span class="mi">1000</span>
+            <span class="n">setproctitle</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;grm processing </span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="n">ref_name</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">stop</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">next_progress</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="s2">&quot;SVLEN&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">kmers</span> <span class="o">=</span> <span class="n">make_kmers</span><span class="p">(</span><span class="n">ref</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">kmersize</span><span class="o">//</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">kmers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="n">ref_up</span><span class="p">,</span> <span class="n">ref_dn</span><span class="p">,</span> <span class="n">alt_up</span><span class="p">,</span> <span class="n">alt_dn</span> <span class="o">=</span> <span class="n">kmers</span>
+        <span class="n">ty</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_variant_type</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2">:</span><span class="si">%d</span><span class="s2">-</span><span class="si">%d</span><span class="s2">.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="c1"># pylint: disable=consider-using-f-string</span>
+                  <span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">stop</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">alts</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
+        <span class="k">if</span> <span class="n">ty</span> <span class="o">==</span> <span class="s2">&quot;INS&quot;</span><span class="p">:</span>
+            <span class="c1"># Only want a single reference kmer</span>
+            <span class="n">ref_stats</span> <span class="o">=</span> <span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">ref_up</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ref_stats</span> <span class="o">+</span> <span class="n">ref_stats</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">alt_up</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">alt_dn</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">ty</span> <span class="o">==</span> <span class="s2">&quot;DEL&quot;</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">ref_up</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">ref_dn</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">stop</span><span class="p">))</span>
+            <span class="c1"># Only want a single alternate kmer</span>
+            <span class="n">alt_stats</span> <span class="o">=</span> <span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">alt_up</span><span class="p">)</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">alt_stats</span> <span class="o">+</span> <span class="n">alt_stats</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">ref_up</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">ref_dn</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">stop</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">alt_up</span><span class="p">))</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">map_stats</span><span class="p">(</span><span class="n">aligner</span><span class="p">,</span> <span class="n">alt_dn</span><span class="p">))</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Chunk </span><span class="si">{</span><span class="n">ref_section</span><span class="si">}</span><span class="s2"> finished, shape=</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="ref_ranges"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.ref_ranges">[docs]</a><span class="k">def</span> <span class="nf">ref_ranges</span><span class="p">(</span><span class="n">reference</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">10000000</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Chunk reference into pieces</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ref</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">FastaFile</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ref_name</span> <span class="ow">in</span> <span class="n">ref</span><span class="o">.</span><span class="n">references</span><span class="p">:</span>  <span class="c1"># pylint: disable=not-an-iterable</span>
+        <span class="n">final_stop</span> <span class="o">=</span> <span class="n">ref</span><span class="o">.</span><span class="n">get_reference_length</span><span class="p">(</span><span class="n">ref_name</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">stop</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span>
+        <span class="k">while</span> <span class="n">stop</span> <span class="o">&lt;</span> <span class="n">final_stop</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">stop</span>
+            <span class="n">stop</span> <span class="o">+=</span> <span class="n">chunk_size</span>
+        <span class="k">yield</span> <span class="n">ref_name</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">final_stop</span></div>
+
+
+<div class="viewcode-block" id="bed_ranges"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.bed_ranges">[docs]</a><span class="k">def</span> <span class="nf">bed_ranges</span><span class="p">(</span><span class="n">bed</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">10000000</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Chunk bed ranges into pieces</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">bed</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">final_stop</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="n">stop</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span>
+            <span class="k">while</span> <span class="n">stop</span> <span class="o">&lt;</span> <span class="n">final_stop</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">start</span><span class="p">,</span> <span class="n">stop</span>
+                <span class="n">start</span> <span class="o">=</span> <span class="n">stop</span>
+                <span class="n">stop</span> <span class="o">+=</span> <span class="n">chunk_size</span>
+            <span class="k">yield</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">start</span><span class="p">,</span> <span class="n">final_stop</span></div>
+
+
+<div class="viewcode-block" id="grm_main"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.grm_main">[docs]</a><span class="k">def</span> <span class="nf">grm_main</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builds a graph-genome from the vcf and reference,</span>
+<span class="sd">    creates the sets of kmers at edges in the graph</span>
+<span class="sd">    maps those kmers globally to the reference</span>
+<span class="sd">    reports mapping metrics</span>
+
+<span class="sd">    Todo:</span>
+<span class="sd">    - document the bwa package and how to install</span>
+<span class="sd">    - better column names along with documentation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">HASBWALIB</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;bwapy isn&#39;t available on this machine&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">regions</span><span class="p">:</span>
+        <span class="n">m_ranges</span> <span class="o">=</span> <span class="n">ref_ranges</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">m_ranges</span> <span class="o">=</span> <span class="n">bed_ranges</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">regions</span><span class="p">)</span>
+
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">aligner</span> <span class="o">=</span> <span class="n">BwaAligner</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">,</span> <span class="s1">&#39;-a&#39;</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;rup_&quot;</span><span class="p">,</span> <span class="s2">&quot;rdn_&quot;</span><span class="p">,</span> <span class="s2">&quot;aup_&quot;</span><span class="p">,</span> <span class="s2">&quot;adn_&quot;</span><span class="p">]:</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;nhits&quot;</span><span class="p">,</span> <span class="s2">&quot;avg_q&quot;</span><span class="p">,</span> <span class="s2">&quot;avg_ed&quot;</span><span class="p">,</span> <span class="s2">&quot;avg_mat&quot;</span><span class="p">,</span> <span class="s2">&quot;avg_mis&quot;</span><span class="p">,</span> <span class="s2">&quot;dir_hits&quot;</span><span class="p">,</span> <span class="s2">&quot;com_hits&quot;</span><span class="p">,</span> <span class="s2">&quot;max_q&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;max_ed&quot;</span><span class="p">,</span> <span class="s2">&quot;max_mat&quot;</span><span class="p">,</span> <span class="s2">&quot;max_mis&quot;</span><span class="p">,</span> <span class="s2">&quot;max_strand&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;min_q&quot;</span><span class="p">,</span> <span class="s2">&quot;min_ed&quot;</span><span class="p">,</span> <span class="s2">&quot;min_mat&quot;</span><span class="p">,</span> <span class="s2">&quot;min_mis&quot;</span><span class="p">,</span> <span class="s2">&quot;min_strand&quot;</span><span class="p">]:</span>
+            <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prefix</span> <span class="o">+</span> <span class="n">key</span><span class="p">)</span>
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">header</span> <span class="o">=</span> <span class="n">header</span>
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">ref_filename</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">reference</span>
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">kmersize</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">kmersize</span>
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">input</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">input</span>
+    <span class="n">grm_shared</span><span class="o">.</span><span class="n">min_size</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">min_size</span>
+    <span class="k">with</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">threads</span><span class="p">,</span> <span class="n">maxtasksperchild</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Processing&quot;</span><span class="p">)</span>
+        <span class="n">chunks</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">imap</span><span class="p">(</span><span class="n">process_entries</span><span class="p">,</span> <span class="n">m_ranges</span><span class="p">)</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">chunks</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saving; df shape </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished grm&quot;</span><span class="p">)</span>
+        <span class="n">pool</span><span class="o">.</span><span class="n">join</span><span class="p">()</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Author.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

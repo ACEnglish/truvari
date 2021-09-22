@@ -1,0 +1,728 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>truvari.bench &#8212; truvari  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for truvari.bench</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Structural variant caller comparison tool</span>
+<span class="sd">Given a benchmark and callset, calculate the recall/precision/f-measure</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=too-many-statements</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">OrderedDict</span>
+
+<span class="kn">import</span> <span class="nn">pysam</span>
+
+<span class="kn">import</span> <span class="nn">truvari</span>
+<span class="kn">from</span> <span class="nn">truvari.giab_report</span> <span class="kn">import</span> <span class="n">make_giabreport</span>
+
+
+<div class="viewcode-block" id="StatsBox"><a class="viewcode-back" href="../../truvari.html#truvari.bench.StatsBox">[docs]</a><span class="k">class</span> <span class="nc">StatsBox</span><span class="p">(</span><span class="n">OrderedDict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make a blank stats box for counting TP/FP/FN and calculating performance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FP&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FN&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;precision&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;recall&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;f1&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;base cnt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;call cnt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_TP-gt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_FP-gt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base_TP-gt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base_FP-gt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;gt_concordance&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="StatsBox.calc_performance"><a class="viewcode-back" href="../../truvari.html#truvari.bench.StatsBox.calc_performance">[docs]</a>    <span class="k">def</span> <span class="nf">calc_performance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">peek</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Calculate the precision/recall</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">do_stats_math</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FN&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No TP or FN calls in base!&quot;</span><span class="p">)</span>
+            <span class="n">do_stats_math</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FP&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No TP or FP calls in comp!&quot;</span><span class="p">)</span>
+            <span class="n">do_stats_math</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="n">peek</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Results peek: </span><span class="si">%d</span><span class="s2"> TP-base </span><span class="si">%d</span><span class="s2"> FN </span><span class="si">%.2f%%</span><span class="s2"> Recall&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FN&quot;</span><span class="p">],</span>
+                         <span class="mi">100</span> <span class="o">*</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FN&quot;</span><span class="p">])))</span>
+        <span class="k">if</span> <span class="n">peek</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Final calculations</span>
+        <span class="k">if</span> <span class="n">do_stats_math</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;precision&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+                <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FP&quot;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;recall&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">])</span> <span class="o">/</span> \
+                <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;FN&quot;</span><span class="p">])</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_TP-gt&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_FP-gt&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;gt_concordance&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_TP-gt&quot;</span><span class="p">])</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_TP-gt&quot;</span><span class="p">]</span> <span class="o">+</span>
+                                                                         <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;TP-call_FP-gt&quot;</span><span class="p">])</span>
+
+        <span class="c1"># f-measure</span>
+        <span class="n">neum</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;recall&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;precision&quot;</span><span class="p">]</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;recall&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;precision&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">denom</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;f1&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">neum</span> <span class="o">/</span> <span class="n">denom</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;f1&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;NaN&quot;</span></div></div>
+
+
+<div class="viewcode-block" id="parse_args"><a class="viewcode-back" href="../../truvari.html#truvari.bench.parse_args">[docs]</a><span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pull the command line parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="s2">&quot;bench&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span>
+                                     <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-b&quot;</span><span class="p">,</span> <span class="s2">&quot;--base&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Baseline truth-set calls&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;--comp&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Comparison set of calls&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output directory&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--reference&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Indexed fasta used to call variants&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--giabreport&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Parse output TPs/FNs for GIAB annotations and create a report&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--debug&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Verbose logging&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--prog&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Turn on progress monitoring&quot;</span><span class="p">)</span>
+
+    <span class="n">thresg</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s2">&quot;Comparison Threshold Arguments&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--refdist&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Max reference location distance (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctsim&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.70</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Min percent allele sequence similarity. Set to 0 to ignore. (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-B&quot;</span><span class="p">,</span> <span class="s2">&quot;--buffer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Percent of the reference span to buffer the haplotype sequence created&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-P&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctsize&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.70</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Min pct allele size similarity (minvarsize/maxvarsize) (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-O&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctovl&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum pct reciprocal overlap (</span><span class="si">%(default)s</span><span class="s2">) for DEL events&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--typeignore&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Variant types don&#39;t need to match to compare (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--use-lev&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use the Levenshtein distance ratio instead of edlib editDistance ratio (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="n">genoty</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s2">&quot;Genotype Comparison Arguments&quot;</span><span class="p">)</span>
+    <span class="n">genoty</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--gtcomp&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Compare GenoTypes of matching calls&quot;</span><span class="p">)</span>
+    <span class="n">genoty</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--bSample&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Baseline calls sample to use (first)&quot;</span><span class="p">)</span>
+    <span class="n">genoty</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--cSample&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Comparison calls sample to use (first)&quot;</span><span class="p">)</span>
+
+    <span class="n">filteg</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s2">&quot;Filtering Arguments&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--sizemin&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum variant size to consider for comparison (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-S&quot;</span><span class="p">,</span> <span class="s2">&quot;--sizefilt&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum variant size to load into IntervalTree (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--sizemax&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum variant size to consider for comparison (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--passonly&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Only consider calls with FILTER == PASS&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--no-ref&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">],</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Don&#39;t include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--includebed&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Bed file of regions in the genome to include only calls overlapping&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--multimatch&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Allow base calls to match multiple comparison calls, and vice versa. &quot;</span>
+                              <span class="s2">&quot;Output vcfs will have redundant entries. (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">))</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;--reference is required when --pctsim is set&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">args</span></div>
+
+
+<div class="viewcode-block" id="edit_header"><a class="viewcode-back" href="../../truvari.html#truvari.bench.edit_header">[docs]</a><span class="k">def</span> <span class="nf">edit_header</span><span class="p">(</span><span class="n">my_vcf</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add INFO for new fields to vcf</span>
+<span class="sd">    #Probably want to put in the PG whatever, too</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Update header</span>
+    <span class="c1"># Edit Header</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">my_vcf</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=TruScore,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Truvari score for similarity of match&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=PctSeqSimilarity,Number=1,Type=Float,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Pct sequence similarity between this variant and its closest match&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=PctSizeSimilarity,Number=1,Type=Float,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Pct size similarity between this variant and its closest match&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=PctRecOverlap,Number=1,Type=Float,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Percent reciprocal overlap percent of the two calls</span><span class="se">\&#39;</span><span class="s1"> coordinates&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=StartDistance,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Distance of this call</span><span class="se">\&#39;</span><span class="s1">s start from comparison call</span><span class="se">\&#39;</span><span class="s1">s start&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=EndDistance,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Distance of this call</span><span class="se">\&#39;</span><span class="s1">s start from comparison call</span><span class="se">\&#39;</span><span class="s1">s start&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=SizeDiff,Number=1,Type=Float,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Difference in size(basecall) and size(evalcall)&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=NumNeighbors,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Number of calls in B that were in the neighborhood (REFDIST) of this call&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=NumThresholdNeighbors,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Number of calls in B that are within threshold distances of this call&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=MatchId,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">header</span></div>
+
+
+<div class="viewcode-block" id="annotate_tp"><a class="viewcode-back" href="../../truvari.html#truvari.bench.annotate_tp">[docs]</a><span class="k">def</span> <span class="nf">annotate_tp</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">match_result</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add the matching annotations to a vcf entry</span>
+<span class="sd">    match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \</span>
+<span class="sd">                    match_stdist, match_endist, match_entry</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;PctSeqSimilarity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">seq_similarity</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;PctSizeSimilarity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">size_similarity</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;PctRecOverlap&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">ovl_pct</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;SizeDiff&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">size_diff</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;StartDistance&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">start_distance</span>
+    <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;EndDistance&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_result</span><span class="o">.</span><span class="n">end_distance</span></div>
+
+
+<div class="viewcode-block" id="check_params"><a class="viewcode-back" href="../../truvari.html#truvari.bench.check_params">[docs]</a><span class="k">def</span> <span class="nf">check_params</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks parameters as much as possible.</span>
+<span class="sd">    All errors are written to stderr without logging since failures mean no output</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Output directory &#39;</span><span class="si">%s</span><span class="s2">&#39; already exists&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;File </span><span class="si">%s</span><span class="s2"> does not exist&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;File </span><span class="si">%s</span><span class="s2"> does not exist&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gz&quot;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Comparison vcf </span><span class="si">%s</span><span class="s2"> does not end with .gz. Must be bgzip&#39;d&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span> <span class="o">+</span> <span class="s1">&#39;.tbi&#39;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Comparison vcf index </span><span class="si">%s</span><span class="s2">.tbi does not exist. Must be indexed&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gz&quot;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Base vcf </span><span class="si">%s</span><span class="s2"> does not end with .gz. Must be bgzip&#39;d&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base</span> <span class="o">+</span> <span class="s1">&#39;.tbi&#39;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Base vcf index </span><span class="si">%s</span><span class="s2">.tbi does not exist. Must be indexed&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">check_fail</span></div>
+
+
+<div class="viewcode-block" id="check_sample"><a class="viewcode-back" href="../../truvari.html#truvari.bench.check_sample">[docs]</a><span class="k">def</span> <span class="nf">check_sample</span><span class="p">(</span><span class="n">vcf_fn</span><span class="p">,</span> <span class="n">sampleId</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return the given sampleId from the var_file</span>
+<span class="sd">    if sampleId is None, return the first sample</span>
+<span class="sd">    if there is no first sample in the var_file, raise an error</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">vcf_file</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">vcf_fn</span><span class="p">)</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">sampleId</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">sampleId</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">vcf_file</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">samples</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Sample </span><span class="si">%s</span><span class="s2"> not found in vcf (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">sampleId</span><span class="p">,</span> <span class="n">vcf_fn</span><span class="p">)</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">vcf_file</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">samples</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;No SAMPLE columns found in vcf (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">vcf_fn</span><span class="p">)</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="n">check_fail</span></div>
+
+
+<div class="viewcode-block" id="check_inputs"><a class="viewcode-back" href="../../truvari.html#truvari.bench.check_inputs">[docs]</a><span class="k">def</span> <span class="nf">check_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks the inputs against the arguments as much as possible before creating any output</span>
+<span class="sd">    Returns:</span>
+<span class="sd">        vcf_bse</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="n">check_sample</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">bSample</span><span class="p">)</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="n">check_sample</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">cSample</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">check_fail</span></div>
+
+
+<div class="viewcode-block" id="setup_outputs"><a class="viewcode-back" href="../../truvari.html#truvari.bench.setup_outputs">[docs]</a><span class="k">def</span> <span class="nf">setup_outputs</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Makes all of the output files</span>
+<span class="sd">    return a ... to get to each of the</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">debug</span><span class="p">,</span> <span class="n">truvari</span><span class="o">.</span><span class="n">LogFileStderr</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;log.txt&quot;</span><span class="p">)))</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Params:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Truvari version: </span><span class="si">{</span><span class="n">truvari</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">bSample</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">bSample</span> <span class="k">else</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleComp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">cSample</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">cSample</span> <span class="k">else</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Setup outputs</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpb_out&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;tp-base.vcf&quot;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpc_out&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;tp-call.vcf&quot;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">])</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fn_out&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;fn.vcf&quot;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fp_out&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;fp.vcf&quot;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">])</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">StatsBox</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+<div class="viewcode-block" id="filter_call"><a class="viewcode-back" href="../../truvari.html#truvari.bench.filter_call">[docs]</a><span class="k">def</span> <span class="nf">filter_call</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">sizeA</span><span class="p">,</span> <span class="n">sizemin</span><span class="p">,</span> <span class="n">sizemax</span><span class="p">,</span> <span class="n">no_ref</span><span class="p">,</span> <span class="n">passonly</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">base</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given an entry, the parse_args arguments, and the entry&#39;s size</span>
+<span class="sd">    check if it should be excluded from further analysis</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;base &quot;</span> <span class="k">if</span> <span class="n">base</span> <span class="k">else</span> <span class="s2">&quot;call &quot;</span>
+    <span class="k">if</span> <span class="n">sizeA</span> <span class="o">&lt;</span> <span class="n">sizemin</span> <span class="ow">or</span> <span class="n">sizeA</span> <span class="o">&gt;</span> <span class="n">sizemax</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">samp</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">base</span> <span class="k">else</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleComp&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">no_ref</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_is_present</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">samp</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">passonly</span> <span class="ow">and</span> <span class="n">truvari</span><span class="o">.</span><span class="n">filter_value</span><span class="p">(</span><span class="n">entry</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> variant has no PASS FILTER and is being excluded from comparison - </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                      <span class="n">prefix</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="write_fn"><a class="viewcode-back" href="../../truvari.html#truvari.bench.write_fn">[docs]</a><span class="k">def</span> <span class="nf">write_fn</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Write an entry to the false_negative output</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># No overlaps, don&#39;t even bother checking</span>
+    <span class="n">n_base_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">])</span>
+    <span class="n">n_base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">n_base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumThresholdNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;FN&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fn_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">n_base_entry</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="match_calls"><a class="viewcode-back" href="../../truvari.html#truvari.bench.match_calls">[docs]</a><span class="k">def</span> <span class="nf">match_calls</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span> <span class="n">sizeA</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-many-return-statements</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare the base and comp entries.</span>
+<span class="sd">    We provied astart...sizeA because we&#39;ve presumably calculated it before</span>
+<span class="sd">    Note - This is the crucial component of matching.. so needs to be better</span>
+<span class="sd">    pulled apart for reusability and put into comparisons</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">sizeB</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">sizefilt</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># Double ensure OVERLAP - there&#39;s a weird edge case where fetch with</span>
+    <span class="c1"># the interval tree can return non-overlaps</span>
+    <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_boundaries</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">overlaps</span><span class="p">(</span><span class="n">astart</span> <span class="o">-</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span><span class="p">,</span> <span class="n">aend</span> <span class="o">+</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span><span class="p">,</span> <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">regions</span><span class="o">.</span><span class="n">include</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># Someone in the Base call&#39;s neighborhood, we&#39;ll see if it passes comparisons</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">no_ref</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_is_present</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">]):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> is uncalled&quot;</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">gtcomp</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_gt_comp</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">],</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleComp&quot;</span><span class="p">]):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> are not the same genotype&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">typeignore</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_same_variant_type</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> are not the same SVTYPE&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">size_similarity</span><span class="p">,</span> <span class="n">size_diff</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">sizesim</span><span class="p">(</span><span class="n">sizeA</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">size_similarity</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsize</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> size similarity is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">size_similarity</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">ovl_pct</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">reciprocal_overlap</span><span class="p">(</span><span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span> <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_variant_type</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;DEL&quot;</span> <span class="ow">and</span> <span class="n">ovl_pct</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctovl</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> overlap percent is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">ovl_pct</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">seq_similarity</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_pctsim</span><span class="p">(</span>
+            <span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">buffer</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">use_lev</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">seq_similarity</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> sequence similarity is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                <span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">seq_similarity</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">seq_similarity</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">start_distance</span> <span class="o">=</span> <span class="n">astart</span> <span class="o">-</span> <span class="n">bstart</span>
+    <span class="n">end_distance</span> <span class="o">=</span> <span class="n">aend</span> <span class="o">-</span> <span class="n">bend</span>
+
+    <span class="n">score</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">weighted_score</span><span class="p">(</span><span class="n">seq_similarity</span><span class="p">,</span> <span class="n">size_similarity</span><span class="p">,</span> <span class="n">ovl_pct</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">truvari</span><span class="o">.</span><span class="n">MATCHRESULT</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">seq_similarity</span><span class="p">,</span> <span class="n">size_similarity</span><span class="p">,</span> <span class="n">ovl_pct</span><span class="p">,</span> <span class="n">size_diff</span><span class="p">,</span>
+                               <span class="n">start_distance</span><span class="p">,</span> <span class="n">end_distance</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="output_base_match"><a class="viewcode-back" href="../../truvari.html#truvari.bench.output_base_match">[docs]</a><span class="k">def</span> <span class="nf">output_base_match</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">num_neighbors</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">,</span> <span class="n">myid</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Writes a base call after it has gone through matching</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">base_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">])</span>
+    <span class="n">base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">num_neighbors</span>
+    <span class="n">base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumThresholdNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span>
+    <span class="n">base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;MatchId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">myid</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># False negative</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;FN&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fn_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+        <span class="k">return</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Picking from candidate matches:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                  <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">thresh_neighbors</span><span class="p">]))</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">match_sorter</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Best match is </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">score</span><span class="p">))</span>
+    <span class="n">base_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;TruScore&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">thresh_neighbors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">score</span>
+
+    <span class="n">annotate_tp</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpb_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+
+    <span class="c1"># Don&#39;t double count calls found before</span>
+    <span class="n">b_key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">base_entry</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">b_key</span><span class="p">]:</span>
+        <span class="c1"># Interesting...</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_gt_comp</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">match_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">],</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleComp&quot;</span><span class="p">]):</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-base_TP-gt&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-base_FP-gt&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="c1"># Mark the call for multimatch checking</span>
+    <span class="n">matched_calls</span><span class="p">[</span><span class="n">b_key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="report_best_match"><a class="viewcode-back" href="../../truvari.html#truvari.bench.report_best_match">[docs]</a><span class="k">def</span> <span class="nf">report_best_match</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">num_neighbors</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">,</span> <span class="n">myid</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pick and record the best base_entry</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">output_base_match</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">num_neighbors</span><span class="p">,</span>
+                      <span class="n">thresh_neighbors</span><span class="p">,</span> <span class="n">myid</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+
+    <span class="c1"># Work through the comp calls</span>
+    <span class="k">for</span> <span class="n">neigh</span> <span class="ow">in</span> <span class="n">thresh_neighbors</span><span class="p">:</span>
+        <span class="c1"># Multimatch checking</span>
+        <span class="n">c_key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">neigh</span><span class="o">.</span><span class="n">match_entry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">c_key</span><span class="p">]:</span>  <span class="c1"># unmatched</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-call&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_gt_comp</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">neigh</span><span class="o">.</span><span class="n">match_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleBase&quot;</span><span class="p">],</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;sampleComp&quot;</span><span class="p">]):</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-call_TP-gt&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-call_FP-gt&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">multimatch</span><span class="p">:</span>
+            <span class="c1"># Used this one and it can&#39;t multimatch</span>
+            <span class="k">continue</span>
+
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Matching </span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">neigh</span><span class="o">.</span><span class="n">match_entry</span><span class="p">))</span>
+        <span class="n">match_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span>
+            <span class="n">neigh</span><span class="o">.</span><span class="n">match_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">])</span>
+        <span class="n">match_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;TruScore&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neigh</span><span class="o">.</span><span class="n">score</span>
+        <span class="n">match_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">num_neighbors</span>
+        <span class="n">match_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumThresholdNeighbors&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span>
+        <span class="n">match_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;MatchId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">myid</span>
+        <span class="n">annotate_tp</span><span class="p">(</span><span class="n">match_entry</span><span class="p">,</span> <span class="n">neigh</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpc_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">match_entry</span><span class="p">)</span>
+
+        <span class="c1"># Mark the call for multimatch checking</span>
+        <span class="n">matched_calls</span><span class="p">[</span><span class="n">c_key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">multimatch</span><span class="p">:</span>  <span class="c1"># We&#39;re done here</span>
+            <span class="k">break</span></div>
+
+
+<div class="viewcode-block" id="parse_fps"><a class="viewcode-back" href="../../truvari.html#truvari.bench.parse_fps">[docs]</a><span class="k">def</span> <span class="nf">parse_fps</span><span class="p">(</span><span class="n">matched_calls</span><span class="p">,</span> <span class="n">tot_comp_entries</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Report all the false-positives and comp filered calls</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+        <span class="n">pbar</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">setup_progressbar</span><span class="p">(</span><span class="n">tot_comp_entries</span><span class="p">)</span>
+
+    <span class="c1"># Reset</span>
+    <span class="n">vcf_comp</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">cnt</span><span class="p">,</span> <span class="n">entry</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">regions</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">vcf_comp</span><span class="p">)):</span>
+        <span class="c1"># Here</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cnt</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">size</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">filter_call</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemin</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">no_ref</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">passonly</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">entry</span><span class="p">)]:</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">regions</span><span class="o">.</span><span class="n">include</span><span class="p">(</span><span class="n">entry</span><span class="p">):</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fp_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span>
+                <span class="n">entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">]))</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;FP&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+        <span class="n">pbar</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="close_outputs"><a class="viewcode-back" href="../../truvari.html#truvari.bench.close_outputs">[docs]</a><span class="k">def</span> <span class="nf">close_outputs</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Close all the files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpb_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;tpc_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fn_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;fp_out&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="bench_main"><a class="viewcode-back" href="../../truvari.html#truvari.bench.bench_main">[docs]</a><span class="k">def</span> <span class="nf">bench_main</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">):</span>  <span class="c1"># pylint: disable=too-many-locals</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point for running Truvari Benchmarking</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">check_params</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="ow">or</span> <span class="n">check_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t run Truvari. Please fix parameters</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="c1"># We can now &#39;safely&#39; perform everything</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">setup_outputs</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">FastaFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">reference</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating call interval tree for overlap search&quot;</span><span class="p">)</span>
+    <span class="n">regions</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">GenomeTree</span><span class="p">(</span>
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">],</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">includebed</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">)</span>
+    <span class="n">span_lookup</span><span class="p">,</span> <span class="n">tot_comp_entries</span><span class="p">,</span> <span class="n">cmp_entries</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">make_interval_tree</span><span class="p">(</span>
+        <span class="n">regions</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">]),</span> <span class="n">args</span><span class="o">.</span><span class="n">sizefilt</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">passonly</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> call variants in total&quot;</span><span class="p">,</span> <span class="n">tot_comp_entries</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> call variants within size range (</span><span class="si">%d</span><span class="s2">, </span><span class="si">%d</span><span class="s2">)&quot;</span><span class="p">,</span>
+                 <span class="n">cmp_entries</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizefilt</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">)</span>
+
+    <span class="n">num_entries</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">pbar</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">regions</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">]):</span>
+            <span class="n">num_entries</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> base variants&quot;</span><span class="p">,</span> <span class="n">num_entries</span><span class="p">)</span>
+        <span class="n">pbar</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">setup_progressbar</span><span class="p">(</span><span class="n">num_entries</span><span class="p">)</span>
+
+    <span class="c1"># Reset</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">base</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_base_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">comp</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;n_comp_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">])</span>
+
+    <span class="c1"># Calls that have been matched up</span>
+    <span class="n">matched_calls</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+
+    <span class="c1"># for variant in base - do filtering on it and then try to match it to comp</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Matching base to calls&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">pbarcnt</span><span class="p">,</span> <span class="n">base_entry</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">regions</span><span class="o">.</span><span class="n">iterate</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_base&quot;</span><span class="p">])):</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pbarcnt</span><span class="p">)</span>
+
+        <span class="n">sizeA</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">filter_call</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">sizeA</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemin</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">no_ref</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">passonly</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;base cnt&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">fetch_start</span><span class="p">,</span> <span class="n">fetch_end</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">fetch_coords</span><span class="p">(</span>
+            <span class="n">span_lookup</span><span class="p">,</span> <span class="n">base_entry</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span><span class="p">)</span>
+        <span class="c1"># No overlaps, don&#39;t even bother checking</span>
+        <span class="k">if</span> <span class="n">fetch_start</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">fetch_end</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">write_fn</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># IntervalTree can give boundaries past REFDIST in the case of Inversions where start&gt;end</span>
+        <span class="c1"># We still need to fetch on the expanded boundaries so we can test them, but</span>
+        <span class="c1"># we need to filter calls that otherwise shouldn&#39;t be considered</span>
+        <span class="c1"># see the bstart/bend below</span>
+        <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_boundaries</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+
+        <span class="c1"># Search for comparison vcf entries as potential matches</span>
+        <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">num_neighbors</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># +- 1 just to be safe because why not</span>
+        <span class="k">for</span> <span class="n">comp_entry</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;vcf_comp&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">base_entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">fetch_start</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="n">fetch_end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">sizeB</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">filter_call</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizefilt</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">no_ref</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">passonly</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># There is a race condition here that could potentially mismatch things</span>
+            <span class="c1"># If base1 passes matching call1 and then base2 passes matching call1</span>
+            <span class="c1"># better, it can&#39;t use it and we mismatch</span>
+            <span class="c1"># UPDATE: by default we don&#39;t enforce one-match</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Comparing </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">multimatch</span> <span class="ow">and</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">)]:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                    <span class="s2">&quot;No match because comparison call already matched&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">mat</span> <span class="o">=</span> <span class="n">match_calls</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span> <span class="n">sizeA</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span>
+                              <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mat</span><span class="p">:</span>
+                <span class="n">num_neighbors</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">thresh_neighbors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mat</span><span class="p">)</span>
+
+        <span class="c1"># Finished with this base entry</span>
+        <span class="n">report_best_match</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">num_neighbors</span><span class="p">,</span>
+                          <span class="n">thresh_neighbors</span><span class="p">,</span> <span class="n">pbarcnt</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">prog</span><span class="p">:</span>
+        <span class="n">pbar</span><span class="o">.</span><span class="n">finish</span><span class="p">()</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">calc_performance</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Parsing FPs from calls&quot;</span><span class="p">)</span>
+    <span class="n">parse_fps</span><span class="p">(</span><span class="n">matched_calls</span><span class="p">,</span> <span class="n">tot_comp_entries</span><span class="p">,</span> <span class="n">regions</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+
+    <span class="c1"># call count is just of those used were used</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;call cnt&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;TP-base&quot;</span><span class="p">]</span> <span class="o">+</span> \
+        <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">][</span><span class="s2">&quot;FP&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Close to flush vcfs</span>
+    <span class="n">close_outputs</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+
+    <span class="c1"># make stats</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">calc_performance</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;summary.txt&quot;</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fout</span><span class="p">:</span>
+        <span class="n">fout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">],</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Stats: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">],</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">giabreport</span><span class="p">:</span>
+        <span class="n">make_giabreport</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;stats_box&quot;</span><span class="p">])</span>
+
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished bench&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">truvari</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../truvari.html">truvari package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.2.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

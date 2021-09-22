@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>truvari.annos.af_calc &mdash; truvari  documentation</title>
+      <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../../index.html" class="icon icon-home"> truvari
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../truvari.html">truvari package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">truvari</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+      <li>truvari.annos.af_calc</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for truvari.annos.af_calc</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Extra methods for calculating Allele Fequency annotations</span>
+<span class="sd">Calculations are python implementations of bcftools +fill_tags</span>
+<span class="sd">(https://samtools.github.io/bcftools/) Results are within 1e-6</span>
+<span class="sd">difference of bcftools +fill_tags</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<div class="viewcode-block" id="calc_hwe"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.af_calc.calc_hwe">[docs]</a><span class="k">def</span> <span class="nf">calc_hwe</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nalt</span><span class="p">,</span> <span class="n">nhet</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate Hardy Weinberg equilibrium and excess heterozygosity</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    nref : int</span>
+<span class="sd">        Number of reference alleles</span>
+<span class="sd">    nalt : int</span>
+<span class="sd">        Number of alternate alleles</span>
+<span class="sd">    nhet :</span>
+<span class="sd">        Number of heterozygous sites</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    tuple : (float, float)</span>
+<span class="sd">        The HWE and ExcHet calculated</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># void calc_hwe(args_t *args, int nref, int nalt, int nhet, float *p_hwe, float *p_exc_het)</span>
+    <span class="n">ngt</span> <span class="o">=</span> <span class="p">(</span><span class="n">nref</span> <span class="o">+</span> <span class="n">nalt</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>  <span class="c1"># also, just nsamples</span>
+    <span class="n">nrare</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">nref</span><span class="p">,</span> <span class="n">nalt</span><span class="p">)</span>
+    <span class="c1"># We got an hts_expand array for het probabilities</span>
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nrare</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">))</span>
+
+    <span class="c1"># start at midpoint</span>
+    <span class="n">mid</span> <span class="o">=</span> <span class="n">nrare</span> <span class="o">*</span> <span class="p">(</span><span class="n">nref</span> <span class="o">+</span> <span class="n">nalt</span> <span class="o">-</span> <span class="n">nrare</span><span class="p">)</span> <span class="o">//</span> <span class="p">(</span><span class="n">nref</span> <span class="o">+</span> <span class="n">nalt</span><span class="p">)</span>
+
+    <span class="c1"># check to ensure that midpoint and rare alleles have same parity</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">nrare</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">^</span> <span class="p">(</span><span class="n">mid</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">mid</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="n">het</span> <span class="o">=</span> <span class="n">mid</span>
+    <span class="n">hom_r</span> <span class="o">=</span> <span class="p">(</span><span class="n">nrare</span> <span class="o">-</span> <span class="n">mid</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">hom_c</span> <span class="o">=</span> <span class="n">ngt</span> <span class="o">-</span> <span class="n">het</span> <span class="o">-</span> <span class="n">hom_r</span>
+    <span class="n">probs</span><span class="p">[</span><span class="n">mid</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">my_sum</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">while</span> <span class="n">het</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">probs</span><span class="p">[</span><span class="n">het</span> <span class="o">-</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">probs</span><span class="p">[</span><span class="n">het</span><span class="p">]</span> <span class="o">*</span> <span class="n">het</span> <span class="o">*</span> \
+            <span class="p">(</span><span class="n">het</span> <span class="o">-</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mf">4.0</span> <span class="o">*</span> <span class="p">(</span><span class="n">hom_r</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">hom_c</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="n">my_sum</span> <span class="o">+=</span> <span class="n">probs</span><span class="p">[</span><span class="n">het</span> <span class="o">-</span> <span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># 2 fewer heterozygotes for next iteration -&gt; add rare, one common homozygote</span>
+        <span class="n">hom_r</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">hom_c</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="c1"># loop</span>
+        <span class="n">het</span> <span class="o">-=</span> <span class="mi">2</span>
+
+    <span class="n">het</span> <span class="o">=</span> <span class="n">mid</span>
+    <span class="n">hom_r</span> <span class="o">=</span> <span class="p">(</span><span class="n">nrare</span> <span class="o">-</span> <span class="n">mid</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">hom_c</span> <span class="o">=</span> <span class="n">ngt</span> <span class="o">-</span> <span class="n">het</span> <span class="o">-</span> <span class="n">hom_r</span>
+    <span class="k">while</span> <span class="n">het</span> <span class="o">&lt;=</span> <span class="n">nrare</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">probs</span><span class="p">[</span><span class="n">het</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">probs</span><span class="p">[</span><span class="n">het</span><span class="p">]</span> <span class="o">*</span> <span class="mf">4.0</span> <span class="o">*</span> <span class="n">hom_r</span> <span class="o">*</span> \
+            <span class="n">hom_c</span> <span class="o">/</span> <span class="p">((</span><span class="n">het</span> <span class="o">+</span> <span class="mf">2.0</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">het</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="n">my_sum</span> <span class="o">+=</span> <span class="n">probs</span><span class="p">[</span><span class="n">het</span> <span class="o">+</span> <span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># add 2 heterozygotes for next iteration -&gt; subtract one rare, one common homozygote</span>
+        <span class="n">hom_r</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="n">hom_c</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="c1"># loop</span>
+        <span class="n">het</span> <span class="o">+=</span> <span class="mi">2</span>
+
+    <span class="n">probs</span> <span class="o">=</span> <span class="n">probs</span> <span class="o">/</span> <span class="n">my_sum</span>
+
+    <span class="n">p_exc_het</span> <span class="o">=</span> <span class="n">probs</span><span class="p">[</span><span class="n">nhet</span><span class="p">:]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+    <span class="n">p_hwe</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">probs</span><span class="p">[</span><span class="n">probs</span> <span class="o">&gt;</span> <span class="n">probs</span><span class="p">[</span><span class="n">nhet</span><span class="p">]]</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p_exc_het</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">p_hwe</span></div>
+
+
+<div class="viewcode-block" id="allele_freq_annos"><a class="viewcode-back" href="../../../truvari.annos.html#truvari.annos.af_calc.allele_freq_annos">[docs]</a><span class="k">def</span> <span class="nf">allele_freq_annos</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">samples</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate allele annotations for a VCF Entry</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    entry : pysam.VariantRecord</span>
+<span class="sd">        Entry with samples to parse</span>
+<span class="sd">    samples : list of strings, optional</span>
+<span class="sd">        Subset of samples from the entry over which to calculate annos</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dict : floats</span>
+<span class="sd">        AF: allele frequency</span>
+<span class="sd">        MAF: minor allele frequency</span>
+<span class="sd">        ExcHet: excess heterozygosity</span>
+<span class="sd">        HWE: hardy weinberg equilibrium</span>
+<span class="sd">        AC: allele count</span>
+<span class="sd">        MAC: minor allele count</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">samples</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+    <span class="n">n_samps</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">n_het</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">cnt</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">()</span>  <span class="c1"># 0 or 1 allele counts</span>
+    <span class="k">for</span> <span class="n">samp</span> <span class="ow">in</span> <span class="n">samples</span><span class="p">:</span>
+        <span class="n">dat</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">samp</span><span class="p">]</span>
+        <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">dat</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">]:</span>
+            <span class="k">continue</span>
+        <span class="n">n_samps</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">dat</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">]:</span>
+            <span class="n">cnt</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">n_het</span> <span class="o">+=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">dat</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">dat</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="k">else</span> <span class="mi">0</span>
+
+    <span class="k">if</span> <span class="n">n_samps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;AF&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;MAF&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;ExcHet&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;HWE&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;MAC&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;AC&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+
+    <span class="n">af</span> <span class="o">=</span> <span class="n">cnt</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_samps</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">srt</span> <span class="o">=</span> <span class="p">[(</span><span class="n">v</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">cnt</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">item</span><span class="p">:</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+    <span class="n">ac</span> <span class="o">=</span> <span class="p">[</span><span class="n">cnt</span><span class="p">[</span><span class="n">_</span><span class="p">]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]]</span>
+    <span class="n">mac</span> <span class="o">=</span> <span class="n">srt</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">maf</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">srt</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_samps</span> <span class="o">*</span> <span class="mi">2</span><span class="p">))</span>
+
+    <span class="n">p_exc_het</span><span class="p">,</span> <span class="n">p_hwe</span> <span class="o">=</span> <span class="n">calc_hwe</span><span class="p">(</span><span class="n">cnt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cnt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n_het</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;AF&quot;</span><span class="p">:</span> <span class="n">af</span><span class="p">,</span> <span class="s2">&quot;MAF&quot;</span><span class="p">:</span> <span class="n">maf</span><span class="p">,</span> <span class="s2">&quot;ExcHet&quot;</span><span class="p">:</span> <span class="n">p_exc_het</span><span class="p">,</span> <span class="s2">&quot;HWE&quot;</span><span class="p">:</span> <span class="n">p_hwe</span><span class="p">,</span> <span class="s2">&quot;MAC&quot;</span><span class="p">:</span> <span class="n">mac</span><span class="p">,</span> <span class="s2">&quot;AC&quot;</span><span class="p">:</span> <span class="n">ac</span><span class="p">}</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Author.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

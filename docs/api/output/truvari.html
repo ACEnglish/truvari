@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>truvari package &mdash; truvari  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Welcome to truvari’s documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> truvari
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">truvari package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#allele-freq-annos">allele_freq_annos</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmd-exe">cmd_exe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#copy-entry">copy_entry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#create-pos-haplotype">create_pos_haplotype</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-boundaries">entry_boundaries</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-create-haplotype">entry_create_haplotype</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-gt-comp">entry_gt_comp</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-is-present">entry_is_present</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-pctsim">entry_pctsim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-reciprocal-overlap">entry_reciprocal_overlap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-same-variant-type">entry_same_variant_type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-size">entry_size</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-size-similarity">entry_size_similarity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-to-key">entry_to_key</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#entry-variant-type">entry_variant_type</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fetch-coords">fetch_coords</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filter-value">filter_value</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-gt">get_gt</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-scalebin">get_scalebin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-sizebin">get_sizebin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-svtype">get_svtype</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#make-interval-tree">make_interval_tree</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#match-sorter">match_sorter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#overlaps">overlaps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reciprocal-overlap">reciprocal_overlap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#restricted-float">restricted_float</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-logging">setup_logging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-progressbar">setup_progressbar</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sizesim">sizesim</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#vcf-to-df">vcf_to_df</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#weighted-score">weighted_score</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">truvari</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>truvari package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/truvari.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-truvari">
+<span id="truvari-package"></span><h1>truvari package<a class="headerlink" href="#module-truvari" title="Permalink to this headline"></a></h1>
+<p>Full documentation at <a class="reference external" href="https://github.com/spiralgenetics/truvari/wiki">https://github.com/spiralgenetics/truvari/wiki</a></p>
+<p>See help() of specific functions / objects for details</p>
+<p>functions:
+allele_freq_annos, cmd_exe, copy_entry, create_pos_haplotype, entry_boundaries,
+entry_create_haplotype, entry_gt_comp, entry_is_present, entry_pctsim,
+entry_reciprocal_overlap, entry_same_variant_type, entry_size,
+entry_size_similarity, entry_to_key, entry_variant_type, fetch_coords,
+filter_value, get_gt, get_scalebin, get_sizebin, get_svtype, make_interval_tree,
+match_sorter, overlaps, reciprocal_overlap, restricted_float, setup_logging,
+setup_progressbar, sizesim, vcf_to_df, weighted_score</p>
+<p>dynamic objects:
+GT, GenomeTree, LogFileStderr, SV</p>
+<p>static objects:
+HEADERMAT - regular expression of vcf header INFO/FORMAT fields with groups
+MATCHRESULT - named tuple of match files
+QUALBINS - 0-100 quality score bin strings (step size 10)
+SVTYTYPE - pandas.CategoricalDtype of SV enum
+SZBINMAX - integer list of maximum size for size bins
+SZBINS - string list of size bins
+SZBINTYPE - pandas.CategoricalDtype of SZBINS</p>
+<section id="allele-freq-annos">
+<h2>allele_freq_annos<a class="headerlink" href="#allele-freq-annos" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.allele_freq_annos">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">allele_freq_annos</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/annos/af_calc.html#allele_freq_annos"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.allele_freq_annos" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate allele annotations for a VCF Entry</p>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>Entry with samples to parse</p>
+</dd>
+<dt>samples<span class="classifier">list of strings, optional</span></dt><dd><p>Subset of samples from the entry over which to calculate annos</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>dict<span class="classifier">floats</span></dt><dd><p>AF: allele frequency
+MAF: minor allele frequency
+ExcHet: excess heterozygosity
+HWE: hardy weinberg equilibrium
+AC: allele count
+MAC: minor allele count</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="cmd-exe">
+<h2>cmd_exe<a class="headerlink" href="#cmd-exe" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.cmd_exe">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">cmd_exe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cmd</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cap_stderr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pipefail</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/utils.html#cmd_exe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.cmd_exe" title="Permalink to this definition"></a></dt>
+<dd><p>Executes a command through the shell and captures the output while enabling
+process handling with timeouts and keyboard interrupts.</p>
+<dl class="simple">
+<dt>cmd<span class="classifier">string</span></dt><dd><p>The command to be executed.</p>
+</dd>
+<dt>timeout<span class="classifier">int</span></dt><dd><p>Timeout for the command in minutes. So 1440 means 24 hours. -1 means never</p>
+</dd>
+<dt>cap_stderr<span class="classifier">boolean</span></dt><dd><p>If True, capture the stderr and return it as part of the returned cmd_results.
+Otherwise, stderr will be streamed through to the terminal</p>
+</dd>
+<dt>pipefail<span class="classifier">boolean</span></dt><dd><p>Set to True if the cmd contains pipes <cite>|</cite></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>namedtuple<span class="classifier">ret_code, stdout, stderr, run_time</span></dt><dd><p>ret_code : integer, exit code of the command
+stdout : string, captured standard output of the command
+stderr : binary string, captured standard error of the command
+run_time : datetime.timedelta, execution time</p>
+</dd>
+</dl>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">truvari</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">truvari</span><span class="o">.</span><span class="n">cmd_exe</span><span class="p">(</span><span class="s2">&quot;ls&quot;</span><span class="p">)</span>
+<span class="go">cmd_result(ret_code=0, stdout=&#39;anno_answers.vcf\nsegment.vcf\nx.py\n&#39;, stderr=b&#39;&#39;,</span>
+<span class="go"> run_time=datetime.timedelta(microseconds=9452))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="copy-entry">
+<h2>copy_entry<a class="headerlink" href="#copy-entry" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.copy_entry">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">copy_entry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#copy_entry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.copy_entry" title="Permalink to this definition"></a></dt>
+<dd><p>Make a pysam.VariantRecord editable</p>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to make editable</p>
+</dd>
+<dt>header<span class="classifier">pysam.VariantHeader</span></dt><dd><p>header of output vcf</p>
+</dd>
+</dl>
+<p>pysam.VariantRecord : editable record</p>
+</dd></dl>
+
+</section>
+<section id="create-pos-haplotype">
+<h2>create_pos_haplotype<a class="headerlink" href="#create-pos-haplotype" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.create_pos_haplotype">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">create_pos_haplotype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chrom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a1_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a1_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a1_seq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a2_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a2_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a2_seq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buf_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#create_pos_haplotype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.create_pos_haplotype" title="Permalink to this definition"></a></dt>
+<dd><p>Create haplotypes of two allele’s regions that are assumed to be overlapping</p>
+<dl class="simple">
+<dt>chrom<span class="classifier">string</span></dt><dd><p>Chromosome where alleles are located</p>
+</dd>
+<dt>a1_start<span class="classifier">integer</span></dt><dd><p>0-based position of first allele’s start</p>
+</dd>
+<dt>a1_end<span class="classifier">integer</span></dt><dd><p>0-based position of first allele’s  end</p>
+</dd>
+<dt>a1_seq<span class="classifier">string</span></dt><dd><p>First allele’s sequene</p>
+</dd>
+<dt>a2_start<span class="classifier">integer</span></dt><dd><p>0-based position of second allele’s start</p>
+</dd>
+<dt>a2_end<span class="classifier">integer</span></dt><dd><p>0-based position of second allele’s  end</p>
+</dd>
+<dt>a2_seq<span class="classifier">string</span></dt><dd><p>Second allele’s sequene</p>
+</dd>
+<dt>ref<span class="classifier">pysam.FastaFile</span></dt><dd><p>Reference genome</p>
+</dd>
+<dt>buf_len<span class="classifier">float, optional</span></dt><dd><p>Percent of selected region’s range length to buffer</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>tuple<span class="classifier">(string, string)</span></dt><dd><p>allele haplotype sequences created</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-boundaries">
+<h2>entry_boundaries<a class="headerlink" href="#entry-boundaries" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_boundaries">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_boundaries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_boundaries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_boundaries" title="Permalink to this definition"></a></dt>
+<dd><p>Get the start/end of an entry and order (start &lt; end)</p>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to get bounds</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>tuple<span class="classifier">(int, int)</span></dt><dd><p>the entry’s start/end boundaries</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-create-haplotype">
+<h2>entry_create_haplotype<a class="headerlink" href="#entry-create-haplotype" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_create_haplotype">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_create_haplotype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entryA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryB</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_ref_seq</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buf_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_create_haplotype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_create_haplotype" title="Permalink to this definition"></a></dt>
+<dd><p>Turn two entries into their haplotype sequence for comparison</p>
+<dl class="simple">
+<dt>entryA<span class="classifier">pysam.VariantRecord</span></dt><dd><p>first entry</p>
+</dd>
+<dt>entryB<span class="classifier">pysam.VariantRecord</span></dt><dd><p>second entry</p>
+</dd>
+<dt>ref<span class="classifier">pysam.FastaFile</span></dt><dd><p>Reference genome</p>
+</dd>
+<dt>use_ref_seq<span class="classifier">boolean, optional</span></dt><dd><p>If True, use the reference genome to get the sequence instead of the vcf entries</p>
+</dd>
+<dt>buf_len<span class="classifier">float, optional</span></dt><dd><p>Percent of selected region’s range length to buffer</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>tuple<span class="classifier">(string, string)</span></dt><dd><p>allele haplotype sequences created</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-gt-comp">
+<h2>entry_gt_comp<a class="headerlink" href="#entry-gt-comp" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_gt_comp">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_gt_comp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entryA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryB</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampleA</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampleB</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_gt_comp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_gt_comp" title="Permalink to this definition"></a></dt>
+<dd><p>Compare the genotypes of two entries</p>
+<dl class="simple">
+<dt>entryA<span class="classifier">pysam.VariantRecord</span></dt><dd><p>first entry</p>
+</dd>
+<dt>entryB<span class="classifier">pysam.VariantRecord</span></dt><dd><p>second entry</p>
+</dd>
+<dt>sampleA<span class="classifier">string, optional</span></dt><dd><p>sample of entryA to check</p>
+</dd>
+<dt>sampleB: string, optional</dt><dd><p>sample of entryB to check</p>
+</dd>
+</dl>
+<p>boolean</p>
+</dd></dl>
+
+</section>
+<section id="entry-is-present">
+<h2>entry_is_present<a class="headerlink" href="#entry-is-present" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_is_present">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_is_present</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_is_present"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_is_present" title="Permalink to this definition"></a></dt>
+<dd><p>Checks if entry’s sample genotype is present and is heterozygous or homozygous (a.k.a. present)</p>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to check</p>
+</dd>
+<dt>sample<span class="classifier">string, optional</span></dt><dd><p>sample name</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>boolean</dt><dd><p>True if variant is present in the sample</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-pctsim">
+<h2>entry_pctsim<a class="headerlink" href="#entry-pctsim" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_pctsim">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_pctsim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entryA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryB</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buf_len</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_lev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_pctsim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_pctsim" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate similarity of two sequences’ haplotype changes</p>
+<dl class="simple">
+<dt>entryA<span class="classifier">pysam.VariantRecord</span></dt><dd><p>first entry</p>
+</dd>
+<dt>entryB<span class="classifier">pysam.VariantRecord</span></dt><dd><p>second entry</p>
+</dd>
+<dt>ref<span class="classifier">pysam.FastaFile</span></dt><dd><p>Reference genome</p>
+</dd>
+<dt>buf_len<span class="classifier">float, optional</span></dt><dd><p>Percent of selected region’s range length to buffer</p>
+</dd>
+<dt>use_lev<span class="classifier">boolean, optional</span></dt><dd><p>Use levenshtein distance by default. Set to False to use the faster edlib</p>
+</dd>
+</dl>
+<p>float : sequence similarity</p>
+</dd></dl>
+
+</section>
+<section id="entry-reciprocal-overlap">
+<h2>entry_reciprocal_overlap<a class="headerlink" href="#entry-reciprocal-overlap" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_reciprocal_overlap">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_reciprocal_overlap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_reciprocal_overlap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_reciprocal_overlap" title="Permalink to this definition"></a></dt>
+<dd><p>Calculates a reciprocal overlap rule for two entries</p>
+<dl class="simple">
+<dt>entry1<span class="classifier">pysam.VariantRecord</span></dt><dd><p>First entry</p>
+</dd>
+<dt>entry2<span class="classifier">pysam.VariantRecord</span></dt><dd><p>Second entry</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>float :</dt><dd><p>The reciprocal overlap</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-same-variant-type">
+<h2>entry_same_variant_type<a class="headerlink" href="#entry-same-variant-type" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_same_variant_type">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_same_variant_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entryA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryB</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_same_variant_type"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_same_variant_type" title="Permalink to this definition"></a></dt>
+<dd><p>returns if entryA svtype == entryB svtype</p>
+<dl class="simple">
+<dt>entryA<span class="classifier">pysam.VariantRecord</span></dt><dd><p>first entry</p>
+</dd>
+<dt>entryB<span class="classifier">pysam.VariantRecord</span></dt><dd><p>second entry</p>
+</dd>
+</dl>
+<p>boolean</p>
+</dd></dl>
+
+</section>
+<section id="entry-size">
+<h2>entry_size<a class="headerlink" href="#entry-size" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_size">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_size" title="Permalink to this definition"></a></dt>
+<dd><p>Determine the size of the variant.</p>
+<p>How size is determined:
+- Starts by trying to use INFO/SVLEN
+- If SVLEN is unavailable and ALT field is an SV (e.g. &lt;INS&gt;, &lt;DEL&gt;, etc),</p>
+<blockquote>
+<div><p>use abs(vcf.start - vcf.end). The INFO/END tag needs to be available,
+especially for INS.</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Otherwise, return the size difference of the sequence resolved call using
+abs(len(vcf.REF) - len(str(vcf.ALT[0])))</p></li>
+</ul>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to look at</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>int :</dt><dd><p>the entry’s size</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="entry-size-similarity">
+<h2>entry_size_similarity<a class="headerlink" href="#entry-size-similarity" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_size_similarity">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_size_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entryA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entryB</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_size_similarity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_size_similarity" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the size similarity percent for two entries</p>
+<dl class="simple">
+<dt>entryA<span class="classifier">pysam.VariantRecord</span></dt><dd><p>first entry</p>
+</dd>
+<dt>entryB<span class="classifier">pysam.VariantRecord</span></dt><dd><p>second entry</p>
+</dd>
+</dl>
+<p>float : size similarity percent</p>
+</dd></dl>
+
+</section>
+<section id="entry-to-key">
+<h2>entry_to_key<a class="headerlink" href="#entry-to-key" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_to_key">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_to_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_to_key"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_to_key" title="Permalink to this definition"></a></dt>
+<dd><p>Turn a vcf entry into a hashable key using the ‘source’ (base/comp) to separate the two
+helpful for not re-using variants
+BUG: if a caller redundantly calls a variant exactly the same. It will be collapsed here</p>
+<dl class="simple">
+<dt>source<span class="classifier">string</span></dt><dd><p>string to identify vcf from which this entry originates</p>
+</dd>
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to stringify</p>
+</dd>
+</dl>
+<p>string : hashable string uniquely identifying the variant</p>
+</dd></dl>
+
+</section>
+<section id="entry-variant-type">
+<h2>entry_variant_type<a class="headerlink" href="#entry-variant-type" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.entry_variant_type">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">entry_variant_type</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#entry_variant_type"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.entry_variant_type" title="Permalink to this definition"></a></dt>
+<dd><p>How svtype is determined:
+- Starts by trying to use INFO/SVTYPE
+- If SVTYPE is unavailable, infer if entry is a insertion or deletion by</p>
+<blockquote>
+<div><p>looking at the REF/ALT sequence size differences</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>If REF/ALT sequences are not available, try to parse the &lt;INS&gt;, &lt;DEL&gt;,
+etc from the ALT column.</p></li>
+<li><p>Otherwise, assume ‘UNK’</p></li>
+</ul>
+<p>entry : pysam.VariantRecord</p>
+<p>string : the determined svtype</p>
+</dd></dl>
+
+</section>
+<section id="fetch-coords">
+<h2>fetch_coords<a class="headerlink" href="#fetch-coords" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.fetch_coords">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">fetch_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lookup</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#fetch_coords"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.fetch_coords" title="Permalink to this definition"></a></dt>
+<dd><p>Get the minimum/maximum fetch coordinates to find all variants within dist of variant</p>
+<dl class="simple">
+<dt>lookup<span class="classifier">dict</span></dt><dd><p>genome tree build defaultdict with interevaltrees</p>
+</dd>
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to build coords from</p>
+</dd>
+<dt>dist<span class="classifier">integer</span></dt><dd><p>distance buffer to add/subtract from the coords</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>tuple<span class="classifier">(int, int)</span></dt><dd><p>the minimum/maximum fetch coordinates for the entry</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="filter-value">
+<h2>filter_value<a class="headerlink" href="#filter-value" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.filter_value">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">filter_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#filter_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.filter_value" title="Permalink to this definition"></a></dt>
+<dd><p>Returns if entry should be filtered given the filter values provided.
+If values is None, assume that filter must have PASS or be blank ‘.’</p>
+<dl class="simple">
+<dt>entry<span class="classifier">pysam.VariantRecord</span></dt><dd><p>entry to check</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>bool :</dt><dd><p>True if entry should be filtered</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="get-gt">
+<h2>get_gt<a class="headerlink" href="#get-gt" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.get_gt">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">get_gt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gt</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/vcf2df.html#get_gt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.get_gt" title="Permalink to this definition"></a></dt>
+<dd><p>Turn a genotype tuple into a GT object</p>
+<dl class="simple">
+<dt>gt<span class="classifier">tuple (int, int)</span></dt><dd><p>Genotype tuple</p>
+</dd>
+</dl>
+<p>GT : enum</p>
+</dd></dl>
+
+</section>
+<section id="get-scalebin">
+<h2>get_scalebin<a class="headerlink" href="#get-scalebin" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.get_scalebin">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">get_scalebin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rmin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tmax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/vcf2df.html#get_scalebin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.get_scalebin" title="Permalink to this definition"></a></dt>
+<dd><p>Scale variable x from rdomain to tdomain with step sizes
+return key, index</p>
+<dl class="simple">
+<dt>x<span class="classifier">number</span></dt><dd><p>Number to scale</p>
+</dd>
+<dt>rmin<span class="classifier">number, optional</span></dt><dd><p>The minimum of the range of your measurement</p>
+</dd>
+<dt>rmax<span class="classifier">number, optional</span></dt><dd><p>The maximum of the range of your measurement</p>
+</dd>
+<dt>tmin<span class="classifier">number, optional</span></dt><dd><p>The minimum of the range of your desired target scaling</p>
+</dd>
+<dt>tmax<span class="classifier">number, optional</span></dt><dd><p>The maximum of the range of your measurement</p>
+</dd>
+<dt>step<span class="classifier">number, optional</span></dt><dd><p>The step size of bins of target range</p>
+</dd>
+</dl>
+<p>string : The bin-string of the scaled variable</p>
+</dd></dl>
+
+</section>
+<section id="get-sizebin">
+<h2>get_sizebin<a class="headerlink" href="#get-sizebin" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.get_sizebin">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">get_sizebin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sz</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/vcf2df.html#get_sizebin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.get_sizebin" title="Permalink to this definition"></a></dt>
+<dd><p>Bin a given size</p>
+<dl class="simple">
+<dt>sz<span class="classifier">integer</span></dt><dd><p>SVLEN to bin into the SZBINS</p>
+</dd>
+</dl>
+<p>SZBINS : string</p>
+</dd></dl>
+
+</section>
+<section id="get-svtype">
+<h2>get_svtype<a class="headerlink" href="#get-svtype" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.get_svtype">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">get_svtype</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">svtype</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/vcf2df.html#get_svtype"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.get_svtype" title="Permalink to this definition"></a></dt>
+<dd><p>Turn to an SV</p>
+<dl class="simple">
+<dt>svtype<span class="classifier">string</span></dt><dd><p>SVTYPE string to turn into SV object</p>
+</dd>
+</dl>
+<p>SV : enum</p>
+</dd></dl>
+
+</section>
+<section id="make-interval-tree">
+<h2>make_interval_tree<a class="headerlink" href="#make-interval-tree" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.make_interval_tree">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">make_interval_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vcf_file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sizemin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sizemax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">passonly</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/genome_tree.html#make_interval_tree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.make_interval_tree" title="Permalink to this definition"></a></dt>
+<dd><p>Return a dictionary of IntervalTree for intersection querying
+Return how many entries there are total in the vcf_file
+Return how many entries pass filtering parameters in vcf_files</p>
+</dd></dl>
+
+</section>
+<section id="match-sorter">
+<h2>match_sorter<a class="headerlink" href="#match-sorter" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.match_sorter">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">match_sorter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">candidates</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#match_sorter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.match_sorter" title="Permalink to this definition"></a></dt>
+<dd><p>Sort a list of MATCHRESULT tuples inplace.</p>
+<p>candidates : list of MATCHRESULT named tuples</p>
+</dd></dl>
+
+</section>
+<section id="overlaps">
+<h2>overlaps<a class="headerlink" href="#overlaps" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.overlaps">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">overlaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">s2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">e2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#overlaps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.overlaps" title="Permalink to this definition"></a></dt>
+<dd><p>Check if two start/end ranges have overlap</p>
+<dl class="simple">
+<dt>s1<span class="classifier">int</span></dt><dd><p>range 1 start</p>
+</dd>
+<dt>e1<span class="classifier">int</span></dt><dd><p>range 1 end</p>
+</dd>
+<dt>s2<span class="classifier">int</span></dt><dd><p>range 2 start</p>
+</dd>
+<dt>e2<span class="classifier">int</span></dt><dd><p>range 2 end</p>
+</dd>
+</dl>
+<p>boolean</p>
+</dd></dl>
+
+</section>
+<section id="reciprocal-overlap">
+<h2>reciprocal_overlap<a class="headerlink" href="#reciprocal-overlap" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.reciprocal_overlap">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">reciprocal_overlap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">astart</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aend</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bstart</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bend</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#reciprocal_overlap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.reciprocal_overlap" title="Permalink to this definition"></a></dt>
+<dd><p>Calculates a reciprocal overlap for two ranges</p>
+<dl class="simple">
+<dt>astart<span class="classifier">int</span></dt><dd><p>First range’s start position</p>
+</dd>
+<dt>aend<span class="classifier">ing</span></dt><dd><p>First range’s end position</p>
+</dd>
+<dt>bstart<span class="classifier">int</span></dt><dd><p>Second range’s start position</p>
+</dd>
+<dt>bend<span class="classifier">int</span></dt><dd><p>Second range’s end position</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>float :</dt><dd><p>The reciprocal overlap</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="restricted-float">
+<h2>restricted_float<a class="headerlink" href="#restricted-float" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.restricted_float">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">restricted_float</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lower</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/utils.html#restricted_float"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.restricted_float" title="Permalink to this definition"></a></dt>
+<dd><p>Restrict float x to range (lower, upper). Raises argparse.ArgumentTypeError if float is out of range</p>
+<dl class="simple">
+<dt>x<span class="classifier">float</span></dt><dd><p>number to check</p>
+</dd>
+<dt>lower<span class="classifier">float, optional</span></dt><dd><p>lower limit (inclusive) of float range</p>
+</dd>
+<dt>upper<span class="classifier">float, optional</span></dt><dd><p>upper limit (inclusive of float range</p>
+</dd>
+</dl>
+<p>float : input float</p>
+</dd></dl>
+
+</section>
+<section id="setup-logging">
+<h2>setup_logging<a class="headerlink" href="#setup-logging" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.setup_logging">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">setup_logging</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">debug=False</span></em>, <em class="sig-param"><span class="pre">stream=&lt;_io.TextIOWrapper</span> <span class="pre">name='&lt;stderr&gt;'</span> <span class="pre">mode='w'</span> <span class="pre">encoding='utf-8'&gt;</span></em>, <em class="sig-param"><span class="pre">log_format='%(asctime)s</span> <span class="pre">[%(levelname)s]</span> <span class="pre">%(message)s'</span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/utils.html#setup_logging"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.setup_logging" title="Permalink to this definition"></a></dt>
+<dd><p>Create default logger</p>
+<dl class="simple">
+<dt>debug<span class="classifier">boolean, optional</span></dt><dd><p>Set log-level to logging.DEBUG</p>
+</dd>
+<dt>stream<span class="classifier">file handler, optional (sys.stderr)</span></dt><dd><p>Where log is written</p>
+</dd>
+<dt>log_format<span class="classifier">string, optional (“%(asctime)s [%(levelname)s] %(message)s”)</span></dt><dd><p>Format of log lines</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="setup-progressbar">
+<h2>setup_progressbar<a class="headerlink" href="#setup-progressbar" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.setup_progressbar">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">setup_progressbar</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/utils.html#setup_progressbar"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.setup_progressbar" title="Permalink to this definition"></a></dt>
+<dd><p>Return a formatted progress bar of size</p>
+<dl class="simple">
+<dt>size<span class="classifier">int</span></dt><dd><p>Number of elements in the progress bar</p>
+</dd>
+</dl>
+<p>progressbar.ProgressBar</p>
+</dd></dl>
+
+</section>
+<section id="sizesim">
+<h2>sizesim<a class="headerlink" href="#sizesim" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.sizesim">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">sizesim</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sizeA</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sizeB</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#sizesim"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.sizesim" title="Permalink to this definition"></a></dt>
+<dd><p>Calculate the size similarity percent for two sizes</p>
+<dl class="simple">
+<dt>sizeA<span class="classifier">int</span></dt><dd><p>first size</p>
+</dd>
+<dt>sizeB<span class="classifier">int</span></dt><dd><p>second size</p>
+</dd>
+</dl>
+<p>float : size similarity percent</p>
+</dd></dl>
+
+</section>
+<section id="vcf-to-df">
+<h2>vcf_to_df<a class="headerlink" href="#vcf-to-df" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.vcf_to_df">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">vcf_to_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fn</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/vcf2df.html#vcf_to_df"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.vcf_to_df" title="Permalink to this definition"></a></dt>
+<dd><p>Parse a vcf file and turn it into a dataframe.
+Tries its best to pull info/format tags from the sample information
+For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt
+Specify which sample with its name or index in the VCF</p>
+<dl class="simple">
+<dt>fn<span class="classifier">string</span></dt><dd><p>File name of VCF to open and turn into a DataFrame</p>
+</dd>
+<dt>with_info<span class="classifier">boolean, optional</span></dt><dd><p>Add the INFO fields from the VCF to the DataFrame columns</p>
+</dd>
+<dt>with_fmt<span class="classifier">boolean, optional</span></dt><dd><p>Add the FORMAT fields from the VCF to the DataFrame columns</p>
+</dd>
+<dt>sample<span class="classifier">int/string, optional</span></dt><dd><p>Sample from the VCF to parse. Only used when with_fmt==True</p>
+</dd>
+</dl>
+<p>pandas.DataFrame : Converted VCF</p>
+</dd></dl>
+
+</section>
+<section id="weighted-score">
+<h2>weighted_score<a class="headerlink" href="#weighted-score" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="truvari.weighted_score">
+<span class="sig-prename descclassname"><span class="pre">truvari.</span></span><span class="sig-name descname"><span class="pre">weighted_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ovl</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/truvari/comparisons.html#weighted_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#truvari.weighted_score" title="Permalink to this definition"></a></dt>
+<dd><p>Unite the similarity measures and make a score
+return (2*sim + 1*size + 1*ovl) / 3.0 scaled to 0-100</p>
+<dl class="simple">
+<dt>sim<span class="classifier">float</span></dt><dd><p>Sequence similarity</p>
+</dd>
+<dt>size<span class="classifier">float</span></dt><dd><p>Size similarity</p>
+</dd>
+<dt>ovl<span class="classifier">float</span></dt><dd><p>Reciprocal overlap</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>float :</dt><dd><p>The score</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to truvari’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Author.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

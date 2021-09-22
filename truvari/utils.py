@@ -155,7 +155,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     --------
         >>> import truvari
         >>> truvari.cmd_exe("ls")
-        cmd_result(ret_code=0, stdout='anno_answers.vcf\nsegment.vcf\nx.py\n', stderr=b'',
+        cmd_result(ret_code=0, stdout='anno_answers.vcf\\nsegment.vcf\\nx.py\\n', stderr=b'',
          run_time=datetime.timedelta(microseconds=9452))
     """
     cmd_result = namedtuple("cmd_result", "ret_code stdout stderr run_time")

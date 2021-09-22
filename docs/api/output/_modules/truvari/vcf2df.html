@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>truvari.vcf2df &mdash; truvari  documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> truvari
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../truvari.html">truvari package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">truvari</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>truvari.vcf2df</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for truvari.vcf2df</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Takes a vcf and creates a data frame. Can parse a bench output directory</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+
+<span class="kn">import</span> <span class="nn">pysam</span>
+<span class="kn">import</span> <span class="nn">joblib</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">truvari</span>
+
+
+<span class="k">class</span> <span class="nc">GT</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Genotypes &quot;&quot;&quot;</span>
+    <span class="n">NON</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">REF</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">HET</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">HOM</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">UNK</span> <span class="o">=</span> <span class="mi">4</span>
+
+
+<span class="k">class</span> <span class="nc">SV</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; SVtypes &quot;&quot;&quot;</span>
+    <span class="n">DEL</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">INS</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">DUP</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">INV</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">NON</span> <span class="o">=</span> <span class="mi">4</span>  <span class="c1"># Not an SV, SVTYPE</span>
+    <span class="n">UNK</span> <span class="o">=</span> <span class="mi">5</span>  <span class="c1"># Unknown SVTYPE</span>
+
+
+<span class="n">SZBINS</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[0,50)&quot;</span><span class="p">,</span> <span class="s2">&quot;[50,100)&quot;</span><span class="p">,</span> <span class="s2">&quot;[100,200)&quot;</span><span class="p">,</span> <span class="s2">&quot;[200,300)&quot;</span><span class="p">,</span> <span class="s2">&quot;[300,400)&quot;</span><span class="p">,</span>
+          <span class="s2">&quot;[400,600)&quot;</span><span class="p">,</span> <span class="s2">&quot;[600,800)&quot;</span><span class="p">,</span> <span class="s2">&quot;[800,1k)&quot;</span><span class="p">,</span> <span class="s2">&quot;[1k,2.5k)&quot;</span><span class="p">,</span>
+          <span class="s2">&quot;[2.5k,5k)&quot;</span><span class="p">,</span> <span class="s2">&quot;&gt;=5k&quot;</span><span class="p">]</span>
+<span class="n">SZBINMAX</span> <span class="o">=</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">300</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">600</span><span class="p">,</span> <span class="mi">800</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">2500</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">maxsize</span><span class="p">]</span>
+<span class="n">QUALBINS</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">x</span><span class="o">+</span><span class="mi">10</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">10</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;&gt;=100&quot;</span><span class="p">]</span>
+<span class="n">SZBINTYPE</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">CategoricalDtype</span><span class="p">(</span><span class="n">categories</span><span class="o">=</span><span class="n">SZBINS</span><span class="p">,</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">SVTYTYPE</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">CategoricalDtype</span><span class="p">(</span><span class="n">categories</span><span class="o">=</span><span class="p">[</span><span class="n">_</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">SV</span><span class="p">],</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="get_svtype"><a class="viewcode-back" href="../../truvari.html#truvari.get_svtype">[docs]</a><span class="k">def</span> <span class="nf">get_svtype</span><span class="p">(</span><span class="n">svtype</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turn to an SV</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    svtype : string</span>
+<span class="sd">        SVTYPE string to turn into SV object</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    SV : enum</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">SV</span><span class="o">.</span><span class="n">__members__</span><span class="p">[</span><span class="n">svtype</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">return</span> <span class="n">SV</span><span class="o">.</span><span class="n">UNK</span></div>
+
+
+<div class="viewcode-block" id="get_sizebin"><a class="viewcode-back" href="../../truvari.html#truvari.get_sizebin">[docs]</a><span class="k">def</span> <span class="nf">get_sizebin</span><span class="p">(</span><span class="n">sz</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Bin a given size</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sz : integer</span>
+<span class="sd">        SVLEN to bin into the SZBINS</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    SZBINS : string</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">sz</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">sz</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">maxval</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">SZBINS</span><span class="p">,</span> <span class="n">SZBINMAX</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">sz</span> <span class="o">&lt;</span> <span class="n">maxval</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">key</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="get_gt"><a class="viewcode-back" href="../../truvari.html#truvari.get_gt">[docs]</a><span class="k">def</span> <span class="nf">get_gt</span><span class="p">(</span><span class="n">gt</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Turn a genotype tuple into a GT object</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    gt : tuple (int, int)</span>
+<span class="sd">        Genotype tuple</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    GT : enum</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">gt</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">NON</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gt</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">UNK</span>
+    <span class="k">if</span> <span class="n">gt</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">REF</span>
+    <span class="k">if</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">HET</span>
+    <span class="k">if</span> <span class="n">gt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">gt</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">HOM</span>
+    <span class="k">return</span> <span class="n">GT</span><span class="o">.</span><span class="n">UNK</span></div>
+
+
+<div class="viewcode-block" id="get_scalebin"><a class="viewcode-back" href="../../truvari.html#truvari.get_scalebin">[docs]</a><span class="k">def</span> <span class="nf">get_scalebin</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">rmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">rmax</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">tmin</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">tmax</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Scale variable x from rdomain to tdomain with step sizes</span>
+<span class="sd">    return key, index</span>
+
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : number</span>
+<span class="sd">        Number to scale</span>
+<span class="sd">    rmin : number, optional</span>
+<span class="sd">        The minimum of the range of your measurement</span>
+<span class="sd">    rmax : number, optional</span>
+<span class="sd">        The maximum of the range of your measurement</span>
+<span class="sd">    tmin : number, optional</span>
+<span class="sd">        The minimum of the range of your desired target scaling</span>
+<span class="sd">    tmax : number, optional</span>
+<span class="sd">        The maximum of the range of your measurement</span>
+<span class="sd">    step : number, optional</span>
+<span class="sd">        The step size of bins of target range</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    string : The bin-string of the scaled variable</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">newx</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">rmin</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">rmax</span> <span class="o">-</span> <span class="n">rmin</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">tmax</span> <span class="o">-</span> <span class="n">tmin</span><span class="p">)</span> <span class="o">+</span> <span class="n">tmin</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">tmin</span><span class="p">,</span> <span class="n">tmax</span><span class="p">,</span> <span class="n">step</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">newx</span> <span class="o">&lt;</span> <span class="n">i</span> <span class="o">+</span> <span class="n">step</span><span class="p">:</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="n">step</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">pos</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&gt;=</span><span class="si">{</span><span class="n">tmax</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">pos</span> <span class="o">+</span> <span class="mi">1</span></div>
+
+
+<span class="k">def</span> <span class="nf">get_files_from_truvdir</span><span class="p">(</span><span class="n">directory</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Finds one of each of the files in the directory we&#39;re expection</span>
+<span class="sd">    Raises FileNotFoundError if they&#39;re not there or there are too many</span>
+<span class="sd">    return dictionary of file identifier and path (e.g. &quot;tp-base&quot;: &quot;dir/tp-base.vcf.gz&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">pats</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;tpbase&quot;</span><span class="p">,</span> <span class="s2">&quot;tp-base.vcf&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;tp&quot;</span><span class="p">,</span> <span class="s2">&quot;tp-call.vcf&quot;</span><span class="p">),</span>
+            <span class="p">(</span><span class="s2">&quot;fp&quot;</span><span class="p">,</span> <span class="s2">&quot;fp.vcf&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;fn&quot;</span><span class="p">,</span> <span class="s2">&quot;fn.vcf&quot;</span><span class="p">)]</span>
+    <span class="n">has_error</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">pats</span><span class="p">:</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+        <span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">fname</span> <span class="o">+</span> <span class="s1">&#39;.gz&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                <span class="s2">&quot;Expected 1 file for </span><span class="si">%s</span><span class="s2">[.gz] found </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fname</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ret</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+            <span class="n">has_error</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="c1">#summary = glob.glob(os.path.join(directory, &quot;summary.txt&quot;))</span>
+    <span class="c1"># ret[&quot;summary&quot;]</span>
+    <span class="k">if</span> <span class="n">has_error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Couldn&#39;t parse truvari directory </span><span class="si">{</span><span class="n">directory</span><span class="si">}</span><span class="s2">. See above errors&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ret</span>
+
+
+<div class="viewcode-block" id="vcf_to_df"><a class="viewcode-back" href="../../truvari.html#truvari.vcf_to_df">[docs]</a><span class="k">def</span> <span class="nf">vcf_to_df</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">with_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">with_fmt</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse a vcf file and turn it into a dataframe.</span>
+<span class="sd">    Tries its best to pull info/format tags from the sample information</span>
+<span class="sd">    For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt</span>
+<span class="sd">    Specify which sample with its name or index in the VCF</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn : string</span>
+<span class="sd">        File name of VCF to open and turn into a DataFrame</span>
+<span class="sd">    with_info : boolean, optional</span>
+<span class="sd">        Add the INFO fields from the VCF to the DataFrame columns</span>
+<span class="sd">    with_fmt : boolean, optional</span>
+<span class="sd">        Add the FORMAT fields from the VCF to the DataFrame columns</span>
+<span class="sd">    sample : int/string, optional</span>
+<span class="sd">        Sample from the VCF to parse. Only used when with_fmt==True</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pandas.DataFrame : Converted VCF</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;id&quot;</span><span class="p">,</span> <span class="s2">&quot;svtype&quot;</span><span class="p">,</span> <span class="s2">&quot;svlen&quot;</span><span class="p">,</span>
+              <span class="s2">&quot;szbin&quot;</span><span class="p">,</span> <span class="s2">&quot;qual&quot;</span><span class="p">,</span> <span class="s2">&quot;filter&quot;</span><span class="p">,</span> <span class="s2">&quot;is_pass&quot;</span><span class="p">]</span>
+    <span class="n">fmts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">with_fmt</span><span class="p">:</span>  <span class="c1"># get all the format fields, and how to parse them from header, add them to the header</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">v</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">formats</span><span class="p">:</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">formats</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">number</span>
+            <span class="k">if</span> <span class="n">num</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">]:</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="n">fmts</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">key</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="kc">None</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="n">num</span> <span class="o">==</span> <span class="s1">&#39;R&#39;</span><span class="p">:</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_ref&#39;</span><span class="p">)</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_alt&#39;</span><span class="p">)</span>
+                <span class="n">fmts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]))</span>
+            <span class="k">elif</span> <span class="n">num</span> <span class="o">==</span> <span class="s1">&#39;G&#39;</span><span class="p">:</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_ref&#39;</span><span class="p">)</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_het&#39;</span><span class="p">)</span>
+                <span class="n">header</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39;_hom&#39;</span><span class="p">)</span>
+                <span class="n">fmts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span>
+                    <span class="s2">&quot;Unknown Number (</span><span class="si">%s</span><span class="s2">) for </span><span class="si">%s</span><span class="s2">. Skipping.&quot;</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+
+    <span class="n">infos</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="n">with_info</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">infos</span><span class="p">)</span>
+
+    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+        <span class="n">varsize</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+        <span class="n">filt</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">filter</span><span class="p">)</span>
+        <span class="n">cur_row</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">chrom</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">start</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">stop</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">entry</span><span class="o">.</span><span class="n">alts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                   <span class="n">entry</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                   <span class="n">truvari</span><span class="o">.</span><span class="n">entry_variant_type</span><span class="p">(</span><span class="n">entry</span><span class="p">),</span>
+                   <span class="n">varsize</span><span class="p">,</span>
+                   <span class="n">truvari</span><span class="o">.</span><span class="n">get_sizebin</span><span class="p">(</span><span class="n">varsize</span><span class="p">),</span>
+                   <span class="n">entry</span><span class="o">.</span><span class="n">qual</span><span class="p">,</span>
+                   <span class="n">filt</span><span class="p">,</span>
+                   <span class="n">filt</span> <span class="o">==</span> <span class="p">[]</span> <span class="ow">or</span> <span class="n">filt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;PASS&#39;</span>
+                   <span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">op</span> <span class="ow">in</span> <span class="n">fmts</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">sample</span><span class="p">]:</span>
+                <span class="n">cur_row</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">op</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">sample</span><span class="p">][</span><span class="n">i</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cur_row</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">op</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">infos</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">:</span>
+                <span class="n">cur_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cur_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cur_row</span><span class="p">)</span>
+    <span class="n">ret</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">header</span><span class="p">)</span>
+    <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;szbin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;szbin&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">SZBINTYPE</span><span class="p">)</span>
+    <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;svtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ret</span><span class="p">[</span><span class="s2">&quot;svtype&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">SVTYTYPE</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ret</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pull the command line parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="s2">&quot;vcf2df&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span>
+                                     <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;vcf&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;VCF&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;VCF to parse&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;output&quot;</span><span class="p">,</span> <span class="n">metavar</span><span class="o">=</span><span class="s2">&quot;JL&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output joblib to save&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-b&quot;</span><span class="p">,</span> <span class="s2">&quot;--bench-dir&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Input is a truvari bench directory&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--info&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Attempt to put the INFO fields into the dataframe&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--format&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Attempt to put the FORMAT fileds into the dataframe&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--sample&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;SAMPLE name to parse when building columns for --format&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-S&quot;</span><span class="p">,</span> <span class="s2">&quot;--skip-compression&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Skip the attempt to optimize the dataframe&#39;s size&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--debug&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Verbose logging&quot;</span><span class="p">)</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">args</span>
+
+
+<span class="k">def</span> <span class="nf">vcf2df_main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point for running DataFrame builder</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">bench_dir</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">vcf_to_df</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">vcf</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sample</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">vcfs</span> <span class="o">=</span> <span class="n">get_files_from_truvdir</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">vcf</span><span class="p">)</span>
+        <span class="n">all_dfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">vcfs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">vcf_to_df</span><span class="p">(</span><span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">args</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">format</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">sample</span><span class="p">)</span>
+            <span class="n">df</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+            <span class="n">all_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">all_dfs</span><span class="p">)</span>
+        <span class="n">state_type</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">CategoricalDtype</span><span class="p">(</span>
+            <span class="n">categories</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;tpbase&#39;</span><span class="p">,</span> <span class="s1">&#39;fn&#39;</span><span class="p">,</span> <span class="s1">&#39;tp&#39;</span><span class="p">,</span> <span class="s1">&#39;fp&#39;</span><span class="p">],</span> <span class="n">ordered</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">state_type</span><span class="p">)</span>
+
+    <span class="c1"># compression -- this is not super important for most VCFs</span>
+    <span class="c1"># Especially since nulls are highly likely</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Optimizing memory&quot;</span><span class="p">)</span>
+    <span class="n">pre_size</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">memory_usage</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="nb">float</span><span class="o">.</span><span class="n">is_integer</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">downcast</span><span class="o">=</span><span class="s2">&quot;unsigned&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">downcast</span><span class="o">=</span><span class="s2">&quot;signed&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_numeric</span><span class="p">(</span><span class="n">out</span><span class="p">[</span><span class="n">col</span><span class="p">],</span> <span class="n">downcast</span><span class="o">=</span><span class="s2">&quot;float&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Unable to downsize </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+    <span class="n">post_size</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">memory_usage</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Optimized </span><span class="si">%.2f</span><span class="s2">MB to </span><span class="si">%.2f</span><span class="s2">MB&quot;</span><span class="p">,</span> <span class="n">pre_size</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">,</span> <span class="n">post_size</span> <span class="o">/</span> <span class="mf">1e6</span><span class="p">)</span>
+    <span class="n">joblib</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished vcf2df&quot;</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Author.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

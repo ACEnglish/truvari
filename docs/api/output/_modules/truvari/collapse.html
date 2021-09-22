@@ -1,0 +1,582 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>truvari.collapse &#8212; truvari  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for truvari.collapse</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Structural variant collapser</span>
+
+<span class="sd">Will collapse all variants within sizemin/max that match over thresholds</span>
+<span class="sd">All variants outside size boundaries will be placed into the output</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="c1"># pylint: disable=too-many-statements</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">argparse</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span><span class="p">,</span> <span class="n">namedtuple</span>
+
+<span class="kn">import</span> <span class="nn">pysam</span>
+
+<span class="kn">import</span> <span class="nn">truvari</span>
+<span class="kn">from</span> <span class="nn">truvari.bench</span> <span class="kn">import</span> <span class="n">edit_header</span> <span class="k">as</span> <span class="n">bench_edit_header</span>
+
+<span class="n">COLLAPENTRY</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;collapentry&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;entry match match_id key&quot;</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="parse_args"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.parse_args">[docs]</a><span class="k">def</span> <span class="nf">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pull the command line parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="s2">&quot;collapse&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="vm">__doc__</span><span class="p">,</span>
+                                     <span class="n">formatter_class</span><span class="o">=</span><span class="n">argparse</span><span class="o">.</span><span class="n">RawDescriptionHelpFormatter</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,</span> <span class="s2">&quot;--input&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Comparison set of calls&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;/dev/stdout&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output vcf (stdout)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-c&quot;</span><span class="p">,</span> <span class="s2">&quot;--collapsed-output&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;collapsed.vcf&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Where collapsed variants are written (collapsed.vcf)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-f&quot;</span><span class="p">,</span> <span class="s2">&quot;--reference&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Indexed fasta used to call variants&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-k&quot;</span><span class="p">,</span> <span class="s2">&quot;--keep&quot;</span><span class="p">,</span> <span class="n">choices</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;first&quot;</span><span class="p">,</span> <span class="s2">&quot;maxqual&quot;</span><span class="p">,</span> <span class="s2">&quot;common&quot;</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;first&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;When collapsing calls, which one to keep (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--debug&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Verbose logging&quot;</span><span class="p">)</span>
+
+    <span class="n">thresg</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s2">&quot;Comparison Threshold Arguments&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="s2">&quot;--refdist&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Max reference location distance (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-p&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctsim&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Min percent allele sequence similarity. Set to 0 to ignore. (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-B&quot;</span><span class="p">,</span> <span class="s2">&quot;--buffer&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Percent of the reference span to buffer the haplotype sequence created&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-P&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctsize&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Min pct allele size similarity (minvarsize/maxvarsize) (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-O&quot;</span><span class="p">,</span> <span class="s2">&quot;--pctovl&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">truvari</span><span class="o">.</span><span class="n">restricted_float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum pct reciprocal overlap (</span><span class="si">%(default)s</span><span class="s2">) for DEL events&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-t&quot;</span><span class="p">,</span> <span class="s2">&quot;--typeignore&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Variant types don&#39;t need to match to compare (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">thresg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--use-lev&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Use the Levenshtein distance ratio instead of edlib editDistance ratio (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--hap&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Collapsing a single individual&#39;s haplotype resolved calls (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--chain&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Chain comparisons to extend possible collapsing (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--null-consolidate&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;Comma separated list of FORMAT fields to consolidate into the kept &quot;</span>
+                              <span class="s2">&quot;entry by taking the first non-null from all neighbors (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">))</span>
+    <span class="n">filteg</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">add_argument_group</span><span class="p">(</span><span class="s2">&quot;Filtering Arguments&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-s&quot;</span><span class="p">,</span> <span class="s2">&quot;--sizemin&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Minimum variant size to consider for comparison (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;-S&quot;</span><span class="p">,</span> <span class="s2">&quot;--sizemax&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">50000</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Maximum variant size to consider for comparison (</span><span class="si">%(default)s</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="n">filteg</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--passonly&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Only consider calls with FILTER == PASS&quot;</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">:</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;--reference is required when --pctsim is set&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">null_consolidate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">null_consolidate</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">null_consolidate</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">args</span></div>
+
+
+<div class="viewcode-block" id="output_edit_header"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.output_edit_header">[docs]</a><span class="k">def</span> <span class="nf">output_edit_header</span><span class="p">(</span><span class="n">my_vcf</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add INFO for new fields to vcf</span>
+<span class="sd">    #Probably want to put in the PG whatever, too</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Edit Header</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">header</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="n">my_vcf</span><span class="o">.</span><span class="n">header</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=NumCollapsed,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Number of calls collapsed into this call by truvari&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="n">header</span><span class="o">.</span><span class="n">add_line</span><span class="p">((</span><span class="s1">&#39;##INFO=&lt;ID=CollapseId,Number=1,Type=Integer,&#39;</span>
+                     <span class="s1">&#39;Description=&quot;Truvari uid to help tie output.vcf and output.collapsed.vcf entries together&quot;&gt;&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">header</span></div>
+
+
+<div class="viewcode-block" id="collapse_edit_header"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.collapse_edit_header">[docs]</a><span class="k">def</span> <span class="nf">collapse_edit_header</span><span class="p">(</span><span class="n">my_vcf</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Add output_edit_header and info lines from truvari bench</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">bench_edit_header</span><span class="p">(</span><span class="n">my_vcf</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">output_edit_header</span><span class="p">(</span><span class="n">my_vcf</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">header</span></div>
+
+
+<div class="viewcode-block" id="check_params"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.check_params">[docs]</a><span class="k">def</span> <span class="nf">check_params</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Checks parameters as much as possible.</span>
+<span class="sd">    All errors are written to stderr without logging since failures mean no output</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;File </span><span class="si">%s</span><span class="s2"> does not exist&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.gz&quot;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Input vcf </span><span class="si">%s</span><span class="s2"> does not end with .gz. Must be bgzip&#39;d&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span> <span class="o">+</span> <span class="s1">&#39;.tbi&#39;</span><span class="p">):</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;Input vcf index </span><span class="si">%s</span><span class="s2">.tbi does not exist. Must be indexed&quot;</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span> <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">chain</span><span class="p">:</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Cannot specify both --hap and --chain&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span> <span class="ow">and</span> <span class="n">args</span><span class="o">.</span><span class="n">keep</span> <span class="o">!=</span> <span class="s2">&quot;first&quot;</span><span class="p">:</span>
+        <span class="n">check_fail</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Using --hap must use --keep first&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">check_fail</span></div>
+
+
+<div class="viewcode-block" id="setup_outputs"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.setup_outputs">[docs]</a><span class="k">def</span> <span class="nf">setup_outputs</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Makes all of the output files</span>
+<span class="sd">    return a ... to get to each of the</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">setup_logging</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">debug</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Params:</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="nb">vars</span><span class="p">(</span><span class="n">args</span><span class="p">),</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;input_vcf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="c1"># These need to be separate, there&#39;s only one seek position in a file handler</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;seek_vcf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">input</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;o_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">output_edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;input_vcf&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;c_header&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">collapse_edit_header</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;input_vcf&quot;</span><span class="p">])</span>
+    <span class="n">num_samps</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;o_header&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">samples</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span> <span class="ow">and</span> <span class="n">num_samps</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+            <span class="s2">&quot;--hap mode requires exactly one sample. Found </span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">num_samps</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output_vcf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;o_header&quot;</span><span class="p">])</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;collap_vcf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">VariantFile</span><span class="p">(</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">collapsed_output</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;c_header&quot;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">outputs</span></div>
+
+
+<div class="viewcode-block" id="match_calls"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.match_calls">[docs]</a><span class="k">def</span> <span class="nf">match_calls</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span> <span class="n">sizeA</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compare the base and comp entries.</span>
+<span class="sd">    We provied astart...sizeA because we&#39;ve presumably calculated it before</span>
+<span class="sd">    Note - This is the crucial component of matching.. so needs to be better</span>
+<span class="sd">    pulled apart for reusability and put into comparisons</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_boundaries</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">overlaps</span><span class="p">(</span><span class="n">astart</span> <span class="o">-</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span><span class="p">,</span> <span class="n">aend</span> <span class="o">+</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span><span class="p">,</span> <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="c1"># Someone in the Base call&#39;s neighborhood, we&#39;ll see if it passes comparisons</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">typeignore</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_same_variant_type</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> are not the same SVTYPE&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">))</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">size_similarity</span><span class="p">,</span> <span class="n">size_diff</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">sizesim</span><span class="p">(</span><span class="n">sizeA</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">size_similarity</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsize</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> size similarity is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">size_similarity</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">ovl_pct</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">reciprocal_overlap</span><span class="p">(</span><span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span> <span class="n">bstart</span><span class="p">,</span> <span class="n">bend</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_variant_type</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;DEL&quot;</span> <span class="ow">and</span> <span class="n">ovl_pct</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctovl</span><span class="p">:</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> overlap percent is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span>
+                      <span class="nb">str</span><span class="p">(</span><span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">ovl_pct</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">seq_similarity</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_pctsim</span><span class="p">(</span>
+            <span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">buffer</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">use_lev</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">seq_similarity</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">pctsim</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%s</span><span class="s2"> and </span><span class="si">%s</span><span class="s2"> sequence similarity is too low (</span><span class="si">%f</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span>
+                <span class="n">base_entry</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">),</span> <span class="n">seq_similarity</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">seq_similarity</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="n">start_distance</span> <span class="o">=</span> <span class="n">astart</span> <span class="o">-</span> <span class="n">bstart</span>
+    <span class="n">end_distance</span> <span class="o">=</span> <span class="n">aend</span> <span class="o">-</span> <span class="n">bend</span>
+
+    <span class="n">score</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">weighted_score</span><span class="p">(</span><span class="n">seq_similarity</span><span class="p">,</span> <span class="n">size_similarity</span><span class="p">,</span> <span class="n">ovl_pct</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">truvari</span><span class="o">.</span><span class="n">MATCHRESULT</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="n">seq_similarity</span><span class="p">,</span> <span class="n">size_similarity</span><span class="p">,</span> <span class="n">ovl_pct</span><span class="p">,</span> <span class="n">size_diff</span><span class="p">,</span>
+                               <span class="n">start_distance</span><span class="p">,</span> <span class="n">end_distance</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="close_outputs"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.close_outputs">[docs]</a><span class="k">def</span> <span class="nf">close_outputs</span><span class="p">(</span><span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Close all the files</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;input_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;seek_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;collap_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="edit_collap_entry"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.edit_collap_entry">[docs]</a><span class="k">def</span> <span class="nf">edit_collap_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">match</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Edit an entry that&#39;s going to be collapsed into another entry</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">new_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;c_header&quot;</span><span class="p">])</span>
+    <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;CollapseId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_id</span>
+    <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;TruScore&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">score</span>
+    <span class="n">truvari</span><span class="o">.</span><span class="n">bench</span><span class="o">.</span><span class="n">annotate_tp</span><span class="p">(</span><span class="n">new_entry</span><span class="p">,</span> <span class="n">match</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">new_entry</span></div>
+
+
+<div class="viewcode-block" id="hap_resolve"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.hap_resolve">[docs]</a><span class="k">def</span> <span class="nf">hap_resolve</span><span class="p">(</span><span class="n">entryA</span><span class="p">,</span> <span class="n">entryB</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns true if the calls&#39; genotypes suggest it can be collapsed</span>
+<span class="sd">    i.e. if either call is HOM, they can&#39;t be collapsed.</span>
+<span class="sd">    If calls are on the same haplotype (1/0 &amp; 1/0), they cannot be collapsed</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">gtA</span> <span class="o">=</span> <span class="n">entryA</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;GT&quot;</span><span class="p">]</span>
+    <span class="n">gtB</span> <span class="o">=</span> <span class="n">entryB</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;GT&quot;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">gtA</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="n">gtB</span> <span class="o">==</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">gtA</span> <span class="o">==</span> <span class="n">gtB</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="select_best"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.select_best">[docs]</a><span class="k">def</span> <span class="nf">select_best</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove all but the single best neighbor from the list of neighs in-place</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_score</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_score_pos</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">n</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">score</span> <span class="o">&gt;</span> <span class="n">max_score</span><span class="p">:</span>
+            <span class="n">max_score</span> <span class="o">=</span> <span class="n">n</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">score</span>
+            <span class="n">max_score_pos</span> <span class="o">=</span> <span class="n">pos</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">neighs</span><span class="p">[</span><span class="n">max_score_pos</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="edit_output_entry"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.edit_output_entry">[docs]</a><span class="k">def</span> <span class="nf">edit_output_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">neighs</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">hap</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">nullconso</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Edit the representative entry that&#39;s going to placed in the output vcf</span>
+<span class="sd">    If hap, consolidate with haplotype mode and edit the neighs in-place</span>
+<span class="sd">    down to only the single best match.</span>
+<span class="sd">    Force is a set of FORMAT fields that will be checked for nulls and will overwrite between entries</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">nullconso</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">nullconso</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">new_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;o_header&quot;</span><span class="p">])</span>
+    <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;CollapseId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_id</span>
+
+    <span class="k">if</span> <span class="n">hap</span><span class="p">:</span>
+        <span class="n">neighs</span> <span class="o">=</span> <span class="n">select_best</span><span class="p">(</span><span class="n">neighs</span><span class="p">)</span>
+        <span class="n">new_entry</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;GT&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumCollapsed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">new_entry</span><span class="p">,</span> <span class="n">neighs</span>
+
+    <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumCollapsed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs</span><span class="p">)</span>
+
+    <span class="c1"># Update with the first genotyped sample&#39;s information</span>
+    <span class="k">for</span> <span class="n">samp_name</span> <span class="ow">in</span> <span class="n">new_entry</span><span class="o">.</span><span class="n">samples</span><span class="p">:</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="n">new_entry</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">samp_name</span><span class="p">]</span>
+        <span class="n">m_gt</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">get_gt</span><span class="p">(</span><span class="n">fmt</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">])</span>
+        <span class="c1"># Update the null_consolidates first - these will replace with the first non-null</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">nullconso</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="n">assigned</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">while</span> <span class="ow">not</span> <span class="n">assigned</span> <span class="ow">and</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>
+                    <span class="n">s_fmt</span> <span class="o">=</span> <span class="n">neighs</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">samp_name</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">s_fmt</span> <span class="ow">and</span> <span class="n">s_fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">assigned</span> <span class="o">=</span> <span class="kc">True</span>
+                        <span class="n">fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">s_fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                    <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Now pull the rest based on GT presence</span>
+        <span class="k">if</span> <span class="n">m_gt</span> <span class="ow">in</span> <span class="p">[</span><span class="n">truvari</span><span class="o">.</span><span class="n">GT</span><span class="o">.</span><span class="n">NON</span><span class="p">,</span> <span class="n">truvari</span><span class="o">.</span><span class="n">GT</span><span class="o">.</span><span class="n">REF</span><span class="p">]:</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">assigned</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">while</span> <span class="ow">not</span> <span class="n">assigned</span> <span class="ow">and</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>
+                <span class="n">s_fmt</span> <span class="o">=</span> <span class="n">neighs</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">samples</span><span class="p">[</span><span class="n">samp_name</span><span class="p">]</span>
+                <span class="n">s_gt</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">get_gt</span><span class="p">(</span><span class="n">s_fmt</span><span class="p">[</span><span class="s2">&quot;GT&quot;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">s_gt</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="n">truvari</span><span class="o">.</span><span class="n">GT</span><span class="o">.</span><span class="n">NON</span><span class="p">,</span> <span class="n">truvari</span><span class="o">.</span><span class="n">GT</span><span class="o">.</span><span class="n">REF</span><span class="p">]:</span>
+                    <span class="n">assigned</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="n">_</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">fmt</span> <span class="k">if</span> <span class="n">_</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">nullconso</span><span class="p">]:</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">s_fmt</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+                            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
+                                <span class="s2">&quot;Problem setting FORMAT field </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                <span class="n">idx</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">new_entry</span><span class="p">,</span> <span class="n">neighs</span></div>
+
+
+<div class="viewcode-block" id="find_neighbors"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.find_neighbors">[docs]</a><span class="k">def</span> <span class="nf">find_neighbors</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find all matching neighbors of a call</span>
+<span class="sd">    returns a list of (edited_neighbors, match_id,</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">base_entry_size</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+    <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_boundaries</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+    <span class="n">fetch_start</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">astart</span> <span class="o">-</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">fetch_end</span> <span class="o">=</span> <span class="n">aend</span> <span class="o">+</span> <span class="n">args</span><span class="o">.</span><span class="n">refdist</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">comp_entry</span> <span class="ow">in</span> <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;seek_vcf&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">base_entry</span><span class="o">.</span><span class="n">chrom</span><span class="p">,</span> <span class="n">fetch_start</span><span class="p">,</span> <span class="n">fetch_end</span><span class="p">):</span>
+        <span class="n">comp_key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">)</span>
+        <span class="c1"># Don&#39;t collapse with anything that&#39;s already been matched</span>
+        <span class="c1"># Which will include looking at itself</span>
+        <span class="k">if</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">comp_key</span><span class="p">]:</span>
+            <span class="k">continue</span>
+
+        <span class="n">sizeB</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sizeB</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemin</span> <span class="ow">or</span> <span class="n">sizeB</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span> <span class="ow">or</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">passonly</span> <span class="ow">and</span> <span class="n">truvari</span><span class="o">.</span><span class="n">filter_value</span><span class="p">(</span><span class="n">comp_entry</span><span class="p">)):</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">hap_resolve</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="n">mat</span> <span class="o">=</span> <span class="n">match_calls</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">comp_entry</span><span class="p">,</span> <span class="n">astart</span><span class="p">,</span> <span class="n">aend</span><span class="p">,</span>
+                          <span class="n">base_entry_size</span><span class="p">,</span> <span class="n">sizeB</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># When not in haplotype mode</span>
+        <span class="c1"># mark this entry as being matched already</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span><span class="p">:</span>
+            <span class="n">matched_calls</span><span class="p">[</span><span class="n">comp_key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">thresh_neighbors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">COLLAPENTRY</span><span class="p">(</span>
+            <span class="n">comp_entry</span><span class="p">,</span> <span class="n">mat</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">comp_key</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">thresh_neighbors</span></div>
+
+
+<div class="viewcode-block" id="select_maxqual"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.select_maxqual">[docs]</a><span class="k">def</span> <span class="nf">select_maxqual</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">neighs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Swap the entry with the one containing the call with the maximum quality score</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_qual</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">qual</span>
+    <span class="n">max_qual_idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>  <span class="c1"># pylint: disable=unused-variable</span>
+        <span class="n">cmp_qual</span> <span class="o">=</span> <span class="n">neighs</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span><span class="o">.</span><span class="n">entry</span><span class="o">.</span><span class="n">qual</span>
+        <span class="k">if</span> <span class="n">cmp_qual</span> <span class="o">&gt;</span> <span class="n">max_qual</span><span class="p">:</span>
+            <span class="n">max_qual_idx</span> <span class="o">=</span> <span class="n">pos</span>
+
+    <span class="k">if</span> <span class="n">max_qual_idx</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">base_entry</span> <span class="o">=</span> <span class="n">entry</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">swap</span> <span class="o">=</span> <span class="n">neighs</span><span class="p">[</span><span class="n">max_qual_idx</span><span class="p">]</span>
+        <span class="n">base_entry</span> <span class="o">=</span> <span class="n">swap</span><span class="o">.</span><span class="n">entry</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+        <span class="n">neighs</span><span class="p">[</span><span class="n">max_qual_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">COLLAPENTRY</span><span class="p">(</span>
+            <span class="n">entry</span><span class="p">,</span> <span class="n">swap</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="n">swap</span><span class="o">.</span><span class="n">match_id</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">base_entry</span><span class="p">,</span> <span class="n">neighs</span></div>
+
+
+<div class="viewcode-block" id="select_common"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.select_common">[docs]</a><span class="k">def</span> <span class="nf">select_common</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">neighs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Swap the entry with the one containing the highest MAC</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">most_mac</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">allele_freq_annos</span><span class="p">(</span><span class="n">entry</span><span class="p">)[</span><span class="s2">&quot;MAC&quot;</span><span class="p">]</span>
+    <span class="n">most_mac_idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">neighs</span><span class="p">):</span>  <span class="c1"># pylint: disable=unused-variable</span>
+        <span class="n">cmp_mac</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">allele_freq_annos</span><span class="p">(</span><span class="n">neighs</span><span class="p">[</span><span class="n">pos</span><span class="p">]</span><span class="o">.</span><span class="n">entry</span><span class="p">)[</span><span class="s2">&quot;MAC&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">cmp_mac</span> <span class="o">&gt;</span> <span class="n">most_mac</span><span class="p">:</span>
+            <span class="n">most_mac_idx</span> <span class="o">=</span> <span class="n">pos</span>
+
+    <span class="k">if</span> <span class="n">most_mac_idx</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">base_entry</span> <span class="o">=</span> <span class="n">entry</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">swap</span> <span class="o">=</span> <span class="n">neighs</span><span class="p">[</span><span class="n">most_mac_idx</span><span class="p">]</span>
+        <span class="n">base_entry</span> <span class="o">=</span> <span class="n">swap</span><span class="o">.</span><span class="n">entry</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+        <span class="n">neighs</span><span class="p">[</span><span class="n">most_mac_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">COLLAPENTRY</span><span class="p">(</span>
+            <span class="n">entry</span><span class="p">,</span> <span class="n">swap</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="n">swap</span><span class="o">.</span><span class="n">match_id</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">base_entry</span><span class="p">,</span> <span class="n">neighs</span></div>
+
+
+<div class="viewcode-block" id="collapse_main"><a class="viewcode-back" href="../../truvari.html#truvari.collapse.collapse_main">[docs]</a><span class="k">def</span> <span class="nf">collapse_main</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Main entry point for running Truvari collapse</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">args</span> <span class="o">=</span> <span class="n">parse_args</span><span class="p">(</span><span class="n">cmdargs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">check_params</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;Couldn&#39;t run Truvari. Please fix parameters</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+
+    <span class="n">outputs</span> <span class="o">=</span> <span class="n">setup_outputs</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">pysam</span><span class="o">.</span><span class="n">FastaFile</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span> <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">reference</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># Calls that have been matched up</span>
+    <span class="n">matched_calls</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+
+    <span class="c1"># for variant in base - do filtering on it and then try to match it to comp</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Collapsing VCF&quot;</span><span class="p">)</span>
+    <span class="n">output_cnt</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">kept_cnt</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">collap_cnt</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">base_entry</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;input_vcf&quot;</span><span class="p">]):</span>
+        <span class="n">base_key</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_to_key</span><span class="p">(</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">base_entry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">matched_calls</span><span class="p">[</span><span class="n">base_key</span><span class="p">]:</span>
+            <span class="k">continue</span>
+
+        <span class="n">sizeA</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">entry_size</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sizeA</span> <span class="o">&lt;</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemin</span> <span class="ow">or</span> <span class="n">sizeA</span> <span class="o">&gt;</span> <span class="n">args</span><span class="o">.</span><span class="n">sizemax</span> <span class="ow">or</span> <span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">passonly</span> <span class="ow">and</span> <span class="n">truvari</span><span class="o">.</span><span class="n">filter_value</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)):</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+            <span class="n">output_cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># First time seeing it, last time using it</span>
+        <span class="n">matched_calls</span><span class="p">[</span><span class="n">base_key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">new_neighs</span> <span class="o">=</span> <span class="n">find_neighbors</span><span class="p">(</span>
+            <span class="n">base_entry</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+        <span class="n">thresh_neighbors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">new_neighs</span><span class="p">)</span>
+        <span class="c1"># For all the neighbors, we want to go also collapse anything matching them</span>
+        <span class="k">while</span> <span class="n">args</span><span class="o">.</span><span class="n">chain</span> <span class="ow">and</span> <span class="n">new_neighs</span><span class="p">:</span>
+            <span class="n">next_new_neighs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">new_neighs</span><span class="p">:</span>
+                <span class="n">next_new_neighs</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">find_neighbors</span><span class="p">(</span>
+                    <span class="n">i</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">matched_calls</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">outputs</span><span class="p">))</span>
+            <span class="n">thresh_neighbors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">next_new_neighs</span><span class="p">)</span>
+            <span class="n">new_neighs</span> <span class="o">=</span> <span class="n">next_new_neighs</span>
+
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">keep</span> <span class="o">==</span> <span class="s2">&quot;maxqual&quot;</span><span class="p">:</span>
+            <span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="n">select_maxqual</span><span class="p">(</span>
+                <span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">keep</span> <span class="o">==</span> <span class="s2">&quot;common&quot;</span><span class="p">:</span>
+            <span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="n">select_common</span><span class="p">(</span>
+                <span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">thresh_neighbors</span><span class="p">:</span>
+            <span class="n">new_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span> <span class="o">=</span> <span class="n">edit_output_entry</span><span class="p">(</span>
+                <span class="n">base_entry</span><span class="p">,</span> <span class="n">thresh_neighbors</span><span class="p">,</span> <span class="n">match_id</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">hap</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">null_consolidate</span><span class="p">)</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_entry</span><span class="p">)</span>
+
+            <span class="c1"># Also want to record the original beside its&#39; collapse neighbors</span>
+            <span class="n">new_entry</span> <span class="o">=</span> <span class="n">truvari</span><span class="o">.</span><span class="n">copy_entry</span><span class="p">(</span><span class="n">base_entry</span><span class="p">,</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;c_header&quot;</span><span class="p">])</span>
+            <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;CollapseId&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">match_id</span>
+            <span class="n">new_entry</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;NumCollapsed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;collap_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">new_entry</span><span class="p">)</span>
+
+            <span class="n">output_cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">kept_cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">neigh</span> <span class="ow">in</span> <span class="n">thresh_neighbors</span><span class="p">:</span>
+                <span class="n">matched_calls</span><span class="p">[</span><span class="n">neigh</span><span class="o">.</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">out_entry</span> <span class="o">=</span> <span class="n">edit_collap_entry</span><span class="p">(</span>
+                    <span class="n">neigh</span><span class="o">.</span><span class="n">entry</span><span class="p">,</span> <span class="n">neigh</span><span class="o">.</span><span class="n">match</span><span class="p">,</span> <span class="n">neigh</span><span class="o">.</span><span class="n">match_id</span><span class="p">,</span> <span class="n">outputs</span><span class="p">)</span>
+                <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;collap_vcf&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out_entry</span><span class="p">)</span>
+            <span class="n">collap_cnt</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh_neighbors</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output_vcf&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base_entry</span><span class="p">)</span>
+            <span class="n">output_cnt</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="c1"># Finished with this base entry</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> calls written to output&quot;</span><span class="p">,</span> <span class="n">output_cnt</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> collapsed calls&quot;</span><span class="p">,</span> <span class="n">collap_cnt</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> representative calls kept&quot;</span><span class="p">,</span> <span class="n">kept_cnt</span><span class="p">)</span>
+
+    <span class="c1"># Close to flush vcfs</span>
+    <span class="n">close_outputs</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished collapse&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">truvari</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../truvari.html">truvari package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2021, Author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.2.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
