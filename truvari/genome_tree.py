@@ -80,9 +80,21 @@ class GenomeTree():
 
 def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     """
-    Return a dictionary of IntervalTree for intersection querying
-    Return how many entries there are total in the vcf_file
-    Return how many entries pass filtering parameters in vcf_files
+    Build a dictionary of IntervalTree for intersection querying along with
+    how many entries there are total in the vcf_file and how many entries pass
+    filtering parameters in vcf_files
+
+    :param `vcf_file`: Filename of VCF to parse
+    :type `vcf_file`: string
+    :param `sizemin`: Minimum size of event to add to trees
+    :type `sizemin`: int, optional
+    :param `sizemax`: Maximum size of event to add to trees
+    :type `sizemax`: int, optional
+    :param `passonly`: Only add PASS variants
+    :type `passonly`: boolean, optional
+
+    :return: dictonary of IntervalTrees
+    :rtype: dict
     """
     n_entries = 0
     cmp_entries = 0

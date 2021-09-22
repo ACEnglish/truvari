@@ -17,17 +17,13 @@ def entry_is_present(entry, sample=None):
     """
     Checks if entry's sample genotype is present and is heterozygous or homozygous (a.k.a. present)
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        entry to check
-    sample : string, optional
-        sample name
+    :param `entry`: entry to check
+    :type `entry`: pysam.VariantRecord
+    :param `sample`: sample name
+    :type `sample`: string, optional
 
-    Returns
-    -------
-    boolean
-        True if variant is present in the sample
+    :return: True if variant is present in the sample
+    :rtype: boolean
     """
     if sample is None:
         sample = entry.samples.keys()[0]
@@ -42,16 +38,13 @@ def entry_to_key(source, entry):
     helpful for not re-using variants
     BUG: if a caller redundantly calls a variant exactly the same. It will be collapsed here
 
-    Parameters
-    ----------
-    source : string
-        string to identify vcf from which this entry originates
-    entry : pysam.VariantRecord
-        entry to stringify
+    :param `source`: string to identify vcf from which this entry originates
+    :type `source`: string
+    :param `entry`: entry to stringify
+    :type `entry`: pysam.VariantRecord
 
-    Returns
-    -------
-    string : hashable string uniquely identifying the variant
+    :return: hashable string uniquely identifying the variant
+    :rtype: string
     """
     start, end = entry_boundaries(entry)
     return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0])  # pylint: disable=consider-using-f-string
@@ -61,16 +54,13 @@ def sizesim(sizeA, sizeB):
     """
     Calculate the size similarity percent for two sizes
 
-    Parameters
-    ----------
-    sizeA : int
-        first size
-    sizeB : int
-        second size
+    :param `sizeA`: first size
+    :type `sizeA`: int
+    :param `sizeB`: second size
+    :type `sizeB`: int
 
-    Returns
-    -------
-    float : size similarity percent
+    :return: size similarity percent
+    :rtype: float
     """
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
@@ -79,16 +69,13 @@ def entry_size_similarity(entryA, entryB):
     """
     Calculate the size similarity percent for two entries
 
-    Parameters
-    ----------
-    entryA : pysam.VariantRecord
-        first entry
-    entryB : pysam.VariantRecord
-        second entry
+    :param `entryA`: first entry
+    :type `entryA`: pysam.VariantRecord
+    :param `entryB`: second entry
+    :type `entryB`: pysam.VariantRecord
 
-    Returns
-    -------
-    float : size similarity percent
+    :return: size similarity percent
+    :rtype: float
     """
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)
@@ -99,20 +86,17 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     """
     Compare the genotypes of two entries
 
-    Parameters
-    ----------
-    entryA : pysam.VariantRecord
-        first entry
-    entryB : pysam.VariantRecord
-        second entry
-    sampleA : string, optional
-        sample of entryA to check
-    sampleB: string, optional
-        sample of entryB to check
+    :param `entryA`: first entry
+    :type `entryA`: pysam.VariantRecord
+    :param `entryB`: second entry
+    :type `entryB`: pysam.VariantRecord
+    :param `sampleA`: sample of entryA to check
+    :type `sampleA`: string, optional
+    :param `sampleB: sample of entryB to check
+    :type `sampleB`: string, optional
 
-    Returns
-    -------
-    boolean
+    :return: True if the genotypes are concordant
+    :rtype: boolean
     """
     if not sampleA:
         sampleA = entryA.samples.keys()[0]
@@ -125,31 +109,27 @@ def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_s
     """
     Create haplotypes of two allele's regions that are assumed to be overlapping
 
-    Parameters
-    ----------
-    chrom : string
-        Chromosome where alleles are located
-    a1_start : integer
-        0-based position of first allele's start
-    a1_end : integer
-        0-based position of first allele's  end
-    a1_seq : string
-        First allele's sequene
-    a2_start : integer
-        0-based position of second allele's start
-    a2_end : integer
-        0-based position of second allele's  end
-    a2_seq : string
-        Second allele's sequene
-    ref : pysam.FastaFile
-        Reference genome
-    buf_len : float, optional
-        Percent of selected region's range length to buffer
+    :param `chrom`: Chromosome where alleles are located
+    :type `chrom`: string
+    :param `a1_start`: 0-based position of first allele's start
+    :type `a1_start`: integer
+    :param `a1_end`: 0-based position of first allele's  end
+    :type `a1_end`: integer
+    :param `a1_seq`: First allele's sequene
+    :type `a1_seq`: string
+    :param `a2_start`: 0-based position of second allele's start
+    :type `a2_start`: integer
+    :param `a2_end`: 0-based position of second allele's  end
+    :type `a2_end`: integer
+    :param `a2_seq`: Second allele's sequene
+    :type `a2_seq`: string
+    :param `ref`: Reference genome
+    :type `ref`: pysam.FastaFile
+    :param `buf_len`: Percent of selected region's range length to buffer
+    :type `buf_len`: float, optional
 
-    Returns
-    -------
-    tuple : (string, string)
-        allele haplotype sequences created
+    :return: allele haplotype sequences created
+    :rtupe: tuple (string, string)
     """
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
@@ -167,23 +147,19 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     """
     Turn two entries into their haplotype sequence for comparison
 
-    Parameters
-    ----------
-    entryA : pysam.VariantRecord
-        first entry
-    entryB : pysam.VariantRecord
-        second entry
-    ref : pysam.FastaFile
-        Reference genome
-    use_ref_seq : boolean, optional
-        If True, use the reference genome to get the sequence instead of the vcf entries
-    buf_len : float, optional
-        Percent of selected region's range length to buffer
+    :param `entryA`: first entry
+    :type `entryA`: pysam.VariantRecord
+    :param `entryB`: second entry
+    :type `entryB`: pysam.VariantRecord
+    :param `ref`: Reference genome
+    :type `ref`: pysam.FastaFile
+    :param `use_ref_seq`: If True, use the reference genome to get the sequence instead of the vcf entries
+    :type `use_ref_seq`: boolean, optional
+    :param `buf_len`: Percent of selected region's range length to buffer
+    :type `buf_len`: float, optional
 
-    Returns
-    -------
-    tuple : (string, string)
-        allele haplotype sequences created
+    :return: allele haplotype sequences created
+    :rtype: tuple : (string, string)
     """
     def get_props(entry):
         """
@@ -202,22 +178,19 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     """
     Calculate similarity of two sequences' haplotype changes
 
-    Parameters
-    ----------
-    entryA : pysam.VariantRecord
-        first entry
-    entryB : pysam.VariantRecord
-        second entry
-    ref : pysam.FastaFile
-        Reference genome
-    buf_len : float, optional
-        Percent of selected region's range length to buffer
-    use_lev : boolean, optional
-        Use levenshtein distance by default. Set to False to use the faster edlib
+    :param `entryA`: first entry
+    :type `entryA`: pysam.VariantRecord
+    :param `entryB`: second entry
+    :type `entryB`: pysam.VariantRecord
+    :param `ref`: Reference genome
+    :type `ref`: pysam.FastaFile
+    :param `buf_len`: Percent of selected region's range length to buffer
+    :type `buf_len`: float, optional
+    :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
+    :type `use_lev`: boolean, optional
 
-    Returns
-    -------
-    float : sequence similarity
+    :return: sequence similarity
+    :rtype: float
     """
     # Shortcut to save compute - probably unneeded
     if entryA.ref == entryB.ref and entryA.alts[0] == entryB.alts[0]:
@@ -241,20 +214,17 @@ def overlaps(s1, e1, s2, e2):
     """
     Check if two start/end ranges have overlap
 
-    Parameters
-    ----------
-    s1 : int
-        range 1 start
-    e1 : int
-        range 1 end
-    s2 : int
-        range 2 start
-    e2 : int
-        range 2 end
+    :param `s1`: range 1 start
+    :type `s1`: int
+    :param `e1`: range 1 end
+    :type `e1`: int
+    :param `s2`: range 2 start
+    :type `s2`: int
+    :param `e2`: range 2 end
+    :type `e2`: int
 
-    Returns
-    -------
-    boolean
+    :return: True if ranges overlap
+    :rtype: boolean
     """
     s_cand = max(s1, s2)
     e_cand = min(e1, e2)
@@ -271,13 +241,11 @@ def entry_variant_type(entry):
       etc from the ALT column.
     - Otherwise, assume 'UNK'
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
+    :param `entry`:
+    :type `entry`: pysam.VariantRecord
 
-    Returns
-    -------
-    string : the determined svtype
+    :return: the determined svtype
+    :rtype: string
     """
     sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
@@ -309,18 +277,15 @@ def entry_variant_type(entry):
 
 def entry_same_variant_type(entryA, entryB):
     """
-    returns if entryA svtype == entryB svtype
+    Check if entryA svtype == entryB svtype
 
-    Parameters
-    ----------
-    entryA : pysam.VariantRecord
-        first entry
-    entryB : pysam.VariantRecord
-        second entry
+    :param `entryA`: first entry
+    :type `entryA: pysam.VariantRecord
+    :param `entryB`: second entry
+    :type `entryB: pysam.VariantRecord
 
-    Returns
-    -------
-    boolean
+    :return: True if entry SVTYPES match
+    :rtype: boolean
     """
     a_type = entry_variant_type(entryA)
     b_type = entry_variant_type(entryB)
@@ -331,19 +296,15 @@ def fetch_coords(lookup, entry, dist=0):
     """
     Get the minimum/maximum fetch coordinates to find all variants within dist of variant
 
-    Parameters
-    ----------
-    lookup : dict
-        genome tree build defaultdict with interevaltrees
-    entry : pysam.VariantRecord
-        entry to build coords from
-    dist : integer
-        distance buffer to add/subtract from the coords
+    :param `lookup`: genome tree build defaultdict with interevaltrees
+    :type `lookup`: dict
+    :param `entry`: entry to build coords from
+    :type `entry`: pysam.VariantRecord
+    :param `dist`: distance buffer to add/subtract from the coords
+    :type `dist`: integer
 
-    Returns
-    -------
-    tuple : (int, int)
-        the minimum/maximum fetch coordinates for the entry
+    :return: the minimum/maximum fetch coordinates for the entry
+    :rtype: tuple (int, int)
     """
     start, end = entry_boundaries(entry)
     start -= dist
@@ -364,15 +325,11 @@ def entry_boundaries(entry):
     """
     Get the start/end of an entry and order (start < end)
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        entry to get bounds
+    :param `entry`: entry to get bounds
+    :type `entry`: pysam.VariantRecord
 
-    Returns
-    -------
-    tuple : (int, int)
-        the entry's start/end boundaries
+    :return: the entry's start/end boundaries
+    :rtype: tuple (int, int)
     """
     start = entry.start
     end = entry.stop
@@ -391,15 +348,11 @@ def entry_size(entry):
     - Otherwise, return the size difference of the sequence resolved call using
       abs(len(vcf.REF) - len(str(vcf.ALT[0])))
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        entry to look at
+    :param `entry`: entry to look at
+    :type `entry`: pysam.VariantRecord
 
-    Returns
-    -------
-    int :
-        the entry's size
+    :return: the entry's size
+    :rtype: int
     """
     if "SVLEN" in entry.info:
         if type(entry.info["SVLEN"]) in [list, tuple]:
@@ -419,19 +372,17 @@ def weighted_score(sim, size, ovl):
     Unite the similarity measures and make a score
     return (2*sim + 1*size + 1*ovl) / 3.0 scaled to 0-100
 
-    Parameters
-    ----------
-    sim : float
+    :param `sim`:
+    :type `sim`: float
         Sequence similarity
-    size : float
+    :param `size`:
+    :type `size`: float
         Size similarity
-    ovl : float
-        Reciprocal overlap
+    :param `ovl`: Reciprocal overlap
+    :type `ovl`: float
 
-    Returns
-    -------
-    float :
-        The score
+    :return: The score
+    :rtype: float
     """
     score = (2 * sim + 1 * size + 1 * ovl) / 3.0
     new_score = int(score / 1.333333 * 100)
@@ -442,21 +393,17 @@ def reciprocal_overlap(astart, aend, bstart, bend):
     """
     Calculates a reciprocal overlap for two ranges
 
-    Parameters
-    ----------
-    astart : int
-        First range's start position
-    aend : ing
-        First range's end position
-    bstart : int
-        Second range's start position
-    bend : int
-        Second range's end position
+    :param `astart`: First range's start position
+    :type `astart`: int
+    :param `aend`: First range's end position
+    :type `aend`: int
+    :param `bstart`: Second range's start position
+    :type `bstart`: int
+    :param `bend`: Second range's end position
+    :type `bend`: int
 
-    Returns
-    -------
-    float :
-        The reciprocal overlap
+    :return: The reciprocal overlap
+    :rtype: float
     """
     ovl_start = max(astart, bstart)
     ovl_end = min(aend, bend)
@@ -472,17 +419,13 @@ def entry_reciprocal_overlap(entry1, entry2):
     """
     Calculates a reciprocal overlap rule for two entries
 
-    Parameters
-    ----------
-    entry1 : pysam.VariantRecord
-        First entry
-    entry2 : pysam.VariantRecord
-        Second entry
+    :param `entry1`: First entry
+    :type `entry1`: pysam.VariantRecord
+    :param `entry2`: Second entry
+    :type `entry2: pysam.VariantRecord
 
-    Returns
-    -------
-    float :
-        The reciprocal overlap
+    :return: The reciprocal overlap
+    :rtype: float
     """
     astart, aend = entry_boundaries(entry1)
     bstart, bend = entry_boundaries(entry2)
@@ -494,15 +437,11 @@ def filter_value(entry, values=None):
     Returns if entry should be filtered given the filter values provided.
     If values is None, assume that filter must have PASS or be blank '.'
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        entry to check
+    :param `entry`: entry to check
+    :type `entry`: pysam.VariantRecord
 
-    Returns
-    -------
-    bool :
-        True if entry should be filtered
+    :return: True if entry should be filtered
+    :rtype: bool
     """
     if values is None:
         return len(entry.filter) != 0 and 'PASS' not in entry.filter
@@ -513,9 +452,8 @@ def match_sorter(candidates):
     """
     Sort a list of MATCHRESULT tuples inplace.
 
-    Parameters
-    ----------
-    candidates : list of MATCHRESULT named tuples
+    :param `candidates`: list of MATCHRESULT named tuples
+    :type `candidates`: list
     """
     if len(candidates) == 0:
         return
@@ -537,16 +475,13 @@ def copy_entry(entry, header):
     """
     Make a pysam.VariantRecord editable
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        entry to make editable
-    header : pysam.VariantHeader
-        header of output vcf
+    :param `entry`: entry to make editable
+    :type `entry`: pysam.VariantRecord
+    :param `header`: header of output vcf
+    :type `header`: pysam.VariantHeader
 
-    Returns
-    -------
-    pysam.VariantRecord : editable record
+    :return: editable record
+    :rtype: pysam.VariantRecord
     """
     try:
         ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,

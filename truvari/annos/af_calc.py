@@ -13,19 +13,15 @@ def calc_hwe(nref, nalt, nhet):
     """
     Calculate Hardy Weinberg equilibrium and excess heterozygosity
 
-    Parameters
-    ----------
-    nref : int
-        Number of reference alleles
-    nalt : int
-        Number of alternate alleles
-    nhet :
-        Number of heterozygous sites
+    :param `nref`: Number of reference alleles
+    :type `nref`: int
+    :param `nalt`: Number of alternate alleles
+    :type `nalt`: int
+    :param `nhet`: Number of heterozygous sites
+    :type `nhet`: int
 
-    Returns
-    -------
-    tuple : (float, float)
-        The HWE and ExcHet calculated
+    :return: The HWE and ExcHet calculated
+    :rtype: tuple (float, float)
     """
     # void calc_hwe(args_t *args, int nref, int nalt, int nhet, float *p_hwe, float *p_exc_het)
     ngt = (nref + nalt) // 2  # also, just nsamples
@@ -83,22 +79,19 @@ def allele_freq_annos(entry, samples=None):
     """
     Calculate allele annotations for a VCF Entry
 
-    Parameters
-    ----------
-    entry : pysam.VariantRecord
-        Entry with samples to parse
-    samples : list of strings, optional
-        Subset of samples from the entry over which to calculate annos
+    :param `entry`: Entry with samples to parse
+    :type `entry`: pysam.VariantRecord
+    :param `samples`: Subset of samples from the entry over which to calculate annos
+    :type `samples`: list of strings, optional
 
-    Returns
-    -------
-    dict : floats
-        AF: allele frequency
-        MAF: minor allele frequency
-        ExcHet: excess heterozygosity
-        HWE: hardy weinberg equilibrium
-        AC: allele count
-        MAC: minor allele count
+    :return: | Dictonary of
+             | AF - allele frequency
+             | MAF - minor allele frequency
+             | ExcHet - excess heterozygosity
+             | HWE - hardy weinberg equilibrium
+             | AC - allele count
+             | MAC - minor allele count
+    :rtype: dict
     """
     if samples is None:
         samples = list(entry.samples.keys())

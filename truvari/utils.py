@@ -23,22 +23,16 @@ MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "end_distance match_entry"))
 
 
-def restricted_float(x, lower=0.0, upper=1.0):
+def restricted_float(x):
     """
-    Restrict float x to range (lower, upper). Raises argparse.ArgumentTypeError if float is out of range
+    Restrict float x to range (0,1). Raises argparse.ArgumentTypeError if float is out of range
+    Used with argparse type
 
-    Parameters
-    ----------
-    x : float
-        number to check
-    lower : float, optional
-        lower limit (inclusive) of float range
-    upper : float, optional
-        upper limit (inclusive of float range
+    :param `x`: float
+    :type `x`: number to check
 
-    Return
-    ------
-    float : input float
+    :return: input float
+    :rtype: float
     """
     x = float(x)
     if x < lower or x > upper:
@@ -51,14 +45,11 @@ def setup_progressbar(size):
     """
     Return a formatted progress bar of size
 
-    Parameters
-    ----------
-    size : int
-        Number of elements in the progress bar
+    :param `size`: Number of elements in the progress bar
+    :type `size`: int
 
-    Returns
-    -------
-    progressbar.ProgressBar
+    :return: Formatted progress bar
+    :rtype: progressbar.ProgressBar
     """
     return progressbar.ProgressBar(redirect_stdout=True, max_value=size, widgets=[
         ' [', progressbar.Timer(), ' ', progressbar.Counter(), '/', str(size), '] ',
@@ -93,14 +84,12 @@ def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(lev
     """
     Create default logger
 
-    Parameters
-    ----------
-    debug : boolean, optional
-        Set log-level to logging.DEBUG
-    stream : file handler, optional (sys.stderr)
-        Where log is written
-    log_format : string, optional ("%(asctime)s [%(levelname)s] %(message)s")
-        Format of log lines
+    :param `debug`: Set log-level to logging.DEBUG
+    :type `debug`: boolean, optional
+    :param `stream`: Where log is written
+    :type `stream`: file handler, optional (sys.stderr)
+    :param `log_format`: Format of log lines
+    :type `log_format`: string, optional ("%(asctime)s [%(levelname)s] %(message)s")
     """
     logLevel = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(stream=stream, level=logLevel, format=log_format)
@@ -131,28 +120,24 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     Executes a command through the shell and captures the output while enabling
     process handling with timeouts and keyboard interrupts.
 
-    Parameters
-    ----------
-    cmd : string
-        The command to be executed.
-    timeout : int
-        Timeout for the command in minutes. So 1440 means 24 hours. -1 means never
-    cap_stderr : boolean
-        If True, capture the stderr and return it as part of the returned cmd_results.
+    :param `cmd`: The command to be executed.
+    :type `cmd`: string
+    :param `timeout`: Timeout for the command in minutes. So 1440 means 24 hours. -1 means never
+    :type `timeout`: int
+    :param `cap_stderr`: If True, capture the stderr and return it as part of the returned cmd_results.
         Otherwise, stderr will be streamed through to the terminal
-    pipefail : boolean
-        Set to True if the cmd contains pipes `|`
+    :type `cap_stderr`: boolean
+    :param `pipefail`: Set to True if the cmd contains pipes `|`
+    :type `pipefail`: boolean
 
-    Returns
-    -------
-    namedtuple : ret_code, stdout, stderr, run_time
-        ret_code : integer, exit code of the command
-        stdout : string, captured standard output of the command
-        stderr : binary string, captured standard error of the command
-        run_time : datetime.timedelta, execution time
+    :return: | namedtuple of 
+             | ret_code - integer, exit code of the command
+             | stdout - string, captured standard output of the command
+             | stderr - binary string, captured standard error of the command
+             | run_time - datetime.timedelta, execution time
+    :rtype: namedtuple (ret_code, stdout, stderr, run_time)
 
     Examples
-    --------
         >>> import truvari
         >>> truvari.cmd_exe("ls")
         cmd_result(ret_code=0, stdout='anno_answers.vcf\\nsegment.vcf\\nx.py\\n', stderr=b'',

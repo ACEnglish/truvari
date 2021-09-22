@@ -46,14 +46,11 @@ def get_svtype(svtype):
     """
     Turn to an SV
 
-    Parameters
-    ----------
-    svtype : string
-        SVTYPE string to turn into SV object
+    :param `svtype`: SVTYPE string to turn into SV object
+    :type `svtype`: string
 
-    Returns
-    -------
-    SV : enum
+    :return: A :class:`SV` of the SVTYPE
+    :rtype: :class:`truvari.SV`
     """
     try:
         return SV.__members__[svtype]
@@ -66,14 +63,11 @@ def get_sizebin(sz):
     """
     Bin a given size
 
-    Parameters
-    ----------
-    sz : integer
-        SVLEN to bin into the SZBINS
-
-    Returns
-    -------
-    SZBINS : string
+    :param `sz`: SVLEN to bin into the SZBINS
+    :type `sz`: integer
+    
+    :return: SZBIN
+    :rtype: string
     """
     sz = abs(sz)
     for key, maxval in zip(SZBINS, SZBINMAX):
@@ -86,14 +80,11 @@ def get_gt(gt):
     """
     Turn a genotype tuple into a GT object
 
-    Parameters
-    ----------
-    gt : tuple (int, int)
-        Genotype tuple
-
-    Returns
-    -------
-    GT : enum
+    :param `gt`: Genotype tuple
+    :type `gt`: tuple (int, int)
+        
+    :return: A :class:`GT` of the genotype
+    :rtype: :class:`truvari.GT`
     """
     if None in gt:
         return GT.NON
@@ -113,25 +104,21 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     Scale variable x from rdomain to tdomain with step sizes
     return key, index
 
+    :param `x`: Number to scale
+    :type `x`: number
+    :param `rmin`: The minimum of the range of your measurement
+    :type `rmin`: number, optional
+    :param `rmax`: The maximum of the range of your measurement
+    :type `rmax`: number, optional
+    :param `tmin`: The minimum of the range of your desired target scaling
+    :type `tmin`: number, optional
+    :param `tmax`: The maximum of the range of your measurement
+    :type `tmax`: number, optional
+    :param `step`: The step size of bins of target range
+    :type `step`: number, optional
 
-    Parameters
-    ----------
-    x : number
-        Number to scale
-    rmin : number, optional
-        The minimum of the range of your measurement
-    rmax : number, optional
-        The maximum of the range of your measurement
-    tmin : number, optional
-        The minimum of the range of your desired target scaling
-    tmax : number, optional
-        The maximum of the range of your measurement
-    step : number, optional
-        The step size of bins of target range
-
-    Returns
-    -------
-    string : The bin-string of the scaled variable
+    :return: The bin-string of the scaled variable
+    :rtype: string
     """
     newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
     pos = 0
@@ -174,20 +161,17 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt
     Specify which sample with its name or index in the VCF
 
-    Parameters
-    ----------
-    fn : string
-        File name of VCF to open and turn into a DataFrame
-    with_info : boolean, optional
-        Add the INFO fields from the VCF to the DataFrame columns
-    with_fmt : boolean, optional
-        Add the FORMAT fields from the VCF to the DataFrame columns
-    sample : int/string, optional
-        Sample from the VCF to parse. Only used when with_fmt==True
-
-    Returns
-    -------
-    pandas.DataFrame : Converted VCF
+    :param `fn`: File name of VCF to open and turn into a DataFrame
+    :type `fn`: string
+    :param `with_info`:  Add the INFO fields from the VCF to the DataFrame columns
+    :type `with_info`: boolean, optional
+    :param `with_fmt`: Add the FORMAT fields from the VCF to the DataFrame columns
+    :type `with_info`: boolean, optional
+    :param `sample`: Sample from the VCF to parse. Only used when with_fmt==True
+    :type `sample`: int/string, optional
+    
+    :return: Converted VCF
+    :rtype: pandas.DataFrame
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen",
