@@ -9,7 +9,7 @@ import anybadge
 
 # Get the score
 data = json.load(open(sys.argv[1], 'r'))
-coverage_pct = int(data['totals']['percent_covered'])
+coverage_pct = round(data['totals']['percent_covered'])
 
 # Define thresholds: <2=red, <4=orange <8=yellow <10=green
 thresholds = {20: 'red',

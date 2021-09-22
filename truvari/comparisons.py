@@ -115,6 +115,15 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
 
     :return: True if the genotypes are concordant
     :rtype: boolean
+
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> a = next(v)
+        >>> b = next(v)
+        >>> truvari.entry_gt_comp(a, b)
+        True
     """
     if not sampleA:
         sampleA = entryA.samples.keys()[0]
@@ -449,6 +458,14 @@ def entry_reciprocal_overlap(entry1, entry2):
 
     :return: The reciprocal overlap
     :rtype: float
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> a = next(v)
+        >>> b = next(v)
+        >>> truvari.entry_reciprocal_overlap(a, b)
+        0
     """
     astart, aend = entry_boundaries(entry1)
     bstart, bend = entry_boundaries(entry2)
@@ -462,13 +479,24 @@ def filter_value(entry, values=None):
 
     :param `entry`: entry to check
     :type `entry`: :class:`pysam.VariantRecord`
+    :param `values`: set of filter values for intersection
+    :type `values`: set, optional
 
     :return: True if entry should be filtered
     :rtype: bool
+
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> truvari.filter_value(next(v)) # PASS shouldn't be filtered
+        False
+        >>> truvari.filter_value(next(v), set(["lowQ"])) # Call isn't lowQ, so filter
+        True
     """
     if values is None:
         return len(entry.filter) != 0 and 'PASS' not in entry.filter
-    return values.intersection(entry.filter)
+    return len(set(values).intersection(set(entry.filter))) == 0
 
 
 def match_sorter(candidates):

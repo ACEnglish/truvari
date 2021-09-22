@@ -267,6 +267,8 @@ assert_exit_code 0
 # ------------------------------------------------------------
 #                                 coverage.py
 # ------------------------------------------------------------
+
+echo "generating test coverage reports"
 coverage combine
 coverage report --include=truvari/*
 coverage html --include=truvari/* -d $OD/htmlcov/
