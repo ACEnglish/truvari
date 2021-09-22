@@ -87,7 +87,7 @@ def cig_pctsim(cigar):
 def map_stats(aligner, kmer, chrom=None, pos=None):
     """
     Maps the kmer and returns the max/min
-    if chrom/pos is provided remove any hits that maps over this position. This 
+    if chrom/pos is provided remove any hits that maps over this position. This
     is a filter of the reference - we want to know where *else* it hits
     """
     nhits = 0

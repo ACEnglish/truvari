@@ -23,7 +23,7 @@ class GT(Enum):
     - REF = <GT.REF: 0>
     - UNK = <GT.UNK: 4> - Undetermined Genotype
     """
-    NON = 3 
+    NON = 3
     REF = 0
     HET = 1
     HOM = 2

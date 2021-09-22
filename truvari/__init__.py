@@ -48,7 +48,7 @@ data:
 :data:`truvari.QUALBINS`
 :data:`truvari.SVTYTYPE`
 :data:`truvari.SZBINMAX`
-:data:`truvari.SZBINS` 
+:data:`truvari.SZBINS`
 :data:`truvari.SZBINTYPE`
 """
 
