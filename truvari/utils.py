@@ -35,9 +35,9 @@ def restricted_float(x):
     :rtype: float
     """
     x = float(x)
-    if x < lower or x > upper:
+    if x < 0 or x > 1:
         raise argparse.ArgumentTypeError(
-            f"{x} not in range ({lower}, {upper})")
+            f"{x} not in range (0, 1)")
     return x
 
 
@@ -130,7 +130,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     :param `pipefail`: Set to True if the cmd contains pipes `|`
     :type `pipefail`: boolean
 
-    :return: | namedtuple of 
+    :return: | namedtuple of
              | ret_code - integer, exit code of the command
              | stdout - string, captured standard output of the command
              | stderr - binary string, captured standard error of the command

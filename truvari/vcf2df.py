@@ -65,7 +65,7 @@ def get_sizebin(sz):
 
     :param `sz`: SVLEN to bin into the SZBINS
     :type `sz`: integer
-    
+
     :return: SZBIN
     :rtype: string
     """
@@ -82,7 +82,7 @@ def get_gt(gt):
 
     :param `gt`: Genotype tuple
     :type `gt`: tuple (int, int)
-        
+
     :return: A :class:`GT` of the genotype
     :rtype: :class:`truvari.GT`
     """
@@ -169,7 +169,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     :type `with_info`: boolean, optional
     :param `sample`: Sample from the VCF to parse. Only used when with_fmt==True
     :type `sample`: int/string, optional
-    
+
     :return: Converted VCF
     :rtype: pandas.DataFrame
     """
