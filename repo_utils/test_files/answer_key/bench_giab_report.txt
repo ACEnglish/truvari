@@ -65,7 +65,7 @@ passonly	False
 pctovl	0.0
 pctsim	0.7
 pctsize	0.7
-prog	False
+prog	True
 refdist	500
 reference	repo_utils/test_files/reference.fa
 sizefilt	30

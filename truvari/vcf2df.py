@@ -33,12 +33,12 @@ class GT(Enum):
 class SV(Enum):
     """SVtypes
 
-    - DEL = <GT.HET: 0>
-    - INS = <GT.HOM: 1>
-    - DUP = <GT.HOM: 2>
-    - INV = <GT.HOM: 3>
-    - NON = <GT.HOM: 4> - Not an SV, SVTYPE
-    - UNK = <GT.HOM: 5> - Unknown SVTYPE
+    - DEL = <SV.DEL: 0>
+    - INS = <SV.INS: 1>
+    - DUP = <SV.DUP: 2>
+    - INV = <SV.INV: 3>
+    - NON = <SV.NON: 4> - Not an SV, SVTYPE
+    - UNK = <SV.UNK: 5> - Unknown SVTYPE
     """
     DEL = 0
     INS = 1
@@ -135,9 +135,10 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
     :return: The bin-string of the scaled variable
     :rtype: string
 
-    >>> import truvari
-    >>> truvari.get_scalebin(4, 1, 5, 0, 20, 5)
-    ('[15,20)', 3)
+    Example
+        >>> import truvari
+        >>> truvari.get_scalebin(4, 1, 5, 0, 20, 5)
+        ('[15,20)', 3)
     """
     newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
     pos = 0
@@ -192,12 +193,13 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     :return: Converted VCF
     :rtype: pandas.DataFrame
 
-    >>> import truvari
-    >>> df = truvari.vcf_to_df("repo_utils/test_files/input.vcf.gz", True, True)
-    >>> df.columns
-    Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
-       'QNAME', 'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN'],
-      dtype='object')
+    Example
+        >>> import truvari
+        >>> df = truvari.vcf_to_df("repo_utils/test_files/input1.vcf.gz", True, True)
+        >>> df.columns
+        Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
+               'QNAME', 'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN'],
+              dtype='object')
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen",

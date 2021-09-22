@@ -33,6 +33,14 @@ def restricted_float(x):
 
     :return: input float
     :rtype: float
+
+    Example
+        >>> import truvari
+        >>> truvari.restricted_float(0.5)
+        0.5
+        >>> truvari.restricted_float(2)
+        Traceback (most recent call last):
+        argparse.ArgumentTypeError: 2.0 not in range (0, 1)
     """
     x = float(x)
     if x < 0 or x > 1:
@@ -50,6 +58,15 @@ def setup_progressbar(size):
 
     :return: Formatted progress bar
     :rtype: progressbar.ProgressBar
+
+    Example
+        >>> import truvari
+        >>> import time
+        >>> bar = truvari.setup_progressbar(4)
+        >>> for i in range(4):
+        ...     bar.update(i + 1) # The bar animation updates
+        ...     time.sleep(1)
+        >>> bar.finish() # Final update to the bar
     """
     return progressbar.ProgressBar(redirect_stdout=True, max_value=size, widgets=[
         ' [', progressbar.Timer(), ' ', progressbar.Counter(), '/', str(size), '] ',
@@ -63,8 +80,9 @@ class LogFileStderr():
 
     Useful in conjunction with :meth:`setup_logging`
 
-    >>> import truvari
-    >>> truvari.setup_logging(stream=LogFileStderr('log.txt'))
+    Example
+        >>> import truvari
+        >>> truvari.setup_logging(stream=LogFileStderr('log.txt'))
     """
 
     def __init__(self, fn):
@@ -74,12 +92,12 @@ class LogFileStderr():
         self.file_handler = open(fn, 'w')
 
     def write(self, *args):
-        """ Write to both """
+        """ Write to handlers """
         sys.stderr.write(*args)
         self.file_handler.write(*args)
 
     def flush(self):
-        """ Flush both """
+        """ Flush handlers """
         sys.stderr.flush()
         self.file_handler.flush()
 
@@ -91,9 +109,9 @@ def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(lev
     :param `debug`: Set log-level to logging.DEBUG
     :type `debug`: boolean, optional
     :param `stream`: Where log is written
-    :type `stream`: file handler, optional (sys.stderr)
+    :type `stream`: file handler, optional
     :param `log_format`: Format of log lines
-    :type `log_format`: string, optional ("%(asctime)s [%(levelname)s] %(message)s")
+    :type `log_format`: string, optional
     """
     logLevel = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(stream=stream, level=logLevel, format=log_format)
@@ -141,11 +159,13 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
              | run_time - datetime.timedelta, execution time
     :rtype: namedtuple (ret_code, stdout, stderr, run_time)
 
-    Examples
+    Example
         >>> import truvari
-        >>> truvari.cmd_exe("ls")
-        cmd_result(ret_code=0, stdout='anno_answers.vcf\\nsegment.vcf\\nx.py\\n', stderr=b'',
-         run_time=datetime.timedelta(microseconds=9452))
+        >>> ret = truvari.cmd_exe("echo 'hello world'")
+        >>> ret.ret_code
+        0
+        >>> ret.stdout
+        'hello world\\n'
     """
     cmd_result = namedtuple("cmd_result", "ret_code stdout stderr run_time")
     t_start = time.time()
@@ -195,6 +215,18 @@ def copy_entry(entry, header):
 
     :return: editable record
     :rtype: :class:`pysam.VariantRecord`
+
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/giab.vcf.gz')
+        >>> new_header = v.header.copy() # New INFO field to add
+        >>> new_header.add_line("##INFO=<ID=A,Type=Flag,Description='test'>")
+        >>> o = pysam.VariantFile('test.vcf', 'w', header=new_header)
+        >>> entry = truvari.copy_entry(next(v), new_header) # This wouldn't be possible without `copy_entry`
+        >>> entry.info["A"] = True
+        >>> o.write(entry)
+        0
     """
     try:
         ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,

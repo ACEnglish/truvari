@@ -135,9 +135,9 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -c $INDIR/input1.vcf.gz \
                                 -f $INDIR/reference.fa \
                                 -o $OD/bench_giab/ \
-                                -P 0.7 \
                                 --includebed $INDIR/giab.bed \
-                                --giabreport
+                                --giabreport \
+                                --prog
 assert_exit_code 0
 
 run test_bench_giab_report
@@ -256,6 +256,13 @@ assert_exit_code 0
 
 run test_segment_result
 assert_equal $(fn_md5 $ANSDIR/segment.vcf) $(fn_md5 $OD/segment.vcf)
+
+# ------------------------------------------------------------
+#                                 doctests
+# ------------------------------------------------------------
+
+run test_doctests coverage run --concurrency=multiprocessing -p repo_utils/run_doctests.py
+assert_exit_code 0 
 
 # ------------------------------------------------------------
 #                                 coverage.py
