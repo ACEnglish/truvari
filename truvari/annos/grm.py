@@ -286,39 +286,6 @@ def process_entries(ref_section):
     return data
 
 
-def ref_ranges(reference, chunk_size=10000000):
-    """
-    Chunk reference into pieces
-    """
-    ref = pysam.FastaFile(reference)
-    for ref_name in ref.references:  # pylint: disable=not-an-iterable
-        final_stop = ref.get_reference_length(ref_name)
-        start = 0
-        stop = start + chunk_size
-        while stop < final_stop:
-            yield ref_name, start, stop
-            start = stop
-            stop += chunk_size
-        yield ref_name, start, final_stop
-
-
-def bed_ranges(bed, chunk_size=10000000):
-    """
-    Chunk bed ranges into pieces
-    """
-    with open(bed, 'r') as fh:
-        for line in fh:
-            data = line.strip().split('\t')
-            start = int(data[1])
-            final_stop = int(data[2])
-            stop = start + chunk_size
-            while stop < final_stop:
-                yield data[0], start, stop
-                start = stop
-                stop += chunk_size
-            yield data[0], start, final_stop
-
-
 def grm_main(cmdargs):
     """
     Builds a graph-genome from the vcf and reference,
@@ -335,9 +302,9 @@ def grm_main(cmdargs):
         sys.exit(1)
     args = parse_args(cmdargs)
     if not args.regions:
-        m_ranges = ref_ranges(args.reference)
+        m_ranges = truvari.ref_ranges(args.reference)
     else:
-        m_ranges = bed_ranges(args.regions)
+        m_ranges = truvari.bed_ranges(args.regions)
 
     grm_shared.aligner = BwaAligner(args.reference, '-a')
     header = ["key"]

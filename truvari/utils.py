@@ -13,6 +13,7 @@ import subprocess
 from datetime import timedelta
 from collections import namedtuple
 
+import pysam
 import progressbar
 
 HEADERMAT = re.compile(
@@ -31,7 +32,7 @@ def restricted_float(x):
     :param `x`: number to check
     :type `x`: float
 
-    :return: input float
+    :return: input number
     :rtype: float
 
     Example
@@ -260,3 +261,63 @@ def copy_entry(entry, header):
                 pass
 
     return ret
+
+def ref_ranges(reference, chunk_size=10000000):
+    """
+    Chunk reference into pieces. Useful for multiprocessing.
+
+    :param `reference`: Filename of reference to chunk
+    :type `reference`: string
+    :param `chunk_size`: Length of reference chunks
+    :type `chunk_size`: int, optional
+
+    :return: generator of tuples (ref_name, start, stop)
+    :rtype: iterator
+
+    Example
+        >>> import truvari
+        >>> gen = truvari.ref_ranges("repo_utils/test_files/reference.fa", 1000)
+        >>> print(len([_ for _ in gen]))
+        1000
+    """
+    ref = pysam.FastaFile(reference)
+    for ref_name in ref.references:  # pylint: disable=not-an-iterable
+        final_stop = ref.get_reference_length(ref_name)
+        start = 0
+        stop = start + chunk_size
+        while stop < final_stop:
+            yield ref_name, start, stop
+            start = stop
+            stop += chunk_size
+        yield ref_name, start, final_stop
+
+
+def bed_ranges(bed, chunk_size=10000000):
+    """
+    Chunk bed regions into pieces. Useful for multiprocessing.
+
+    :param `bed`: Filename of bed to chunk
+    :type `bed`: string
+    :param `chunk_size`: Length of reference chunks
+    :type `chunk_size`: int, optional
+
+    :return: generator of tuples (ref_name, start, stop)
+    :rtype: iterator
+
+    Example
+        >>> import truvari
+        >>> gen = truvari.bed_ranges("repo_utils/test_files/giab.bed", 1000)
+        >>> print(len([_ for _ in gen]))
+        992
+    """
+    with open(bed, 'r') as fh:
+        for line in fh:
+            data = line.strip().split('\t')
+            start = int(data[1])
+            final_stop = int(data[2])
+            stop = start + chunk_size
+            while stop < final_stop:
+                yield data[0], start, stop
+                start = stop
+                stop += chunk_size
+            yield data[0], start, final_stop

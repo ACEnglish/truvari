@@ -36,6 +36,10 @@ allele_freq_annos
 ^^^^^^^^^^^^^^^^^
 .. autofunction:: allele_freq_annos  
 
+bed_ranges
+^^^^^^^^^^
+.. autofunction:: bed_ranges
+
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
@@ -71,6 +75,10 @@ entry_pctsim
 entry_reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_reciprocal_overlap
+
+ref_ranges
+^^^^^^^^^^
+.. autofunction:: ref_ranges
 
 entry_same_variant_type
 ^^^^^^^^^^^^^^^^^^^^^^^

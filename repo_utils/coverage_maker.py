@@ -14,13 +14,13 @@ coverage_pct = int(data['totals']['percent_covered'])
 # Define thresholds: <2=red, <4=orange <8=yellow <10=green
 thresholds = {20: 'red',
               40: 'orange',
-              60: 'yellow',
-              85: 'green'}
+              70: 'yellow',
+              90: 'green'}
 
 badge = anybadge.Badge('coverage', coverage_pct,
                        thresholds=thresholds, value_suffix="%")
 badge.write_badge('imgs/coverage.svg', overwrite=True)
 
 # failunder
-if coverage_pct < 80:
+if coverage_pct < 85:
     exit(1)

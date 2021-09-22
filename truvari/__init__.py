@@ -5,6 +5,7 @@ See `help()` of specific functions / objects for details
 
 methods:
 :meth:`allele_freq_annos`
+:meth:`bed_ranges`
 :meth:`cmd_exe`
 :meth:`copy_entry`
 :meth:`create_pos_haplotype`
@@ -29,6 +30,7 @@ methods:
 :meth:`match_sorter`
 :meth:`overlaps`
 :meth:`reciprocal_overlap`
+:meth:`ref_ranges`
 :meth:`restricted_float`
 :meth:`setup_logging`
 :meth:`setup_progressbar`
@@ -84,6 +86,8 @@ from truvari.utils import (
     LogFileStderr,
     setup_logging,
     cmd_exe,
+    ref_ranges,
+    bed_ranges,
     HEADERMAT,
     MATCHRESULT,
     restricted_float,

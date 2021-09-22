@@ -291,7 +291,7 @@ def trf_main(cmdargs):
     v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
 
-    m_regions = truvari.annos.grm.ref_ranges(
+    m_regions = truvari.ref_ranges(
         args.reference, chunk_size=int(args.chunk_size * 1e6))
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         chunks = pool.imap_unordered(process_entries, m_regions)
