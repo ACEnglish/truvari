@@ -26,6 +26,7 @@ methods:
 :meth:`get_scalebin`
 :meth:`get_sizebin`
 :meth:`get_svtype`
+:meth:`help_unknown_cmd`
 :meth:`make_interval_tree`
 :meth:`match_sorter`
 :meth:`overlaps`
@@ -91,7 +92,8 @@ from truvari.utils import (
     HEADERMAT,
     MATCHRESULT,
     restricted_float,
-    copy_entry
+    copy_entry,
+    help_unknown_cmd
 )
 
 from truvari.comparisons import (

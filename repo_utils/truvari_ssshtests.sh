@@ -43,13 +43,13 @@ bench() {
     done
 }
 
-collapse_hap() {
+collapse() {
     # run and test truvari collapse
     run test_collapse_$1 $truv collapse -f $INDIR/reference.fa \
                      -i $INDIR/input${1}.vcf.gz \
                      -o $OD/input${1}_collapsed.vcf \
                      -c $OD/input${1}_removed.vcf \
-                     --hap
+                     ${2}
     assert_exit_code 0
 
     run test_collapse_${1}_collapsed
@@ -113,9 +113,10 @@ dump_logs() {
 # ------------------------------------------------------------
 run test_help $truv
 assert_exit_code 0
-
-run test_help2 $truv
 assert_equal $(fn_md5 $STDERR_FILE) $(fn_md5 $ANSDIR/help.txt)
+
+run test_help_error $truv banch
+assert_exit_code 2
 
 # ------------------------------------------------------------
 #                                 version
@@ -149,9 +150,9 @@ assert_exit_code 100
 # ------------------------------------------------------------
 #                                 collapse
 # ------------------------------------------------------------
-collapse_hap 1
-collapse_hap 2
-collapse_hap 3
+collapse 1 --null-consolidate=PL,DP
+collapse 2 --hap
+collapse 3 --chain
 
 collapse_multi first
 collapse_multi common

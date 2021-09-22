@@ -13,6 +13,7 @@ import subprocess
 from datetime import timedelta
 from collections import namedtuple
 
+import Levenshtein
 import pysam
 import progressbar
 
@@ -321,3 +322,38 @@ def bed_ranges(bed, chunk_size=10000000):
                 start = stop
                 stop += chunk_size
             yield data[0], start, final_stop
+
+def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
+    """
+    Guess the command in avail_cmds that's most similar to user_cmd. If there is
+    no guess below threshold, don't guess.
+
+    :param `user_cmd`: user command
+    :type `user_cmd`: string
+    :param `avail_cmds`: available commands
+    :type `avail_cmds`: list of strings
+    :param `threshold`: max score (0-1) to give a guess
+    :type `threshold`: float, optional
+
+    :return: best guess from :param: `avail_cmds` or None
+    :rtype: string
+
+    Example
+        >>> import truvari
+        >>> truvari.help_unknown_cmd('banno', ["bench", "anno"])
+        'anno'
+        >>> truvari.help_unknown_cmd('random', ["bench", "anno"])
+    """
+    guesses = []
+    for real in avail_cmds:
+        ratio = Levenshtein.ratio(user_cmd, real)
+        distance = Levenshtein.distance(user_cmd, real)
+        score = distance - ratio
+        score2 = 1 - distance / len(real)
+        dat = (score, real)
+        if ratio >= threshold and score2 >= threshold:
+            guesses.append(dat)
+    guesses.sort()
+    if not guesses:
+        return None
+    return guesses[0][1]

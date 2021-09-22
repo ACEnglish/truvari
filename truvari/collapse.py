@@ -281,7 +281,7 @@ def edit_output_entry(entry, neighs, match_id, hap, outputs, nullconso=None):
         m_gt = truvari.get_gt(fmt["GT"])
         # Update the null_consolidates first - these will replace with the first non-null
         for key in nullconso:
-            if fmt[key] is None:
+            if key not in fmt or fmt[key] is None:
                 idx = 0
                 assigned = False
                 while not assigned and idx < len(neighs):

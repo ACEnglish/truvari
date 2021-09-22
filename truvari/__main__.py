@@ -5,6 +5,7 @@ Truvari main entrypoint
 import sys
 import argparse
 
+import truvari
 from truvari import __version__
 from truvari.bench import bench_main
 from truvari.vcf2df import vcf2df_main
@@ -42,15 +43,30 @@ Truvari v{__version__} - Structural Variant Benchmarking and Annotation
         version       Print the Truvari version and exit
 """
 
+class ArgumentParser(argparse.ArgumentParser):
+    """
+    Custom argument parser error
+    """
+    def error(self, message):
+        """
+        Check for similar commands before exiting
+        """
+        sys.stderr.write(f'{self.prog}: error: {message}\n')
+        if message.startswith("argument CMD: invalid choice"):
+            guess = truvari.help_unknown_cmd(sys.argv[1], TOOLS.keys())
+            if guess:
+                sys.stderr.write(f"\nThe most similar command is\n\t{guess}\n")
+
+        self.exit(2)
 
 def main():
     """
     Main entrypoint for truvari tools
     """
-    parser = argparse.ArgumentParser(prog="truvari", description=USAGE,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = ArgumentParser(prog="truvari", description=USAGE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument("cmd", metavar="CMD", choices=TOOLS.keys(), type=str,
+    parser.add_argument("cmd", metavar="CMD", choices=TOOLS.keys(), type=str, default=None,
                         help="Command to execute")
     parser.add_argument("options", metavar="OPTIONS", nargs=argparse.REMAINDER,
                         help="Options to pass to the command")
@@ -58,7 +74,6 @@ def main():
     if len(sys.argv) == 1:
         parser.print_help(sys.stderr)
         sys.exit()
-
     args = parser.parse_args()
 
     TOOLS[args.cmd](args.options)

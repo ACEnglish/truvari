@@ -124,6 +124,10 @@ get_svtype
 ^^^^^^^^^^
 .. autofunction:: get_svtype
 
+help_unknown_cmd
+^^^^^^^^^^^^^^^^
+.. autofunction:: help_unknown_cmd
+
 make_interval_tree
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: make_interval_tree

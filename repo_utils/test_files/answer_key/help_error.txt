@@ -1,0 +1,1 @@
+truvari: error: argument CMD: invalid choice: 'nothing' (choose from 'bench', 'consistency', 'anno', 'collapse', 'vcf2df', 'segment', 'version')

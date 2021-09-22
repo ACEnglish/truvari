@@ -204,7 +204,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
 
     Example
         >>> import truvari
-        >>> df = truvari.vcf_to_df("repo_utils/test_files/input1.vcf.gz", True, True)
+        >>> df = truvari.vcf_to_df("repo_utils/test_files/input2.vcf.gz", True, True)
         >>> df.columns
         Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
                'PL_ref', 'PL_het', 'PL_hom', 'DP_ref', 'DP_alt', 'QNAME', 'QSTART',
