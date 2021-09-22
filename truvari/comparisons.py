@@ -377,7 +377,7 @@ def entry_size(entry):
 def weighted_score(sim, size, ovl):
     """
     Unite the similarity measures and make a score
-    return (2*sim + 1*size + 1*ovl) / 3.0 scaled to 0-100
+    `(2*sim + 1*size + 1*ovl) / 3.0` scaled to 0-100
 
     :param `sim`:
     :type `sim`: float

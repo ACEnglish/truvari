@@ -176,9 +176,9 @@ def get_files_from_truvdir(directory):
 def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     """
     Parse a vcf file and turn it into a dataframe.
-    Tries its best to pull info/format tags from the sample information
-    For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt
-    Specify which sample with its name or index in the VCF
+    Tries its best to pull info/format tags from the sample information.
+    For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt.
+    Specify which sample with its name or index in the VCF.
 
     :param `fn`: File name of VCF to open and turn into a DataFrame
     :type `fn`: string
@@ -191,6 +191,13 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
 
     :return: Converted VCF
     :rtype: pandas.DataFrame
+
+    >>> import truvari
+    >>> df = truvari.vcf_to_df("repo_utils/test_files/input.vcf.gz", True, True)
+    >>> df.columns
+    Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
+       'QNAME', 'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN'],
+      dtype='object')
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen",

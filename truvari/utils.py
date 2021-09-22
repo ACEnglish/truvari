@@ -25,11 +25,11 @@ MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
 
 def restricted_float(x):
     """
-    Restrict float x to range (0,1). Raises argparse.ArgumentTypeError if float is out of range
-    Used with argparse type
+    Restrict float to range (0,1). Raises argparse.ArgumentTypeError if float is out of range
+    Used with :class:`argparse.ArgumentParser.add_argument` type parameter
 
-    :param `x`: float
-    :type `x`: number to check
+    :param `x`: number to check
+    :type `x`: float
 
     :return: input float
     :rtype: float
@@ -43,7 +43,7 @@ def restricted_float(x):
 
 def setup_progressbar(size):
     """
-    Return a formatted progress bar of size
+    Build a formatted :class:`progressbar.ProgressBar`
 
     :param `size`: Number of elements in the progress bar
     :type `size`: int
