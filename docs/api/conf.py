@@ -12,14 +12,15 @@
 #
 # import os
 # import sys
-# sys.path.insert(0, '/data/truvari')
+# sys.path.insert(0, os.path.join(os.path.dirname((os.path.abspath('.')), '..', '..', 'truvari')
+
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'truvari'
-copyright = '2021, Author'
-author = 'Author'
+project = 'Truvari'
+copyright = '2021, Adam English'
+author = 'Adam English'
 
 
 # -- General configuration ---------------------------------------------------
