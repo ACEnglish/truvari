@@ -1,10 +1,10 @@
-2021-08-16 17:39:17,894 [INFO] Running /raid/home/english/pyenv/bin/truvari bench -b /home/english/truvari/repo_utils/test_files/input1.vcf.gz -c /home/english/truvari/repo_utils/test_files/input2.vcf.gz -f /home/english/truvari/repo_utils/test_files/reference.fa -o bench12/
-2021-08-16 17:39:17,895 [INFO] Params:
+2021-09-22 21:28:22,859 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input2.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench12/
+2021-09-22 21:28:22,860 [INFO] Params:
 {
-    "base": "/home/english/truvari/repo_utils/test_files/input1.vcf.gz",
-    "comp": "/home/english/truvari/repo_utils/test_files/input2.vcf.gz",
-    "output": "bench12/",
-    "reference": "/home/english/truvari/repo_utils/test_files/reference.fa",
+    "base": "repo_utils/test_files/input1.vcf.gz",
+    "comp": "repo_utils/test_files/input2.vcf.gz",
+    "output": "test_results/bench12/",
+    "reference": "repo_utils/test_files/reference.fa",
     "giabreport": false,
     "debug": false,
     "prog": false,
@@ -26,14 +26,14 @@
     "includebed": null,
     "multimatch": false
 }
-2021-08-16 17:39:17,898 [INFO] Creating call interval tree for overlap search
-2021-08-16 17:39:17,898 [WARNING] Excluding 0 contigs present in comparison calls header but not base calls.
-2021-08-16 17:39:17,919 [INFO] 1783 call variants in total
-2021-08-16 17:39:17,919 [INFO] 14 call variants within size range (30, 50000)
-2021-08-16 17:39:17,921 [INFO] Matching base to calls
-2021-08-16 17:39:17,954 [INFO] Results peek: 8 TP-base 8 FN 50.00% Recall
-2021-08-16 17:39:17,954 [INFO] Parsing FPs from calls
-2021-08-16 17:39:17,977 [INFO] Stats: {
+2021-09-22 21:28:22,860 [INFO] Truvari version: 3.1.0-dev
+2021-09-22 21:28:22,879 [INFO] Creating call interval tree for overlap search
+2021-09-22 21:28:22,901 [INFO] 1783 call variants in total
+2021-09-22 21:28:22,902 [INFO] 14 call variants within size range (30, 50000)
+2021-09-22 21:28:22,916 [INFO] Matching base to calls
+2021-09-22 21:28:22,955 [INFO] Results peek: 8 TP-base 8 FN 50.00% Recall
+2021-09-22 21:28:22,956 [INFO] Parsing FPs from calls
+2021-09-22 21:28:22,993 [INFO] Stats: {
     "TP-base": 8,
     "TP-call": 8,
     "FP": 3,
@@ -47,8 +47,6 @@
     "TP-call_FP-gt": 5,
     "TP-base_TP-gt": 3,
     "TP-base_FP-gt": 5,
-    "gt_precision": 0.2727272727272727,
-    "gt_recall": 0.2727272727272727,
-    "gt_f1": 0.2727272727272727
+    "gt_concordance": 0.375
 }
-2021-08-16 17:39:17,977 [INFO] Finished
+2021-09-22 21:28:22,994 [INFO] Finished bench

@@ -12,7 +12,5 @@
     "TP-call_FP-gt": 4,
     "TP-base_TP-gt": 6,
     "TP-base_FP-gt": 4,
-    "gt_precision": 0.35294117647058826,
-    "gt_recall": 0.5,
-    "gt_f1": 0.41379310344827586
+    "gt_concordance": 0.6
 }

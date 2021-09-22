@@ -66,10 +66,17 @@ def get_svtype(svtype):
 
     :return: A :class:`SV` of the SVTYPE
     :rtype: :class:`truvari.SV`
+
+    Example
+        >>> import truvari
+        >>> truvari.get_svtype("INS")
+        <SV.INS: 1>
+        >>> truvari.get_svtype("foo")
+        <SV.UNK: 5>
     """
     try:
         return SV.__members__[svtype]
-    except AttributeError:
+    except KeyError:
         pass
     return SV.UNK
 
@@ -139,6 +146,8 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
         >>> import truvari
         >>> truvari.get_scalebin(4, 1, 5, 0, 20, 5)
         ('[15,20)', 3)
+        >>> truvari.get_scalebin(6, 1, 5, 0, 20, 5)
+        ('>=20', 4)
     """
     newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
     pos = 0
@@ -198,7 +207,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
         >>> df = truvari.vcf_to_df("repo_utils/test_files/input1.vcf.gz", True, True)
         >>> df.columns
         Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
-               'QNAME', 'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN'],
+               'PL_ref', 'PL_het', 'PL_hom', 'DP_ref', 'DP_alt', 'QNAME', 'QSTART',
+               'QSTRAND', 'SVTYPE', 'SVLEN'],
               dtype='object')
     """
     v = pysam.VariantFile(fn)
@@ -208,10 +218,10 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         for key in v.header.formats:
             num = v.header.formats[key].number
-            if num in [1, '.', "A", 0]:
+            if num in [1, '.', 0]:
                 header.append(key)
                 fmts.append((key, lambda x: [x] if x is not None else [None]))
-            elif num == 'R':
+            elif num == 'A':
                 header.append(key + '_ref')
                 header.append(key + '_alt')
                 fmts.append(
