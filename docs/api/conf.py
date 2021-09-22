@@ -13,7 +13,8 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('truvari'))
-print(os.listdir('truvari/'))
+print(os.listdir('.'))
+print(os.listdir("../../"))
 
 
 # -- Project information -----------------------------------------------------
