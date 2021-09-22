@@ -166,6 +166,10 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
         0
         >>> ret.stdout
         'hello world\\n'
+        >>> import truvari
+        >>> ret = truvari.cmd_exe("sleep 5", pipefail=True, timeout=2/60) # Error logged is caught
+        >>> ret.ret_code
+        214
     """
     cmd_result = namedtuple("cmd_result", "ret_code stdout stderr run_time")
     t_start = time.time()
@@ -220,11 +224,11 @@ def copy_entry(entry, header):
         >>> import truvari
         >>> import pysam
         >>> v = pysam.VariantFile('repo_utils/test_files/giab.vcf.gz')
-        >>> new_header = v.header.copy() # New INFO field to add
+        >>> new_header = v.header.copy() # Add new INFO field
         >>> new_header.add_line("##INFO=<ID=A,Type=Flag,Description='test'>")
         >>> o = pysam.VariantFile('test.vcf', 'w', header=new_header)
-        >>> entry = truvari.copy_entry(next(v), new_header) # This wouldn't be possible without `copy_entry`
-        >>> entry.info["A"] = True
+        >>> entry = truvari.copy_entry(next(v), new_header)
+        >>> entry.info["A"] = True # This wouldn't be possible without `copy_entry`
         >>> o.write(entry)
         0
     """

@@ -24,6 +24,13 @@ def entry_is_present(entry, sample=None):
 
     :return: True if variant is present in the sample
     :rtype: boolean
+
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> truvari.entry_is_present(next(v))
+        True
     """
     if sample is None:
         sample = entry.samples.keys()[0]
@@ -78,6 +85,15 @@ def entry_size_similarity(entryA, entryB):
 
     :return: size similarity percent
     :rtype: float
+
+    Example
+        >>> import truvari
+        >>> import pysam
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> a = next(v)
+        >>> b = next(v)
+        >>> truvari.entry_size_similarity(a, b)
+        (0.0, 14)
     """
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)

@@ -8,8 +8,11 @@ import doctest
 # Use the current truvari, not any installed libraries
 sys.path.insert(0, os.getcwd())
 
-from truvari import vcf2df
-from truvari import utils
+from truvari import (
+    comparisons,
+    utils,
+    vcf2df
+)
 from truvari.annos import af_calc
 
 
@@ -22,7 +25,8 @@ def tester(module):
     return ret.failed
 
 fails = 0
-fails += tester(vcf2df)
+fails += tester(comparisons)
 fails += tester(utils)
+fails += tester(vcf2df)
 fails += tester(af_calc)
 sys.exit(fails)
