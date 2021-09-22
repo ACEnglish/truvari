@@ -1,11 +1,37 @@
 truvari package
 ===============
 
+Overview
+--------
 .. automodule:: truvari
    :members:
    :undoc-members:
    :show-inheritance:
- 
+
+Objects
+-------
+GT
+^^
+.. autoclass:: GT
+   :members:
+
+GenomeTree
+^^^^^^^^^^
+.. autoclass:: GenomeTree
+   :members:
+
+LogFileStderr
+^^^^^^^^^^^^^
+.. autoclass:: LogFileStderr
+   :members:
+
+SV
+^^
+.. autoclass:: SV
+   :members:
+
+Methods
+-------
 allele_freq_annos
 ^^^^^^^^^^^^^^^^^
 .. autofunction:: allele_freq_annos  
@@ -129,3 +155,43 @@ vcf_to_df
 weighted_score
 ^^^^^^^^^^^^^^
 .. autofunction:: weighted_score
+
+Data
+----
+HEADERMAT
+^^^^^^^^^
+regular expression of vcf header INFO/FORMAT fields with groups
+
+.. autodata:: HEADERMAT
+
+MATCHRESULT
+^^^^^^^^^^^
+named tuple of match files
+
+.. autodata:: MATCHRESULT
+
+QUALBINS
+^^^^^^^^
+0-100 quality score bin strings (step size 10)
+
+.. autodata:: QUALBINS
+
+SVTYTYPE
+^^^^^^^^
+:class:`pandas.CategoricalDtype` of :class:`truvari.SV`
+
+SZBINMAX
+^^^^^^^^
+integer list of maximum size for size bins
+
+.. autodata:: SZBINMAX
+
+SZBINS
+^^^^^^
+string list of size bins
+
+.. autodata:: SZBINS
+
+SZBINTYPE
+^^^^^^^^^
+:class:`pandas.CategoricalDtype` of :data:`truvari.SZBINS`

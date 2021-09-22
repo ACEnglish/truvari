@@ -1,28 +1,55 @@
 """
 Full documentation at https://github.com/spiralgenetics/truvari/wiki
 
-See help() of specific functions / objects for details
+See `help()` of specific functions / objects for details
 
-functions:
-allele_freq_annos, cmd_exe, copy_entry, create_pos_haplotype, entry_boundaries,
-entry_create_haplotype, entry_gt_comp, entry_is_present, entry_pctsim,
-entry_reciprocal_overlap, entry_same_variant_type, entry_size,
-entry_size_similarity, entry_to_key, entry_variant_type, fetch_coords,
-filter_value, get_gt, get_scalebin, get_sizebin, get_svtype, make_interval_tree,
-match_sorter, overlaps, reciprocal_overlap, restricted_float, setup_logging,
-setup_progressbar, sizesim, vcf_to_df, weighted_score
+methods:
+:meth:`allele_freq_annos`
+:meth:`cmd_exe`
+:meth:`copy_entry`
+:meth:`create_pos_haplotype`
+:meth:`entry_boundaries`
+:meth:`entry_create_haplotype`
+:meth:`entry_gt_comp`
+:meth:`entry_is_present`
+:meth:`entry_pctsim`
+:meth:`entry_reciprocal_overlap`
+:meth:`entry_same_variant_type`
+:meth:`entry_size`
+:meth:`entry_size_similarity`
+:meth:`entry_to_key`
+:meth:`entry_variant_type`
+:meth:`fetch_coords`
+:meth:`filter_value`
+:meth:`get_gt`
+:meth:`get_scalebin`
+:meth:`get_sizebin`
+:meth:`get_svtype`
+:meth:`make_interval_tree`
+:meth:`match_sorter`
+:meth:`overlaps`
+:meth:`reciprocal_overlap`
+:meth:`restricted_float`
+:meth:`setup_logging`
+:meth:`setup_progressbar`
+:meth:`sizesim`
+:meth:`vcf_to_df`
+:meth:`weighted_score`
 
-dynamic objects:
-GT, GenomeTree, LogFileStderr, SV
+objects:
+:class:`GT`
+:class:`GenomeTree`
+:class:`LogFileStderr`
+:class:`SV`
 
-static objects:
-HEADERMAT - regular expression of vcf header INFO/FORMAT fields with groups
-MATCHRESULT - named tuple of match files
-QUALBINS - 0-100 quality score bin strings (step size 10)
-SVTYTYPE - pandas.CategoricalDtype of SV enum
-SZBINMAX - integer list of maximum size for size bins
-SZBINS - string list of size bins
-SZBINTYPE - pandas.CategoricalDtype of SZBINS
+data:
+:data:`truvari.HEADERMAT`
+:data:`truvari.MATCHRESULT`
+:data:`truvari.QUALBINS`
+:data:`truvari.SVTYTYPE`
+:data:`truvari.SZBINMAX`
+:data:`truvari.SZBINS` 
+:data:`truvari.SZBINTYPE`
 """
 
 __version__ = '3.1.0-dev'
@@ -59,7 +86,8 @@ from truvari.utils import (
     cmd_exe,
     HEADERMAT,
     MATCHRESULT,
-    restricted_float
+    restricted_float,
+    copy_entry
 )
 
 from truvari.comparisons import (
@@ -81,6 +109,5 @@ from truvari.comparisons import (
     reciprocal_overlap,
     entry_reciprocal_overlap,
     filter_value,
-    match_sorter,
-    copy_entry
+    match_sorter
 )

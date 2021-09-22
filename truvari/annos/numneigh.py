@@ -3,10 +3,12 @@ For every call within size boundaries,
 Add NumNeighbors info field of how many calls are within the distance
 Add NeighId clustering field in the same chained neighborhood
 For example,
--- is a call, refdist is 2
-     - - -   -    - -
-nn:  1 2 1   0    1 1
-id:  0 0 0   1    2 2
+::
+    -- is a call, refdist is 2
+         - - -   -    - -
+    nn:  1 2 1   0    1 1
+    id:  0 0 0   1    2 2
+
 """
 import os
 import sys

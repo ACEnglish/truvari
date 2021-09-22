@@ -3,11 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to truvari's documentation!
+Welcome to Truvari's documentation!
 ===================================
+Full documentation is available via the github page
+
+https://github.com/spiralgenetics/truvari
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
    :caption: Contents:
 
    truvari

@@ -60,7 +60,11 @@ def setup_progressbar(size):
 
 class LogFileStderr():
     """ Write to stderr and a file
-    Useful in conjunction with `setup_logging(stream=LogFileStderr('log.txt'))`
+
+    Useful in conjunction with :meth:`setup_logging`
+
+    >>> import truvari
+    >>> truvari.setup_logging(stream=LogFileStderr('log.txt'))
     """
 
     def __init__(self, fn):
@@ -177,4 +181,46 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     retCode = proc.returncode
     ret = cmd_result(retCode, stdoutVal, stderrVal,
                      timedelta(seconds=time.time() - t_start))
+    return ret
+
+
+def copy_entry(entry, header):
+    """
+    Make a :class:`pysam.VariantRecord` editable
+
+    :param `entry`: entry to make editable
+    :type `entry`: :class:`pysam.VariantRecord`
+    :param `header`: header of output vcf
+    :type `header`: :class:`pysam.VariantHeader`
+
+    :return: editable record
+    :rtype: :class:`pysam.VariantRecord`
+    """
+    try:
+        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
+                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
+                                info=entry.info)
+    except TypeError as e:
+        new_entry_info = dict(entry.info)
+        for key, value in new_entry_info.items():
+            if isinstance(value, tuple):
+                if header.info[key].type != "String":
+                    logging.error("Entry is not copyable by pysam. INFO %s has Number=%s and Type=%s",
+                                  key, header.info[key].number, header.info[key].type)
+                    logging.error(
+                        "Number should be changed to '.' or Type to 'String'")
+                    logging.error("Check VCF header (%s)", str(entry))
+                    raise e
+                new_entry_info[key] = ",".join(value)
+        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
+                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
+                                info=new_entry_info)
+    for sample in entry.samples:
+        for k, v in entry.samples[sample].items():
+            # this will be a problem for pVCFs with differing Number=./A/G and set on input as (None,).. maybe
+            try:
+                ret.samples[sample][k] = v
+            except TypeError:
+                pass
+
     return ret

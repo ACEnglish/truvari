@@ -86,10 +86,9 @@ def cig_pctsim(cigar):
 
 def map_stats(aligner, kmer, chrom=None, pos=None):
     """
-    Maps the kmer and returns the
-    max/min
-    if chrom/pos is provided:
-        remove any hits that maps over this position. This is a filter of the reference - we want to know where *else* it hits
+    Maps the kmer and returns the max/min
+    if chrom/pos is provided remove any hits that maps over this position. This 
+    is a filter of the reference - we want to know where *else* it hits
     """
     nhits = 0
     dir_hits = 0
@@ -262,7 +261,7 @@ def process_entries(ref_section):
         ref_up, ref_dn, alt_up, alt_dn = kmers
         ty = truvari.entry_variant_type(entry)
 
-        result = ["%s:%d-%d.%s" % # pylint: disable=consider-using-f-string
+        result = ["%s:%d-%d.%s" %  # pylint: disable=consider-using-f-string
                   (entry.chrom, entry.start, entry.stop, entry.alts[0])]
         if ty == "INS":
             # Only want a single reference kmer

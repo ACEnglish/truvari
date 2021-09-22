@@ -80,7 +80,7 @@ def allele_freq_annos(entry, samples=None):
     Calculate allele annotations for a VCF Entry
 
     :param `entry`: Entry with samples to parse
-    :type `entry`: pysam.VariantRecord
+    :type `entry`: :class:`pysam.VariantRecord`
     :param `samples`: Subset of samples from the entry over which to calculate annos
     :type `samples`: list of strings, optional
 

@@ -15,8 +15,15 @@ import truvari
 
 
 class GT(Enum):
-    """ Genotypes """
-    NON = 3
+    """Genotypes
+
+    - HET = <GT.HET: 1>
+    - HOM = <GT.HOM: 2>
+    - NON = <GT.NON: 3> - Non-Genotyped (e.g. `./.`)
+    - REF = <GT.REF: 0>
+    - UNK = <GT.UNK: 4> - Undetermined Genotype
+    """
+    NON = 3 
     REF = 0
     HET = 1
     HOM = 2
@@ -24,7 +31,15 @@ class GT(Enum):
 
 
 class SV(Enum):
-    """ SVtypes """
+    """SVtypes
+
+    - DEL = <GT.HET: 0>
+    - INS = <GT.HOM: 1>
+    - DUP = <GT.HOM: 2>
+    - INV = <GT.HOM: 3>
+    - NON = <GT.HOM: 4> - Not an SV, SVTYPE
+    - UNK = <GT.HOM: 5> - Unknown SVTYPE
+    """
     DEL = 0
     INS = 1
     DUP = 2
@@ -61,7 +76,7 @@ def get_svtype(svtype):
 
 def get_sizebin(sz):
     """
-    Bin a given size
+    Bin a given size into :data:`truvari.SZBINS`
 
     :param `sz`: SVLEN to bin into the SZBINS
     :type `sz`: integer
@@ -119,6 +134,10 @@ def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
 
     :return: The bin-string of the scaled variable
     :rtype: string
+
+    >>> import truvari
+    >>> truvari.get_scalebin(4, 1, 5, 0, 20, 5)
+    ('[15,20)', 3)
     """
     newx = (x - rmin) / (rmax - rmin) * (tmax - tmin) + tmin
     pos = 0
