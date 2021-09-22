@@ -8,7 +8,7 @@ truvari package
  
 allele_freq_annos
 ^^^^
-.. autofunction:: allele_freq_annos  
+.. autofunction:: truvari.allele_freq_annos  
 
 cmd_exe
 ^^^^
