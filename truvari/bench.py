@@ -105,7 +105,7 @@ def parse_args(args):
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.70,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,
-                        help="Minimum pct reciprocal overlap (%(default)s) for DEL events")
+                        help="Min pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",

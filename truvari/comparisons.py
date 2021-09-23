@@ -61,15 +61,15 @@ def entry_to_key(source, entry):
 
 def sizesim(sizeA, sizeB):
     """
-    Calculate the size similarity percent for two sizes
+    Calculate the size similarity percent and size diff for two sizes
 
     :param `sizeA`: first size
     :type `sizeA`: int
     :param `sizeB`: second size
     :type `sizeB`: int
 
-    :return: size similarity percent
-    :rtype: float
+    :return: size similarity percent and size diff (A - B)
+    :rtype: (float, int)
     """
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
