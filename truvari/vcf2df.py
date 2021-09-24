@@ -6,6 +6,7 @@ import sys
 import glob
 import logging
 import argparse
+import itertools
 from enum import Enum
 
 import pysam
@@ -183,7 +184,7 @@ def get_files_from_truvdir(directory):
     return ret
 
 
-def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
+def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
@@ -206,38 +207,49 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
         >>> import truvari
         >>> df = truvari.vcf_to_df("repo_utils/test_files/input2.vcf.gz", True, True)
         >>> df.columns
-        Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'GT',
-               'PL_ref', 'PL_het', 'PL_hom', 'DP_ref', 'DP_alt', 'QNAME', 'QSTART',
-               'QSTRAND', 'SVTYPE', 'SVLEN'],
+        Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'QNAME',
+               'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'GT', 'PL_ref', 'PL_het',
+               'PL_hom', 'DP_ref', 'DP_alt'],
               dtype='object')
     """
     v = pysam.VariantFile(fn)
     header = ["key", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
+
+    infos = list(v.header.info.keys()) if with_info else []
+    header.extend(infos)
+
+    if sample is None:
+        sample = v.header.samples[0]
     fmts = []
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
+        fmt_header = []
         for key in v.header.formats:
             num = v.header.formats[key].number
             if num in [1, '.', 0]:
-                header.append(key)
+                fmt_header.append(key)
                 fmts.append((key, lambda x: [x] if x is not None else [None]))
             elif num == 'A':
-                header.append(key + '_ref')
-                header.append(key + '_alt')
+                fmt_header.append(key + '_ref')
+                fmt_header.append(key + '_alt')
                 fmts.append(
                     (key, lambda x: x if x is not None else [None, None]))
             elif num == 'G':
-                header.append(key + '_ref')
-                header.append(key + '_het')
-                header.append(key + '_hom')
+                fmt_header.append(key + '_ref')
+                fmt_header.append(key + '_het')
+                fmt_header.append(key + '_hom')
                 fmts.append(
                     (key, lambda x: x if x is not None else [None, None, None]))
             else:
                 logging.critical(
                     "Unknown Number (%s) for %s. Skipping.", num, key)
+        if isinstance(sample, list):
+            header.extend([f'{s}_{f}' for s,f in itertools.product(sample, fmt_header)])
+        else:
+            header.extend(fmt_header)
 
-    infos = list(v.header.info.keys()) if with_info else []
-    header.extend(infos)
+    if not isinstance(sample, list):
+        sample = [sample]
 
     rows = []
     for entry in v:
@@ -252,17 +264,20 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=0):
                    filt,
                    filt == [] or filt[0] == 'PASS'
                    ]
-        for i, op in fmts:
-            if i in entry.samples[sample]:
-                cur_row.extend(op(entry.samples[sample][i]))
-            else:
-                cur_row.extend(op(None))
 
         for i in infos:
             if i in entry.info:
                 cur_row.append(entry.info[i])
             else:
                 cur_row.append(None)
+
+        for samp in sample:
+            for i, op in fmts:
+                if i in entry.samples[samp]:
+                    cur_row.extend(op(entry.samples[samp][i]))
+                else:
+                    cur_row.extend(op(None))
+
         rows.append(cur_row)
     ret = pd.DataFrame(rows, columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
@@ -286,13 +301,21 @@ def parse_args(args):
                         help="Attempt to put the INFO fields into the dataframe")
     parser.add_argument("-f", "--format", action="store_true",
                         help="Attempt to put the FORMAT fileds into the dataframe")
-    parser.add_argument("-s", "--sample", default=0,
+    parser.add_argument("-s", "--sample", default=None,
                         help="SAMPLE name to parse when building columns for --format")
+    parser.add_argument("-m", "--multisample", action="store_true",
+                        help=("Parse multiple samples. Splits -s by comma. Sample "
+                              "column names will be flattened"))
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
+    if args.sample:
+        if args.multisample:
+            args.sample = args.sample.split(',')
+        else:
+            args.sample = [args.sample]
     truvari.setup_logging(args.debug)
     return args
 
@@ -305,6 +328,9 @@ def vcf2df_main(args):
 
     out = None
     if not args.bench_dir:
+        if args.multisample and not args.sample:
+            vcf = pysam.VariantFile(args.vcf)
+            args.sample = list(vcf.header.samples)
         out = vcf_to_df(args.vcf, args.info, args.format, args.sample)
     else:
         vcfs = get_files_from_truvdir(args.vcf)
