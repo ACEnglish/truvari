@@ -188,7 +188,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
-    For Formats with Number=G, append _ref, _het, _hom. For things with Number=A, append _ref, _alt.
+    For Formats with Number=G, append _ref, _het, _hom. For things with Number=R, append _ref, _alt.
     Specify which sample with its name or index in the VCF.
 
     :param `fn`: File name of VCF to open and turn into a DataFrame
@@ -209,7 +209,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         >>> df.columns
         Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'QNAME',
                'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'GT', 'PL_ref', 'PL_het',
-               'PL_hom', 'DP_ref', 'DP_alt'],
+               'PL_hom', 'AD_ref', 'AD_alt'],
               dtype='object')
     """
     v = pysam.VariantFile(fn)
@@ -226,10 +226,10 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         fmt_header = []
         for key in v.header.formats:
             num = v.header.formats[key].number
-            if num in [1, '.', 0]:
+            if num in [1, 'A', '.', 0]:
                 fmt_header.append(key)
                 fmts.append((key, lambda x: [x] if x is not None else [None]))
-            elif num == 'A':
+            elif num == 'R':
                 fmt_header.append(key + '_ref')
                 fmt_header.append(key + '_alt')
                 fmts.append(
@@ -265,7 +265,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
                    filt == [] or filt[0] == 'PASS'
                    ]
 
-        for i in infos:
+        for i in infos: # Need to make OPs for INFOS..
             if i in entry.info:
                 cur_row.append(entry.info[i])
             else:
