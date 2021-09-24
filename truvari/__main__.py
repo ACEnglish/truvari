@@ -43,10 +43,12 @@ Truvari v{__version__} - Structural Variant Benchmarking and Annotation
         version       Print the Truvari version and exit
 """
 
+
 class ArgumentParser(argparse.ArgumentParser):
     """
     Custom argument parser error
     """
+
     def error(self, message):
         """
         Check for similar commands before exiting
@@ -58,6 +60,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 sys.stderr.write(f"\nThe most similar command is\n\t{guess}\n")
 
         self.exit(2)
+
 
 def main():
     """

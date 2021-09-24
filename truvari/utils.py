@@ -119,7 +119,7 @@ def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(lev
     logging.basicConfig(stream=stream, level=logLevel, format=log_format)
     logging.info("Running %s", " ".join(sys.argv))
 
-    def sendWarningsToLog(message, category, filename, lineno):
+    def sendWarningsToLog(message, category, filename, lineno, *args, **kwargs):  # pylint: disable=unused-argument
         """
         Put warnings into logger
         """
@@ -263,6 +263,7 @@ def copy_entry(entry, header):
 
     return ret
 
+
 def ref_ranges(reference, chunk_size=10000000):
     """
     Chunk reference into pieces. Useful for multiprocessing.
@@ -322,6 +323,7 @@ def bed_ranges(bed, chunk_size=10000000):
                 start = stop
                 stop += chunk_size
             yield data[0], start, final_stop
+
 
 def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     """
