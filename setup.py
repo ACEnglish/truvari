@@ -38,10 +38,10 @@ setup(
         "progressbar2>=3.41.0",
         "pysam>=0.15.2",
         "intervaltree>=3.0.2",
-        "joblib>=0.14.1",
-        "numpy>=1.18.1",
+        "joblib>=1.0.1",
+        "numpy>=1.21.2",
         "pytabix>=0.1",
         "bwapy>=0.1.4",
-        "pandas>=1.0.5",
+        "pandas>=1.3.3",
     ],
 )
