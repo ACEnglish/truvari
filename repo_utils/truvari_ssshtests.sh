@@ -229,7 +229,7 @@ assert_exit_code 0
 #assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.vcf)
 
 #                                 repmask
-run test_anno_repmask $truv anno repmask -i $INDIR//multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py  \
+run test_anno_repmask $truv anno repmask -i $INDIR//multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 assert_exit_code 0
 assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 
