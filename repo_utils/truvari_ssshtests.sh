@@ -2,6 +2,7 @@ test -e ssshtest || curl -O https://raw.githubusercontent.com/ryanlayer/ssshtest
 
 source ssshtest
 
+
 # Work inside of the repo folder
 cd "$( dirname "${BASH_SOURCE[0]}" )"/../
 INDIR=repo_utils/test_files
@@ -167,7 +168,6 @@ assert_exit_code 100
 run test_consistency $truv consistency $INDIR/input*.vcf.gz
 assert_exit_code 0
 
-
 run test_consistency_results $truv consistency $INDIR/input*.vcf.gz
 assert_equal $(fn_md5 $ANSDIR/consistency.txt) $(fn_md5 $STDOUT_FILE)
 
@@ -233,6 +233,8 @@ run test_anno_repmask $truv anno repmask -i $INDIR//multi.vcf.gz -o $OD/repmask.
 assert_exit_code 0
 assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 
+run test_anno_repmask_err $truv anno repmask -i $INDIR/input1.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
+assert_exit_code 1
 
 # ------------------------------------------------------------
 #                                 vcf2df
@@ -251,11 +253,11 @@ df_check test_vcf2df_single $ANSDIR/single_vcf2df.jl $OD/single_vcf2df.jl
 
 run test_vcf2df_subset $truv vcf2df -f -i -s HG00733,NA12878 -m $INDIR/multi.vcf.gz $OD/subset_vcf2df.jl
 assert_exit_code 0
-df_check test_vcf2df_single $ANSDIR/subset_vcf2df.jl $OD/subset_vcf2df.jl
+df_check test_vcf2df_subset $ANSDIR/subset_vcf2df.jl $OD/subset_vcf2df.jl
 
 run test_vcf2df_multi $truv vcf2df -f -i -m $INDIR/multi.vcf.gz $OD/multi_vcf2df.jl
 assert_exit_code 0
-df_check test_vcf2df_single $ANSDIR/multi_vcf2df.jl $OD/multi_vcf2df.jl
+df_check test_vcf2df_multi $ANSDIR/multi_vcf2df.jl $OD/multi_vcf2df.jl
 
 
 # ------------------------------------------------------------
@@ -278,7 +280,7 @@ assert_exit_code 0
 #                                 coverage.py
 # ------------------------------------------------------------
 
-echo "generating test coverage reports"
+printf "\n${BOLD}generating test coverage reports${NC}\n"
 coverage combine
 coverage report --include=truvari/*
 coverage html --include=truvari/* -d $OD/htmlcov/

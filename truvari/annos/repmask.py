@@ -50,13 +50,10 @@ class RepMask():
         self.n_header = None
         self.cmd = f"{self.executable} {self.rm_params}"
 
-    def edit_header(self, header=None):
+    def edit_header(self, header):
         """
         Edits and holds on to the header
         """
-        if header is None:
-            with pysam.VariantFile(self.in_vcf, 'r') as fh:
-                header = fh.header.copy()
         header.add_line(('##INFO=<ID=RM_score,Number=1,Type=Integer,'
                          'Description="RepMask bit score">'))
         header.add_line(('##INFO=<ID=RM_repeat,Number=1,Type=String,'
@@ -66,16 +63,12 @@ class RepMask():
         # TODO: Need to put a source line that says this thing was run with whatever parameters
         self.n_header = header
 
-    def extract_seqs(self, fout=None):
+    def extract_seqs(self):
         """
         Create the fasta file of all the sequences
-        Returns the fasta file
+        Returns the fasta file name
         """
-        if fout is None:
-            # pylint: disable=consider-using-with,useless-suppression
-            ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
-        else:
-            ret = open(fout, 'w')  # pylint: disable=consider-using-with
+        ret = tempfile.NamedTemporaryFile(mode='w', delete=False)
         tot_cnt = 0
         cnt = 0
         cntbp = 0
@@ -167,10 +160,7 @@ class RepMask():
         """
         if not rm_hit:
             return entry
-        try:
-            entry = truvari.copy_entry(entry, self.n_header)
-        except TypeError:
-            return entry
+        entry = truvari.copy_entry(entry, self.n_header)
 
         entry.info["RM_score"] = rm_hit["RM_score"]
         entry.info["RM_repeat"] = rm_hit["RM_repeat"]

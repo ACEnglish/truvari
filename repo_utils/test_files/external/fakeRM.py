@@ -17,5 +17,9 @@ score   div. del. ins.  sequence  begin end   (left)   repeat     class/family  
 if __name__ == '__main__':
     fasta_name = sys.argv[-1]
     print('fout would be', fasta_name + ".out")
+    with open(fasta_name, 'r') as fh:
+        # Not the fasta we expect
+        if len(fh.readlines()) != 68:
+            sys.exit(1)
     with open(fasta_name + ".out", 'w') as fout:
         fout.write(ans)
