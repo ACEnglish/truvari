@@ -176,12 +176,44 @@ def get_files_from_truvdir(directory):
             logging.error(
                 "Expected 1 file for %s[.gz] found %d", fname, len(ret[key]))
             has_error = True
-    #summary = glob.glob(os.path.join(directory, "summary.txt"))
-    # ret["summary"]
     if has_error:
-        raise FileNotFoundError(
-            f"Couldn't parse truvari directory {directory}. See above errors")
+        raise FileNotFoundError((f"Couldn't parse truvari directory {directory}. "
+                                 "See above errors"))
     return ret
+
+
+def tags_to_ops(items):
+    """
+    Given a list of  items from a :class:`pysam.VariantFile.header.[info|format].items`
+    build column names and operators for parsing
+
+    :param `items`: SVTYPE string to turn into SV object
+    :type `items`: list of tuples, (str, :class:`pysam.libcbcf.VariantMetadata`)
+
+    :return: list of column names, list of (key, operator)
+    :rtype: tuple
+    """
+    columns = []
+    ops = []
+    for key, dat in items:
+        logging.debug(f"k {key} {dat}")
+        num = dat.number
+        if num in [1, 'A', '.', 0]:
+            columns.append(key)
+            ops.append((key, lambda x: [x] if x is not None else [None]))
+        elif num == 'R':
+            columns.append(key + '_ref')
+            columns.append(key + '_alt')
+            ops.append((key, lambda x: x if x is not None else [None, None]))
+        elif num == 'G':
+            columns.append(key + '_ref')
+            columns.append(key + '_het')
+            columns.append(key + '_hom')
+            ops.append(
+                (key, lambda x: x if x is not None else [None, None, None]))
+        else:
+            logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
+    return columns, ops
 
 
 def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
@@ -216,35 +248,19 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     header = ["key", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
 
-    infos = list(v.header.info.keys()) if with_info else []
-    header.extend(infos)
+    info_ops = []
+    if with_info:
+        info_header, info_ops = tags_to_ops(v.header.info.items())
+        header.extend(info_header)
 
     if sample is None:
         sample = v.header.samples[0]
-    fmts = []
+    fmt_ops = []
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
-        fmt_header = []
-        for key in v.header.formats:
-            num = v.header.formats[key].number
-            if num in [1, 'A', '.', 0]:
-                fmt_header.append(key)
-                fmts.append((key, lambda x: [x] if x is not None else [None]))
-            elif num == 'R':
-                fmt_header.append(key + '_ref')
-                fmt_header.append(key + '_alt')
-                fmts.append(
-                    (key, lambda x: x if x is not None else [None, None]))
-            elif num == 'G':
-                fmt_header.append(key + '_ref')
-                fmt_header.append(key + '_het')
-                fmt_header.append(key + '_hom')
-                fmts.append(
-                    (key, lambda x: x if x is not None else [None, None, None]))
-            else:
-                logging.critical(
-                    "Unknown Number (%s) for %s. Skipping.", num, key)
+        fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
         if isinstance(sample, list):
-            header.extend([f'{s}_{f}' for s,f in itertools.product(sample, fmt_header)])
+            header.extend(
+                [f'{s}_{f}' for s, f in itertools.product(sample, fmt_header)])
         else:
             header.extend(fmt_header)
 
@@ -265,14 +281,14 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
                    filt == [] or filt[0] == 'PASS'
                    ]
 
-        for i in infos: # Need to make OPs for INFOS..
+        for i, op in info_ops:  # Need to make OPs for INFOS..
             if i in entry.info:
-                cur_row.append(entry.info[i])
+                cur_row.extend(op(entry.info[i]))
             else:
                 cur_row.append(None)
 
         for samp in sample:
-            for i, op in fmts:
+            for i, op in fmt_ops:
                 if i in entry.samples[samp]:
                     cur_row.extend(op(entry.samples[samp][i]))
                 else:
