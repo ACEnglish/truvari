@@ -18,16 +18,16 @@ import truvari
 class GT(Enum):
     """Genotypes
 
+    - REF = <GT.REF: 0>
     - HET = <GT.HET: 1>
     - HOM = <GT.HOM: 2>
     - NON = <GT.NON: 3> - Non-Genotyped (e.g. `./.`)
-    - REF = <GT.REF: 0>
     - UNK = <GT.UNK: 4> - Undetermined Genotype
     """
-    NON = 3
     REF = 0
     HET = 1
     HOM = 2
+    NON = 3
     UNK = 4
 
 
@@ -108,8 +108,15 @@ def get_gt(gt):
 
     :return: A :class:`GT` of the genotype
     :rtype: :class:`truvari.GT`
+
+    Example
+        >>> import truvari
+        >>> truvari.get_gt((0, 0))
+        <GT.REF: 0>
+        >>> truvari.get_gt((0, 1, 1))
+        <GT.UNK: 4>
     """
-    if None in gt:
+    if None in gt:  # Any . makes it NON
         return GT.NON
     if len(gt) != 2:
         return GT.UNK
@@ -117,9 +124,8 @@ def get_gt(gt):
         return GT.REF
     if gt[0] != gt[1]:
         return GT.HET
-    if gt[0] == gt[1]:
-        return GT.HOM
-    return GT.UNK
+    # Must be
+    return GT.HOM
 
 
 def get_scalebin(x, rmin=0, rmax=100, tmin=0, tmax=100, step=10):
@@ -193,24 +199,27 @@ def tags_to_ops(items):
     :return: list of column names, list of (key, operator)
     :rtype: tuple
     """
+    def prod(base, suffix):
+        return [f"{b}_{s}" for b, s in itertools.product([base], suffix)]
+
     columns = []
     ops = []
     for key, dat in items:
-        logging.debug(f"k {key} {dat}")
         num = dat.number
-        if num in [1, 'A', '.', 0]:
+        if num in [1, 'A', '.']: # 'A' should just pull first item...
             columns.append(key)
-            ops.append((key, lambda x: [x] if x is not None else [None]))
+            ops.append((key, lambda dat, k: [dat[k]] if k in dat else [None]))
+        elif num == 0:
+            columns.append(key)
+            ops.append((key, lambda dat, k: [k in dat]))
         elif num == 'R':
-            columns.append(key + '_ref')
-            columns.append(key + '_alt')
-            ops.append((key, lambda x: x if x is not None else [None, None]))
-        elif num == 'G':
-            columns.append(key + '_ref')
-            columns.append(key + '_het')
-            columns.append(key + '_hom')
+            columns.extend(prod(key, ['ref', 'alt']))
             ops.append(
-                (key, lambda x: x if x is not None else [None, None, None]))
+                (key, lambda dat, k: dat[k] if k in dat and dat[k] is not None else [None, None]))
+        elif num == 'G':
+            columns.extend(prod(key, ['ref', 'het', 'hom']))
+            ops.append(
+                (key, lambda dat, k: dat[k] if k in dat and dat[k] is not None else [None, None, None]))
         else:
             logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
     return columns, ops
@@ -282,23 +291,18 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
                    ]
 
         for i, op in info_ops:  # Need to make OPs for INFOS..
-            if i in entry.info:
-                cur_row.extend(op(entry.info[i]))
-            else:
-                cur_row.append(None)
+            cur_row.extend(op(entry.info, i))
 
         for samp in sample:
             for i, op in fmt_ops:
-                if i in entry.samples[samp]:
-                    cur_row.extend(op(entry.samples[samp][i]))
-                else:
-                    cur_row.extend(op(None))
+                cur_row.extend(op(entry.samples[samp], i))
 
         rows.append(cur_row)
     ret = pd.DataFrame(rows, columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
     return ret.set_index("key")
+
 
 def optimize_df_memory(df):
     """
@@ -360,6 +364,7 @@ def parse_args(args):
             args.sample = [args.sample]
     truvari.setup_logging(args.debug)
     return args
+
 
 def vcf2df_main(args):
     """

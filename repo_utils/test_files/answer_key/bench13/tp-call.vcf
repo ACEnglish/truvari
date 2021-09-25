@@ -27,6 +27,7 @@
 ##INFO=<ID=QNAME,Number=1,Type=String,Description="Query name">
 ##INFO=<ID=QSTART,Number=1,Type=Integer,Description="Query start">
 ##INFO=<ID=QSTRAND,Number=1,Type=String,Description="Query strand">
+##INFO=<ID=EDGEFLAG,Number=0,Type=Flag,Description="Edge case flags">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##bcftools_mergeVersion=1.10.2+htslib-1.10.2
 ##bcftools_mergeCommand=merge --force-samples -m none /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_HG00733_hgsvc_pbsq2-clr_1000-flye.h1-un.arrow-p1.fasta.gz.vcf.gz /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_HG00733_hgsvc_pbsq2-clr_1000-flye.h2-un.arrow-p1.fasta.gz.vcf.gz; Date=Thu Jul 22 20:41:33 2021

@@ -27,6 +27,7 @@
 ##INFO=<ID=QNAME,Number=1,Type=String,Description="Query name">
 ##INFO=<ID=QSTART,Number=1,Type=Integer,Description="Query start">
 ##INFO=<ID=QSTRAND,Number=1,Type=String,Description="Query strand">
+##INFO=<ID=EDGEFLAG,Number=0,Type=Flag,Description="Edge case flags">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 ##bcftools_mergeVersion=1.10.2+htslib-1.10.2
 ##bcftools_mergeCommand=merge --force-samples -m none /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_HG00733_hgsvc_pbsq2-clr_1000-flye.h1-un.arrow-p1.fasta.gz.vcf.gz /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_HG00733_hgsvc_pbsq2-clr_1000-flye.h2-un.arrow-p1.fasta.gz.vcf.gz; Date=Thu Jul 22 20:41:33 2021
@@ -37,7 +38,7 @@
 ##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
 ##INFO=<ID=CollapseId,Number=1,Type=Integer,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00733
-chr20	66141	.	AATTCC	A	60	.	QNAME=cluster23_scaffold_3;QSTART=25645835;QSTRAND=-	GT	1|1
+chr20	66141	.	AATTCC	A	60	.	EDGEFLAG;QNAME=cluster23_scaffold_3;QSTART=25645835;QSTRAND=-	GT	1|1
 chr20	66235	.	C	CGACTCCACTCCATT	60	.	QNAME=cluster23_scaffold_3;QSTART=25645732;QSTRAND=-	GT	1|1
 chr20	67373	.	G	GAAATGTGAT	60	.	QNAME=cluster23_scaffold_2;QSTART=25629267;QSTRAND=-	GT	0|1
 chr20	68303	.	T	C	60	.	QNAME=cluster23_scaffold_3;QSTART=25643664;QSTRAND=-	GT	1|1
