@@ -199,8 +199,8 @@ def tags_to_ops(items):
     :return: list of column names, list of (key, operator)
     :rtype: tuple
     """
-    def prod(base, suffix):
-        return [f"{b}_{s}" for b, s in itertools.product([base], suffix)]
+    def prod(base, suffixes):
+        return [f"{base}_{s}" for s in suffixes]
 
     columns = []
     ops = []
