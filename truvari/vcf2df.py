@@ -300,6 +300,32 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
     return ret.set_index("key")
 
+def optimize_df_memory(df):
+    """
+    Optimize DataFrame memory by trying to downcast every column in-place.
+    Returns the pre/post size
+
+    :param `df`: Dataframe to optimize
+    :type `df`: :class:`pandas.DataFrame`
+
+    :return: tuple (pre_size, post_size)
+    :rtype: int, sizes in bytes
+    """
+    pre_size = df.memory_usage().sum()
+    for col in df.columns:
+        try:
+            if df[col].apply(float.is_integer).all():
+                if len(df[df[col] < 0]) == 0:
+                    df[col] = pd.to_numeric(df[col], downcast="unsigned")
+                else:
+                    df[col] = pd.to_numeric(df[col], downcast="signed")
+            else:
+                df[col] = pd.to_numeric(df[col], downcast="float")
+        except TypeError as e:
+            logging.debug("Unable to downsize %s (%s)", col, str(e))
+    post_size = df.memory_usage().sum()
+    return pre_size, post_size
+
 
 def parse_args(args):
     """
@@ -335,7 +361,6 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
-
 def vcf2df_main(args):
     """
     Main entry point for running DataFrame builder
@@ -362,20 +387,9 @@ def vcf2df_main(args):
 
     # compression -- this is not super important for most VCFs
     # Especially since nulls are highly likely
-    logging.info("Optimizing memory")
-    pre_size = out.memory_usage().sum()
-    for col in out.columns:
-        try:
-            if out[col].apply(float.is_integer).all():
-                if len(out[out[col] < 0]) == 0:
-                    out[col] = pd.to_numeric(out[col], downcast="unsigned")
-                else:
-                    out[col] = pd.to_numeric(out[col], downcast="signed")
-            else:
-                out[col] = pd.to_numeric(out[col], downcast="float")
-        except TypeError as e:
-            logging.debug("Unable to downsize %s (%s)", col, str(e))
-    post_size = out.memory_usage().sum()
+    logging.info("Optimizing DataFrame memory")
+    pre_size, post_size = optimize_df_memory(out)
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)
+
     joblib.dump(out, args.output)
     logging.info("Finished vcf2df")

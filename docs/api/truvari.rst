@@ -136,6 +136,10 @@ match_sorter
 ^^^^^^^^^^^^
 .. autofunction:: match_sorter
 
+optimize_df_memory
+^^^^^^^^^^^^^^^^^^
+.. autofunction:: optimize_df_memory
+
 overlaps
 ^^^^^^^^
 .. autofunction:: overlaps
