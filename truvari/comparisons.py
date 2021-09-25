@@ -458,6 +458,7 @@ def entry_reciprocal_overlap(entry1, entry2):
 
     :return: The reciprocal overlap
     :rtype: float
+
     Example
         >>> import truvari
         >>> import pysam

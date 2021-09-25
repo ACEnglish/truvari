@@ -1,2 +1,0 @@
-sphinx-apidoc -f -F ../../truvari/ -o /data/docs/api/ --ext-autodoc -M 
-sphinx-build /data/docs/api/ output truvari.* 

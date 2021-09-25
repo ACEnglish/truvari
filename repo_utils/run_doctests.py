@@ -29,4 +29,7 @@ fails += tester(comparisons)
 fails += tester(utils)
 fails += tester(vcf2df)
 fails += tester(af_calc)
+
+os.remove("log.txt")
+os.remove("test.vcf")
 sys.exit(fails)
