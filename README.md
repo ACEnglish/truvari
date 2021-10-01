@@ -22,17 +22,7 @@ Truvari uses Python 3.6+ and can be installed with pip:
 ```
   python3 -m pip install Truvari 
 ```
-[PyPi](https://pypi.org/project/Truvari/#history) has a history of all versions available. Pip installs all requirements EXCEPT external tools needed for running some annotations. See [anno](https://github.com/spiralgenetics/truvari/wiki/anno) for details. 
-
-To build and install Truvari from scratch:
-```
-  python3 setup.py install
-```
- 
-See [tags/](https://github.com/spiralgenetics/truvari/tags/) for a list of all available versions.
-
-See [Development/docker](https://github.com/spiralgenetics/truvari/wiki/Development#docker) for instructions on how to
-build and use a Truvari Docker container.
+For details and more installation options, see [Installation](https://github.com/spiralgenetics/truvari/wiki/Installation) on the wiki.
 
 ## Quick Start
 
