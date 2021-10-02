@@ -341,7 +341,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
 
     # Someone in the Base call's neighborhood, we'll see if it passes comparisons
 
-    if args.no_ref in ["a", "c"] and not truvari.entry_is_present(comp_entry, outputs["sampleBase"]):
+    if args.no_ref in ["a", "c"] and not truvari.entry_is_present(comp_entry, outputs["sampleComp"]):
         logging.debug("%s is uncalled", comp_entry)
         return True
 
