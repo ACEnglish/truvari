@@ -298,7 +298,7 @@ def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=
         return True
 
     samp = outputs["sampleBase"] if base else outputs["sampleComp"]
-    if no_ref in ["a", "b"] and not truvari.entry_is_present(entry, samp):
+    if no_ref in ["a", prefix[0]] and not truvari.entry_is_present(entry, samp):
         return True
 
     if passonly and truvari.filter_value(entry):
