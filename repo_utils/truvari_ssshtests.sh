@@ -183,9 +183,9 @@ assert_exit_code 0
 info_tests hompct $OD/anno_hompct.vcf HOMPCT
 
 #                                 remap
-run test_anno_remap $truv anno remap -i $VCF -r $REF -o $OD/anno_remap.vcf
+run test_anno_remap $truv anno remap -H 10 -i $VCF -r $REF -o $OD/anno_remap.vcf
 assert_exit_code 0
-info_tests remap $OD/anno_remap.vcf REMAP
+info_tests remap $OD/anno_remap.vcf REMAP,REMAPHits
 
 #                                 gcpct
 run test_anno_gcpct $truv anno gcpct -i $VCF -r $REF -o $OD/anno_gcpct.vcf

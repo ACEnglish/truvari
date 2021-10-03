@@ -13,6 +13,7 @@ Which alleles and alignments to consider can be altered with:
 - --threshold : Minimum percent of allele's sequence used by alignment to be considered (.8)
 """
 import sys
+import bisect
 import logging
 import argparse
 
@@ -30,14 +31,16 @@ from truvari.annos.grm import cigmatch
 class Remap():
     """ Class for remapping annotation """
 
-    def __init__(self, in_vcf, reference, out_vcf="/dev/stdout", min_length=50, threshold=0.8, min_distance=10):
+    def __init__(self, in_vcf, reference, out_vcf="/dev/stdout", min_length=50,
+                 threshold=0.8, min_distance=10, anno_hits=0):
         """ The setup """
         self.in_vcf = in_vcf
         self.reference = reference
         self.out_vcf = out_vcf
         self.min_length = min_length
-        self.min_distance = min_distance
         self.threshold = threshold
+        self.min_distance = min_distance
+        self.anno_hits = anno_hits
         self.n_header = None
         self.aligner = BwaAligner(self.reference, options="-a")
 
@@ -50,12 +53,15 @@ class Remap():
                 header = fh.header.copy()
         header.add_line(('##INFO=<ID=REMAP,Number=1,Type=String,'
                          'Description="Annotation of alt-seq remapping">'))
+        if self.anno_hits:
+            header.add_line(('##INFO=<ID=REMAPHits,Number=.,Type=String,'
+                             'Description="List of chr:start-end of hits">'))
+
         self.n_header = header
 
     def get_end(self, pos, cigar):  # pylint: disable=no-self-use
         """
-        Expand a cigar to get the end position?
-        And how much of the query is used?
+        Expand a cigar to get the end position and how many bases are clipped
         """
         soft_bases = 0
         for i in cigmatch.findall(cigar):
@@ -74,7 +80,7 @@ class Remap():
             seq = str(entry.ref)
         else:
             seq = entry.alts[0]
-
+        all_hits = []
         num_hits = 0
         partial_hits = 0
         close_dist = None
@@ -85,12 +91,14 @@ class Remap():
                 continue
 
             # Filter hits below threshold
-            soft = self.get_end(aln.pos, aln.cigar)[1]
-            pct_query = 1 - soft / len(seq)
+            end, soft = self.get_end(aln.pos, aln.cigar)
+            seq_len = len(seq)
+            pct_query = (seq_len - soft) / seq_len
             if pct_query < threshold:
                 partial_hits += 1
                 continue
-
+            hit = f"{aln.rname}:{aln.pos}-{end}.{int(pct_query*100)}"
+            bisect.insort(all_hits, (pct_query, hit))
             num_hits += 1
             if aln.rname != entry.chrom:
                 continue
@@ -98,13 +106,13 @@ class Remap():
                 close_dist = dist
 
         if num_hits == 0 and partial_hits == 0:
-            return "novel"
+            return "novel", all_hits
         if close_dist and close_dist <= len(seq):
-            return "tandem"
+            return "tandem", all_hits
         if num_hits == 0 and partial_hits != 0:
-            return "partial"
+            return "partial", all_hits
 
-        return "interspersed"
+        return "interspersed", all_hits
 
     def annotate_entry(self, entry):
         """
@@ -112,7 +120,10 @@ class Remap():
         """
         if truvari.entry_size(entry) >= self.min_length:
             entry = truvari.copy_entry(entry, self.n_header)
-            entry.info["REMAP"] = self.remap_entry(entry)
+            remap, hits = self.remap_entry(entry)
+            entry.info["REMAP"] = remap
+            if self.anno_hits and hits:
+                entry.info["REMAPHits"] = [_[1] for _ in hits[-self.anno_hits:]]
         return entry
 
     def annotate_vcf(self):
@@ -146,6 +157,8 @@ def parse_args(args):
     parser.add_argument("-d", "--dist", type=int, default=10,
                         help=("Minimum distance an alignment must be from a DEL's "
                               "position to be considered (%(default)s))"))
+    parser.add_argument("-H", "--hits", type=int, default=0,
+                        help="Report top hits as chr:start-end.pct (max %(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -165,6 +178,7 @@ def remap_main(cmdargs):
                  reference=args.reference,
                  out_vcf=args.output,
                  min_length=args.minlength,
-                 threshold=args.threshold)
+                 threshold=args.threshold,
+                 anno_hits=args.hits)
     anno.annotate_vcf()
     logging.info("Finished remap")
