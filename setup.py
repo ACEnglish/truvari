@@ -42,6 +42,6 @@ setup(
         "numpy>=1.18.1",
         "pytabix>=0.1",
         "bwapy>=0.1.4",
-        "pandas>=1.0.5",
+        "pandas>=1.3.3",
     ],
 )
