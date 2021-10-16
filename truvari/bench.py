@@ -456,7 +456,7 @@ def build_match(base, comp):
         state = False
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim(base, comp, args.reference,
+        seq_similarity = truvari.entry_pctsim(base, comp, shared_space.reference,
                                               args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%.3ff)",
@@ -651,7 +651,7 @@ def close_outputs():
     shared_space.outputs["fp_out"].close()
 
 
-def main(cmdargs):
+def bench_main(cmdargs):
     """
     Main
     """
@@ -663,7 +663,7 @@ def main(cmdargs):
         sys.exit(100)
 
     if args.reference:
-        args.reference = pysam.Fastafile(args.reference)
+        shared_space.reference = pysam.Fastafile(args.reference)
 
     setup_outputs(args)
     shared_space.base = pysam.VariantFile(shared_space.args.base)

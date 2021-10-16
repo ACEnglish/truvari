@@ -15,7 +15,8 @@ from collections import defaultdict, namedtuple
 import pysam
 
 import truvari
-from truvari.bench import edit_header as bench_edit_header
+from truvari.old_bench import edit_header as bench_edit_header
+from truvari.old_bench import annotate_tp
 
 COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
 
@@ -97,7 +98,7 @@ def output_edit_header(my_vcf, header=None):
 
 def collapse_edit_header(my_vcf):
     """
-    Add output_edit_header and info lines from truvari bench
+    Add output_edit_header and info lines from truvari old_bench
     """
     header = bench_edit_header(my_vcf)
     header = output_edit_header(my_vcf, header)
@@ -222,7 +223,7 @@ def edit_collap_entry(entry, match, match_id, outputs):
     new_entry = truvari.copy_entry(entry, outputs["c_header"])
     new_entry.info["CollapseId"] = match_id
     new_entry.info["TruScore"] = match.score
-    truvari.bench.annotate_tp(new_entry, match)
+    annotate_tp(new_entry, match)
     return new_entry
 
 

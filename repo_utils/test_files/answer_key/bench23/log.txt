@@ -1,5 +1,5 @@
-2021-09-25 09:48:31,018 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input2.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench23/
-2021-09-25 09:48:31,019 [INFO] Params:
+2021-10-16 18:25:57,423 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input2.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench23/
+2021-10-16 18:25:57,425 [INFO] Params:
 {
     "base": "repo_utils/test_files/input2.vcf.gz",
     "comp": "repo_utils/test_files/input3.vcf.gz",
@@ -15,6 +15,7 @@
     "pctovl": 0.0,
     "typeignore": false,
     "use_lev": false,
+    "chunksize": 1000,
     "gtcomp": false,
     "bSample": null,
     "cSample": null,
@@ -26,14 +27,9 @@
     "includebed": null,
     "multimatch": false
 }
-2021-09-25 09:48:31,020 [INFO] Truvari version: 3.1.0-dev
-2021-09-25 09:48:31,039 [INFO] Creating call interval tree for overlap search
-2021-09-25 09:48:31,064 [INFO] 2065 call variants in total
-2021-09-25 09:48:31,065 [INFO] 21 call variants within size range (30, 50000)
-2021-09-25 09:48:31,078 [INFO] Matching base to calls
-2021-09-25 09:48:31,112 [INFO] Results peek: 7 TP-base 4 FN 63.64% Recall
-2021-09-25 09:48:31,113 [INFO] Parsing FPs from calls
-2021-09-25 09:48:31,151 [INFO] Stats: {
+2021-10-16 18:25:57,426 [INFO] Truvari version: 3.1.0-dev
+2021-10-16 18:25:57,686 [INFO] Results peek: 7 TP-base 4 FN 63.64% Recall
+2021-10-16 18:25:57,687 [INFO] Stats: {
     "TP-base": 7,
     "TP-call": 7,
     "FP": 10,
@@ -49,4 +45,4 @@
     "TP-base_FP-gt": 4,
     "gt_concordance": 0.42857142857142855
 }
-2021-09-25 09:48:31,153 [INFO] Finished bench
+2021-10-16 18:25:57,691 [INFO] Finished bench
