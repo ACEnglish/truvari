@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 RUN apt-get -qq update && apt-get install -yq \
   python3-pip \
   python3-dev \
+  curl \
   && \
   rm -rf /var/lib/apt/lists/*
 
