@@ -694,7 +694,3 @@ def bench_main(cmdargs):
         make_giabreport(args, shared_space.outputs["stats_box"])
 
     logging.info("Finished bench")
-
-
-if __name__ == '__main__':
-    main(sys.argv[1:])
