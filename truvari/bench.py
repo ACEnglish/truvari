@@ -436,6 +436,12 @@ def build_match(base, comp):
                       str(base), str(comp))
         state = False
 
+    bstart, bend = truvari.entry_boundaries(base)
+    cstart, cend = truvari.entry_coundaries(comp)
+    if not truvari.overlaps(bstart - args.refdist, bend + args.refdist, cstart, cend):
+        logging.debug("%s and %s are not within REFDIST", str(base), str(comp))
+        state = False
+
     size_similarity, size_diff = truvari.entry_size_similarity(base, comp)
     if size_similarity < args.pctsize:
         logging.debug("%s and %s size similarity is too low (%.3f)",
