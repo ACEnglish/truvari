@@ -11,6 +11,7 @@ methods:
 :meth:`create_pos_haplotype`
 :meth:`entry_boundaries`
 :meth:`entry_create_haplotype`
+:meth:`entry_distance`
 :meth:`entry_gt_comp`
 :meth:`entry_is_present`
 :meth:`entry_pctsim`
@@ -102,6 +103,7 @@ from truvari.comparisons import (
     create_pos_haplotype,
     entry_boundaries,
     entry_create_haplotype,
+    entry_distance,
     entry_gt_comp,
     entry_is_present,
     entry_pctsim,
