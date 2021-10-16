@@ -1,3 +1,7 @@
+"""
+Structural variant caller comparison tool
+Given a benchmark and callset, calculate the recall/precision/f-measure
+"""
 import os
 import sys
 import copy
@@ -6,14 +10,15 @@ import types
 import logging
 import argparse
 import itertools
-import multiprocessing
 
 from functools import total_ordering
-from collections import defaultdict, Counter, OrderedDict
+from collections import defaultdict, OrderedDict
 
 import pysam
-import truvari
 import numpy as np
+
+import truvari
+from truvari.giab_report import make_giabreport
 
 shared_space = types.SimpleNamespace()
 
@@ -235,12 +240,11 @@ def edit_header(my_vcf):
                      'Description="Difference in size(basecall) and size(evalcall)">'))
     header.add_line(('##INFO=<ID=GTMatch,Number=0,Type=Flag,'
                      'Description="Base/Comparison Genotypes match">'))
-    header.add_line(('##INFO=<ID=NumNeighbors,Number=1,Type=Integer,'
-                     'Description="Number of calls in B that were in the neighborhood (REFDIST) of this call">'))
-    header.add_line(('##INFO=<ID=NumThresholdNeighbors,Number=1,Type=Integer,'
-                     'Description="Number of calls in B that are within threshold distances of this call">'))
     header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
+    if not shared_space.args.multimatch:
+        header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
+                        'Description="Call is false due to non-multimatching">'))
     return header
 
 
@@ -282,8 +286,13 @@ def setup_outputs(args):
 
 # How MATCHRESULT should look now
 @total_ordering
-class MatchResult():
-    def __init__(self, base, comp, state, seqsim=None, sizesim=None, ovlpct=None, sizediff=None, st_dist=None, ed_dist=None, gt_match=None):
+class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-arguments
+    """
+    A base/comp match holder
+    """
+
+    def __init__(self, base, comp, state, seqsim=None, sizesim=None, ovlpct=None,
+                 sizediff=None, st_dist=None, ed_dist=None, gt_match=None):
         self.base = base
         self.comp = comp
         self.seqsim = seqsim
@@ -298,6 +307,7 @@ class MatchResult():
             self.score = truvari.weighted_score(seqsim, sizesim, ovlpct)
         else:
             self.score = None
+        self.multi = False  # false until otherwise noted
 
     def __lt__(self, other):
         if self.state == other.state:
@@ -321,7 +331,7 @@ def file_zipper(*start_files):
     Each parameter is a tuple of ('key', 'fn')
     where key is the identifier (so we know which file the yielded entry came from)
     and fn is a VariantFile
-    yields key, pysam.VariantRecord 
+    yields key, pysam.VariantRecord
     """
     next_markers = []
     files = []
@@ -377,8 +387,7 @@ def chunker(*files):
             min_start = None
             max_end = None  # Gotta encounter a new SV to get a new prev_pos
 
-        # truvari.bench.filter_call
-        if not filter_call(entry, shared_space):
+        if not filter_call(entry, key == 'base'):
             if not cur_chrom:  # First call in chunk
                 cur_chrom = entry.chrom
                 min_start = entry.start
@@ -388,7 +397,14 @@ def chunker(*files):
 
 
 def filter_call(entry, base=False):
-    # put the args into a shared simple namespace
+    """
+    Returns True if the call should be filtered
+    Base has different filtering requirements, so let the method know
+    """
+    # See if it hits the regions, first
+    if not shared_space.bed.include(entry):
+        return True
+
     size = truvari.entry_size(entry)
     args = shared_space.args
     if base and size < args.sizemin or size > args.sizemax:
@@ -404,9 +420,6 @@ def filter_call(entry, base=False):
 
     if args.passonly and truvari.filter_value(entry):
         return True
-
-    if shared_space.bed and not shared_space.bed.include(entry):
-        return False
 
     return False
 
@@ -443,7 +456,7 @@ def build_match(base, comp):
         state = False
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim(base, comp, reference,
+        seq_similarity = truvari.entry_pctsim(base, comp, args.reference,
                                               args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
             logging.debug("%s and %s sequence similarity is too low (%.3ff)",
@@ -454,14 +467,13 @@ def build_match(base, comp):
 
     start_distance, end_distance = truvari.entry_distance(base, comp)
 
-    score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
-
     return MatchResult(base, comp, state, seq_similarity, size_similarity,
                        ovl_pct, size_diff, start_distance, end_distance, gt_match)
 
 
 def compare_chunk(chunk):
     """
+    Given a chunk, compare all of the calls
     """
     chrom, start, end = chunk
     base_vcf = shared_space.base
@@ -475,7 +487,7 @@ def compare_chunk(chunk):
     fns = []
     for b in base_vcf.fetch(chrom, start, end):
         base_matches = []
-        if filter_call(b):
+        if filter_call(b, True):
             continue
         for cid, c in enumerate(comp_vcf.fetch(chrom, start, end)):
             if cid in comp_ignores or filter_call(c):
@@ -501,55 +513,73 @@ def compare_chunk(chunk):
     match_matrix = np.array(match_matrix)
     ret = []
     if shared_space.args.multimatch:
-        for b_max in match_matrix.max(axis=1):
-            b_max = copy.copy(b_max)
-            b_max.comp = None
-            ret.append(b_max)
-
-        for c_max in match_matrix.max(axis=0):
-            c_max = copy.copy(c_max)
-            c_max.base = None
-            ret.append(c_max)
+        ret = pick_multi_matches(match_matrix)
     else:
-        # for each base, get its best match and record that the comp call can't be used anymore
-        # if there are more base than comp, then.. i don't know
-        logging.critical("i got a match matrix")
-        logging.critical("i'm trying to find the optimim set of matches")
-        logging.critical(match_matrix)
-        # I don't want to use a comp twice
-        used_comp = set()
-        for i in range(match_matrix.shape[0]):
-            row = sorted(match_matrix[i])
-            logging.critical(f'looking at row {row}')
-            logging.critical('- which should be bases')
-            pos = len(row) - 1
-            while pos >= 0 and str(row[pos].comp) in used_comp:
-                pos -= 1
-            # This base didn't have any comps left
-            if pos == -1:
-                to_process = copy.copy(row[0])
-                to_process.comp = None
-                to_process.state = False
-                to_process.multi = True
-                logging.critical(f"poor base didn't have any comps left {to_process}")
-            else:
-                to_process = copy.copy(row[pos])
-                logging.critical(f"base found a match {to_process}")
-                used_comp.add(str(to_process.comp))
-            ret.append(to_process)
-        if match_matrix.shape[0] < match_matrix.shape[1]:
+        ret = pick_single_matches(match_matrix)
+    return ret
 
-            logging.critical("For the remaining comp calls (if any)")
-            for i in range(match_matrix.shape[0], match_matrix.shape[1]):
-                row = sorted(match_matrix[:, i])
-                logging.critical(f"giving it every possibility {row}")
-                c_max = copy.copy(row[-1])
-                logging.critical(f'poping over {c_max}')
-                c_max.base = None
-                c_max.state = False
-                c_max.multi = True
-                ret.append(c_max)
-        # okay?
+
+def pick_multi_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    Pick each base/comp call's best match
+    """
+    ret = []
+    for b_max in match_matrix.max(axis=1):
+        b_max = copy.copy(b_max)
+        b_max.comp = None
+        ret.append(b_max)
+
+    for c_max in match_matrix.max(axis=0):
+        c_max = copy.copy(c_max)
+        c_max.base = None
+        ret.append(c_max)
+    return ret
+
+
+def pick_single_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    for each base, get its best match and record that the comp call can't be used anymore
+    Once all best pairs are found, return the remaining
+    """
+    ret = []
+    base_cnt, comp_cnt = match_matrix.shape
+    match_matrix = np.ravel(match_matrix)
+    match_matrix.sort()
+    used_comp = set()
+    used_base = set()
+    for match in match_matrix[::-1]:
+        # No more matches to find
+        if base_cnt == 0 and comp_cnt == 0:
+            break
+
+        base_is_used = str(match.base) in used_base
+        comp_is_used = str(match.comp) in used_comp
+        if base_cnt == 0 and not comp_is_used:  # Only pull the comp
+            to_process = copy.copy(match)
+            to_process.base = None
+            to_process.state = False
+            to_process.multi = True
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+        elif comp_cnt == 0 and not base_is_used:  # Only pull the base
+            to_process = copy.copy(match)
+            to_process.comp = None
+            to_process.state = False
+            to_process.multi = True
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            ret.append(to_process)
+        # A match
+        elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
     return ret
 
 
@@ -566,6 +596,8 @@ def annotate_entry(entry, match, header):
     entry.info["EndDistance"] = match.ed_dist
     entry.info["GTMatch"] = match.gt_match
     entry.info["TruScore"] = match.score
+    if not shared_space.args.multimatch:
+        entry.info["Multi"] = match.multi
     return entry
 
 
@@ -593,16 +625,18 @@ def output_writer(call):
             box["FN"] += 1
             outs["fn_out"].write(entry)
     if call.comp:
-        box["call cnt"] += 1
         entry = annotate_entry(call.comp, call, outs['n_comp_header'])
         if call.state:
+            box["call cnt"] += 1
             box["TP-call"] += 1
             outs["tpc_out"].write(entry)
             if call.gt_match:
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        else:
+        elif truvari.entry_size(entry) >= shared_space.args.sizemin:
+            # The if is because we don't count FPs between sizefilt-sizemin
+            box["call cnt"] += 1
             box["FP"] += 1
             outs["fp_out"].write(entry)
 
@@ -618,6 +652,9 @@ def close_outputs():
 
 
 def main(cmdargs):
+    """
+    Main
+    """
     args = parse_args(cmdargs)
 
     shared_space.args = args
@@ -625,10 +662,15 @@ def main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
+    if args.reference:
+        args.reference = pysam.Fastafile(args.reference)
+
     setup_outputs(args)
     shared_space.base = pysam.VariantFile(shared_space.args.base)
     shared_space.comp = pysam.VariantFile(shared_space.args.comp)
-    shared_space.bed = None
+    shared_space.bed = truvari.GenomeTree(shared_space.base,
+                                          shared_space.comp,
+                                          args.includebed, args.sizemax)
 
     chunks = chunker(('base', shared_space.base), ('comp', shared_space.comp))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
@@ -639,10 +681,14 @@ def main(cmdargs):
         box.calc_performance()
         fout.write(json.dumps(box, indent=4))
         logging.info("Stats: %s", json.dumps(box, indent=4))
+
+    close_outputs()
+
+    if args.giabreport:
+        make_giabreport(args, shared_space.outputs["stats_box"])
+
     logging.info("Finished bench")
 
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-# TODO:
-# MatchId
