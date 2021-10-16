@@ -437,7 +437,7 @@ def build_match(base, comp):
         state = False
 
     bstart, bend = truvari.entry_boundaries(base)
-    cstart, cend = truvari.entry_coundaries(comp)
+    cstart, cend = truvari.entry_boundaries(comp)
     if not truvari.overlaps(bstart - args.refdist, bend + args.refdist, cstart, cend):
         logging.debug("%s and %s are not within REFDIST", str(base), str(comp))
         state = False
