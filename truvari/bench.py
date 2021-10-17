@@ -23,7 +23,7 @@ from truvari.giab_report import make_giabreport
 shared_space = types.SimpleNamespace()
 
 @total_ordering
-class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-arguments
+class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
     A base/comp match holder
     """
@@ -67,6 +67,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-ar
 
 
 class Matcher():
+    """
+    Holds matching parameters. Allows calls to be checked for filtering and matches to be made
+    """
     def __init__(self, params=None, args=None):
         if args is not None:
             params = self.make_match_params_from_args(args)
@@ -321,7 +324,7 @@ def chunker(matcher, *files):
     Given a Matcher and multiple files,
     """
     cur_chrom = None
-    min_start = None
+    #min_start = None
     max_end = None
 
     cur_chunk = defaultdict(list)
@@ -332,13 +335,13 @@ def chunker(matcher, *files):
             yield matcher, cur_chunk
             cur_chunk = defaultdict(list)
             cur_chrom = None
-            min_start = None
+            #min_start = None
             max_end = None  # Gotta encounter a new SV to get a new prev_pos
 
         if not matcher.filter_call(entry, key == 'base'):
             if not cur_chrom:  # First call in chunk
                 cur_chrom = entry.chrom
-                min_start = entry.start
+                #min_start = entry.start
             max_end = entry.stop
             logging.debug(f"Adding to {key} -> {entry}")
             cur_chunk[key].append(entry)
@@ -736,7 +739,7 @@ def bench_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-    
+
     # Need to build the MatchParams
     # and I guess I can still use shared_space?? For outputs, mainly
     # So let's contain the outputs to just a section that's specific
@@ -744,16 +747,16 @@ def bench_main(cmdargs):
     if check_params(args) or check_inputs(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
-    
+
     # build the MatchParams
     if args.reference:
         shared_space.reference = pysam.Fastafile(args.reference)
-    
+
     # build_match needs to not make FPs less than sizefilt
     shared_space.sizemin = args.sizemin
     matcher = Matcher(args=args)
     setup_outputs(args)
-    
+
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
     matcher.params.includebed = truvari.GenomeTree(base,

@@ -11,6 +11,7 @@ import argparse
 from collections import defaultdict, OrderedDict
 
 import pysam
+from intervaltree import IntervalTree
 
 import truvari
 from truvari.giab_report import make_giabreport
@@ -500,6 +501,7 @@ def close_outputs(outputs):
     outputs["fn_out"].close()
     outputs["fp_out"].close()
 
+
 def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     """
     Build a dictionary of IntervalTree for intersection querying along with
@@ -526,8 +528,8 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
             n_entries += 1
             if passonly and "PASS" not in entry.filter:
                 continue
-            start, end = tcomp.entry_boundaries(entry)
-            sz = tcomp.entry_size(entry)
+            start, end = truvari.entry_boundaries(entry)
+            sz = truvari.entry_size(entry)
             if sz < sizemin or sz > sizemax:
                 continue
             cmp_entries += 1
@@ -539,6 +541,7 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
         sys.exit(100)
 
     return lookup, n_entries, cmp_entries
+
 
 def bench_main(cmdargs):  # pylint: disable=too-many-locals
     """
