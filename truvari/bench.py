@@ -2,18 +2,25 @@
 Structural variant caller comparison tool
 Given a benchmark and callset, calculate the recall/precision/f-measure
 """
-# pylint: disable=too-many-statements
 import os
 import sys
+import copy
 import json
+import types
 import logging
 import argparse
+import itertools
+
+from functools import total_ordering
 from collections import defaultdict, OrderedDict
 
 import pysam
+import numpy as np
 
 import truvari
 from truvari.giab_report import make_giabreport
+
+shared_space = types.SimpleNamespace()
 
 
 class StatsBox(OrderedDict):
@@ -38,7 +45,7 @@ class StatsBox(OrderedDict):
         self["TP-base_FP-gt"] = 0
         self["gt_concordance"] = 0
 
-    def calc_performance(self, peek=False):
+    def calc_performance(self):
         """
         Calculate the precision/recall
         """
@@ -49,11 +56,8 @@ class StatsBox(OrderedDict):
         elif self["TP-call"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
             do_stats_math = False
-        elif peek:
-            logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
-                         100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
-        if peek:
-            return
+        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
+                     100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
 
         # Final calculations
         if do_stats_math:
@@ -110,6 +114,8 @@ def parse_args(args):
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",
                         help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
+    thresg.add_argument("-C", "--chunksize", type=int, default=None,
+                        help="Max reference distance to compare calls (2 x refdist)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--gtcomp", action="store_true", default=False,
@@ -139,53 +145,11 @@ def parse_args(args):
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
         parser.error("--reference is required when --pctsim is set")
-
+    if args.chunksize is None:
+        args.chunksize = 2 * args.refdist
+    if args.chunksize < args.refdist:
+        parser.error("--chunksize must be >= --refdist")
     return args
-
-
-def edit_header(my_vcf):
-    """
-    Add INFO for new fields to vcf
-    #Probably want to put in the PG whatever, too
-    """
-    # Update header
-    # Edit Header
-    header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
-                     'Description="Truvari score for similarity of match">'))
-    header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
-                     'Description="Pct sequence similarity between this variant and its closest match">'))
-    header.add_line(('##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,'
-                     'Description="Pct size similarity between this variant and its closest match">'))
-    header.add_line(('##INFO=<ID=PctRecOverlap,Number=1,Type=Float,'
-                     'Description="Percent reciprocal overlap percent of the two calls\' coordinates">'))
-    header.add_line(('##INFO=<ID=StartDistance,Number=1,Type=Integer,'
-                     'Description="Distance of this call\'s start from comparison call\'s start">'))
-    header.add_line(('##INFO=<ID=EndDistance,Number=1,Type=Integer,'
-                     'Description="Distance of this call\'s start from comparison call\'s start">'))
-    header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
-                     'Description="Difference in size(basecall) and size(evalcall)">'))
-    header.add_line(('##INFO=<ID=NumNeighbors,Number=1,Type=Integer,'
-                     'Description="Number of calls in B that were in the neighborhood (REFDIST) of this call">'))
-    header.add_line(('##INFO=<ID=NumThresholdNeighbors,Number=1,Type=Integer,'
-                     'Description="Number of calls in B that are within threshold distances of this call">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
-                     'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
-    return header
-
-
-def annotate_tp(entry, match_result):
-    """
-    Add the matching annotations to a vcf entry
-    match_score, match_pctsim, match_pctsize, match_ovlpct, match_szdiff, \
-                    match_stdist, match_endist, match_entry
-    """
-    entry.info["PctSeqSimilarity"] = match_result.seq_similarity
-    entry.info["PctSizeSimilarity"] = match_result.size_similarity
-    entry.info["PctRecOverlap"] = match_result.ovl_pct
-    entry.info["SizeDiff"] = match_result.size_diff
-    entry.info["StartDistance"] = match_result.start_distance
-    entry.info["EndDistance"] = match_result.end_distance
 
 
 def check_params(args):
@@ -252,6 +216,38 @@ def check_inputs(args):
     return check_fail
 
 
+def edit_header(my_vcf):
+    """
+    Add INFO for new fields to vcf
+    #Probably want to put in the PG whatever, too
+    """
+    # Update header
+    # Edit Header
+    header = my_vcf.header.copy()
+    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
+                     'Description="Truvari score for similarity of match">'))
+    header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
+                     'Description="Pct sequence similarity between this variant and its closest match">'))
+    header.add_line(('##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,'
+                     'Description="Pct size similarity between this variant and its closest match">'))
+    header.add_line(('##INFO=<ID=PctRecOverlap,Number=1,Type=Float,'
+                     'Description="Percent reciprocal overlap percent of the two calls\' coordinates">'))
+    header.add_line(('##INFO=<ID=StartDistance,Number=1,Type=Integer,'
+                     'Description="Distance of this call\'s start from comparison call\'s start">'))
+    header.add_line(('##INFO=<ID=EndDistance,Number=1,Type=Integer,'
+                     'Description="Distance of this call\'s start from comparison call\'s start">'))
+    header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
+                     'Description="Difference in size(basecall) and size(evalcall)">'))
+    header.add_line(('##INFO=<ID=GTMatch,Number=0,Type=Flag,'
+                     'Description="Base/Comparison Genotypes match">'))
+    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
+                     'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
+    if not shared_space.args.multimatch:
+        header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
+                        'Description="Call is false due to non-multimatching">'))
+    return header
+
+
 def setup_outputs(args):
     """
     Makes all of the output files
@@ -262,366 +258,439 @@ def setup_outputs(args):
         os.path.join(args.output, "log.txt")))
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
     logging.info(f"Truvari version: {truvari.__version__}")
-    outputs = {}
+    shared_space.outputs = {}
 
-    outputs["vcf_base"] = pysam.VariantFile(args.base)
-    outputs["n_base_header"] = edit_header(outputs["vcf_base"])
-    outputs["sampleBase"] = args.bSample if args.bSample else outputs["vcf_base"].header.samples[0]
+    shared_space.outputs["vcf_base"] = pysam.VariantFile(args.base)
+    shared_space.outputs["n_base_header"] = edit_header(
+        shared_space.outputs["vcf_base"])
+    shared_space.outputs["sampleBase"] = args.bSample if args.bSample else shared_space.outputs["vcf_base"].header.samples[0]
 
-    outputs["vcf_comp"] = pysam.VariantFile(args.comp)
-    outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
-    outputs["sampleComp"] = args.cSample if args.cSample else outputs["vcf_comp"].header.samples[0]
+    shared_space.outputs["vcf_comp"] = pysam.VariantFile(args.comp)
+    shared_space.outputs["n_comp_header"] = edit_header(
+        shared_space.outputs["vcf_comp"])
+    shared_space.outputs["sampleComp"] = args.cSample if args.cSample else shared_space.outputs["vcf_comp"].header.samples[0]
 
     # Setup outputs
-    outputs["tpb_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
-    outputs["tpc_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-call.vcf"), 'w', header=outputs["n_comp_header"])
+    shared_space.outputs["tpb_out"] = pysam.VariantFile(os.path.join(
+        args.output, "tp-base.vcf"), 'w', header=shared_space.outputs["n_base_header"])
+    shared_space.outputs["tpc_out"] = pysam.VariantFile(os.path.join(
+        args.output, "tp-call.vcf"), 'w', header=shared_space.outputs["n_comp_header"])
 
-    outputs["fn_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fn.vcf"), 'w', header=outputs["n_base_header"])
-    outputs["fp_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fp.vcf"), 'w', header=outputs["n_comp_header"])
+    shared_space.outputs["fn_out"] = pysam.VariantFile(os.path.join(
+        args.output, "fn.vcf"), 'w', header=shared_space.outputs["n_base_header"])
+    shared_space.outputs["fp_out"] = pysam.VariantFile(os.path.join(
+        args.output, "fp.vcf"), 'w', header=shared_space.outputs["n_comp_header"])
 
-    outputs["stats_box"] = StatsBox()
-
-    return outputs
+    shared_space.outputs["stats_box"] = StatsBox()
 
 
-def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=True):
+# How MATCHRESULT should look now
+@total_ordering
+class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-arguments
     """
-    Given an entry, the parse_args arguments, and the entry's size
-    check if it should be excluded from further analysis
+    A base/comp match holder
     """
-    prefix = "base " if base else "call "
-    if sizeA < sizemin or sizeA > sizemax:
+
+    def __init__(self, base, comp, state, seqsim=None, sizesim=None, ovlpct=None,
+                 sizediff=None, st_dist=None, ed_dist=None, gt_match=None):
+        self.base = base
+        self.comp = comp
+        self.seqsim = seqsim
+        self.sizesim = sizesim
+        self.ovlpct = ovlpct
+        self.sizediff = sizediff
+        self.st_dist = st_dist
+        self.ed_dist = ed_dist
+        self.gt_match = gt_match
+        self.state = state
+        if None not in [seqsim, sizesim, ovlpct]:
+            self.score = truvari.weighted_score(seqsim, sizesim, ovlpct)
+        else:
+            self.score = None
+        self.multi = False  # false until otherwise noted
+
+    def __lt__(self, other):
+        if self.state == other.state:
+            return self.score < other.score
+        return self.state < other.state
+
+    def __eq__(self, other):
+        return self.state == other.state and self.score == other.score
+
+    def __repr__(self):
+        return f'<{self.score} {self.state} {self.base.chrom}:{self.base.pos}->{self.comp.chrom}:{self.comp.pos}>'
+
+    def __str__(self):
+        return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
+
+
+def file_zipper(*start_files):
+    """
+    Zip files to yield the entries in order.
+    Files must be sorted
+    Each parameter is a tuple of ('key', 'fn')
+    where key is the identifier (so we know which file the yielded entry came from)
+    and fn is a VariantFile
+    yields key, pysam.VariantRecord
+    """
+    next_markers = []
+    files = []
+    names = []
+    for name, i in start_files:
+        try:
+            next_markers.append(next(i))
+            files.append(i)
+            names.append(name)
+        except StopIteration:
+            # For when there are no variants in the file
+            pass
+
+    while next_markers:
+        sidx = 0
+        while not next_markers[sidx]:
+            sidx += 1
+        if sidx == len(files):
+            return None
+        for idx, i in enumerate(next_markers):
+            if idx == sidx:
+                continue
+            if i.start < next_markers[sidx].start:
+                sidx = idx
+        entry = next_markers[sidx]
+        key = names[sidx]
+        try:
+            next_markers[sidx] = next(files[sidx])
+        except StopIteration:
+            # This file is done
+            files.pop(sidx)
+            names.pop(sidx)
+            next_markers.pop(sidx)
+        yield key, entry
+
+
+def chunker(*files):
+    """
+    So the chunker is going to need to know how to filer the calls
+    """
+    cur_chrom = None
+    min_start = None
+    max_end = None
+
+    cur_chunk = defaultdict(list)
+    for key, entry in file_zipper(*files):
+        new_chunk = max_end and max_end + shared_space.args.chunksize < entry.start
+        new_chrom = cur_chrom and entry.chrom != cur_chrom
+        if new_chunk or new_chrom:
+            yield cur_chrom, min_start, max_end
+            cur_chunk = defaultdict(list)
+            cur_chrom = None
+            min_start = None
+            max_end = None  # Gotta encounter a new SV to get a new prev_pos
+
+        if not filter_call(entry, key == 'base'):
+            if not cur_chrom:  # First call in chunk
+                cur_chrom = entry.chrom
+                min_start = entry.start
+            max_end = entry.stop
+            cur_chunk[key].append(str(entry))
+    return cur_chrom, min_start, max_end
+
+
+def filter_call(entry, base=False):
+    """
+    Returns True if the call should be filtered
+    Base has different filtering requirements, so let the method know
+    """
+    # See if it hits the regions, first
+    if not shared_space.bed.include(entry):
         return True
 
-    samp = outputs["sampleBase"] if base else outputs["sampleComp"]
-    if no_ref in ["a", prefix[0]] and not truvari.entry_is_present(entry, samp):
+    size = truvari.entry_size(entry)
+    args = shared_space.args
+    if base and size < args.sizemin or size > args.sizemax:
         return True
 
-    if passonly and truvari.filter_value(entry):
-        logging.debug("%s variant has no PASS FILTER and is being excluded from comparison - %s",
-                      prefix, entry)
+    if not base and size < args.sizefilt or size > args.sizemax:
         return True
+
+    samp = shared_space.outputs["sampleBase"] if base else shared_space.outputs["sampleComp"]
+    prefix = 'b' if base else 'c'
+    if args.no_ref in ["a", prefix] and not truvari.entry_is_present(entry, samp):
+        return True
+
+    if args.passonly and truvari.filter_value(entry):
+        return True
+
     return False
 
 
-def write_fn(base_entry, outputs):
+def build_match(base, comp):
     """
-    Write an entry to the false_negative output
+    Build a MATCHRESULT
+    Which should be .annotate - able
     """
-    # No overlaps, don't even bother checking
-    n_base_entry = truvari.copy_entry(base_entry, outputs["n_base_header"])
-    n_base_entry.info["NumNeighbors"] = 0
-    n_base_entry.info["NumThresholdNeighbors"] = 0
-    outputs["stats_box"]["FN"] += 1
-    outputs["fn_out"].write(n_base_entry)
-
-
-def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, reference, args, outputs):  # pylint: disable=too-many-return-statements
-    """
-    Compare the base and comp entries.
-    We provied astart...sizeA because we've presumably calculated it before
-    Note - This is the crucial component of matching.. so needs to be better
-    pulled apart for reusability and put into comparisons
-    """
-    if sizeB < args.sizefilt:
-        return False
-
-    # Double ensure OVERLAP - there's a weird edge case where fetch with
-    # the interval tree can return non-overlaps
-    bstart, bend = truvari.entry_boundaries(comp_entry)
-    if not truvari.overlaps(astart - args.refdist, aend + args.refdist, bstart, bend):
-        return False
-
-    if not regions.include(comp_entry):
-        return False
-
-    # Someone in the Base call's neighborhood, we'll see if it passes comparisons
-
-    if args.no_ref in ["a", "c"] and not truvari.entry_is_present(comp_entry, outputs["sampleComp"]):
-        logging.debug("%s is uncalled", comp_entry)
-        return True
-
-    if args.gtcomp and not truvari.entry_gt_comp(base_entry, comp_entry, outputs["sampleBase"], outputs["sampleComp"]):
-        logging.debug("%s and %s are not the same genotype",
-                      str(base_entry), str(comp_entry))
-        return True
-
-    if not args.typeignore and not truvari.entry_same_variant_type(base_entry, comp_entry):
+    state = True
+    args = shared_space.args
+    if not args.typeignore and not truvari.entry_same_variant_type(base, comp):
         logging.debug("%s and %s are not the same SVTYPE",
-                      str(base_entry), str(comp_entry))
-        return True
+                      str(base), str(comp))
+        state = False
 
-    size_similarity, size_diff = truvari.sizesim(sizeA, sizeB)
+    bstart, bend = truvari.entry_boundaries(base)
+    cstart, cend = truvari.entry_boundaries(comp)
+    if not truvari.overlaps(bstart - args.refdist, bend + args.refdist, cstart, cend):
+        logging.debug("%s and %s are not within REFDIST", str(base), str(comp))
+        state = False
+
+    size_similarity, size_diff = truvari.entry_size_similarity(base, comp)
     if size_similarity < args.pctsize:
-        logging.debug("%s and %s size similarity is too low (%f)", str(base_entry),
-                      str(comp_entry), size_similarity)
-        return True
+        logging.debug("%s and %s size similarity is too low (%.3f)",
+                      str(base), str(comp), size_similarity)
+        state = False
 
-    ovl_pct = truvari.reciprocal_overlap(astart, aend, bstart, bend)
-    if truvari.entry_variant_type(base_entry) == "DEL" and ovl_pct < args.pctovl:
-        logging.debug("%s and %s overlap percent is too low (%f)",
-                      str(base_entry), str(comp_entry), ovl_pct)
-        return True
+    gt_match = truvari.entry_gt_comp(
+        base, comp, shared_space.outputs["sampleBase"], shared_space.outputs["sampleComp"])
+    if args.gtcomp and not gt_match:
+        logging.debug("%s and %s are not the same genotype",
+                      str(base), str(comp))
+        state = False
+
+    ovl_pct = truvari.entry_reciprocal_overlap(base, comp)
+    if truvari.entry_variant_type(base) == "DEL" and ovl_pct < args.pctovl:
+        logging.debug("%s and %s overlap percent is too low (%.3f)",
+                      str(base), str(comp), ovl_pct)
+        state = False
 
     if args.pctsim > 0:
-        seq_similarity = truvari.entry_pctsim(
-            base_entry, comp_entry, reference, args.buffer, args.use_lev)
+        seq_similarity = truvari.entry_pctsim(base, comp, shared_space.reference,
+                                              args.buffer, args.use_lev)
         if seq_similarity < args.pctsim:
-            logging.debug("%s and %s sequence similarity is too low (%f)", str(
-                base_entry), str(comp_entry), seq_similarity)
-            return True
+            logging.debug("%s and %s sequence similarity is too low (%.3ff)",
+                          str(base), str(comp), seq_similarity)
+            state = False
     else:
         seq_similarity = 0
 
-    start_distance = astart - bstart
-    end_distance = aend - bend
+    start_distance, end_distance = truvari.entry_distance(base, comp)
 
-    score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
-
-    return truvari.MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
-                               start_distance, end_distance, comp_entry)
+    return MatchResult(base, comp, state, seq_similarity, size_similarity,
+                       ovl_pct, size_diff, start_distance, end_distance, gt_match)
 
 
-def output_base_match(base_entry, num_neighbors, thresh_neighbors, myid, matched_calls, outputs):
+def compare_chunk(chunk):
     """
-    Writes a base call after it has gone through matching
+    Given a chunk, compare all of the calls
     """
-    base_entry = truvari.copy_entry(base_entry, outputs["n_base_header"])
-    base_entry.info["NumNeighbors"] = num_neighbors
-    base_entry.info["NumThresholdNeighbors"] = len(thresh_neighbors)
-    base_entry.info["MatchId"] = myid
+    chrom, start, end = chunk
+    base_vcf = shared_space.base
+    comp_vcf = shared_space.comp
 
-    if len(thresh_neighbors) == 0:
-        # False negative
-        outputs["stats_box"]["FN"] += 1
-        outputs["fn_out"].write(base_entry)
-        return
+    # Save some time by figuring out comp calls to ignore due to filtering after first pass
+    comp_ignores = set()
 
-    logging.debug("Picking from candidate matches:\n%s",
-                  "\n".join([str(x) for x in thresh_neighbors]))
-    truvari.match_sorter(thresh_neighbors)
-    logging.debug("Best match is %s", str(thresh_neighbors[0].score))
-    base_entry.info["TruScore"] = thresh_neighbors[0].score
-
-    annotate_tp(base_entry, thresh_neighbors[0])
-    outputs["tpb_out"].write(base_entry)
-
-    # Don't double count calls found before
-    b_key = truvari.entry_to_key('b', base_entry)
-    if not matched_calls[b_key]:
-        # Interesting...
-        outputs["stats_box"]["TP-base"] += 1
-        if truvari.entry_gt_comp(base_entry, thresh_neighbors[0].match_entry, outputs["sampleBase"], outputs["sampleComp"]):
-            outputs["stats_box"]["TP-base_TP-gt"] += 1
-        else:
-            outputs["stats_box"]["TP-base_FP-gt"] += 1
-    # Mark the call for multimatch checking
-    matched_calls[b_key] = True
-
-
-def report_best_match(base_entry, num_neighbors, thresh_neighbors, myid, matched_calls, outputs, args):
-    """
-    Pick and record the best base_entry
-    """
-    output_base_match(base_entry, num_neighbors,
-                      thresh_neighbors, myid, matched_calls, outputs)
-
-    # Work through the comp calls
-    for neigh in thresh_neighbors:
-        # Multimatch checking
-        c_key = truvari.entry_to_key('c', neigh.match_entry)
-        if not matched_calls[c_key]:  # unmatched
-            outputs["stats_box"]["TP-call"] += 1
-            if truvari.entry_gt_comp(base_entry, neigh.match_entry, outputs["sampleBase"], outputs["sampleComp"]):
-                outputs["stats_box"]["TP-call_TP-gt"] += 1
-            else:
-                outputs["stats_box"]["TP-call_FP-gt"] += 1
-        elif not args.multimatch:
-            # Used this one and it can't multimatch
+    # Build all v all matrix
+    match_matrix = []
+    fns = []
+    for b in base_vcf.fetch(chrom, start, end):
+        base_matches = []
+        if filter_call(b, True):
             continue
+        for cid, c in enumerate(comp_vcf.fetch(chrom, start, end)):
+            if cid in comp_ignores or filter_call(c):
+                comp_ignores.add(cid)
+                continue
+            mat = build_match(b, c)
+            base_matches.append(mat)
+        if not base_matches:  # All FNs
+            fns.append(MatchResult(b, None, False))
+        else:
+            match_matrix.append(base_matches)
 
-        logging.debug("Matching %s and %s", str(
-            base_entry), str(neigh.match_entry))
-        match_entry = truvari.copy_entry(
-            neigh.match_entry, outputs["n_comp_header"])
-        match_entry.info["TruScore"] = neigh.score
-        match_entry.info["NumNeighbors"] = num_neighbors
-        match_entry.info["NumThresholdNeighbors"] = len(thresh_neighbors)
-        match_entry.info["MatchId"] = myid
-        annotate_tp(match_entry, neigh)
-        outputs["tpc_out"].write(match_entry)
+    # need to iterate the comp again and make them all FPs
+    if not match_matrix:
+        fps = []
+        for cid, c in enumerate(comp_vcf.fetch(chrom, start, end)):
+            if filter_call(c):
+                continue
+            fps.append(MatchResult(None, c, False))
+        return fps + fns
 
-        # Mark the call for multimatch checking
-        matched_calls[c_key] = True
-        if not args.multimatch:  # We're done here
+    # Sort and annotate matches
+    match_matrix = np.array(match_matrix)
+    ret = []
+    if shared_space.args.multimatch:
+        ret = pick_multi_matches(match_matrix)
+    else:
+        ret = pick_single_matches(match_matrix)
+    return ret
+
+
+def pick_multi_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    Pick each base/comp call's best match
+    """
+    ret = []
+    for b_max in match_matrix.max(axis=1):
+        b_max = copy.copy(b_max)
+        b_max.comp = None
+        ret.append(b_max)
+
+    for c_max in match_matrix.max(axis=0):
+        c_max = copy.copy(c_max)
+        c_max.base = None
+        ret.append(c_max)
+    return ret
+
+
+def pick_single_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    for each base, get its best match and record that the comp call can't be used anymore
+    Once all best pairs are found, return the remaining
+    """
+    ret = []
+    base_cnt, comp_cnt = match_matrix.shape
+    match_matrix = np.ravel(match_matrix)
+    match_matrix.sort()
+    used_comp = set()
+    used_base = set()
+    for match in match_matrix[::-1]:
+        # No more matches to find
+        if base_cnt == 0 and comp_cnt == 0:
             break
 
+        base_is_used = str(match.base) in used_base
+        comp_is_used = str(match.comp) in used_comp
+        if base_cnt == 0 and not comp_is_used:  # Only pull the comp
+            to_process = copy.copy(match)
+            to_process.base = None
+            to_process.state = False
+            to_process.multi = True
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+        elif comp_cnt == 0 and not base_is_used:  # Only pull the base
+            to_process = copy.copy(match)
+            to_process.comp = None
+            to_process.state = False
+            to_process.multi = True
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            ret.append(to_process)
+        # A match
+        elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+    return ret
 
-def parse_fps(matched_calls, tot_comp_entries, regions, args, outputs):
+
+def annotate_entry(entry, match, header):
     """
-    Report all the false-positives and comp filered calls
+    Make a new entry with all the information
     """
-    if args.prog:
-        pbar = truvari.setup_progressbar(tot_comp_entries)
-
-    # Reset
-    vcf_comp = pysam.VariantFile(args.comp)
-    for cnt, entry in enumerate(regions.iterate(vcf_comp)):
-        # Here
-        if args.prog:
-            pbar.update(cnt + 1)
-
-        size = truvari.entry_size(entry)
-        if filter_call(entry, size, args.sizemin, args.sizemax, args.no_ref, args.passonly, outputs, False):
-            continue
-
-        if matched_calls[truvari.entry_to_key('c', entry)]:
-            continue
-
-        if regions.include(entry):
-            outputs["fp_out"].write(truvari.copy_entry(
-                entry, outputs["n_comp_header"]))
-            outputs["stats_box"]["FP"] += 1
-
-    if args.prog:
-        pbar.finish()
+    entry = truvari.copy_entry(entry, header)
+    entry.info["PctSeqSimilarity"] = match.seqsim
+    entry.info["PctSizeSimilarity"] = match.sizesim
+    entry.info["PctRecOverlap"] = match.ovlpct
+    entry.info["SizeDiff"] = match.sizediff
+    entry.info["StartDistance"] = match.st_dist
+    entry.info["EndDistance"] = match.ed_dist
+    entry.info["GTMatch"] = match.gt_match
+    entry.info["TruScore"] = match.score
+    if not shared_space.args.multimatch:
+        entry.info["Multi"] = match.multi
+    return entry
 
 
-def close_outputs(outputs):
+def output_writer(call):
+    """
+    Given a call or match result or something
+    write it to the appropriate file
+    This will need to figure out where its going
+    Can also call annotate here, I reckon
+    And I'll deal with the stats box
+    """
+    outs = shared_space.outputs
+    box = shared_space.outputs["stats_box"]
+    if call.base:
+        box["base cnt"] += 1
+        entry = annotate_entry(call.base, call, outs['n_base_header'])
+        if call.state:
+            box["TP-base"] += 1
+            outs["tpb_out"].write(entry)
+            if call.gt_match:
+                box["TP-base_TP-gt"] += 1
+            else:
+                box["TP-base_FP-gt"] += 1
+        else:
+            box["FN"] += 1
+            outs["fn_out"].write(entry)
+    if call.comp:
+        entry = annotate_entry(call.comp, call, outs['n_comp_header'])
+        if call.state:
+            box["call cnt"] += 1
+            box["TP-call"] += 1
+            outs["tpc_out"].write(entry)
+            if call.gt_match:
+                box["TP-call_TP-gt"] += 1
+            else:
+                box["TP-call_FP-gt"] += 1
+        elif truvari.entry_size(entry) >= shared_space.args.sizemin:
+            # The if is because we don't count FPs between sizefilt-sizemin
+            box["call cnt"] += 1
+            box["FP"] += 1
+            outs["fp_out"].write(entry)
+
+
+def close_outputs():
     """
     Close all the files
     """
-    outputs["tpb_out"].close()
-    outputs["tpc_out"].close()
-    outputs["fn_out"].close()
-    outputs["fp_out"].close()
+    shared_space.outputs["tpb_out"].close()
+    shared_space.outputs["tpc_out"].close()
+    shared_space.outputs["fn_out"].close()
+    shared_space.outputs["fp_out"].close()
 
 
-def bench_main(cmdargs):  # pylint: disable=too-many-locals
+def bench_main(cmdargs):
     """
-    Main entry point for running Truvari Benchmarking
+    Main
     """
     args = parse_args(cmdargs)
 
+    shared_space.args = args
     if check_params(args) or check_inputs(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    # We can now 'safely' perform everything
-    outputs = setup_outputs(args)
-    reference = pysam.FastaFile(args.reference) if args.reference else None
+    if args.reference:
+        shared_space.reference = pysam.Fastafile(args.reference)
 
-    logging.info("Creating call interval tree for overlap search")
-    regions = truvari.GenomeTree(
-        outputs["vcf_base"], outputs["vcf_comp"], args.includebed, args.sizemax)
-    span_lookup, tot_comp_entries, cmp_entries = truvari.make_interval_tree(
-        regions.iterate(outputs["vcf_comp"]), args.sizefilt, args.sizemax, args.passonly)
-    logging.info("%d call variants in total", tot_comp_entries)
-    logging.info("%d call variants within size range (%d, %d)",
-                 cmp_entries, args.sizefilt, args.sizemax)
+    setup_outputs(args)
+    shared_space.base = pysam.VariantFile(shared_space.args.base)
+    shared_space.comp = pysam.VariantFile(shared_space.args.comp)
+    shared_space.bed = truvari.GenomeTree(shared_space.base,
+                                          shared_space.comp,
+                                          args.includebed, args.sizemax)
 
-    num_entries = 0
-    pbar = None
-    if args.prog:
-        for _ in regions.iterate(outputs["vcf_base"]):
-            num_entries += 1
-        logging.info("%s base variants", num_entries)
-        pbar = truvari.setup_progressbar(num_entries)
+    chunks = chunker(('base', shared_space.base), ('comp', shared_space.comp))
+    for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        output_writer(call)
 
-    # Reset
-    outputs["vcf_base"] = pysam.VariantFile(args.base, 'r')
-    outputs["n_base_header"] = edit_header(outputs["vcf_base"])
-    outputs["vcf_comp"] = pysam.VariantFile(args.comp)
-    outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
-
-    # Calls that have been matched up
-    matched_calls = defaultdict(bool)
-
-    # for variant in base - do filtering on it and then try to match it to comp
-    logging.info("Matching base to calls")
-    for pbarcnt, base_entry in enumerate(regions.iterate(outputs["vcf_base"])):
-        if args.prog:
-            pbar.update(pbarcnt)
-
-        sizeA = truvari.entry_size(base_entry)
-
-        if filter_call(base_entry, sizeA, args.sizemin, args.sizemax, args.no_ref, args.passonly, outputs, True):
-            continue
-
-        outputs["stats_box"]["base cnt"] += 1
-
-        fetch_start, fetch_end = truvari.fetch_coords(
-            span_lookup, base_entry, args.refdist)
-        # No overlaps, don't even bother checking
-        if fetch_start is None and fetch_end is None:
-            write_fn(base_entry, outputs)
-            continue
-
-        # IntervalTree can give boundaries past REFDIST in the case of Inversions where start>end
-        # We still need to fetch on the expanded boundaries so we can test them, but
-        # we need to filter calls that otherwise shouldn't be considered
-        # see the bstart/bend below
-        astart, aend = truvari.entry_boundaries(base_entry)
-
-        # Search for comparison vcf entries as potential matches
-        thresh_neighbors = []
-        num_neighbors = 0
-
-        # +- 1 just to be safe because why not
-        for comp_entry in outputs["vcf_comp"].fetch(base_entry.chrom, max(0, fetch_start - 1), fetch_end + 1):
-            sizeB = truvari.entry_size(comp_entry)
-            if filter_call(comp_entry, sizeB, args.sizefilt, args.sizemax, args.no_ref, args.passonly, outputs, False):
-                continue
-
-            # There is a race condition here that could potentially mismatch things
-            # If base1 passes matching call1 and then base2 passes matching call1
-            # better, it can't use it and we mismatch
-            # UPDATE: by default we don't enforce one-match
-            logging.debug("Comparing %s %s", str(base_entry), str(comp_entry))
-            if not args.multimatch and matched_calls[truvari.entry_to_key('c', comp_entry)]:
-                logging.debug(
-                    "No match because comparison call already matched")
-                continue
-            mat = match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions,
-                              reference, args, outputs)
-            if mat:
-                num_neighbors += 1
-            else:
-                continue
-            if isinstance(mat, bool):
-                continue
-            thresh_neighbors.append(mat)
-
-        # Finished with this base entry
-        report_best_match(base_entry, num_neighbors,
-                          thresh_neighbors, pbarcnt, matched_calls, outputs, args)
-
-    if args.prog:
-        pbar.finish()
-
-    outputs["stats_box"].calc_performance(True)
-
-    logging.info("Parsing FPs from calls")
-    parse_fps(matched_calls, tot_comp_entries, regions, args, outputs)
-
-    # call count is just of those used were used
-    outputs["stats_box"]["call cnt"] = outputs["stats_box"]["TP-base"] + \
-        outputs["stats_box"]["FP"]
-
-    # Close to flush vcfs
-    close_outputs(outputs)
-
-    # make stats
-    outputs["stats_box"].calc_performance(False)
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
-        fout.write(json.dumps(outputs["stats_box"], indent=4))
-        logging.info("Stats: %s", json.dumps(outputs["stats_box"], indent=4))
+        box = shared_space.outputs["stats_box"]
+        box.calc_performance()
+        fout.write(json.dumps(box, indent=4))
+        logging.info("Stats: %s", json.dumps(box, indent=4))
+
+    close_outputs()
 
     if args.giabreport:
-        make_giabreport(args, outputs["stats_box"])
+        make_giabreport(args, shared_space.outputs["stats_box"])
 
     logging.info("Finished bench")

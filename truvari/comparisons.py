@@ -73,6 +73,13 @@ def sizesim(sizeA, sizeB):
     """
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
+def entry_distance(entryA, entryB):
+    """
+    Calculate the start and end distances of the pair
+    """
+    astart, aend = entry_boundaries(entryA)
+    bstart, bend = entry_boundaries(entryB)
+    return astart - bstart, aend - bend
 
 def entry_size_similarity(entryA, entryB):
     """
