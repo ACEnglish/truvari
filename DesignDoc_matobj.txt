@@ -3,6 +3,7 @@ Objects:
 MatchParams() # dict
     This will have all the defaults
     And users can customize this however they want
+	Ended up just hiding this inside of Matcher
 
 Matcher(params=MatchParams())
     This thing will hold all the matching thresholds
@@ -40,14 +41,17 @@ How does the affect the current code?
     Though I kinda want to put filter_call inside of this also. It using `shared_space` makes
     it unusable. Granted I would need to pass the `Matcher` to `chunker` and `compare_chunks`, but 
     that's okay
+	I did
 
     `compare_chunks` and chunker should be renamed. Not super useful. `compare_chunks` should be 
     named something like `make_vcf_chunks`. Which is like something we already have, in `ref_ranges`.
     Difference being that `make_vcf_chunks` isn't just arbitrary chunks, but is informed by the vcf.
+	These as utils is going to be good, but I don't think they're generic enough, yet.
 
     I also think I could reduce file reading by having a `make_vcf_chunks` which will actually 
     return the vcf entries vs a `make_vcf_ref_chunks` where I make the chrom,start,end reference ranges
     based on the VCF.
+    	I pretty much did this
 
 Who would use this?
     - Anyone who wanted to script up comparing VCF entries. This could make reuse inside of collapse really easy.
