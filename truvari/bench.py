@@ -142,7 +142,7 @@ class Matcher():
         ret.sizefilt = args.sizefilt
         ret.sizemax = args.sizemax
         ret.passonly = args.passonly
-        ret.no_ref = False
+        ret.no_ref = args.no_ref
         ret.multimatch = args.multimatch
         return ret
 
@@ -309,15 +309,11 @@ def file_zipper(*start_files):
             pass
 
     while next_markers:
-        sidx = 0
-        while not next_markers[sidx]:
-            sidx += 1
-        if sidx == len(files):
-            return None
+        sidx = 0 # assume the first is the least
         for idx, i in enumerate(next_markers):
-            if idx == sidx:
-                continue
-            if i.start < next_markers[sidx].start:
+            if i.chrom < next_markers[sidx].chrom:
+                sidx = idx
+            elif i.chrom == next_markers[sidx].chrom and i.start < next_markers[sidx].start:
                 sidx = idx
         entry = next_markers[sidx]
         key = names[sidx]
