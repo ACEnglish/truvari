@@ -29,11 +29,12 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     A base/comp match holder
     """
     __slots__ = ["base", "comp", "state", "seqsim", "sizesim", "ovlpct", "sizediff",
-                 "st_dist", "ed_dist", "gt_match", "multi", "score"]
+                 "st_dist", "ed_dist", "gt_match", "multi", "score", "matid"]
 
     def __init__(self):
         self.base = None
         self.comp = None
+        self.matid = None
         self.seqsim = None
         self.sizesim = None
         self.ovlpct = None
@@ -174,13 +175,14 @@ class Matcher():
 
         return False
 
-    def build_match(self, base, comp):
+    def build_match(self, base, comp, matid=None):
         """
         Build a MatchResult
         """
         ret = MatchResult()
         ret.base = base
         ret.comp = comp
+        ret.matid = matid
         ret.state = True
 
         if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp):
@@ -346,7 +348,7 @@ def chunker(matcher, *files):
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         if new_chunk or new_chrom:
             chunk_count += 1
-            yield matcher, cur_chunk
+            yield matcher, cur_chunk, chunk_count
             cur_chunk = defaultdict(list)
             cur_chrom = None
             #min_start = None
@@ -362,7 +364,7 @@ def chunker(matcher, *files):
             call_counts[key] += 1
     chunk_count += 1
     logging.info(f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
-    return matcher, cur_chunk
+    return matcher, cur_chunk, chunk_count
 
 
 def compare_chunk(chunk):
@@ -371,20 +373,21 @@ def compare_chunk(chunk):
     """
     # If I'm giving up on multiprocessing (for now) I can move back to making the chunker do the holding
     # Instead of fetching. Then I can get rid of base_vcf and comp_vcf in shared_space
-    matcher, chunk_dict = chunk
+    matcher, chunk_dict, chunk_id = chunk
     logging.debug(f"Comparing chunk {chunk_dict}")
     # Build all v all matrix
     match_matrix = []
     fns = []
-    for b in chunk_dict['base']:
+    for bid, b in enumerate(chunk_dict['base']):
         base_matches = []
-        for c in chunk_dict['comp']:
-            mat = matcher.build_match(b, c)
+        for cid, c in enumerate(chunk_dict['comp']):
+            mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
             logging.debug(f"Made mat -> {mat}")
             base_matches.append(mat)
         if not base_matches:  # All FNs
             ret = MatchResult()
             ret.base = b
+            ret.matid = f"{chunk_id}.{bid}._"
             logging.debug(f"All FN chunk -> {ret}")
             fns.append(ret)
         else:
@@ -393,9 +396,10 @@ def compare_chunk(chunk):
     # need to iterate the comp again and make them all FPs
     if not match_matrix:
         fps = []
-        for c in chunk_dict['comp']:
+        for cid, c in enumerate(chunk_dict['comp']):
             ret = MatchResult()
             ret.comp = c
+            ret.matid = f"{chunk_id}._.{cid}"
             fps.append(ret)
             logging.debug("All FP chunk -> {ret}")
         return fps + fns
@@ -495,15 +499,15 @@ def edit_header(my_vcf):
     header.add_line(('##INFO=<ID=PctRecOverlap,Number=1,Type=Float,'
                      'Description="Percent reciprocal overlap percent of the two calls\' coordinates">'))
     header.add_line(('##INFO=<ID=StartDistance,Number=1,Type=Integer,'
-                     'Description="Distance of this call\'s start from comparison call\'s start">'))
+                     'Description="Distance of the base call\'s end from comparison call\'s start">'))
     header.add_line(('##INFO=<ID=EndDistance,Number=1,Type=Integer,'
-                     'Description="Distance of this call\'s start from comparison call\'s start">'))
+                     'Description="Distance of the base call\'s end from comparison call\'s end">'))
     header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
-                     'Description="Difference in size(basecall) and size(evalcall)">'))
+                     'Description="Difference in size of base and comp calls">'))
     header.add_line(('##INFO=<ID=GTMatch,Number=0,Type=Flag,'
                      'Description="Base/Comparison Genotypes match">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
-                     'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
+    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
+                     'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
     header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
                      'Description="Call is false due to non-multimatching">'))
     return header
@@ -522,6 +526,7 @@ def annotate_entry(entry, match, header):
     entry.info["EndDistance"] = match.ed_dist
     entry.info["GTMatch"] = match.gt_match
     entry.info["TruScore"] = match.score
+    entry.info["MatchId"] = match.matid
     entry.info["Multi"] = match.multi
     return entry
 
