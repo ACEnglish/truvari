@@ -18,6 +18,7 @@ methods:
 :meth:`entry_same_variant_type`
 :meth:`entry_size`
 :meth:`entry_size_similarity`
+:meth:`entry_to_haplotype`
 :meth:`entry_to_key`
 :meth:`entry_variant_type`
 :meth:`fetch_coords`
@@ -109,6 +110,7 @@ from truvari.comparisons import (
     entry_same_variant_type,
     entry_size,
     entry_size_similarity,
+    entry_to_haplotype,
     entry_to_key,
     entry_variant_type,
     fetch_coords,

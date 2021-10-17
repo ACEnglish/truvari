@@ -200,6 +200,28 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
     return create_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
 
+def entry_to_haplotype(entry, ref, start=None, end=None):
+    """
+    Integrate an entry into the reference and return the sequence. 
+
+    :param `entry`: vcf entry
+    :type `entry: :class:`pysam.VariantRecord`
+    :param `ref`: reference genome
+    :type `ref`: :class:`pysam.FastaFile`
+    :param `start`: beginning region of reference to use
+    :type `start`: int, optional
+    :param `end`: beginning region of reference to use
+    :type `end`: int, optional
+
+    :return: allele haplotype sequence
+    :rtype: str
+    """
+    chrom = entry.chrom
+    a1_start = entry.start
+    a1_end = entry.stop
+    hap1_seq = ref.fetch(chrom, start, a1_start) + \
+        entry.alts[0] + ref.fetch(chrom, a1_end, end)
+    return hap1_seq
 
 def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     """
