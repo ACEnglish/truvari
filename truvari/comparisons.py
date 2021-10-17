@@ -140,7 +140,7 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
 def create_pos_haplotype(a1, a2, ref, buf_len=0):
     """
     Create haplotypes of two allele's regions that are assumed to be overlapping
-    
+
     :param `a1`: tuple of chrom, start, end, seq
     :type `a1`: tuple
     :param `a2`: tuple of chrom, start, end, seq
