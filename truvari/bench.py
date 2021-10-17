@@ -27,7 +27,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-ar
     """
     A base/comp match holder
     """
-    __slots__ = ["base", "comp", "state", "seqsm", "sizesim", "ovlpct", "sizediff",
+    __slots__ = ["base", "comp", "state", "seqsim", "sizesim", "ovlpct", "sizediff",
                  "st_dist", "ed_dist", "gt_match", "multi", "score"]
 
     def __init__(self):
@@ -40,9 +40,16 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-ar
         self.st_dist = None
         self.ed_dist = None
         self.gt_match = None
-        self.state = None
+        self.state = False
         self.score = None
         self.multi = None
+
+    def calc_score(self):
+        """
+        Set self.score to truvari.weighted_score
+        """
+        if None not in [self.seqsim, self.sizesim, self.ovlpct]:
+            self.score = truvari.weighted_score(self.seqsim, self.sizesim, self.ovlpct)
 
     def __lt__(self, other):
         if self.state == other.state:
@@ -60,9 +67,12 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes,too-many-ar
 
 
 class Matcher():
-    def __init__(self, params=None):
-        if params is None:
+    def __init__(self, params=None, args=None):
+        if args is not None:
+            params = self.make_match_params_from_args(args)
+        elif params is None:
             params = self.make_match_params()
+
         self.params = params
 
     @staticmethod
@@ -79,9 +89,45 @@ class Matcher():
         ret.pctovl = 0.0
         ret.typeignore = False
         ret.use_lev = False
+        ret.chunksize = 1000
         ret.gtcomp = False
         ret.bSample = None
         ret.cSample = None
+        # filtering properties
+        ret.sizemin = 50
+        ret.sizefilt = 30
+        ret.sizemax = 50000
+        ret.passonly = False
+        ret.no_ref = False
+        ret.includebed = None
+        ret.multimatch = False
+        return ret
+
+    @staticmethod
+    def make_match_params_from_args(args):
+        """
+        Makes a simple namespace of matching parameters
+        """
+        ret = types.SimpleNamespace()
+        ret.reference = pysam.FastaFile(args.reference) if args.reference else None
+        ret.refdist = args.refdist
+        ret.pctsim = args.pctsim
+        ret.buffer = args.buffer
+        ret.pctsize = args.pctsize
+        ret.pctovl = args.pctovl
+        ret.typeignore = args.typeignore
+        ret.use_lev = args.use_lev
+        ret.chunksize = args.chunksize
+        ret.gtcomp = args.gtcomp
+        ret.bSample = args.bSample
+        ret.cSample = args.cSample
+        # filtering properties
+        ret.sizemin = args.sizemin
+        ret.sizefilt = args.sizefilt
+        ret.sizemax = args.sizemax
+        ret.passonly = args.passonly
+        ret.no_ref = False
+        ret.multimatch = args.multimatch
         return ret
 
     def filter_call(self, entry, base=False):
@@ -90,7 +136,7 @@ class Matcher():
         Base has different filtering requirements, so let the method know
         """
         # See if it hits the regions, first
-        if self.params.bed and not self.params.bed.include(entry):
+        if self.params.includebed and not self.params.includebed.include(entry):
             return True
 
         size = truvari.entry_size(entry)
@@ -120,7 +166,7 @@ class Matcher():
         ret.base = base
         ret.comp = comp
         ret.state = True
-        args = shared_space.args
+
         if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp):
             logging.debug("%s and %s are not the same SVTYPE",
                           str(base), str(comp))
@@ -146,12 +192,12 @@ class Matcher():
             ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
-        if truvari.entry_variant_type(base) == "DEL" and ret.ovlpct < params.pctovl:
+        if truvari.entry_variant_type(base) == "DEL" and ret.ovlpct < self.params.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
 
-        if params.pctsim > 0:
+        if self.params.pctsim > 0:
             ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
                                               self.params.buffer, self.params.use_lev)
             if ret.seqsim < self.params.pctsim:
@@ -162,6 +208,7 @@ class Matcher():
             ret.seqsim = 0
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
+        ret.calc_score()
 
         return ret
 
@@ -271,8 +318,7 @@ def file_zipper(*start_files):
 
 def chunker(matcher, *files):
     """
-    So the chunker is going to need to know how to filer the calls
-    
+    Given a Matcher and multiple files,
     """
     cur_chrom = None
     min_start = None
@@ -280,10 +326,10 @@ def chunker(matcher, *files):
 
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
-        new_chunk = max_end and max_end + matcher.params..chunksize < entry.start
+        new_chunk = max_end and max_end + matcher.params.chunksize < entry.start
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         if new_chunk or new_chrom:
-            yield cur_chrom, min_start, max_end
+            yield matcher, cur_chunk
             cur_chunk = defaultdict(list)
             cur_chrom = None
             min_start = None
@@ -294,49 +340,44 @@ def chunker(matcher, *files):
                 cur_chrom = entry.chrom
                 min_start = entry.start
             max_end = entry.stop
-            cur_chunk[key].append(str(entry))
-    return cur_chrom, min_start, max_end
+            logging.debug(f"Adding to {key} -> {entry}")
+            cur_chunk[key].append(entry)
+    return matcher, cur_chunk
 
 
-def compare_chunk(matcher, chunk):
+def compare_chunk(chunk):
     """
-    Given a chunk, compare all of the calls
+    Given a filtered chunk, (from chunker) compare all of the calls
     """
     # If I'm giving up on multiprocessing (for now) I can move back to making the chunker do the holding
     # Instead of fetching. Then I can get rid of base_vcf and comp_vcf in shared_space
-    chrom, start, end = chunk
-    base_vcf = shared_space.base
-    comp_vcf = shared_space.comp
-
-    # Save some time by figuring out comp calls to ignore due to filtering after first pass
-    comp_ignores = set()
-
+    matcher, chunk_dict = chunk
+    logging.debug(f"Comparing chunk {chunk_dict}")
     # Build all v all matrix
     match_matrix = []
     fns = []
-    for b in base_vcf.fetch(chrom, start, end):
+    for b in chunk_dict['base']:
         base_matches = []
-        if matcher.filter_call(b, True):
-            continue
-        for cid, c in enumerate(comp_vcf.fetch(chrom, start, end)):
-            if cid in comp_ignores or matcher.filter_call(c):
-                comp_ignores.add(cid)
-                continue
+        for c in chunk_dict['comp']:
             mat = matcher.build_match(b, c)
+            logging.debug(f"Made mat -> {mat}")
             base_matches.append(mat)
         if not base_matches:  # All FNs
-            # Can't forget this.. I think
-            fns.append(MatchResult(b, None, False))
+            ret = MatchResult()
+            ret.base = b
+            logging.debug(f"All FN chunk -> {ret}")
+            fns.append(ret)
         else:
             match_matrix.append(base_matches)
 
     # need to iterate the comp again and make them all FPs
     if not match_matrix:
         fps = []
-        for cid, c in enumerate(comp_vcf.fetch(chrom, start, end)):
-            if matcher.filter_call(c):
-                continue
-            fps.append(MatchResult(None, c, False))
+        for c in chunk_dict['comp']:
+            ret = MatchResult()
+            ret.comp = c
+            fps.append(ret)
+            logging.debug("All FP chunk -> {ret}")
         return fps + fns
 
     # Sort and annotate matches
@@ -415,7 +456,7 @@ def pick_single_matches(match_matrix):
 ###############
 # VCF editing #
 ###############
-def edit_header(my_vcf, multimatch=False):
+def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
     #Probably want to put in the PG whatever, too
@@ -441,8 +482,7 @@ def edit_header(my_vcf, multimatch=False):
                      'Description="Base/Comparison Genotypes match">'))
     header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
-    if multimatch:
-        header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
+    header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
                         'Description="Call is false due to non-multimatching">'))
     return header
 
@@ -460,8 +500,7 @@ def annotate_entry(entry, match, header):
     entry.info["EndDistance"] = match.ed_dist
     entry.info["GTMatch"] = match.gt_match
     entry.info["TruScore"] = match.score
-    if not shared_space.args.multimatch:
-        entry.info["Multi"] = match.multi
+    entry.info["Multi"] = match.multi
     return entry
 
 
@@ -498,7 +537,7 @@ def output_writer(call):
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        elif truvari.entry_size(entry) >= shared_space.args.sizemin:
+        elif truvari.entry_size(entry) >= shared_space.sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
             box["call cnt"] += 1
             box["FP"] += 1
@@ -660,12 +699,12 @@ def setup_outputs(args):
 
     shared_space.outputs["vcf_base"] = pysam.VariantFile(args.base)
     shared_space.outputs["n_base_header"] = edit_header(
-        shared_space.outputs["vcf_base"], args.multimatch)
+        shared_space.outputs["vcf_base"])
     shared_space.outputs["sampleBase"] = args.bSample if args.bSample else shared_space.outputs["vcf_base"].header.samples[0]
 
     shared_space.outputs["vcf_comp"] = pysam.VariantFile(args.comp)
     shared_space.outputs["n_comp_header"] = edit_header(
-        shared_space.outputs["vcf_comp"], args.multimatch)
+        shared_space.outputs["vcf_comp"])
     shared_space.outputs["sampleComp"] = args.cSample if args.cSample else shared_space.outputs["vcf_comp"].header.samples[0]
 
     # Setup outputs
@@ -709,16 +748,20 @@ def bench_main(cmdargs):
     # build the MatchParams
     if args.reference:
         shared_space.reference = pysam.Fastafile(args.reference)
-
+    
+    # build_match needs to not make FPs less than sizefilt
+    shared_space.sizemin = args.sizemin
+    matcher = Matcher(args=args)
     setup_outputs(args)
     
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
-    shared_space.bed = truvari.GenomeTree(args.base,
-                                          args.comp,
-                                          args.includebed, args.sizemax)
+    matcher.params.includebed = truvari.GenomeTree(base,
+                                                   comp,
+                                                   args.includebed,
+                                                   args.sizemax)
     #baaawef
-    chunks = chunker(('base', shared_space.base), ('comp', shared_space.comp))
+    chunks = chunker(matcher, ('base', base), ('comp', comp))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         output_writer(call)
 

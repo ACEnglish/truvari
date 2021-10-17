@@ -28,7 +28,6 @@ methods:
 :meth:`get_sizebin`
 :meth:`get_svtype`
 :meth:`help_unknown_cmd`
-:meth:`make_interval_tree`
 :meth:`match_sorter`
 :meth:`optimize_df_memory`
 :meth:`overlaps`
@@ -81,7 +80,6 @@ from truvari.annos.af_calc import (
 
 from truvari.genome_tree import (
     GenomeTree,
-    make_interval_tree
 )
 
 
