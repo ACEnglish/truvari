@@ -28,8 +28,6 @@ methods:
 :meth:`get_sizebin`
 :meth:`get_svtype`
 :meth:`help_unknown_cmd`
-:meth:`make_interval_tree`
-:meth:`match_sorter`
 :meth:`optimize_df_memory`
 :meth:`overlaps`
 :meth:`reciprocal_overlap`
@@ -45,11 +43,12 @@ objects:
 :class:`GT`
 :class:`GenomeTree`
 :class:`LogFileStderr`
+:class:`MatchResult`
+:class:`Matcher`
 :class:`SV`
 
 data:
 :data:`truvari.HEADERMAT`
-:data:`truvari.MATCHRESULT`
 :data:`truvari.QUALBINS`
 :data:`truvari.SVTYTYPE`
 :data:`truvari.SZBINMAX`
@@ -59,44 +58,18 @@ data:
 
 __version__ = '3.1.0-dev'
 
-from truvari.vcf2df import (
-    GT,
-    QUALBINS,
-    SV,
-    SVTYTYPE,
-    SZBINMAX,
-    SZBINS,
-    SZBINTYPE,
-    get_gt,
-    get_scalebin,
-    get_sizebin,
-    get_svtype,
-    optimize_df_memory,
-    vcf_to_df,
-)
 
 from truvari.annos.af_calc import (
     allele_freq_annos
 )
 
-from truvari.genome_tree import (
-    GenomeTree,
-    make_interval_tree
+from truvari.bench import (
+    MatchResult,
+    Matcher
 )
 
-
-from truvari.utils import (
-    HEADERMAT,
-    LogFileStderr,
-    MATCHRESULT,
-    bed_ranges,
-    cmd_exe,
-    copy_entry,
-    help_unknown_cmd,
-    ref_ranges,
-    restricted_float,
-    setup_logging,
-    setup_progressbar,
+from truvari.genome_tree import (
+    GenomeTree,
 )
 
 from truvari.comparisons import (
@@ -115,9 +88,37 @@ from truvari.comparisons import (
     entry_variant_type,
     fetch_coords,
     filter_value,
-    match_sorter,
     overlaps,
     reciprocal_overlap,
     sizesim,
     weighted_score,
+)
+
+from truvari.utils import (
+    HEADERMAT,
+    LogFileStderr,
+    bed_ranges,
+    cmd_exe,
+    copy_entry,
+    help_unknown_cmd,
+    ref_ranges,
+    restricted_float,
+    setup_logging,
+    setup_progressbar,
+)
+
+from truvari.vcf2df import (
+    GT,
+    QUALBINS,
+    SV,
+    SVTYTYPE,
+    SZBINMAX,
+    SZBINS,
+    SZBINTYPE,
+    get_gt,
+    get_scalebin,
+    get_sizebin,
+    get_svtype,
+    optimize_df_memory,
+    vcf_to_df,
 )

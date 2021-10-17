@@ -2,10 +2,8 @@
 Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
-# pylint: disable=unused-variable
 import re
 import logging
-from functools import cmp_to_key
 
 import edlib
 import Levenshtein
@@ -139,24 +137,14 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
 
-def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=0):
+def create_pos_haplotype(a1, a2, ref, buf_len=0):
     """
     Create haplotypes of two allele's regions that are assumed to be overlapping
 
-    :param `chrom`: Chromosome where alleles are located
-    :type `chrom`: string
-    :param `a1_start`: 0-based position of first allele's start
-    :type `a1_start`: integer
-    :param `a1_end`: 0-based position of first allele's  end
-    :type `a1_end`: integer
-    :param `a1_seq`: First allele's sequene
-    :type `a1_seq`: string
-    :param `a2_start`: 0-based position of second allele's start
-    :type `a2_start`: integer
-    :param `a2_end`: 0-based position of second allele's  end
-    :type `a2_end`: integer
-    :param `a2_seq`: Second allele's sequene
-    :type `a2_seq`: string
+    :param `a1`: tuple of chrom, start, end, seq
+    :type `a1`: tuple
+    :param `a2`: tuple of chrom, start, end, seq
+    :type `a2`: tuple
     :param `ref`: Reference genome
     :type `ref`: :class:`pysam.FastaFile`
     :param `buf_len`: Percent of selected region's range length to buffer
@@ -165,6 +153,8 @@ def create_pos_haplotype(chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_s
     :return: allele haplotype sequences created
     :rtupe: tuple (string, string)
     """
+    chrom, a1_start, a1_end, a1_seq = a1
+    chrom, a2_start, a2_end, a2_seq = a2
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
     buff = int((end - start) * buf_len)
@@ -203,9 +193,12 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
             return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
 
-    a1_chrom, a1_start, a1_end, a1_seq = get_props(entryA)
-    a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
-    return create_pos_haplotype(a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
+    #a1_chrom, a1_start, a1_end, a1_seq = get_props(entryA)
+    a1 = get_props(entryA)
+    #a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
+    a2 = get_props(entryB)
+    return create_pos_haplotype(a1, a2, ref, buf_len=buf_len)
+    #)a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
 
 
 def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
@@ -505,26 +498,3 @@ def filter_value(entry, values=None):
     if values is None:
         return len(entry.filter) != 0 and 'PASS' not in entry.filter
     return len(set(values).intersection(set(entry.filter))) == 0
-
-
-def match_sorter(candidates):
-    """
-    Sort a list of MATCHRESULT tuples inplace.
-
-    :param `candidates`: list of MATCHRESULT named tuples
-    :type `candidates`: list
-    """
-    if len(candidates) == 0:
-        return
-    entry_idx = len(candidates[0]) - 1
-
-    def sort_cmp(mat1, mat2):
-        """
-        Sort by attributes and then deterministically by hash(str(VariantRecord))
-        """
-        for i in range(entry_idx):
-            if mat1[i] != mat2[i]:
-                return mat1[i] - mat2[i]
-        return hash(str(mat1[entry_idx])) - hash(str(mat2[entry_idx]))
-
-    candidates.sort(reverse=True, key=cmp_to_key(sort_cmp))

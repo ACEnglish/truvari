@@ -1,7 +1,6 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
-import sys
 import logging
 from collections import defaultdict
 
@@ -76,44 +75,3 @@ class GenomeTree():
         if astart == aend:
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
-
-
-def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
-    """
-    Build a dictionary of IntervalTree for intersection querying along with
-    how many entries there are total in the vcf_file and how many entries pass
-    filtering parameters in vcf_files
-
-    :param `vcf_file`: Filename of VCF to parse
-    :type `vcf_file`: string
-    :param `sizemin`: Minimum size of event to add to trees
-    :type `sizemin`: int, optional
-    :param `sizemax`: Maximum size of event to add to trees
-    :type `sizemax`: int, optional
-    :param `passonly`: Only add PASS variants
-    :type `passonly`: boolean, optional
-
-    :return: dictonary of IntervalTrees
-    :rtype: dict
-    """
-    n_entries = 0
-    cmp_entries = 0
-    lookup = defaultdict(IntervalTree)
-    try:
-        for entry in vcf_file:
-            n_entries += 1
-            if passonly and "PASS" not in entry.filter:
-                continue
-            start, end = tcomp.entry_boundaries(entry)
-            sz = tcomp.entry_size(entry)
-            if sz < sizemin or sz > sizemax:
-                continue
-            cmp_entries += 1
-            lookup[entry.chrom].addi(start, end, entry.start)
-    except ValueError as e:
-        logging.error(
-            "Unable to parse comparison vcf file. Please check header definitions")
-        logging.error("Specific error: \"%s\"", str(e))
-        sys.exit(100)
-
-    return lookup, n_entries, cmp_entries
