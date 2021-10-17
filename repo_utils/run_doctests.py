@@ -9,12 +9,13 @@ import doctest
 sys.path.insert(0, os.getcwd())
 
 from truvari import (
+    bench,
     comparisons,
     utils,
     vcf2df
 )
 from truvari.annos import af_calc
-
+    
 
 def tester(module):
     """
@@ -29,6 +30,7 @@ fails += tester(comparisons)
 fails += tester(utils)
 fails += tester(vcf2df)
 fails += tester(af_calc)
+fails ++ tester(bench)
 
 os.remove("log.txt")
 os.remove("test.vcf")

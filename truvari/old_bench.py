@@ -21,6 +21,7 @@ MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
                                          "ovl_pct size_diff start_distance "
                                          "end_distance match_entry"))
 
+
 class StatsBox(OrderedDict):
     """
     Make a blank stats box for counting TP/FP/FN and calculating performance
@@ -329,7 +330,7 @@ def filter_call(entry, sizeA, sizemin, sizemax, no_ref, passonly, outputs, base=
     if no_ref in ["a", prefix[0]] and not truvari.entry_is_present(entry, samp):
         return True
 
-    if passonly and truvari.filter_value(entry):
+    if passonly and truvari.entry_is_filtered(entry):
         logging.debug("%s variant has no PASS FILTER and is being excluded from comparison - %s",
                       prefix, entry)
         return True
@@ -411,7 +412,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
     return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
-                               start_distance, end_distance, comp_entry)
+                       start_distance, end_distance, comp_entry)
 
 
 def output_base_match(base_entry, num_neighbors, thresh_neighbors, myid, matched_calls, outputs):
@@ -439,7 +440,7 @@ def output_base_match(base_entry, num_neighbors, thresh_neighbors, myid, matched
     outputs["tpb_out"].write(base_entry)
 
     # Don't double count calls found before
-    b_key = truvari.entry_to_key('b', base_entry)
+    b_key = truvari.entry_to_key(base_entry, prefix='b', bounds=True)
     if not matched_calls[b_key]:
         # Interesting...
         outputs["stats_box"]["TP-base"] += 1
@@ -461,7 +462,8 @@ def report_best_match(base_entry, num_neighbors, thresh_neighbors, myid, matched
     # Work through the comp calls
     for neigh in thresh_neighbors:
         # Multimatch checking
-        c_key = truvari.entry_to_key('c', neigh.match_entry)
+        c_key = truvari.entry_to_key(
+            neigh.match_entry, prefix='c', bounds=True)
         if not matched_calls[c_key]:  # unmatched
             outputs["stats_box"]["TP-call"] += 1
             if truvari.entry_gt_comp(base_entry, neigh.match_entry, outputs["sampleBase"], outputs["sampleComp"]):
@@ -507,7 +509,7 @@ def parse_fps(matched_calls, tot_comp_entries, regions, args, outputs):
         if filter_call(entry, size, args.sizemin, args.sizemax, args.no_ref, args.passonly, outputs, False):
             continue
 
-        if matched_calls[truvari.entry_to_key('c', entry)]:
+        if matched_calls[truvari.entry_to_key(entry, prefix='c', bounds=True)]:
             continue
 
         if regions.include(entry):
@@ -570,6 +572,35 @@ def make_interval_tree(vcf_file, sizemin=10, sizemax=100000, passonly=False):
     return lookup, n_entries, cmp_entries
 
 
+def fetch_coords(lookup, entry, dist=0):
+    """
+    Get the minimum/maximum fetch coordinates to find all variants within dist of variant
+
+    :param `lookup`: genome tree build defaultdict with interevaltrees
+    :type `lookup`: dict
+    :param `entry`: entry to build coords from
+    :type `entry`: :class:`pysam.VariantRecord`
+    :param `dist`: distance buffer to add/subtract from the coords
+    :type `dist`: integer
+
+    :return: the minimum/maximum fetch coordinates for the entry
+    :rtype: tuple (int, int)
+    """
+    start, end = truvari.entry_boundaries(entry)
+    start -= dist
+    end += dist
+    # Membership queries are fastest O(1)
+    if not lookup[entry.chrom].overlaps(start, end):
+        return None, None
+
+    cand_intervals = lookup[entry.chrom].overlap(start, end)
+    s_ret = min(
+        [x.data for x in cand_intervals if truvari.overlaps(start, end, x[0], x[1])])
+    e_ret = max(
+        [x.data for x in cand_intervals if truvari.overlaps(start, end, x[0], x[1])])
+    return s_ret, e_ret
+
+
 def bench_main(cmdargs):  # pylint: disable=too-many-locals
     """
     Main entry point for running Truvari Benchmarking
@@ -623,7 +654,7 @@ def bench_main(cmdargs):  # pylint: disable=too-many-locals
 
         outputs["stats_box"]["base cnt"] += 1
 
-        fetch_start, fetch_end = truvari.fetch_coords(
+        fetch_start, fetch_end = fetch_coords(
             span_lookup, base_entry, args.refdist)
         # No overlaps, don't even bother checking
         if fetch_start is None and fetch_end is None:
@@ -651,7 +682,7 @@ def bench_main(cmdargs):  # pylint: disable=too-many-locals
             # better, it can't use it and we mismatch
             # UPDATE: by default we don't enforce one-match
             logging.debug("Comparing %s %s", str(base_entry), str(comp_entry))
-            if not args.multimatch and matched_calls[truvari.entry_to_key('c', comp_entry)]:
+            if not args.multimatch and matched_calls[truvari.entry_to_key(comp_entry, prefix='c', bounds=True)]:
                 logging.debug(
                     "No match because comparison call already matched")
                 continue

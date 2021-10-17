@@ -33,7 +33,7 @@ bench() {
     run test_bench_${k} $truv bench -b $INDIR/input${f1}.vcf.gz \
                                       -c $INDIR/input${f2}.vcf.gz \
                                       -f $INDIR/reference.fa \
-                                      -o $OD/bench${k}/
+                                      -o $OD/bench${k}/ ${3}
     assert_exit_code 0
 
     for i in $ANSDIR/bench${k}/*.vcf
@@ -130,7 +130,7 @@ assert_in_stdout "$(python3 -c 'import truvari; print(f"Truvari v{truvari.__vers
 # ------------------------------------------------------------
 bench 1 2
 bench 1 3
-bench 2 3
+bench 2 3 --multimatch
 
 rm -rf $OD/bench_giab
 run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
@@ -138,6 +138,7 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -f $INDIR/reference.fa \
                                 -o $OD/bench_giab/ \
                                 --includebed $INDIR/giab.bed \
+                                --multimatch \
                                 --giabreport \
                                 --prog
 assert_exit_code 0

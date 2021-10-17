@@ -72,14 +72,15 @@ class Matcher():
     """
     Holds matching parameters. Allows calls to be checked for filtering and matches to be made
 
-    >>> import pysam
-    >>> import truvari
-    >>> mat = truvari.Matcher()
-    >>> mat.params.pctsim = 0
-    >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
-    >>> one = next(v); two = next(v)
-    >>> mat.build_match(one, two)
-    <0 False chr20:66235->chr20:68303>
+    Example
+        >>> import pysam
+        >>> import truvari
+        >>> mat = truvari.Matcher()
+        >>> mat.params.pctsim = 0
+        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> one = next(v); two = next(v)
+        >>> mat.build_match(one, two)
+        <0 False chr20:66235->chr20:68303>
     """
 
     def __init__(self, params=None, args=None):
@@ -168,7 +169,7 @@ class Matcher():
         if args.no_ref in ["a", prefix] and not truvari.entry_is_present(entry, samp):
             return True
 
-        if args.passonly and truvari.filter_value(entry):
+        if args.passonly and truvari.entry_is_filtered(entry):
             return True
 
         return False

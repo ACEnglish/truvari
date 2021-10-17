@@ -37,13 +37,13 @@ def entry_is_present(entry, sample=None):
         truvari.GT.HET, truvari.GT.HOM]
 
 
-def entry_to_key(source, entry):
+def entry_to_key(entry, prefix="", bounds=False):
     """
-    Turn a vcf entry into a hashable key using the 'source' (base/comp) to separate the two
-    helpful for not re-using variants
+    Turn a vcf entry into a hashable key string. Use the prefix (base/comp) to indicate the source
+    VCF when consolidating multiple files' calls. If bounds: call entry_boundaries for start/stop.
 
     .. warning::
-        If a caller redundantly calls a variant exactly the same. It will be collapsed here
+        If a caller redundantly calls a variant exactly the same. It will not have a unique key
 
     :param `source`: string to identify vcf from which this entry originates
     :type `source`: string
@@ -53,8 +53,13 @@ def entry_to_key(source, entry):
     :return: hashable string uniquely identifying the variant
     :rtype: string
     """
-    start, end = entry_boundaries(entry)
-    return "%s.%s:%d-%d(%s|%s)" % (source, entry.chrom, start, end, entry.ref, entry.alts[0])  # pylint: disable=consider-using-f-string
+    if prefix:
+        prefix += '.'
+    if bounds:
+        start, end = entry_boundaries(entry)
+        return f"{prefix}{entry.chrom}:{start}-{end}({entry.ref}|{entry.alts[0]})"
+
+    return f"{prefix}{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}"
 
 
 def sizesim(sizeA, sizeB):
@@ -323,35 +328,6 @@ def entry_same_variant_type(entryA, entryB):
     return a_type == b_type
 
 
-def fetch_coords(lookup, entry, dist=0):
-    """
-    Get the minimum/maximum fetch coordinates to find all variants within dist of variant
-
-    :param `lookup`: genome tree build defaultdict with interevaltrees
-    :type `lookup`: dict
-    :param `entry`: entry to build coords from
-    :type `entry`: :class:`pysam.VariantRecord`
-    :param `dist`: distance buffer to add/subtract from the coords
-    :type `dist`: integer
-
-    :return: the minimum/maximum fetch coordinates for the entry
-    :rtype: tuple (int, int)
-    """
-    start, end = entry_boundaries(entry)
-    start -= dist
-    end += dist
-    # Membership queries are fastest O(1)
-    if not lookup[entry.chrom].overlaps(start, end):
-        return None, None
-
-    cand_intervals = lookup[entry.chrom].overlap(start, end)
-    s_ret = min(
-        [x.data for x in cand_intervals if overlaps(start, end, x[0], x[1])])
-    e_ret = max(
-        [x.data for x in cand_intervals if overlaps(start, end, x[0], x[1])])
-    return s_ret, e_ret
-
-
 def entry_boundaries(entry):
     """
     Get the start/end of an entry and order (start < end)
@@ -473,7 +449,7 @@ def entry_reciprocal_overlap(entry1, entry2):
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
-def filter_value(entry, values=None):
+def entry_is_filtered(entry, values=None):
     """
     Returns if entry should be filtered given the filter values provided.
     If values is None, assume that filter must have PASS or be blank '.'
@@ -490,9 +466,9 @@ def filter_value(entry, values=None):
         >>> import truvari
         >>> import pysam
         >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
-        >>> truvari.filter_value(next(v)) # PASS shouldn't be filtered
+        >>> truvari.entry_is_filtered(next(v)) # PASS shouldn't be filtered
         False
-        >>> truvari.filter_value(next(v), set(["lowQ"])) # Call isn't lowQ, so filter
+        >>> truvari.entry_is_filtered(next(v), set(["lowQ"])) # Call isn't lowQ, so filter
         True
     """
     if values is None:

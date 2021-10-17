@@ -1,18 +1,15 @@
 """
-Full documentation at https://github.com/spiralgenetics/truvari/wiki
+Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
 
-methods:
-:meth:`allele_freq_annos`
-:meth:`bed_ranges`
-:meth:`cmd_exe`
+VariantRecord methods:
 :meth:`copy_entry`
-:meth:`create_pos_haplotype`
 :meth:`entry_boundaries`
 :meth:`entry_create_haplotype`
 :meth:`entry_distance`
 :meth:`entry_gt_comp`
+:meth:`entry_is_filtered`
 :meth:`entry_is_present`
 :meth:`entry_pctsim`
 :meth:`entry_reciprocal_overlap`
@@ -21,25 +18,31 @@ methods:
 :meth:`entry_size_similarity`
 :meth:`entry_to_key`
 :meth:`entry_variant_type`
-:meth:`fetch_coords`
-:meth:`filter_value`
+
+Extra methods:
+:meth:`allele_freq_annos`
+:meth:`bed_ranges`
+:meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
 :meth:`get_sizebin`
 :meth:`get_svtype`
-:meth:`help_unknown_cmd`
-:meth:`optimize_df_memory`
 :meth:`overlaps`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
+:meth:`sizesim`
+:meth:`weighted_score`
+
+Dev methods:
+:meth:`cmd_exe`
+:meth:`help_unknown_cmd`
+:meth:`optimize_df_memory`
 :meth:`restricted_float`
 :meth:`setup_logging`
 :meth:`setup_progressbar`
-:meth:`sizesim`
 :meth:`vcf_to_df`
-:meth:`weighted_score`
 
-objects:
+Objects:
 :class:`GT`
 :class:`GenomeTree`
 :class:`LogFileStderr`
@@ -47,7 +50,7 @@ objects:
 :class:`Matcher`
 :class:`SV`
 
-data:
+Data:
 :data:`truvari.HEADERMAT`
 :data:`truvari.QUALBINS`
 :data:`truvari.SVTYTYPE`
@@ -78,6 +81,7 @@ from truvari.comparisons import (
     entry_create_haplotype,
     entry_distance,
     entry_gt_comp,
+    entry_is_filtered,
     entry_is_present,
     entry_pctsim,
     entry_reciprocal_overlap,
@@ -86,8 +90,6 @@ from truvari.comparisons import (
     entry_size_similarity,
     entry_to_key,
     entry_variant_type,
-    fetch_coords,
-    filter_value,
     overlaps,
     reciprocal_overlap,
     sizesim,
