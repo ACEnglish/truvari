@@ -8,7 +8,8 @@ import sys
 import json
 import logging
 import argparse
-from collections import defaultdict, OrderedDict
+from functools import cmp_to_key
+from collections import defaultdict, OrderedDict, namedtuple
 
 import pysam
 from intervaltree import IntervalTree
@@ -16,6 +17,9 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.giab_report import make_giabreport
 
+MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
+                                         "ovl_pct size_diff start_distance "
+                                         "end_distance match_entry"))
 
 class StatsBox(OrderedDict):
     """
@@ -142,6 +146,29 @@ def parse_args(args):
         parser.error("--reference is required when --pctsim is set")
 
     return args
+
+
+def match_sorter(candidates):
+    """
+    Sort a list of MATCHRESULT tuples inplace.
+
+    :param `candidates`: list of MATCHRESULT named tuples
+    :type `candidates`: list
+    """
+    if len(candidates) == 0:
+        return
+    entry_idx = len(candidates[0]) - 1
+
+    def sort_cmp(mat1, mat2):
+        """
+        Sort by attributes and then deterministically by hash(str(VariantRecord))
+        """
+        for i in range(entry_idx):
+            if mat1[i] != mat2[i]:
+                return mat1[i] - mat2[i]
+        return hash(str(mat1[entry_idx])) - hash(str(mat2[entry_idx]))
+
+    candidates.sort(reverse=True, key=cmp_to_key(sort_cmp))
 
 
 def edit_header(my_vcf):
@@ -383,7 +410,7 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, regions, ref
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
-    return truvari.MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
+    return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
                                start_distance, end_distance, comp_entry)
 
 

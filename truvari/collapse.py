@@ -19,6 +19,9 @@ from truvari.old_bench import edit_header as bench_edit_header
 from truvari.old_bench import annotate_tp
 
 COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
+MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
+                                         "ovl_pct size_diff start_distance "
+                                         "end_distance match_entry"))
 
 
 def parse_args(args):
@@ -202,8 +205,8 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
-    return truvari.MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
-                               start_distance, end_distance, comp_entry)
+    return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct,
+                       size_diff, start_distance, end_distance, comp_entry)
 
 
 def close_outputs(outputs):

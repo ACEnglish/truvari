@@ -22,6 +22,7 @@ from truvari.giab_report import make_giabreport
 
 shared_space = types.SimpleNamespace()
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -49,7 +50,8 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         Set self.score to truvari.weighted_score
         """
         if None not in [self.seqsim, self.sizesim, self.ovlpct]:
-            self.score = truvari.weighted_score(self.seqsim, self.sizesim, self.ovlpct)
+            self.score = truvari.weighted_score(
+                self.seqsim, self.sizesim, self.ovlpct)
 
     def __lt__(self, other):
         if self.state == other.state:
@@ -69,7 +71,17 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
 class Matcher():
     """
     Holds matching parameters. Allows calls to be checked for filtering and matches to be made
+
+    >>> import pysam
+    >>> import truvari
+    >>> mat = truvari.Matcher()
+    >>> mat.params.pctsim = 0
+    >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+    >>> one = next(v); two = next(v)
+    >>> mat.build_match(one, two)
+    <0 False chr20:66235->chr20:68303>
     """
+
     def __init__(self, params=None, args=None):
         if args is not None:
             params = self.make_match_params_from_args(args)
@@ -112,7 +124,8 @@ class Matcher():
         Makes a simple namespace of matching parameters
         """
         ret = types.SimpleNamespace()
-        ret.reference = pysam.FastaFile(args.reference) if args.reference else None
+        ret.reference = pysam.FastaFile(
+            args.reference) if args.reference else None
         ret.refdist = args.refdist
         ret.pctsim = args.pctsim
         ret.buffer = args.buffer
@@ -162,8 +175,7 @@ class Matcher():
 
     def build_match(self, base, comp):
         """
-        Build a MATCHRESULT
-        Which should be .annotate - able
+        Build a MatchResult
         """
         ret = MatchResult()
         ret.base = base
@@ -188,7 +200,8 @@ class Matcher():
                           str(base), str(comp), ret.sizesim)
             ret.state = False
 
-        ret.gt_match = truvari.entry_gt_comp(base, comp, self.params.bSample, self.params.cSample)
+        ret.gt_match = truvari.entry_gt_comp(
+            base, comp, self.params.bSample, self.params.cSample)
         if self.params.gtcomp and not ret.gt_match:
             logging.debug("%s and %s are not the same genotype",
                           str(base), str(comp))
@@ -269,7 +282,6 @@ class StatsBox(OrderedDict):
             self["f1"] = 2 * (neum / denom)
         else:
             self["f1"] = "NaN"
-
 
 
 ############################
@@ -459,6 +471,8 @@ def pick_single_matches(match_matrix):
 ###############
 # VCF editing #
 ###############
+
+
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -486,7 +500,7 @@ def edit_header(my_vcf):
     header.add_line(('##INFO=<ID=MatchId,Number=1,Type=Integer,'
                      'Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">'))
     header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
-                        'Description="Call is false due to non-multimatching">'))
+                     'Description="Call is false due to non-multimatching">'))
     return header
 
 
@@ -759,11 +773,10 @@ def bench_main(cmdargs):
 
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
-    matcher.params.includebed = truvari.GenomeTree(base,
-                                                   comp,
+    matcher.params.includebed = truvari.GenomeTree(base, comp,
                                                    args.includebed,
                                                    args.sizemax)
-    #baaawef
+
     chunks = chunker(matcher, ('base', base), ('comp', comp))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         output_writer(call)
