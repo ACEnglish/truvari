@@ -12,7 +12,7 @@ import argparse
 import itertools
 
 from functools import total_ordering
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, Counter
 
 import pysam
 import numpy as np
@@ -299,6 +299,7 @@ def file_zipper(*start_files):
     next_markers = []
     files = []
     names = []
+    file_counts = Counter()
     for name, i in start_files:
         try:
             next_markers.append(next(i))
@@ -317,6 +318,7 @@ def file_zipper(*start_files):
                 sidx = idx
         entry = next_markers[sidx]
         key = names[sidx]
+        file_counts[key] += 1
         try:
             next_markers[sidx] = next(files[sidx])
         except StopIteration:
@@ -325,6 +327,7 @@ def file_zipper(*start_files):
             names.pop(sidx)
             next_markers.pop(sidx)
         yield key, entry
+    logging.info(f"Zipped {sum(file_counts.values())} variants. {file_counts}")
 
 
 def chunker(matcher, *files):
@@ -334,12 +337,14 @@ def chunker(matcher, *files):
     cur_chrom = None
     #min_start = None
     max_end = None
-
+    call_counts = Counter()
+    chunk_count = 0
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
         new_chunk = max_end and max_end + matcher.params.chunksize < entry.start
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         if new_chunk or new_chrom:
+            chunk_count += 1
             yield matcher, cur_chunk
             cur_chunk = defaultdict(list)
             cur_chrom = None
@@ -353,6 +358,9 @@ def chunker(matcher, *files):
             max_end = entry.stop
             logging.debug(f"Adding to {key} -> {entry}")
             cur_chunk[key].append(entry)
+            call_counts[key] += 1
+    chunk_count += 1
+    logging.info(f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
     return matcher, cur_chunk
 
 
