@@ -20,11 +20,6 @@ import progressbar
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
 
-MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
-                                         "ovl_pct size_diff start_distance "
-                                         "end_distance match_entry"))
-
-
 def restricted_float(x):
     """
     Restrict float to range (0,1). Raises argparse.ArgumentTypeError if float is out of range

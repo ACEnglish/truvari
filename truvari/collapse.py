@@ -19,6 +19,9 @@ from truvari.old_bench import edit_header as bench_edit_header
 from truvari.old_bench import annotate_tp
 
 COLLAPENTRY = namedtuple("collapentry", ("entry match match_id key"))
+MATCHRESULT = namedtuple("matchresult", ("score seq_similarity size_similarity "
+                                         "ovl_pct size_diff start_distance "
+                                         "end_distance match_entry"))
 
 
 def parse_args(args):
@@ -202,8 +205,8 @@ def match_calls(base_entry, comp_entry, astart, aend, sizeA, sizeB, reference, a
 
     score = truvari.weighted_score(seq_similarity, size_similarity, ovl_pct)
 
-    return truvari.MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct, size_diff,
-                               start_distance, end_distance, comp_entry)
+    return MATCHRESULT(score, seq_similarity, size_similarity, ovl_pct,
+                       size_diff, start_distance, end_distance, comp_entry)
 
 
 def close_outputs(outputs):
@@ -322,14 +325,14 @@ def find_neighbors(base_entry, match_id, reference, matched_calls, args, outputs
     fetch_start = max(0, astart - args.refdist - 1)
     fetch_end = aend + args.refdist + 1
     for comp_entry in outputs['seek_vcf'].fetch(base_entry.chrom, fetch_start, fetch_end):
-        comp_key = truvari.entry_to_key('b', comp_entry)
+        comp_key = truvari.entry_to_key(comp_entry, bounds=True)
         # Don't collapse with anything that's already been matched
         # Which will include looking at itself
         if matched_calls[comp_key]:
             continue
 
         sizeB = truvari.entry_size(comp_entry)
-        if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.filter_value(comp_entry)):
+        if sizeB < args.sizemin or sizeB > args.sizemax or (args.passonly and truvari.entry_is_filtered(comp_entry)):
             continue
 
         if args.hap and not hap_resolve(base_entry, comp_entry):
@@ -366,7 +369,7 @@ def select_maxqual(entry, neighs):
     else:
         swap = neighs[max_qual_idx]
         base_entry = swap.entry
-        key = truvari.entry_to_key('b', entry)
+        key = truvari.entry_to_key(entry, bounds=True)
         neighs[max_qual_idx] = COLLAPENTRY(
             entry, swap.match, swap.match_id, key)
     return base_entry, neighs
@@ -388,7 +391,7 @@ def select_common(entry, neighs):
     else:
         swap = neighs[most_mac_idx]
         base_entry = swap.entry
-        key = truvari.entry_to_key('b', entry)
+        key = truvari.entry_to_key(entry, bounds=True)
         neighs[most_mac_idx] = COLLAPENTRY(
             entry, swap.match, swap.match_id, key)
     return base_entry, neighs
@@ -416,12 +419,12 @@ def collapse_main(cmdargs):
     kept_cnt = 0
     collap_cnt = 0
     for match_id, base_entry in enumerate(outputs["input_vcf"]):
-        base_key = truvari.entry_to_key('b', base_entry)
+        base_key = truvari.entry_to_key(base_entry, bounds=True)
         if matched_calls[base_key]:
             continue
 
         sizeA = truvari.entry_size(base_entry)
-        if sizeA < args.sizemin or sizeA > args.sizemax or (args.passonly and truvari.filter_value(base_entry)):
+        if sizeA < args.sizemin or sizeA > args.sizemax or (args.passonly and truvari.entry_is_filtered(base_entry)):
             outputs["output_vcf"].write(base_entry)
             output_cnt += 1
             continue

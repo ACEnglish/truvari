@@ -260,6 +260,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     info_ops = []
     if with_info:
         info_header, info_ops = tags_to_ops(v.header.info.items())
+        logging.debug(info_header)
         header.extend(info_header)
 
     if sample is None:
@@ -267,6 +268,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     fmt_ops = []
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
+        logging.debug(fmt_header)
         if isinstance(sample, list):
             header.extend(
                 [f'{s}_{f}' for s, f in itertools.product(sample, fmt_header)])
@@ -280,7 +282,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     for entry in v:
         varsize = truvari.entry_size(entry)
         filt = list(entry.filter)
-        cur_row = [f"{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}",
+        cur_row = [truvari.entry_to_key(entry),
                    entry.id,
                    truvari.entry_variant_type(entry),
                    varsize,

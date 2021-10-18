@@ -59,7 +59,7 @@ debug	False
 giabreport	True
 gtcomp	False
 includebed	repo_utils/test_files/giab.bed
-multimatch	False
+multimatch	True
 no_ref	False
 output	test_results/bench_giab/
 passonly	False

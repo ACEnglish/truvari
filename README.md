@@ -39,6 +39,7 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
  - [vcf2df](https://github.com/spiralgenetics/truvari/wiki/vcf2df) - Turn a VCF into a pandas DataFrame
  - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
+ - [segment](https://github.com/spiralgenetics/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
 
 ## More Information
 

@@ -25,32 +25,26 @@ LogFileStderr
 .. autoclass:: LogFileStderr
    :members:
 
+MatchResult
+^^^^^^^^^^^
+.. autoclass:: MatchResult
+   :members:
+
+Matcher
+^^^^^^^
+.. autoclass:: Matcher
+   :members:
+
 SV
 ^^
 .. autoclass:: SV
    :members:
 
-Methods
--------
-allele_freq_annos
-^^^^^^^^^^^^^^^^^
-.. autofunction:: allele_freq_annos  
-
-bed_ranges
-^^^^^^^^^^
-.. autofunction:: bed_ranges
-
-cmd_exe
-^^^^^^^
-.. autofunction:: cmd_exe
-
+VariantRecord Methods
+---------------------
 copy_entry
 ^^^^^^^^^^
 .. autofunction:: copy_entry
-
-create_pos_haplotype
-^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: create_pos_haplotype
 
 entry_boundaries
 ^^^^^^^^^^^^^^^^
@@ -60,9 +54,17 @@ entry_create_haplotype
 ^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_create_haplotype
 
+entry_distance
+^^^^^^^^^^^^^^
+.. autofunction:: entry_distance
+
 entry_gt_comp
 ^^^^^^^^^^^^^
 .. autofunction:: entry_gt_comp
+
+entry_is_filtered
+^^^^^^^^^^^^^^^^^
+.. autofunction:: entry_is_filtered
 
 entry_is_present
 ^^^^^^^^^^^^^^^^
@@ -75,10 +77,6 @@ entry_pctsim
 entry_reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_reciprocal_overlap
-
-ref_ranges
-^^^^^^^^^^
-.. autofunction:: ref_ranges
 
 entry_same_variant_type
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -100,13 +98,19 @@ entry_variant_type
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_variant_type
 
-fetch_coords
-^^^^^^^^^^^^
-.. autofunction:: fetch_coords
+Extra Methods
+---------------------
+allele_freq_annos
+^^^^^^^^^^^^^^^^^
+.. autofunction:: allele_freq_annos  
 
-filter_value
-^^^^^^^^^^^^
-.. autofunction:: filter_value
+bed_ranges
+^^^^^^^^^^
+.. autofunction:: bed_ranges
+
+create_pos_haplotype
+^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: create_pos_haplotype
 
 get_gt
 ^^^^^^
@@ -124,22 +128,6 @@ get_svtype
 ^^^^^^^^^^
 .. autofunction:: get_svtype
 
-help_unknown_cmd
-^^^^^^^^^^^^^^^^
-.. autofunction:: help_unknown_cmd
-
-make_interval_tree
-^^^^^^^^^^^^^^^^^^
-.. autofunction:: make_interval_tree
-
-match_sorter
-^^^^^^^^^^^^
-.. autofunction:: match_sorter
-
-optimize_df_memory
-^^^^^^^^^^^^^^^^^^
-.. autofunction:: optimize_df_memory
-
 overlaps
 ^^^^^^^^
 .. autofunction:: overlaps
@@ -147,6 +135,32 @@ overlaps
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: reciprocal_overlap
+
+ref_ranges
+^^^^^^^^^^
+.. autofunction:: ref_ranges
+
+sizesim
+^^^^^^^
+.. autofunction:: sizesim
+
+weighted_score
+^^^^^^^^^^^^^^
+.. autofunction:: weighted_score
+
+Dev methods
+-----------
+cmd_exe
+^^^^^^^
+.. autofunction:: cmd_exe
+
+help_unknown_cmd
+^^^^^^^^^^^^^^^^
+.. autofunction:: help_unknown_cmd
+
+optimize_df_memory
+^^^^^^^^^^^^^^^^^^
+.. autofunction:: optimize_df_memory
 
 restricted_float
 ^^^^^^^^^^^^^^^^
@@ -160,17 +174,9 @@ setup_progressbar
 ^^^^^^^^^^^^^^^^^
 .. autofunction:: setup_progressbar
 
-sizesim
-^^^^^^^
-.. autofunction:: sizesim
-
 vcf_to_df
 ^^^^^^^^^
 .. autofunction:: vcf_to_df
-
-weighted_score
-^^^^^^^^^^^^^^
-.. autofunction:: weighted_score
 
 Data
 ----
@@ -180,11 +186,6 @@ regular expression of vcf header INFO/FORMAT fields with groups
 
 .. autodata:: HEADERMAT
 
-MATCHRESULT
-^^^^^^^^^^^
-named tuple of match files
-
-.. autodata:: MATCHRESULT
 
 QUALBINS
 ^^^^^^^^
