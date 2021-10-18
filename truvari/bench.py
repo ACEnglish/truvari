@@ -55,9 +55,10 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
                 self.seqsim, self.sizesim, self.ovlpct)
 
     def __lt__(self, other):
-        if self.state == other.state:
-            return self.score < other.score
-        return self.state < other.state
+        # Trues are always worth more
+        if self.state != other.state:
+            return self.state < other.state
+        return self.score < other.score
 
     def __eq__(self, other):
         return self.state == other.state and self.score == other.score
@@ -294,9 +295,9 @@ def file_zipper(*start_files):
     """
     Zip files to yield the entries in order.
     Files must be sorted
-    Each parameter is a tuple of ('key', 'fn')
+    Each parameter is a tuple of ('key', iterable)
     where key is the identifier (so we know which file the yielded entry came from)
-    and fn is a VariantFile
+    iterable is usually a pysam.VariantFile
     yields key, pysam.VariantRecord
     """
     next_markers = []
@@ -306,8 +307,8 @@ def file_zipper(*start_files):
     for name, i in start_files:
         try:
             next_markers.append(next(i))
-            files.append(i)
             names.append(name)
+            files.append(i)
         except StopIteration:
             # For when there are no variants in the file
             pass
@@ -335,31 +336,27 @@ def file_zipper(*start_files):
 
 def chunker(matcher, *files):
     """
-    Given a Matcher and multiple files,
+    Given a Matcher and multiple files, zip them and create chunks
     """
-    cur_chrom = None
-    #min_start = None
-    max_end = None
     call_counts = Counter()
     chunk_count = 0
+    cur_chrom = None
+    cur_end = None
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
-        new_chunk = max_end and max_end + matcher.params.chunksize < entry.start
         new_chrom = cur_chrom and entry.chrom != cur_chrom
+        new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
             yield matcher, cur_chunk, chunk_count
-            cur_chunk = defaultdict(list)
+            # Reset
             cur_chrom = None
-            #min_start = None
-            max_end = None  # Gotta encounter a new SV to get a new prev_pos
+            cur_end = None
+            cur_chunk = defaultdict(list)
 
         if not matcher.filter_call(entry, key == 'base'):
-            if not cur_chrom:  # First call in chunk
-                cur_chrom = entry.chrom
-                #min_start = entry.start
-            max_end = entry.stop
             logging.debug(f"Adding to {key} -> {entry}")
+            cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1
     chunk_count += 1
@@ -371,30 +368,11 @@ def compare_chunk(chunk):
     """
     Given a filtered chunk, (from chunker) compare all of the calls
     """
-    # If I'm giving up on multiprocessing (for now) I can move back to making the chunker do the holding
-    # Instead of fetching. Then I can get rid of base_vcf and comp_vcf in shared_space
     matcher, chunk_dict, chunk_id = chunk
     logging.debug(f"Comparing chunk {chunk_dict}")
-    # Build all v all matrix
-    match_matrix = []
-    fns = []
-    for bid, b in enumerate(chunk_dict['base']):
-        base_matches = []
-        for cid, c in enumerate(chunk_dict['comp']):
-            mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
-            logging.debug(f"Made mat -> {mat}")
-            base_matches.append(mat)
-        if not base_matches:  # All FNs
-            ret = MatchResult()
-            ret.base = b
-            ret.matid = f"{chunk_id}.{bid}._"
-            logging.debug(f"All FN chunk -> {ret}")
-            fns.append(ret)
-        else:
-            match_matrix.append(base_matches)
 
-    # need to iterate the comp again and make them all FPs
-    if not match_matrix:
+    # All FPs
+    if len(chunk_dict['base']) == 0:
         fps = []
         for cid, c in enumerate(chunk_dict['comp']):
             ret = MatchResult()
@@ -402,11 +380,31 @@ def compare_chunk(chunk):
             ret.matid = f"{chunk_id}._.{cid}"
             fps.append(ret)
             logging.debug("All FP chunk -> {ret}")
-        return fps + fns
+        return fps
+    # All FNs
+    if len(chunk_dict['comp']) == 0:
+        fns = []
+        for bid, b in enumerate(chunk_dict['base']):
+            ret = MatchResult()
+            ret.base = b
+            ret.matid = f"{chunk_id}.{bid}._"
+            logging.debug(f"All FN chunk -> {ret}")
+            fns.append(ret)
+        return fns
+
+    # Build all v all matrix
+    match_matrix = []
+    for bid, b in enumerate(chunk_dict['base']):
+        base_matches = []
+        for cid, c in enumerate(chunk_dict['comp']):
+            mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
+            logging.debug(f"Made mat -> {mat}")
+            base_matches.append(mat)
+        match_matrix.append(base_matches)
 
     # Sort and annotate matches
-    match_matrix = np.array(match_matrix)
     ret = []
+    match_matrix = np.array(match_matrix)
     if matcher.params.multimatch:
         ret = pick_multi_matches(match_matrix)
     else:
@@ -451,7 +449,7 @@ def pick_single_matches(match_matrix):
 
         base_is_used = str(match.base) in used_base
         comp_is_used = str(match.comp) in used_comp
-        if base_cnt == 0 and not comp_is_used:  # Only pull the comp
+        if base_cnt == 0 and not comp_is_used:  # Only write the comp
             to_process = copy.copy(match)
             to_process.base = None
             to_process.state = False
@@ -459,7 +457,7 @@ def pick_single_matches(match_matrix):
             comp_cnt -= 1
             used_comp.add(str(to_process.comp))
             ret.append(to_process)
-        elif comp_cnt == 0 and not base_is_used:  # Only pull the base
+        elif comp_cnt == 0 and not base_is_used:  # Only write the base
             to_process = copy.copy(match)
             to_process.comp = None
             to_process.state = False
@@ -467,8 +465,7 @@ def pick_single_matches(match_matrix):
             base_cnt -= 1
             used_base.add(str(to_process.base))
             ret.append(to_process)
-        # A match
-        elif not base_is_used and not comp_is_used:
+        elif not base_is_used and not comp_is_used: # Write both
             to_process = copy.copy(match)
             base_cnt -= 1
             used_base.add(str(to_process.base))
@@ -480,8 +477,6 @@ def pick_single_matches(match_matrix):
 ###############
 # VCF editing #
 ###############
-
-
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
@@ -533,11 +528,8 @@ def annotate_entry(entry, match, header):
 
 def output_writer(call):
     """
-    Given a call or match result or something
-    write it to the appropriate file
-    This will need to figure out where its going
-    Can also call annotate here, I reckon
-    And I'll deal with the stats box
+    Given a MatchResult, annotate its entries, write each to the appropriate file
+    and do the stats counting.
     """
     outs = shared_space.outputs
     box = shared_space.outputs["stats_box"]
@@ -554,6 +546,7 @@ def output_writer(call):
         else:
             box["FN"] += 1
             outs["fn_out"].write(entry)
+
     if call.comp:
         entry = annotate_entry(call.comp, call, outs['n_comp_header'])
         if call.state:
@@ -578,6 +571,9 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
+    # Keep default data in the Matcher so we only have to
+    # change them in one place
+    defaults = Matcher.make_match_params()
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
@@ -596,25 +592,25 @@ def parse_args(args):
                         help="Turn on progress monitoring")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
-    thresg.add_argument("-r", "--refdist", type=int, default=500,
+    thresg.add_argument("-r", "--refdist", type=int, default=defaults.refdist,
                         help="Max reference location distance (%(default)s)")
-    thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.70,
+    thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=0.10,
+    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=defaults.buffer,
                         help="Percent of the reference span to buffer the haplotype sequence created")
-    thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.70,
+    thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
-    thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,
+    thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,
                         help="Min pct reciprocal overlap (%(default)s) for DEL events")
-    thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
+    thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",
                         help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
-    thresg.add_argument("-C", "--chunksize", type=int, default=None,
-                        help="Max reference distance to compare calls (2 x refdist)")
+    thresg.add_argument("-C", "--chunksize", type=int, default=defaults.chunksize,
+                        help="Max reference distance to compare calls (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
-    genoty.add_argument("--gtcomp", action="store_true", default=False,
+    genoty.add_argument("--gtcomp", action="store_true", default=defaults.gtcomp,
                         help="Compare GenoTypes of matching calls")
     genoty.add_argument("--bSample", type=str, default=None,
                         help="Baseline calls sample to use (first)")
@@ -622,27 +618,25 @@ def parse_args(args):
                         help="Comparison calls sample to use (first)")
 
     filteg = parser.add_argument_group("Filtering Arguments")
-    filteg.add_argument("-s", "--sizemin", type=int, default=50,
+    filteg.add_argument("-s", "--sizemin", type=int, default=defaults.sizemin,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizefilt", type=int, default=30,
+    filteg.add_argument("-S", "--sizefilt", type=int, default=defaults.sizefilt,
                         help="Minimum variant size to load into IntervalTree (%(default)s)")
-    filteg.add_argument("--sizemax", type=int, default=50000,
+    filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
                         help="Maximum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("--passonly", action="store_true", default=False,
+    filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
                         help="Only consider calls with FILTER == PASS")
-    filteg.add_argument("--no-ref", default=False, choices=['a', 'b', 'c'],
+    filteg.add_argument("--no-ref", default=defaults.no_ref, choices=['a', 'b', 'c'],
                         help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
-    filteg.add_argument("--multimatch", action="store_true", default=False,
+    filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
                               "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference:
         parser.error("--reference is required when --pctsim is set")
-    if args.chunksize is None:
-        args.chunksize = 2 * args.refdist
     if args.chunksize < args.refdist:
         parser.error("--chunksize must be >= --refdist")
     return args
@@ -764,19 +758,13 @@ def bench_main(cmdargs):
     """
     args = parse_args(cmdargs)
 
-    # Need to build the MatchParams
-    # and I guess I can still use shared_space?? For outputs, mainly
-    # So let's contain the outputs to just a section that's specific
-    # to bench.py only
     if check_params(args) or check_inputs(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    # build the MatchParams
     if args.reference:
         shared_space.reference = pysam.Fastafile(args.reference)
 
-    # build_match needs to not make FPs less than sizefilt
     shared_space.sizemin = args.sizemin
     matcher = Matcher(args=args)
     setup_outputs(args)
