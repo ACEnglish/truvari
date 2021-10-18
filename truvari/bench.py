@@ -20,8 +20,6 @@ import numpy as np
 import truvari
 from truvari.giab_report import make_giabreport
 
-shared_space = types.SimpleNamespace()
-
 
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
@@ -159,19 +157,18 @@ class Matcher():
             return True
 
         size = truvari.entry_size(entry)
-        args = self.params
-        if base and size < args.sizemin or size > args.sizemax:
+        if base and size < self.params.sizemin or size > self.params.sizemax:
             return True
 
-        if not base and size < args.sizefilt or size > args.sizemax:
+        if not base and size < self.params.sizefilt or size > self.params.sizemax:
             return True
 
-        samp = args.bSample if base else args.cSample
+        samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if args.no_ref in ["a", prefix] and not truvari.entry_is_present(entry, samp):
+        if self.params.no_ref in ["a", prefix] and not truvari.entry_is_present(entry, samp):
             return True
 
-        if args.passonly and truvari.entry_is_filtered(entry):
+        if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
 
         return False
@@ -266,13 +263,14 @@ class StatsBox(OrderedDict):
         elif self["TP-call"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
             do_stats_math = False
-        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall", self["TP-base"], self["FN"],
+        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall",
+                     self["TP-base"], self["FN"],
                      100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
 
         # Final calculations
         if do_stats_math:
-            self["precision"] = float(
-                self["TP-call"]) / (self["TP-call"] + self["FP"])
+            self["precision"] = float(self["TP-call"]) / \
+                (self["TP-call"] + self["FP"])
             self["recall"] = float(self["TP-base"]) / \
                 (self["TP-base"] + self["FN"])
             if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
@@ -314,7 +312,7 @@ def file_zipper(*start_files):
             pass
 
     while next_markers:
-        sidx = 0 # assume the first is the least
+        sidx = 0  # assume the first is the least
         for idx, i in enumerate(next_markers):
             if i.chrom < next_markers[sidx].chrom:
                 sidx = idx
@@ -360,7 +358,8 @@ def chunker(matcher, *files):
             cur_chunk[key].append(entry)
             call_counts[key] += 1
     chunk_count += 1
-    logging.info(f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
+    logging.info(
+        f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
     return matcher, cur_chunk, chunk_count
 
 
@@ -381,6 +380,7 @@ def compare_chunk(chunk):
             fps.append(ret)
             logging.debug("All FP chunk -> {ret}")
         return fps
+
     # All FNs
     if len(chunk_dict['comp']) == 0:
         fns = []
@@ -449,7 +449,8 @@ def pick_single_matches(match_matrix):
 
         base_is_used = str(match.base) in used_base
         comp_is_used = str(match.comp) in used_comp
-        if base_cnt == 0 and not comp_is_used:  # Only write the comp
+        # Only write the comp
+        if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
             to_process.state = False
@@ -457,7 +458,8 @@ def pick_single_matches(match_matrix):
             comp_cnt -= 1
             used_comp.add(str(to_process.comp))
             ret.append(to_process)
-        elif comp_cnt == 0 and not base_is_used:  # Only write the base
+        # Only write the base
+        elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
             to_process.state = False
@@ -465,7 +467,8 @@ def pick_single_matches(match_matrix):
             base_cnt -= 1
             used_base.add(str(to_process.base))
             ret.append(to_process)
-        elif not base_is_used and not comp_is_used: # Write both
+        # Write both
+        elif not base_is_used and not comp_is_used:
             to_process = copy.copy(match)
             base_cnt -= 1
             used_base.add(str(to_process.base))
@@ -474,16 +477,14 @@ def pick_single_matches(match_matrix):
             ret.append(to_process)
     return ret
 
+
 ###############
 # VCF editing #
 ###############
 def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
-    #Probably want to put in the PG whatever, too
     """
-    # Update header
-    # Edit Header
     header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
                      'Description="Truvari score for similarity of match">'))
@@ -526,13 +527,13 @@ def annotate_entry(entry, match, header):
     return entry
 
 
-def output_writer(call):
+def output_writer(call, outs, sizemin):
     """
-    Given a MatchResult, annotate its entries, write each to the appropriate file
+    Annotate a MatchResults' entries, write to the apppropriate file in outs
     and do the stats counting.
+    Writer is responsible for handling FPs between sizefilt-sizemin
     """
-    outs = shared_space.outputs
-    box = shared_space.outputs["stats_box"]
+    box = outs["stats_box"]
     if call.base:
         box["base cnt"] += 1
         entry = annotate_entry(call.base, call, outs['n_base_header'])
@@ -557,7 +558,7 @@ def output_writer(call):
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        elif truvari.entry_size(entry) >= shared_space.sizemin:
+        elif truvari.entry_size(entry) >= sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
             box["call cnt"] += 1
             box["FP"] += 1
@@ -571,8 +572,6 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    # Keep default data in the Matcher so we only have to
-    # change them in one place
     defaults = Matcher.make_match_params()
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -716,40 +715,39 @@ def setup_outputs(args):
         os.path.join(args.output, "log.txt")))
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
     logging.info(f"Truvari version: {truvari.__version__}")
-    shared_space.outputs = {}
 
-    shared_space.outputs["vcf_base"] = pysam.VariantFile(args.base)
-    shared_space.outputs["n_base_header"] = edit_header(
-        shared_space.outputs["vcf_base"])
-    shared_space.outputs["sampleBase"] = args.bSample if args.bSample else shared_space.outputs["vcf_base"].header.samples[0]
+    outputs = {}
+    outputs["vcf_base"] = pysam.VariantFile(args.base)
+    outputs["n_base_header"] = edit_header(outputs["vcf_base"])
+    outputs["sampleBase"] = args.bSample if args.bSample else outputs["vcf_base"].header.samples[0]
 
-    shared_space.outputs["vcf_comp"] = pysam.VariantFile(args.comp)
-    shared_space.outputs["n_comp_header"] = edit_header(
-        shared_space.outputs["vcf_comp"])
-    shared_space.outputs["sampleComp"] = args.cSample if args.cSample else shared_space.outputs["vcf_comp"].header.samples[0]
+    outputs["vcf_comp"] = pysam.VariantFile(args.comp)
+    outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
+    outputs["sampleComp"] = args.cSample if args.cSample else outputs["vcf_comp"].header.samples[0]
 
     # Setup outputs
-    shared_space.outputs["tpb_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-base.vcf"), 'w', header=shared_space.outputs["n_base_header"])
-    shared_space.outputs["tpc_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-call.vcf"), 'w', header=shared_space.outputs["n_comp_header"])
+    outputs["tpb_out"] = pysam.VariantFile(os.path.join(
+        args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
+    outputs["tpc_out"] = pysam.VariantFile(os.path.join(
+        args.output, "tp-call.vcf"), 'w', header=outputs["n_comp_header"])
 
-    shared_space.outputs["fn_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fn.vcf"), 'w', header=shared_space.outputs["n_base_header"])
-    shared_space.outputs["fp_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fp.vcf"), 'w', header=shared_space.outputs["n_comp_header"])
+    outputs["fn_out"] = pysam.VariantFile(os.path.join(
+        args.output, "fn.vcf"), 'w', header=outputs["n_base_header"])
+    outputs["fp_out"] = pysam.VariantFile(os.path.join(
+        args.output, "fp.vcf"), 'w', header=outputs["n_comp_header"])
 
-    shared_space.outputs["stats_box"] = StatsBox()
+    outputs["stats_box"] = StatsBox()
+    return outputs
 
 
-def close_outputs():
+def close_outputs(outputs):
     """
     Close all the files
     """
-    shared_space.outputs["tpb_out"].close()
-    shared_space.outputs["tpc_out"].close()
-    shared_space.outputs["fn_out"].close()
-    shared_space.outputs["fp_out"].close()
+    outputs["tpb_out"].close()
+    outputs["tpc_out"].close()
+    outputs["fn_out"].close()
+    outputs["fp_out"].close()
 
 
 def bench_main(cmdargs):
@@ -762,12 +760,8 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    if args.reference:
-        shared_space.reference = pysam.Fastafile(args.reference)
-
-    shared_space.sizemin = args.sizemin
     matcher = Matcher(args=args)
-    setup_outputs(args)
+    outputs = setup_outputs(args)
 
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
@@ -777,17 +771,17 @@ def bench_main(cmdargs):
 
     chunks = chunker(matcher, ('base', base), ('comp', comp))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        output_writer(call)
+        output_writer(call, outputs, args.sizemin)
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
-        box = shared_space.outputs["stats_box"]
+        box = outputs["stats_box"]
         box.calc_performance()
         fout.write(json.dumps(box, indent=4))
         logging.info("Stats: %s", json.dumps(box, indent=4))
 
-    close_outputs()
+    close_outputs(outputs)
 
     if args.giabreport:
-        make_giabreport(args, shared_space.outputs["stats_box"])
+        make_giabreport(args, outputs["stats_box"])
 
     logging.info("Finished bench")
