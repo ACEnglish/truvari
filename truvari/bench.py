@@ -354,6 +354,7 @@ def chunker(matcher, *files):
 
         if not matcher.filter_call(entry, key == 'base'):
             logging.debug(f"Adding to {key} -> {entry}")
+            cur_chrom = entry.chrom
             cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1
