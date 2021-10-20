@@ -1,0 +1,61 @@
+I can use chunker, don't need file_zipper
+
+I can use Matcher, all those params are the same
+# consider pulling out the shared arguments so I 
+# just send from each prog the argparser and get
+# the stuff added. Easy enough.
+
+I don't need collapentry anymore. I'll just take 
+the Base for one of a set and the rest can go to
+collapse.
+
+
+For each chunk, all against all. 
+Note that I only need the top diagonal since it'll be symmetrical
+So I i can reuse chunker, but I don't reuse chunk_compare
+
+  1 2 3 4 5 6 7
+1 - T T F F T T
+2   - T F F F T
+3     - F T T F
+4       - F F F
+5         - T T
+6           - T
+7             -
+
+1 & 2
+2 & 3
+1 & 3
+----- these collapse without chain
+
+4 is by itself
+
+Well - we also have this picking strategy.
+
+So, imagine we take the FIRST. So we sort them by position.
+Then, we take the first one, and collapse anything it matches with
+ -- lets ignore chain for now.
+Then we look at the next one which we haven't already used,
+pick it and go
+
+
+Say we want most common - sort by most common.
+Then we take the most common one. And collapse anything it matches with.
+Same as before.
+
+We're going to need extra matching checks on stuff for --hap.
+That'll just be setting state=False for anything that's on the same haplotype
+
+For chain, once we get a match (from the sorted, we have to then go to that call and
+Find everyone its matching
+And find everyone they're matching
+and recursive
+
+
+A big part of this refactor is getting INV working.
+I think I just need to get comparisons to work
+	So sequence - just get the alt
+	Size - I need to just get the length  (or read the ALT or whatever)
+	I left the SVLEN alone in my stuff, so those need to be reset... dangit
+
+
