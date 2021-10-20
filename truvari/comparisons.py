@@ -76,6 +76,7 @@ def sizesim(sizeA, sizeB):
     """
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
+
 def entry_distance(entryA, entryB):
     """
     Calculate the start and end distances of the pair
@@ -83,6 +84,7 @@ def entry_distance(entryA, entryB):
     astart, aend = entry_boundaries(entryA)
     bstart, bend = entry_boundaries(entryB)
     return astart - bstart, aend - bend
+
 
 def entry_size_similarity(entryA, entryB):
     """
@@ -198,17 +200,14 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
             return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
 
-    #a1_chrom, a1_start, a1_end, a1_seq = get_props(entryA)
     a1 = get_props(entryA)
-    #a2_chrom, a2_start, a2_end, a2_seq = get_props(entryB)
     a2 = get_props(entryB)
     return create_pos_haplotype(a1, a2, ref, buf_len=buf_len)
-    #)a1_chrom, a1_start, a1_end, a1_seq, a2_start, a2_end, a2_seq, ref, buf_len=buf_len)
 
 
 def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     """
-    Calculate similarity of two sequences' haplotype changes
+    Calculate similarity of two entries' haplotype changes
 
     :param `entryA`: first entry
     :type `entryA`: :class:`pysam.VariantRecord`
@@ -227,6 +226,12 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     # Shortcut to save compute - probably unneeded
     if entryA.ref == entryB.ref and entryA.alts[0] == entryB.alts[0]:
         return 1.0
+
+    if entry_variant_type(entryA) == 'INV' and entry_variant_type(entryB) == 'INV':
+        allele1 = entryA.alts[0]
+        allele2 = entryB.alts[0]
+        return seqsim(allele1, allele2, use_lev)
+
     # Handling of breakends should be here
     try:
         allele1, allele2 = entry_create_haplotype(
@@ -235,6 +240,23 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
         logging.critical('Unable to compare sequence similarity\n%s\n%s\n%s', str(
             entryA), str(entryB), str(e))
         return 0
+    return seqsim(allele1, allele2, use_lev)
+
+
+def seqsim(allele1, allele2, use_lev=False):
+    """
+    Calculate similarity of two sequences
+
+    :param `allele1`: first entry
+    :type `allele1`: :class:`pysam.VariantRecord`
+    :param `allele2`: second entry
+    :type `allele2`: :class:`pysam.VariantRecord`
+    :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
+    :type `use_lev`: boolean, optional
+
+    :return: sequence similarity
+    :rtype: float
+    """
     if use_lev:
         return Levenshtein.ratio(allele1, allele2)
     scr = edlib.align(allele1, allele2)
