@@ -138,3 +138,25 @@ check_params /  - fine
 collapse_main
 	Simplify once I get the pieces
 
+
+collapse_chunk:
+    Sort calls in the chunk by the --keep sorter
+    lookup = {} # kept_key: [mainMatch, collapsed_matches]
+    is_collapsed = {} # comp_call: kept_key
+    while len(match_array) > 1:
+        pop the first thing
+        make a kept_key out of it
+        match it to all the rest
+        
+        if they match,
+            they will become collapse (mat.base = None
+            Add them to lookup[key][1]
+            if not chain:
+                I can also remove them from the match array
+            else:
+                # to chain backwards
+                in_collapsed[comp_key] = kept_key
+
+        if chain and not kept_key is in is_collapsed:
+            ret[kept_key][1].append((kept, collapsed))
+    return list of popped things with their matches

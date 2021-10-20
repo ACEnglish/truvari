@@ -1,8 +1,11 @@
+import os
 import sys
+import json
 import logging
 import argparse
 import itertools
 from functools import cmp_to_key
+from collections import defaultdict
 
 import pysam
 import pandas as pd
@@ -10,36 +13,52 @@ import pandas as pd
 import truvari
 import truvari.bench as trubench
 
-# reuse chunker and mapper
-
 
 def collapse_chunk(chunk):
     """
+    For calls in a chunk, separate which ones should be kept from collapsed
     """
     matcher, chunk_dict, chunk_id = chunk
-    logging.debug(f"Comparing chunk {chunk_dict}")
-    match_array = []
-    for b1, b2 in itertools.combinations(chunk_dict['base'], 2):
-        bid1 = chunk_dict['base'].index(b1)
-        bid2 = chunk_dict['base'].index(b2)
-        mat = matcher.build_match(b1, b2, f'{chunk_id}.{bid1}.{bid2}')
-        if matcher.hap:
-            if not hap_resolve(b1, b2):
+    calls = chunk_dict['base']
+    logging.debug(f"Comparing chunk {calls}")
+    calls.sort(reverse=True, key=matcher.sorter)
+
+    # keep_key : [keep entry, [collap entries], match_id]
+    ret = {}
+    # collap_key : keep_key
+    chain_lookup = {}
+    
+    call_id = 0
+    while calls:
+        # Take the first variant
+        cur_keep_candidate = calls.pop(0)
+        keep_key = truvari.entry_to_key(cur_keep_candidate)
+        # if chain, any matches we find will be added to a previous keep
+        if matcher.chain and keep_key in chain_lookup:
+            keep_key = chain_lookup[keep_key]
+        else:  # otherwise, this is assumed to be a keep call
+            ret[keep_key] = [cur_keep_candidate, [], f'{chunk_id}.{call_id}']
+
+        # Separate calls collapsing with this keep from the rest
+        remaining_calls = []
+        for cur_collapse_candidate in calls:
+            mat = matcher.build_match(cur_keep_candidate,
+                                      cur_collapse_candidate,
+                                      ret[keep_key][2])
+            if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
-        match_array.append(mat)
-    match_array.sort(reverse=True, key=matcher.sorter)
-    return match_array
-
-
-def chain_calls():
-    """
-        given an entry,
-        for every hit in the matrix that has this entry as the base
-        if its state is True
-        Set it to be output to collapse, and do the same chain_calls on this comp.
-        Just sets all the bases to None?
-    """
-    pass
+            if mat.state:  # to collapse
+                if matcher.chain:  # need to record for downstream
+                    collap_key = truvari.entry_to_key(cur_collapse_candidate)
+                    chain_lookup[collap_key] = keep_key
+                    remaining_calls.append(cur_collapse_candidate)
+                ret[keep_key][1].append(mat)
+            else:
+                remaining_calls.append(cur_collapse_candidate)
+        calls = remaining_calls
+    
+    # Crap - I need to actually do the consolidation work here
+    return ret.values()
 
 
 def hap_resolve(entryA, entryB):
@@ -59,63 +78,25 @@ def hap_resolve(entryA, entryB):
 
 def sort_first(b1, b2):
     """
-    Sor
     Remove all but the single best neighbor from the list of neighs in-place
     """
-    return b1 < b2
-    max_score = 0
-    max_score_pos = 0
-    for pos, n in enumerate(neighs):
-        if n[1].score > max_score:
-            max_score = n[1].score
-            max_score_pos = pos
-    return [neighs[max_score_pos]]
+    return b1.pos < b2.pos
 
 
 def sort_maxqual(b1, b2):
     """
     Swap the entry with the one containing the call with the maximum quality score
     """
-    return b1 < b2
-    max_qual = entry.qual
-    max_qual_idx = -1
-    for pos, val in enumerate(neighs):  # pylint: disable=unused-variable
-        cmp_qual = neighs[pos].entry.qual
-        if cmp_qual > max_qual:
-            max_qual_idx = pos
-
-    if max_qual_idx == -1:
-        base_entry = entry
-    else:
-        swap = neighs[max_qual_idx]
-        base_entry = swap.entry
-        key = truvari.entry_to_key(entry, bounds=True)
-        neighs[max_qual_idx] = COLLAPENTRY(
-            entry, swap.match, swap.match_id, key)
-    return base_entry, neighs
+    return b1.qual < b2.qual
 
 
 def sort_common(b1, b2):
     """
     Swap the entry with the one containing the highest MAC
     """
-    return b1 < b2
-    most_mac = truvari.allele_freq_annos(entry)["MAC"]
-    most_mac_idx = -1
-    for pos, val in enumerate(neighs):  # pylint: disable=unused-variable
-        cmp_mac = truvari.allele_freq_annos(neighs[pos].entry)["MAC"]
-        if cmp_mac > most_mac:
-            most_mac_idx = pos
-
-    if most_mac_idx == -1:
-        base_entry = entry
-    else:
-        swap = neighs[most_mac_idx]
-        base_entry = swap.entry
-        key = truvari.entry_to_key(entry, bounds=True)
-        neighs[most_mac_idx] = COLLAPENTRY(
-            entry, swap.match, swap.match_id, key)
-    return base_entry, neighs
+    mac1 = truvari.allele_freq_annos(b1)["MAC"]
+    mac2 = truvari.allele_freq_annos(b2)["MAC"]
+    return mac1 < mac2
 
 
 SORTS = {'first': cmp_to_key(sort_first),
@@ -133,29 +114,24 @@ def edit_header(my_vcf):
     header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=NumCollapsed,Number=1,Type=Integer,'
                      'Description="Number of calls collapsed into this call by truvari">'))
-    header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=Integer,'
+    header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=String,'
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
     return header
 
-# Collapsed output
 
-
-def annotate_entry(entry):
+def annotate_entry(entry, num_collapsed, match_id, header ):
     """
     Edit an entry that's going to be collapsed into another entry
     """
-    # MatchId
-    # NumCollapsed
-    new_entry = truvari.copy_entry(entry, outputs["c_header"])
+    new_entry = truvari.copy_entry(entry, header)
+    new_entry.info["NumCollapsed"] = num_collapsed
     new_entry.info["CollapseId"] = match_id
-    new_entry.info["NumCollapsed"] = match.collapse_count
     return new_entry
+
 
 ##################
 # Args & Outputs #
 ##################
-
-
 def parse_args(args):
     """
     Pull the command line parameters
@@ -275,51 +251,74 @@ def setup_outputs(args):
 
     outputs = {}
 
-    outputs["input_vcf"] = pysam.VariantFile(args.input, 'r')
-    # These need to be separate, there's only one seek position in a file handler
-    outputs["seek_vcf"] = pysam.VariantFile(args.input, 'r')
-    outputs["o_header"] = output_edit_header(outputs["input_vcf"])
-    outputs["c_header"] = collapse_edit_header(outputs["input_vcf"])
+    in_vcf = pysam.VariantFile(args.input)
+    outputs["o_header"] = edit_header(in_vcf)
+    outputs["c_header"] = trubench.edit_header(in_vcf)
     num_samps = len(outputs["o_header"].samples)
     if args.hap and num_samps != 1:
         logging.error(
             "--hap mode requires exactly one sample. Found %d", num_samps)
         sys.exit(100)
-    outputs["output_vcf"] = pysam.VariantFile(
-        args.output, 'w', header=outputs["o_header"])
-    outputs["collap_vcf"] = pysam.VariantFile(
-        args.collapsed_output, 'w', header=outputs["c_header"])
+    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w',
+                                              header=outputs["o_header"])
+    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
+                                              header=outputs["c_header"])
+    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0}
     return outputs
 
+
+def output_writer(to_collapse, outputs):
+    """
+    Annotate and write kept/collapsed calls to appropriate files
+    """
+    entry, collapsed, match_id = to_collapse
+    # Save copying time
+    if not len(collapsed):
+        outputs["output_vcf"].write(entry)
+        outputs["stats_box"]["kept_cnt"] += 1
+        return
+
+    # MatchId is lost somewhere
+    entry = annotate_entry(entry, len(collapsed), match_id, outputs["o_header"])
+    outputs["output_vcf"].write(entry)
+    outputs["stats_box"]["kept_cnt"] += 1
+    for match in collapsed:
+        entry = trubench.annotate_entry(match.comp, match, outputs["c_header"])
+        outputs["collap_vcf"].write(entry)
+        outputs['stats_box']["collap_cnt"] += 1
 
 def close_outputs(outputs):
     """
     Close all the files
     """
-    outputs["input_vcf"].close()
-    outputs["seek_vcf"].close()
     outputs["output_vcf"].close()
     outputs["collap_vcf"].close()
 
 
 def collapse_main(args):
+    """
+    Main
+    """
     args = parse_args(args)
-    # Args that Matcher wants but collapser doesn't use
-    # check params
+
+    if check_params(args):
+        sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
+        sys.exit(100)
+        
     matcher = build_collapse_matcher(args)
+    outputs = setup_outputs(args)
     # setup outputs
     base = pysam.VariantFile(args.input)
 
     chunks = trubench.chunker(matcher, ('base', base))
     for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
-        print(call)
+        output_writer(call, outputs)
         # print(len(chunk['base']))
-    # parse args
-    # setup outputs
-    # for call in chunker collapse_calls
-    #   output call
-    # Done
 
+    close_outputs(outputs)
+    logging.info("Kept %d Variants", outputs["stats_box"]["kept_cnt"])
+    logging.info("Collapsed %d Variants", outputs["stats_box"]["collap_cnt"])
+    logging.info("Finished collapse")
 
 if __name__ == '__main__':
     collapse_main(sys.argv[1:])
