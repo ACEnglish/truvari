@@ -112,7 +112,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)
         elif n_idx is not None:
-            o_entry = others[pos].comp
+            o_entry = others[n_idx].comp
             for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
                 entry.samples[sample][key] = o_entry.samples[sample][key]
 
