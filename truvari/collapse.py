@@ -61,8 +61,46 @@ def collapse_chunk(chunk):
                 remaining_calls.append(cur_collapse_candidate)
         calls = remaining_calls
 
-    # Crap - I need to actually do the consolidation work here
-    return ret.values()
+    for key, val in ret.items():
+        ret[key][0] = collapse_into_entry(val[0], val[1])
+
+    ret = list(ret.values())
+    for i in chunk_dict['__filtered']:
+        ret.append([i, None, None])
+
+    return ret
+
+
+def collapse_into_entry(entry, others):
+    """
+    Consolidate information for genotypes where sample is unset
+    okay - this works, but its a mess
+    """
+    # short circuit
+    if not others:
+        return entry
+    # Others is a set of matches
+    # We'll populate with the most similar, first
+    others.sort()
+    replace_gts = ["UNK", "REF", "NON"]
+
+    # Each sample of this entry needs to be checked/set
+    for sample in entry.samples:
+        m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
+        if m_gt not in replace_gts:
+            continue  # already set
+        n_idx = 0
+        while n_idx < len(others):
+            o_entry = others[n_idx].comp
+            o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
+            if o_gt not in replace_gts:
+                break  # this is the first other that's set
+            n_idx += 1
+        # consolidate
+        for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
+            entry.samples[sample][key] = o_entry.samples[sample][key]
+
+    return entry
 
 
 def hap_resolve(entryA, entryB):
@@ -123,7 +161,7 @@ def edit_header(my_vcf):
     return header
 
 
-def annotate_entry(entry, num_collapsed, match_id, header ):
+def annotate_entry(entry, num_collapsed, match_id, header):
     """
     Edit an entry that's going to be collapsed into another entry
     """
@@ -267,7 +305,7 @@ def setup_outputs(args):
                                               header=outputs["o_header"])
     outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
                                               header=outputs["c_header"])
-    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0}
+    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0, "out_cnt": 0}
     return outputs
 
 
@@ -279,17 +317,20 @@ def output_writer(to_collapse, outputs):
     # Save copying time
     if not collapsed:
         outputs["output_vcf"].write(entry)
-        outputs["stats_box"]["kept_cnt"] += 1
+        outputs["stats_box"]["out_cnt"] += 1
         return
 
     # MatchId is lost somewhere
-    entry = annotate_entry(entry, len(collapsed), match_id, outputs["o_header"])
+    entry = annotate_entry(entry, len(collapsed),
+                           match_id, outputs["o_header"])
     outputs["output_vcf"].write(entry)
+    outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
     for match in collapsed:
         entry = trubench.annotate_entry(match.comp, match, outputs["c_header"])
         outputs["collap_vcf"].write(entry)
         outputs['stats_box']["collap_cnt"] += 1
+
 
 def close_outputs(outputs):
     """
@@ -317,12 +358,13 @@ def collapse_main(args):
     chunks = trubench.chunker(matcher, ('base', base))
     for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
         output_writer(call, outputs)
-        # print(len(chunk['base']))
 
     close_outputs(outputs)
-    logging.info("Kept %d Variants", outputs["stats_box"]["kept_cnt"])
-    logging.info("Collapsed %d Variants", outputs["stats_box"]["collap_cnt"])
+    logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
+    logging.info("%d variants collapsed into %d variants", outputs["stats_box"]["collap_cnt"],
+                 outputs["stats_box"]["kept_cnt"])
     logging.info("Finished collapse")
+
 
 if __name__ == '__main__':
     collapse_main(sys.argv[1:])
