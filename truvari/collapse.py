@@ -1,3 +1,9 @@
+"""
+Structural variant collapser
+
+Will collapse all variants within sizemin/max that match over thresholds
+"""
+
 import os
 import sys
 import json
@@ -5,10 +11,8 @@ import logging
 import argparse
 import itertools
 from functools import cmp_to_key
-from collections import defaultdict
 
 import pysam
-import pandas as pd
 
 import truvari
 import truvari.bench as trubench
@@ -27,7 +31,7 @@ def collapse_chunk(chunk):
     ret = {}
     # collap_key : keep_key
     chain_lookup = {}
-    
+
     call_id = 0
     while calls:
         # Take the first variant
@@ -56,7 +60,7 @@ def collapse_chunk(chunk):
             else:
                 remaining_calls.append(cur_collapse_candidate)
         calls = remaining_calls
-    
+
     # Crap - I need to actually do the consolidation work here
     return ret.values()
 
@@ -273,7 +277,7 @@ def output_writer(to_collapse, outputs):
     """
     entry, collapsed, match_id = to_collapse
     # Save copying time
-    if not len(collapsed):
+    if not collapsed:
         outputs["output_vcf"].write(entry)
         outputs["stats_box"]["kept_cnt"] += 1
         return
@@ -304,7 +308,7 @@ def collapse_main(args):
     if check_params(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
-        
+
     matcher = build_collapse_matcher(args)
     outputs = setup_outputs(args)
     # setup outputs
