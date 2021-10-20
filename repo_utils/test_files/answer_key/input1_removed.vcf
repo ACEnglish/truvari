@@ -40,16 +40,12 @@
 ##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
 ##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
 ##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
-##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
-##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
-##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size(basecall) and size(evalcall)">
-##INFO=<ID=NumNeighbors,Number=1,Type=Integer,Description="Number of calls in B that were in the neighborhood (REFDIST) of this call">
-##INFO=<ID=NumThresholdNeighbors,Number=1,Type=Integer,Description="Number of calls in B that are within threshold distances of this call">
-##INFO=<ID=MatchId,Number=1,Type=Integer,Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">
-##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
-##INFO=<ID=CollapseId,Number=1,Type=Integer,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA24385
-chr20	420665	.	G	GCCCACCCCATCCCCCGTCCCCATCCCCCATCCCCCGTCCCCCGTCCCCATCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCATCCCCCGTCCCCCGTCCCCCATCCCATCCCCCACCCCCATCCCCCGTCCCCCGTCCCCATCCCCCATCCCCCATCCCCCATCCCCCGTCCGCCGTCCCCCATCTCCTGTCCCCCGTCCCCCATCCCCCGTCCCCATCCCCCACC	61	.	QNAME=HG002-S9-H2-000001F;QSTART=374905;QSTRAND=+;SVTYPE=INS;SVLEN=227;CollapseId=845;NumCollapsed=1	GT:PL	0/1:.
-chr20	420665	.	G	GCCCACCCCATCCCCCGTCCCCATCCCCCATCCCCCGTCCCCCGTCCCCATCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCATCCCCCGTCCCCCGTCCCCCATCCCATCCCCCACCCCCATCCCCCGTCCCCCGTCCCCATCCCCCATCCCCCATCCCCATCCCCCGTCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCCATCCCCCGTCCCCATCCCCCACC	60	.	QNAME=HG002-S9-H1-000001F;QSTART=400044;QSTRAND=+;SVTYPE=INS;SVLEN=226;CollapseId=845;TruScore=99;PctSeqSimilarity=0.995604;PctSizeSimilarity=0.995595;PctRecOverlap=1;SizeDiff=1;StartDistance=0;EndDistance=0	GT:PL:DP	1/0:4,8,6:32,9
-chr20	641913	.	G	GGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGA	60	.	QNAME=HG002-S9-H1-000001F;QSTART=621365;QSTRAND=+;SVTYPE=INS;SVLEN=66;CollapseId=1218;NumCollapsed=1	GT:PL:DP	1/0:7,5,7:34,13
-chr20	642330	.	G	GGCCCAGCGGGGGTGGAGTTGCCTGTGGTGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGC	60	.	QNAME=HG002-S9-H2-000001F;QSTART=597257;QSTRAND=+;SVTYPE=INS;SVLEN=66;CollapseId=1218;TruScore=73;PctSeqSimilarity=0.963781;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=-417;EndDistance=-417	GT:PL:DP	0/1:6,1,9:20,25
+chr20	420665	.	G	GCCCACCCCATCCCCCGTCCCCATCCCCCATCCCCCGTCCCCCGTCCCCATCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCATCCCCCGTCCCCCGTCCCCCATCCCATCCCCCACCCCCATCCCCCGTCCCCCGTCCCCATCCCCCATCCCCCATCCCCATCCCCCGTCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCCATCCCCCGTCCCCATCCCCCACC	60	.	QNAME=HG002-S9-H1-000001F;QSTART=400044;QSTRAND=+;SVTYPE=INS;SVLEN=226;PctSeqSimilarity=0.995604;PctSizeSimilarity=0.995595;PctRecOverlap=1;SizeDiff=1;StartDistance=0;EndDistance=0;TruScore=99;MatchId=4.0	GT:PL:DP	1/0:4,8,6:32,9
+chr20	642330	.	G	GGCCCAGCGGGGGTGGAGTTGCCTGTGGTGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGC	60	.	QNAME=HG002-S9-H2-000001F;QSTART=597257;QSTRAND=+;SVTYPE=INS;SVLEN=66;PctSeqSimilarity=0.963781;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=-417;EndDistance=-417;TruScore=73;MatchId=6.0	GT:PL:DP	0/1:6,1,9:20,25

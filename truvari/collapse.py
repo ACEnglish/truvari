@@ -59,10 +59,19 @@ def collapse_chunk(chunk):
                 ret[keep_key][1].append(mat)
             else:
                 remaining_calls.append(cur_collapse_candidate)
+
+        # Only put in the single best match
+        # Leave the others to be handled later
+        if matcher.hap and ret[keep_key][1]:
+            candidates = sorted(ret[keep_key][1])
+            ret[keep_key][1] = [candidates.pop(0)]
+            remaining_calls.extend(candidates)
+
         calls = remaining_calls
 
     for key, val in ret.items():
-        ret[key][0] = collapse_into_entry(val[0], val[1])
+        logging.debug("Collapsing %s", key)
+        val[0] = collapse_into_entry(val[0], val[1])
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
@@ -71,7 +80,7 @@ def collapse_chunk(chunk):
     return ret
 
 
-def collapse_into_entry(entry, others):
+def collapse_into_entry(entry, others, hap_mode=False):
     """
     Consolidate information for genotypes where sample is unset
     okay - this works, but its a mess
@@ -81,24 +90,31 @@ def collapse_into_entry(entry, others):
         return entry
     # Others is a set of matches
     # We'll populate with the most similar, first
-    others.sort()
+    others.sort(reverse=True)
+    # I have a special case of --hap. I need to allow hets
     replace_gts = ["UNK", "REF", "NON"]
+    if hap_mode:
+        replace_gts.append("HET")
 
     # Each sample of this entry needs to be checked/set
     for sample in entry.samples:
         m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
         if m_gt not in replace_gts:
             continue  # already set
-        n_idx = 0
-        while n_idx < len(others):
-            o_entry = others[n_idx].comp
+        n_idx = None
+        for pos, o_entry in enumerate(others):
+            o_entry = o_entry.comp
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
             if o_gt not in replace_gts:
+                n_idx = pos
                 break  # this is the first other that's set
-            n_idx += 1
         # consolidate
-        for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
-            entry.samples[sample][key] = o_entry.samples[sample][key]
+        if hap_mode and m_gt == "HET":
+            entry.samples[sample]["GT"] = (1, 1)
+        elif n_idx is not None:
+            o_entry = others[pos].comp
+            for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
+                entry.samples[sample][key] = o_entry.samples[sample][key]
 
     return entry
 
