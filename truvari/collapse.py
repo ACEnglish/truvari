@@ -51,8 +51,10 @@ def collapse_chunk(chunk):
                                       ret[keep_key][2])
             if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
-            if mat.state:  # to collapse
-                if matcher.chain:  # need to record for downstream
+            # to collapse
+            if mat.state:
+                if matcher.chain:
+                    # need to record for downstream
                     collap_key = truvari.entry_to_key(cur_collapse_candidate)
                     chain_lookup[collap_key] = keep_key
                     remaining_calls.append(cur_collapse_candidate)
@@ -63,7 +65,7 @@ def collapse_chunk(chunk):
         # Only put in the single best match
         # Leave the others to be handled later
         if matcher.hap and ret[keep_key][1]:
-            candidates = sorted(ret[keep_key][1])
+            candidates = sorted(ret[keep_key][1], reverse=True)
             ret[keep_key][1] = [candidates.pop(0)]
             remaining_calls.extend(candidates)
 
@@ -88,7 +90,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
     # short circuit
     if not others:
         return entry
-    # Others is a set of matches
+
     # We'll populate with the most similar, first
     others.sort(reverse=True)
     # I have a special case of --hap. I need to allow hets
@@ -336,7 +338,6 @@ def output_writer(to_collapse, outputs):
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    # MatchId is lost somewhere
     entry = annotate_entry(entry, len(collapsed),
                            match_id, outputs["o_header"])
     outputs["output_vcf"].write(entry)
@@ -368,7 +369,6 @@ def collapse_main(args):
 
     matcher = build_collapse_matcher(args)
     outputs = setup_outputs(args)
-    # setup outputs
     base = pysam.VariantFile(args.input)
 
     chunks = trubench.chunker(matcher, ('base', base))
