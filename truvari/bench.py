@@ -358,10 +358,13 @@ def chunker(matcher, *files):
             cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1
+        else:
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
     chunk_count += 1
     logging.info(
         f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
-    return matcher, cur_chunk, chunk_count
+    yield matcher, cur_chunk, chunk_count
 
 
 def compare_chunk(chunk):

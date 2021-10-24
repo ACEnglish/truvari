@@ -39,14 +39,11 @@
 ##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
 ##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
 ##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
-##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
-##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of this call's start from comparison call's start">
-##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size(basecall) and size(evalcall)">
-##INFO=<ID=NumNeighbors,Number=1,Type=Integer,Description="Number of calls in B that were in the neighborhood (REFDIST) of this call">
-##INFO=<ID=NumThresholdNeighbors,Number=1,Type=Integer,Description="Number of calls in B that are within threshold distances of this call">
-##INFO=<ID=MatchId,Number=1,Type=Integer,Description="Truvari uid to help tie tp-base.vcf and tp-call.vcf entries together">
-##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
-##INFO=<ID=CollapseId,Number=1,Type=Integer,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00733
-chr20	149013	.	A	ACCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCGAATCCTGAC	60	.	QNAME=cluster23_scaffold_3;QSTART=25562871;QSTRAND=-;SVTYPE=INS;SVLEN=69;CollapseId=53;NumCollapsed=1	GT	1/0
-chr20	149073	.	G	GAATCCTGACCCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCA	60	.	QNAME=cluster23_scaffold_2;QSTART=25547471;QSTRAND=-;SVTYPE=INS;SVLEN=69;CollapseId=53;TruScore=74;PctSeqSimilarity=0.996479;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=-60;EndDistance=-60	GT	0/1
+chr20	149073	.	G	GAATCCTGACCCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCA	60	.	QNAME=cluster23_scaffold_2;QSTART=25547471;QSTRAND=-;SVTYPE=INS;SVLEN=69;PctSeqSimilarity=0.996479;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=-60;EndDistance=-60;TruScore=74;MatchId=1.0	GT	0/1

@@ -1,4 +1,3 @@
 [run]
 concurrency = multiprocessing
 branch = true
-omit = */old_bench.py

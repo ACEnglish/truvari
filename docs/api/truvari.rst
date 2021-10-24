@@ -140,6 +140,10 @@ ref_ranges
 ^^^^^^^^^^
 .. autofunction:: ref_ranges
 
+seqsim
+^^^^^^
+.. autofunction:: seqsim
+
 sizesim
 ^^^^^^^
 .. autofunction:: sizesim

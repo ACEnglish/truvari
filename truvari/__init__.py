@@ -31,6 +31,7 @@ Extra methods:
 :meth:`overlaps`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
+:meth:`seqsim`
 :meth:`sizesim`
 :meth:`weighted_score`
 
@@ -94,6 +95,7 @@ from truvari.comparisons import (
     entry_variant_type,
     overlaps,
     reciprocal_overlap,
+    seqsim,
     sizesim,
     weighted_score,
 )
