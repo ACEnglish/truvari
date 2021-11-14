@@ -367,6 +367,12 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
+def pull_samples(vcf_fn):
+    """
+    Pull sample names from a vcf
+    """
+    vcf = pysam.VariantFile(vcf_fn)
+    return list(vcf.header.samples)
 
 def vcf2df_main(args):
     """
@@ -377,13 +383,14 @@ def vcf2df_main(args):
     out = None
     if not args.bench_dir:
         if args.multisample and not args.sample:
-            vcf = pysam.VariantFile(args.vcf)
-            args.sample = list(vcf.header.samples)
+            args.sample = pull_samples(args.vcf)
         out = vcf_to_df(args.vcf, args.info, args.format, args.sample)
     else:
         vcfs = get_files_from_truvdir(args.vcf)
         all_dfs = []
         for key, val in vcfs.items():
+            if args.multisample and not args.sample:
+                args.sample = pull_samples(val[0])
             df = vcf_to_df(val[0], args.info, args.format, args.sample)
             df["state"] = key
             all_dfs.append(df)
