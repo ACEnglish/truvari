@@ -206,7 +206,7 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
 
 def entry_to_haplotype(entry, ref, start=None, end=None):
     """
-    Integrate an entry into the reference and return the sequence. 
+    Integrate an entry into the reference and return the sequence.
 
     :param `entry`: vcf entry
     :type `entry: :class:`pysam.VariantRecord`
