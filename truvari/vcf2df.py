@@ -202,24 +202,33 @@ def tags_to_ops(items):
     def prod(base, suffixes):
         return [f"{base}_{s}" for s in suffixes]
 
+    def pres_check(dat, key, multi=False):
+        if key not in dat:
+            return False
+        if dat[key] is None:
+            return False
+        if multi and dat[key].count(None) == len(dat[key]):
+            return False
+        return True
+
     columns = []
     ops = []
     for key, dat in items:
         num = dat.number
         if num in [1, 'A', '.']: # 'A' should just pull first item...
             columns.append(key)
-            ops.append((key, lambda dat, k: [dat[k]] if k in dat else [None]))
+            ops.append((key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [None]))
         elif num == 0:
             columns.append(key)
             ops.append((key, lambda dat, k: [k in dat]))
         elif num == 'R':
             columns.extend(prod(key, ['ref', 'alt']))
             ops.append(
-                (key, lambda dat, k: dat[k] if k in dat and dat[k] is not None else [None, None]))
+                (key, lambda dat, k: dat[k] if pres_check(dat, k, True) else [None, None]))
         elif num == 'G':
             columns.extend(prod(key, ['ref', 'het', 'hom']))
             ops.append(
-                (key, lambda dat, k: dat[k] if k in dat and dat[k] is not None else [None, None, None]))
+                (key, lambda dat, k: dat[k] if pres_check(dat, k, True) else [None, None, None]))
         else:
             logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
     return columns, ops
