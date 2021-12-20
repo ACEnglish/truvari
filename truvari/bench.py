@@ -676,6 +676,9 @@ def check_params(args):
         check_fail = True
         logging.error(
             "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+    if args.includebed and not os.path.exists(args.includebed):
+        check_fail = True
+        logging.error("Include bed %s does not exist", args.includebed)
 
     return check_fail
 
@@ -754,6 +757,37 @@ def close_outputs(outputs):
     outputs["fp_out"].close()
 
 
+class custom_iterator(): # pylint: disable=too-few-public-methods
+    """
+    Iterate vcfs in the same order, regardless of sort order
+    """
+    def __init__(self, fn):
+        """
+        Wrap VariantFile
+        """
+        self.vcf = pysam.VariantFile(fn)
+        self.all_chroms = sorted(self.vcf.header.contigs)
+        self.gen = None
+        self.pos = None
+
+    def __next__(self):
+        """
+        Wrap next
+        """
+        if self.pos is None:
+            self.pos = 0
+            self.gen = self.vcf.fetch(self.all_chroms[self.pos])
+        elif self.pos >= len(self.all_chroms):
+            raise StopIteration
+        try:
+            return next(self.gen)
+        except StopIteration as stop_iter:
+            self.pos += 1
+            if self.pos >= len(self.all_chroms):
+                raise StopIteration from stop_iter
+            self.gen = self.vcf.fetch(self.all_chroms[self.pos])
+            return next(self)
+
 def bench_main(cmdargs):
     """
     Main
@@ -772,8 +806,9 @@ def bench_main(cmdargs):
     matcher.params.includebed = truvari.GenomeTree(base, comp,
                                                    args.includebed,
                                                    args.sizemax)
-
-    chunks = chunker(matcher, ('base', base), ('comp', comp))
+    base_i = custom_iterator(args.base)
+    comp_i = custom_iterator(args.comp)
+    chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         output_writer(call, outputs, args.sizemin)
 

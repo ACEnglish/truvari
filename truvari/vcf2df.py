@@ -298,7 +298,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
                    truvari.get_sizebin(varsize),
                    entry.qual,
                    filt,
-                   filt == [] or filt[0] == 'PASS'
+                   not filt or filt[0] == 'PASS'
                    ]
 
         for i, op in info_ops:  # Need to make OPs for INFOS..

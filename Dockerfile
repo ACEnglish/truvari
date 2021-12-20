@@ -13,7 +13,7 @@ WORKDIR /opt/truvari-source
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install setproctitle pylint anybadge coverage
 RUN python3 -m pip install --upgrade setuptools
-RUN python3 setup.py install
+RUN python3 -m pip install ./
 
 WORKDIR /data
 
