@@ -60,9 +60,6 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     def __eq__(self, other):
         return self.state == other.state and self.score == other.score
 
-    def __repr__(self):
-        return f'<{self.score} {self.state} {self.base.chrom}:{self.base.pos}->{self.comp.chrom}:{self.comp.pos}>'
-
     def __str__(self):
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 

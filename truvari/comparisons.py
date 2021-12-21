@@ -21,7 +21,7 @@ def entry_is_present(entry, sample=None):
     :type `sample`: string, optional
 
     :return: True if variant is present in the sample
-    :rtype: boolean
+    :rtype: bool
 
     Example
         >>> import truvari
@@ -126,7 +126,7 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     :type `sampleB`: string, optional
 
     :return: True if the genotypes are concordant
-    :rtype: boolean
+    :rtype: bool
 
     Example
         >>> import truvari
@@ -185,7 +185,7 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     :param `ref`: Reference genome
     :type `ref`: :class:`pysam.FastaFile`
     :param `use_ref_seq`: If True, use the reference genome to get the sequence instead of the vcf entries
-    :type `use_ref_seq`: boolean, optional
+    :type `use_ref_seq`: bool, optional
     :param `buf_len`: Percent of selected region's range length to buffer
     :type `buf_len`: float, optional
 
@@ -199,7 +199,6 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
         if use_ref_seq and (entry.alts[0] == "<DEL>" or len(entry.alts[0]) < len(entry.ref)):
             return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
-
     a1 = get_props(entryA)
     a2 = get_props(entryB)
     return create_pos_haplotype(a1, a2, ref, buf_len=buf_len)
@@ -240,7 +239,7 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     :param `buf_len`: Percent of selected region's range length to buffer
     :type `buf_len`: float, optional
     :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
-    :type `use_lev`: boolean, optional
+    :type `use_lev`: bool, optional
 
     :return: sequence similarity
     :rtype: float
@@ -255,13 +254,7 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
         return seqsim(allele1, allele2, use_lev)
 
     # Handling of breakends should be here
-    try:
-        allele1, allele2 = entry_create_haplotype(
-            entryA, entryB, ref, buf_len=buf_len)
-    except Exception as e:  # pylint: disable=broad-except
-        logging.critical('Unable to compare sequence similarity\n%s\n%s\n%s', str(
-            entryA), str(entryB), str(e))
-        return 0
+    allele1, allele2 = entry_create_haplotype(entryA, entryB, ref, buf_len=buf_len)
     return seqsim(allele1, allele2, use_lev)
 
 
@@ -274,7 +267,7 @@ def seqsim(allele1, allele2, use_lev=False):
     :param `allele2`: second entry
     :type `allele2`: :class:`pysam.VariantRecord`
     :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
-    :type `use_lev`: boolean, optional
+    :type `use_lev`: bool, optional
 
     :return: sequence similarity
     :rtype: float
@@ -300,7 +293,7 @@ def overlaps(s1, e1, s2, e2):
     :type `e2`: int
 
     :return: True if ranges overlap
-    :rtype: boolean
+    :rtype: bool
     """
     s_cand = max(s1, s2)
     e_cand = min(e1, e2)
@@ -365,25 +358,31 @@ def entry_same_variant_type(entryA, entryB):
     :type `entryB`: :class:`pysam.VariantRecord`
 
     :return: True if entry SVTYPEs match
-    :rtype: boolean
+    :rtype: bool
     """
     a_type = entry_variant_type(entryA)
     b_type = entry_variant_type(entryB)
     return a_type == b_type
 
 
-def entry_boundaries(entry):
+def entry_boundaries(entry, ins_inflate=False):
     """
     Get the start/end of an entry and order (start < end)
 
     :param `entry`: entry to get bounds
     :type `entry`: :class:`pysam.VariantRecord`
+    :param `ins_inflate`: inflate INS boundaries by sv length
+    :type `ins_inflate`: bool, optional
 
     :return: the entry's start/end boundaries
     :rtype: tuple (int, int)
     """
     start = entry.start
     end = entry.stop
+    if ins_inflate and entry_variant_type(entry) == 'INS':
+        size = entry_size(entry)
+        start -= size // 2
+        end += size // 2
     return start, end
 
 
@@ -436,9 +435,9 @@ def weighted_score(sim, size, ovl):
     :return: The score
     :rtype: float
     """
-    score = (2 * sim + 1 * size + 1 * ovl) / 3.0
-    new_score = score / 1.333333 * 100
-    return new_score
+    score = (sim + size + ovl) / 3.0 * 100
+    #new_score = score / 1.333333 * 100
+    return score
 
 
 def reciprocal_overlap(astart, aend, bstart, bend):
@@ -488,8 +487,8 @@ def entry_reciprocal_overlap(entry1, entry2):
         >>> truvari.entry_reciprocal_overlap(a, b)
         0
     """
-    astart, aend = entry_boundaries(entry1)
-    bstart, bend = entry_boundaries(entry2)
+    astart, aend = entry_boundaries(entry1, True)
+    bstart, bend = entry_boundaries(entry2, True)
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
