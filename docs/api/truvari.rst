@@ -17,7 +17,7 @@ GT
 
 GenomeTree
 ^^^^^^^^^^
-.. autoclass:: GenomeTree
+.. autoclass:: RegionVCFIterator
    :members:
 
 LogFileStderr
@@ -89,6 +89,10 @@ entry_size
 entry_size_similarity
 ^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_size_similarity
+
+entry_to_key
+^^^^^^^^^^^^
+.. autofunction:: entry_to_haplotype
 
 entry_to_key
 ^^^^^^^^^^^^
