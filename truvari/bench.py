@@ -20,7 +20,6 @@ import numpy as np
 import truvari
 from truvari.giab_report import make_giabreport
 
-
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -115,7 +114,6 @@ class Matcher():
         ret.sizemax = 50000
         ret.passonly = False
         ret.no_ref = False
-        ret.includebed = None
         ret.multimatch = False
         return ret
 
@@ -152,15 +150,14 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
-        # See if it hits the regions, first
-        if self.params.includebed and not self.params.includebed.include(entry):
-            return True
-
         size = truvari.entry_size(entry)
-        if base and size < self.params.sizemin or size > self.params.sizemax:
+        if size > self.params.sizemax:
             return True
 
-        if not base and size < self.params.sizefilt or size > self.params.sizemax:
+        if base and size < self.params.sizemin:
+            return True
+
+        if not base and size < self.params.sizefilt:
             return True
 
         samp = self.params.bSample if base else self.params.cSample
@@ -525,7 +522,7 @@ def annotate_entry(entry, match, header):
     entry.info["StartDistance"] = match.st_dist
     entry.info["EndDistance"] = match.ed_dist
     entry.info["GTMatch"] = match.gt_match
-    entry.info["TruScore"] = match.score
+    entry.info["TruScore"] = int(match.score) if match.score else None
     entry.info["MatchId"] = match.matid
     entry.info["Multi"] = match.multi
     return entry
@@ -757,37 +754,6 @@ def close_outputs(outputs):
     outputs["fp_out"].close()
 
 
-class custom_iterator(): # pylint: disable=too-few-public-methods
-    """
-    Iterate vcfs in the same order, regardless of sort order
-    """
-    def __init__(self, fn):
-        """
-        Wrap VariantFile
-        """
-        self.vcf = pysam.VariantFile(fn)
-        self.all_chroms = sorted(self.vcf.header.contigs)
-        self.gen = None
-        self.pos = None
-
-    def __next__(self):
-        """
-        Wrap next
-        """
-        if self.pos is None:
-            self.pos = 0
-            self.gen = self.vcf.fetch(self.all_chroms[self.pos])
-        elif self.pos >= len(self.all_chroms):
-            raise StopIteration
-        try:
-            return next(self.gen)
-        except StopIteration as stop_iter:
-            self.pos += 1
-            if self.pos >= len(self.all_chroms):
-                raise StopIteration from stop_iter
-            self.gen = self.vcf.fetch(self.all_chroms[self.pos])
-            return next(self)
-
 def bench_main(cmdargs):
     """
     Main
@@ -803,11 +769,11 @@ def bench_main(cmdargs):
 
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
-    matcher.params.includebed = truvari.GenomeTree(base, comp,
-                                                   args.includebed,
-                                                   args.sizemax)
-    base_i = custom_iterator(args.base)
-    comp_i = custom_iterator(args.comp)
+
+    regions = truvari.RegionVCFIterator(base, comp, args.includebed, args.sizemax)
+    base_i = regions.iterate(base)
+    comp_i = regions.iterate(comp)
+
     chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         output_writer(call, outputs, args.sizemin)

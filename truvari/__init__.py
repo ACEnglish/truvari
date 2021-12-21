@@ -46,7 +46,7 @@ Dev methods:
 
 Objects:
 :class:`GT`
-:class:`GenomeTree`
+:class:`RegionVCFIterator`
 :class:`LogFileStderr`
 :class:`MatchResult`
 :class:`Matcher`
@@ -73,8 +73,8 @@ from truvari.bench import (
     Matcher
 )
 
-from truvari.genome_tree import (
-    GenomeTree,
+from truvari.region_vcf_iter import (
+    RegionVCFIterator,
 )
 
 from truvari.comparisons import (

@@ -7,13 +7,14 @@ from collections import defaultdict
 from intervaltree import IntervalTree
 import truvari.comparisons as tcomp
 
-
-class GenomeTree():
+class RegionVCFIterator():
     """
-    Helper class to specify included regions of the genome when iterating events.
+    Helper class to specify include regions of the genome when iterating a VCF
+    Subset to only events less than max_span.
+    Subset to only events on contigs listed in vcfA left-join vcfB
     """
 
-    def __init__(self, vcfA, vcfB, includebed=None, max_span=None):
+    def __init__(self, vcfA, vcfB=None, includebed=None, max_span=None):
         """ init """
         self.includebed = includebed
         self.max_span = max_span
@@ -24,7 +25,10 @@ class GenomeTree():
         Build the include regions
         """
         contigA_set = set(vcfA.header.contigs.keys())
-        contigB_set = set(vcfB.header.contigs.keys())
+        if vcfB is not None:
+            contigB_set = set(vcfB.header.contigs.keys())
+        else:
+            contigB_set = contigA_set
         all_regions = defaultdict(IntervalTree)
         if self.includebed is not None:
             counter = 0
@@ -53,10 +57,10 @@ class GenomeTree():
 
     def iterate(self, vcf_file):
         """
-        Iterates a vcf and yields only the entries that overlap an 'include' region
+        Iterates a vcf and yields only the entries that overlap included regions
         """
-        for chrom in self.tree:
-            for intv in self.tree[chrom]:
+        for chrom in sorted(self.tree.keys()):
+            for intv in sorted(self.tree[chrom]):
                 for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
                     if self.includebed is None or self.include(entry):
                         yield entry
@@ -70,8 +74,8 @@ class GenomeTree():
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is None or aend - astart > self.max_span:
             return False
-        overlaps = self.tree[entry.chrom].overlaps(
-            astart) and self.tree[entry.chrom].overlaps(aend)
+        overlaps = self.tree[entry.chrom].overlaps(astart) \
+                   and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1

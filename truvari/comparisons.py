@@ -437,7 +437,7 @@ def weighted_score(sim, size, ovl):
     :rtype: float
     """
     score = (2 * sim + 1 * size + 1 * ovl) / 3.0
-    new_score = int(score / 1.333333 * 100)
+    new_score = score / 1.333333 * 100
     return new_score
 
 
