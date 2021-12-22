@@ -61,7 +61,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '3.1.0-dev'
+__version__ = '3.1.0'
 
 
 from truvari.annos.af_calc import (
