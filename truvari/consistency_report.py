@@ -4,6 +4,7 @@ Over multiple vcfs, calculate their intersection/consistency.
 Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
+# pylint: disable=consider-using-f-string
 import io
 import gzip
 import bisect
@@ -17,11 +18,12 @@ def parse_vcf(fn):
     """
     Simple vcf reader
     """
-    VCFLine = namedtuple("VCFline", "CHROM POS ID REF ALT QUAL FILT INFO FORMAT SAMPLES")
+    VCFLine = namedtuple(
+        "VCFline", "CHROM POS ID REF ALT QUAL FILT INFO FORMAT SAMPLES")
     if fn.endswith(".gz"):
         fh = io.TextIOWrapper(gzip.open(fn))
     else:
-        fh = open(fn, 'r')
+        fh = open(fn, 'r')  # pylint: disable=consider-using-with
     for line in fh:
         if line.startswith("#"):
             continue
@@ -46,7 +48,8 @@ def entry_key(entry):
     """
     Turn a vcf entry into a key
     """
-    key = "%s:%s %s %s %s" % (entry.CHROM, entry.POS, entry.ID, entry.REF, str(entry.ALT))
+    key = "%s:%s %s %s %s" % (entry.CHROM, entry.POS,
+                              entry.ID, entry.REF, str(entry.ALT))
     return key
 
 
@@ -78,12 +81,14 @@ def create_file_intersections(allVCFs):
     Generate all possible intersections of vcfs
     """
     count_lookup = {}
-    combo_gen = [x for l in range(1, len(allVCFs) + 1) for x in itertools.combinations(allVCFs, l)]
+    combo_gen = [x for l in range(1, len(allVCFs) + 1)
+                 for x in itertools.combinations(allVCFs, l)]
     for files_combo in combo_gen:
         files_combo = hash_list(files_combo)
         files_combo.sort()
         count_lookup[files_combo] = 0
     return count_lookup
+
 
 def parse_args(args):
     """ parse args """
@@ -94,11 +99,12 @@ def parse_args(args):
     args = parser.parse_args(args)
     return args
 
+
 def make_consistency_overlap(count_lookup, file_abscnt, allVCFs):
     """
-    # 1 I want to make a key "101010" so that they can be viz'd easier
-    # 2 - I want to sort the count_lookup by their value so that we output them in order
-    # The group
+    1 I want to make a key "101010" so that they can be viz'd easier
+    2 - I want to sort the count_lookup by their value so that we output them in order
+    The group
     """
     all_consistency = Counter()
     all_overlap = []
@@ -116,20 +122,23 @@ def make_consistency_overlap(count_lookup, file_abscnt, allVCFs):
             m_cnt += 1
         cur_data.append("".join(my_group))
         cur_data.append(value)
-        cur_data.append([])
+        cur_data.append(["0%"] * len(allVCFs))
 
         all_consistency[m_cnt] += value
         for fkey in combo:
             if file_abscnt[fkey] > 0:
-                cur_data[-1].append("%.2f%%" % (count_lookup[combo] / file_abscnt[fkey] * 100))
+                cur_data[-1][allVCFs.index(fkey)] = "%.2f%%" % (
+                    count_lookup[combo] / file_abscnt[fkey] * 100)
         all_overlap.append(cur_data)
     return all_consistency, all_overlap
+
 
 def write_report(total_unique_calls, allVCFs, file_abscnt, all_consistency, all_overlap):
     """
     Write the report
     """
-    print("#\n# Total %d calls across %d VCFs\n#" % (total_unique_calls, len(allVCFs)))
+    print("#\n# Total %d calls across %d VCFs\n#" %
+          (total_unique_calls, len(allVCFs)))
     print("#File\tNumCalls")
     for fn in allVCFs:
         print("%s\t%d" % (fn, file_abscnt[fn]))
@@ -138,7 +147,8 @@ def write_report(total_unique_calls, allVCFs, file_abscnt, all_consistency, all_
     print("#VCFs\tCalls\tPct")
 
     for i in sorted(all_consistency.keys(), reverse=True):
-        print("%d\t%d\t%.2f%%" % (i, all_consistency[i], all_consistency[i] / total_unique_calls * 100))
+        print("%d\t%d\t%.2f%%" % (
+            i, all_consistency[i], all_consistency[i] / total_unique_calls * 100))
 
     print("#\n# Breakdown of VCFs' consistency\n#")
     print("#Group\tTotal\tTotalPct\tPctOfFileCalls")
@@ -146,12 +156,11 @@ def write_report(total_unique_calls, allVCFs, file_abscnt, all_consistency, all_
         c_text = ""
         pos = 0
         for i in my_group:
-            if i == '1':
-                c_text += combo[pos] + " "
-                pos += 1
-            else:
-                c_text += "0% "
-        print("%s\t%d\t%.2f%%\t%s" % (my_group, value, value / total_unique_calls * 100, c_text))
+            c_text += combo[pos] + " "
+            pos += 1
+        print("%s\t%d\t%.2f%%\t%s" %
+              (my_group, value, value / total_unique_calls * 100, c_text))
+
 
 def consistency_main(args):
     """
@@ -166,8 +175,10 @@ def consistency_main(args):
     for key in call_lookup:
         count_lookup[hash_list(call_lookup[key])] += 1
 
-    all_consistency, all_overlap = make_consistency_overlap(count_lookup, file_abscnt, args.allVCFs)
+    all_consistency, all_overlap = make_consistency_overlap(
+        count_lookup, file_abscnt, args.allVCFs)
 
     total_unique_calls = sum(all_consistency.values())
 
-    write_report(total_unique_calls, args.allVCFs, file_abscnt, all_consistency, all_overlap)
+    write_report(total_unique_calls, args.allVCFs,
+                 file_abscnt, all_consistency, all_overlap)

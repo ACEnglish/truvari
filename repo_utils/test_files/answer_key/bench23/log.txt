@@ -1,0 +1,50 @@
+2021-12-21 13:57:52,218 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input2.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench23/ --multimatch
+2021-12-21 13:57:52,219 [INFO] Params:
+{
+    "base": "repo_utils/test_files/input2.vcf.gz",
+    "comp": "repo_utils/test_files/input3.vcf.gz",
+    "output": "test_results/bench23/",
+    "reference": "repo_utils/test_files/reference.fa",
+    "giabreport": false,
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "buffer": 0.1,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": null,
+    "cSample": null,
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": null,
+    "multimatch": true
+}
+2021-12-21 13:57:52,219 [INFO] Truvari version: 3.1.0-dev
+2021-12-21 13:57:52,329 [INFO] Zipped 3848 variants. Counter({'comp': 2065, 'base': 1783})
+2021-12-21 13:57:52,330 [INFO] 15 chunks of 3848 variants. Counter({'__filtered': 3816, 'comp': 21, 'base': 11})
+2021-12-21 13:57:52,333 [INFO] Results peek: 7 TP-base 4 FN 63.64% Recall
+2021-12-21 13:57:52,334 [INFO] Stats: {
+    "TP-base": 7,
+    "TP-call": 8,
+    "FP": 9,
+    "FN": 4,
+    "precision": 0.47058823529411764,
+    "recall": 0.6363636363636364,
+    "f1": 0.5410628019323671,
+    "base cnt": 11,
+    "call cnt": 17,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 5,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 4,
+    "gt_concordance": 0.375
+}
+2021-12-21 13:57:52,338 [INFO] Finished bench

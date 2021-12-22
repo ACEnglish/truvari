@@ -1,10 +1,12 @@
 """
 Annotates GTCounts of alleles
 """
+import logging
 import argparse
 
 import pysam
 import truvari
+
 
 def parse_args(args):
     """
@@ -16,6 +18,7 @@ def parse_args(args):
                         help="VCF to annotate (stdin)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
+    truvari.setup_logging()
     return parser.parse_args(args)
 
 
@@ -28,7 +31,8 @@ def edit_header(my_vcf):
                      'Description="Counts of genotypes for the allele (UNK, REF, HET, HOM)">'))
     return header
 
-def add_gtcnt(vcf, out, n_header=None):
+
+def add_gtcnt(vcf, n_header=None):
     """
     Adds GTCNT to each entry in VCF and yields them
     """
@@ -54,8 +58,9 @@ def add_gtcnt(vcf, out, n_header=None):
         except TypeError:
             yield entry
             continue
-        nentry.info["GTCNT"] = cnt 
+        nentry.info["GTCNT"] = cnt
         yield nentry
+
 
 def gtcnt_main(cmdargs):
     """
@@ -65,6 +70,7 @@ def gtcnt_main(cmdargs):
     vcf = pysam.VariantFile(args.input)
     n_header = edit_header(vcf)
     out = pysam.VariantFile(args.output, 'w', header=n_header)
-    for entry in add_gtcnt(vcf, out, n_header):
+    for entry in add_gtcnt(vcf, n_header):
         out.write(entry)
     out.close()
+    logging.info("Finished gtcnt")

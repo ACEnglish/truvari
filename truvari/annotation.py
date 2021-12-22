@@ -2,17 +2,23 @@
 Wrapper around the different annotations available
 """
 import argparse
-from truvari.annos import *
+import truvari.annos as tannos
 
-ANNOS = {"gcpct": gcpct_main,
-         "gtcnt": gtcnt_main,
-         "trf": trf_main,
-         "grm": grm_main}
+ANNOS = {"gcpct": tannos.gcpct_main,
+         "gtcnt": tannos.gtcnt_main,
+         "trf": tannos.trf_main,
+         "grm": tannos.grm_main,
+         "repmask": tannos.rmk_main,
+         "remap": tannos.remap_main,
+         "hompct": tannos.hompct_main,
+         "numneigh": tannos.numneigh_main,
+         "svinfo": tannos.svinfo_main}
 
 USAGE = """\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm
+        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo
 """
+
 
 def parseArgs(args):
     """
@@ -26,9 +32,9 @@ def parseArgs(args):
     parser.add_argument("options", metavar="OPTIONS", nargs=argparse.REMAINDER,
                         help="Options to pass to the annotation")
 
-
     args = parser.parse_args(args)
     return args
+
 
 def anno_main(args):
     """

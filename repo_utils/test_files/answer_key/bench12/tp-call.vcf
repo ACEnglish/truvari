@@ -1,0 +1,57 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
+##contig=<ID=chr3,length=198295559>
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr5,length=181538259>
+##contig=<ID=chr6,length=170805979>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr8,length=145138636>
+##contig=<ID=chr9,length=138394717>
+##contig=<ID=chr10,length=133797422>
+##contig=<ID=chr11,length=135086622>
+##contig=<ID=chr12,length=133275309>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr14,length=107043718>
+##contig=<ID=chr15,length=101991189>
+##contig=<ID=chr16,length=90338345>
+##contig=<ID=chr17,length=83257441>
+##contig=<ID=chr18,length=80373285>
+##contig=<ID=chr19,length=58617616>
+##contig=<ID=chr20,length=64444167>
+##contig=<ID=chr21,length=46709983>
+##contig=<ID=chr22,length=50818468>
+##contig=<ID=chrX,length=156040895>
+##contig=<ID=chrY,length=57227415>
+##INFO=<ID=QNAME,Number=1,Type=String,Description="Query name">
+##INFO=<ID=QSTART,Number=1,Type=Integer,Description="Query start">
+##INFO=<ID=QSTRAND,Number=1,Type=String,Description="Query strand">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##bcftools_mergeVersion=1.10.2+htslib-1.10.2
+##bcftools_mergeCommand=merge --force-samples -m none /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_NA12878_giab_pbsq2-ccs_1000-pereg.h1-un.racon-p2.fasta.gz.vcf.gz /users/u233287/scratch/insertion_ref/long_read_data/remap/GRCh38_1kg_mainchrs.fa__v12_NA12878_giab_pbsq2-ccs_1000-pereg.h2-un.racon-p2.fasta.gz.vcf.gz; Date=Thu Jul 22 20:43:36 2021
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SV type">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SV length">
+##bcftools_viewVersion=1.12+htslib-1.12
+##bcftools_viewCommand=view -r chr20:0-1000000 -O z /home/english/science/english/msru/data/unused_samples/grch38/NA12878/exact.vcf.gz; Date=Mon Aug 16 16:58:00 2021
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description='test'>
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description='test'>
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+chr20	149095	.	G	GGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCGAATCCTGACCCATATTTGGGAA	60	.	QNAME=cluster19_000000F;QSTART=25613718;QSTRAND=-;SVTYPE=INS;SVLEN=69;PctSeqSimilarity=0.997024;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=-82;EndDistance=-82;GTMatch;TruScore=66;MatchId=1.0.0	GT:PL:AD	1/1:10,5,10:30,43
+chr20	279069	.	A	AGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGAGGGACGGAGGGCGGGACGGCGGGAGGGCGGGACGGAGGGACGGAGGGAGGGCGGGACGGAGGGCGGGAGGGCGGGACGGAGGGAGGGAGGGCGGGACGGAGGGACGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGCGGGACGGAGGGACGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGAGGGACGGAGGGCGGGACGGCGGGAGGGCGGGACGGAGGGACGGAGGGAGGGCGGGACGGAGGGCGGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGAGGGAGGGACGGAGGGACGGAGGGAGGGAGGGAGGGAGGGACGGAGGGCGGGACGGAGGGAGGGAGGGCGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGAGGGACGGAGGGCGGGACGGAGGGAGGGAGGGCGGGACGGAGGGAGGGAGGGCGGGAGGGATGGAGGGAGGGAGGGC	60	.	QNAME=cluster19_000000F;QSTART=25483168;QSTRAND=-;SVTYPE=INS;SVLEN=543;PctSeqSimilarity=0.873856;PctSizeSimilarity=0.80663;PctRecOverlap=0.808471;SizeDiff=-105;StartDistance=0;EndDistance=0;TruScore=82;MatchId=3.2.0	GT:PL:AD	1/1:8,1,10:40,42
+chr20	306268	.	A	ACCAGGCTGGAGTGCAGTGGCTCACTGCGTGGCTCGCTACAGCCTACAACTCCTGGGCTCCAGCAATCCTGCTGCCCCAGCCTCCTGTGTAACTGAGACTACAGGCACGCACCACCACACCCAGCTAATGTTTTCTTTCTTTTTTTTTTTTTTGAGATGAACTCTCACTCTGTTGC	60	.	QNAME=cluster19_000000F;QSTART=25455794;QSTRAND=-;SVTYPE=INS;SVLEN=175;PctSeqSimilarity=0.997159;PctSizeSimilarity=1;PctRecOverlap=1;SizeDiff=0;StartDistance=0;EndDistance=0;GTMatch;TruScore=99;MatchId=4.0.0	GT:PL:AD	1/1:4,10,2:26,18
+chr20	420665	.	G	GCCCACCCCATCCCCCGTCCCCATCCCCCATCCCCCGTCCCCCGTCCCCATCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCATCCCCCGTCCCCCGTCCCCCATCCCATCCCCCACCCCCATCCCCCGTCCCCCGTCCCCATCCCCCATCCCCCATCCCCATCCCCCGTCCCCCGTCCCCCATCTCCTGTCCCCCGTCCCCCATCCCCCGTCCCCATCCCCCACC	60	.	QNAME=cluster19_000000F;QSTART=25341211;QSTRAND=-;SVTYPE=INS;SVLEN=226;PctSeqSimilarity=1;PctSizeSimilarity=1;PctRecOverlap=1;SizeDiff=0;StartDistance=0;EndDistance=0;TruScore=100;MatchId=6.1.0	GT:PL:AD	1/1:7,10,5:44,42
+chr20	613783	.	TGTGTGCTGAGTCCAGCTCAAGTCCCTTGGTTCCCACTGCTGCTAAGCATGCACG	T	60	.	QNAME=cluster19_000000F;QSTART=25148089;QSTRAND=-;SVTYPE=DEL;SVLEN=-54;PctSeqSimilarity=1;PctSizeSimilarity=1;PctRecOverlap=1;SizeDiff=0;StartDistance=0;EndDistance=0;TruScore=100;MatchId=7.0.0	GT:PL:AD	1/0:3,1,8:9,32
+chr20	642207	.	T	TGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGTGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGAGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGATGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGGGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGTGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGCCCAGCGGGGGTGGAGTTGCCTGTGGGGGGGGGCCCAGCAGGGGTGGAGTTGCCTGGGGGGGG	60	.	QNAME=cluster19_000000F;QSTART=602404;QSTRAND=+;SVTYPE=INS;SVLEN=630;PctSeqSimilarity=0.88173;PctSizeSimilarity=0.795238;PctRecOverlap=0.793978;SizeDiff=-129;StartDistance=0;EndDistance=0;GTMatch;TruScore=82;MatchId=8.1.0	GT:PL:AD	0/1:2,1,9:9,12
+chr20	709759	.	AGTGTGCCCTGTGACCCCCTCATCCTGCCTTTGGATCACGAGCTGGGGTCGGGGGAGGGGATGGTGGGGGGGACACTGCTCGGTCCTCCACTCC	A	60	.	QNAME=cluster19_000000F;QSTART=25051525;QSTRAND=-;SVTYPE=DEL;SVLEN=-93;PctSeqSimilarity=1;PctSizeSimilarity=1;PctRecOverlap=1;SizeDiff=0;StartDistance=0;EndDistance=0;TruScore=100;MatchId=9.0.0	GT:PL:AD	1/0:8,10,9:32,27
+chr20	764537	.	A	AGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAAGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAAGGGGAGAATCCCCCACCTAAGGGGAGAGCCCCCACCTAT	60	.	QNAME=cluster19_000000F;QSTART=725358;QSTRAND=+;SVTYPE=INS;SVLEN=117;PctSeqSimilarity=1;PctSizeSimilarity=1;PctRecOverlap=1;SizeDiff=0;StartDistance=0;EndDistance=0;TruScore=100;MatchId=11.0.1	GT:PL:AD	0/1:7,8,4:13,5

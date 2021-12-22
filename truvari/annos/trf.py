@@ -1,352 +1,309 @@
-""" Wrapper around TRF to annotate a VCF """
+"""
+Intersect vcf with reference simple repeats and report
+how the an alternate allele affects the copies using TRF
+"""
+import os
 import sys
+import types
+import decimal
 import logging
 import argparse
 import tempfile
+import multiprocessing
+from io import StringIO
 from collections import defaultdict
 
 import pysam
-import pyfaidx
+import tabix
 import truvari
-from acebinf import cmd_exe, setup_logging
 
-# Start with just insertions and that sequence
-# Eventually you can intersect with known tandem repeat regions as well
-# and use those regions (with the edit) to better predict a 'difference' in number of copies
-# Or you can just annotate the absolute number of the individual... probably bot
+trfshared = types.SimpleNamespace()
 
-# Also, running single threaded isn't great, but also I don't care at this point...
-# It'll be a heavy step, but I'm not judging the software on speed for a bit...
+try:
+    from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
+except ModuleNotFoundError:
+    def setproctitle(_):
+        """ dummy function """
+        return
 
 
-class TRFAnno():
-    """ Class for trf annotation """
-    TRNAME = tempfile.NamedTemporaryFile().name
-    FANAME = tempfile.NamedTemporaryFile().name
-    TRFCOLS = [("TRF_starts", int),
-               ("TRF_ends", int),
-               ("TRF_periods", int),
-               ("TRF_copies", float),
-               ("TRF_consizes", int),
-               ("TRF_pctmats", int),
-               ("TRF_pctindels", int),
-               ("TRF_scores", int),
-               ("TRF_As", int),
-               ("TRF_Cs", int),
-               ("TRF_Gs", int),
-               ("TRF_Ts",  int),
-               ("TRF_entropies", float),
-               ("TRF_repeats", str),
-               ("unk1", None),
-               ("unk2", None),
-               ("unk3", None)]
+def fetch_simple_repeats(chrom, start, stop):
+    """
+    Parse a simple repeats bed file and yield them
+    """
+    header = [('chrom', str), ('start', int), ('end', int), ('period', float),
+              ('copies', float), ('score', int), ('entropy', float), ('repeat', str)]
+    tb = tabix.open(trfshared.args.simple_repeats)
+    try:
+        for i in tb.query(chrom, start, stop):
+            yield {fmt[0]: fmt[1](x) for x, fmt in zip(i, header)}
+    except tabix.TabixError as e:
+        logging.warning(f"Region {chrom}:{start}-{stop} failed: {e}")
+    return False
 
-    def __init__(self, in_vcf, out_vcf="/dev/stdout", executable="trf409.linux64",
-                 min_length=50, bestn=5, layered=False, full=False,
-                 trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
-                 refanno=None, ref=None, pctovl=0.2):
-        """ The setup """
-        self.in_vcf = in_vcf
-        self.out_vcf = out_vcf
-        self.executable = executable
-        self.min_length = min_length
-        self.bestn = bestn
-        self.layered = layered
-        self.full = full
 
-        if "-ngs" not in trf_params:
-            trf_params = trf_params + " -ngs "
-        self.trf_params = trf_params
+def process_entries(ref_section):
+    """
+    Process vcf lines from a reference section
+    """
+    chrom, start, stop = ref_section
+    logging.debug(f"Starting region {chrom}:{start}-{stop}")
+    setproctitle(f"trf {chrom}:{start}-{stop}")
+    vcf = pysam.VariantFile(trfshared.args.input)
 
-        if refanno and not ref:
-            logging.error("-R requires -r")
-            exit(1)
+    to_consider = []
+    for entry in vcf.fetch(chrom, start, stop):
+        if truvari.entry_size(entry) >= trfshared.args.min_length:
+            to_consider.append(entry)
 
-        self.refanno = truvari.make_bedanno_tree(refanno) if refanno else None
-        self.ref = pyfaidx.Fasta(ref) if ref else None
-        self.pctovl = pctovl
+    tanno = TRFAnno(executable=trfshared.args.executable,
+                    trf_params=trfshared.args.trf_params)
+    tanno.run_trf(to_consider)
 
-        self.n_header = self.edit_header()
-        self.cmd = f"{self.executable} {TRFAnno.FANAME} {self.trf_params} > {TRFAnno.TRNAME}"
-
-    def edit_header(self):
-        """
-        New VCF INFO fields
-        """
-        header = None
-        with pysam.VariantFile(self.in_vcf, 'r') as fh:
-            header = fh.header.copy()
-        # if intersect_only: Do I want to sometimes turn this off?
-        # Probably, actully
-        header.add_line(('##INFO=<ID=TRF_repeats,Number=.,Type=String,'
-                         'Description="TRF repeat sequences">'))
-        header.add_line(('##INFO=<ID=TRF_periods,Number=.,Type=Integer,'
-                             'Description="TRF periods">'))
-        header.add_line(('##INFO=<ID=TRF_copies,Number=.,Type=Float,'
-                         'Description="TRF repeat copies">'))
-        header.add_line(('##INFO=<ID=TRF_scores,Number=.,Type=Integer,'
-                         'Description="TRF repeat scores">'))
-      
-        if self.refanno and self.ref:
-            header.add_line(('##INFO=<ID=TRF_diffs,Number=.,Type=Float,'
-                             'Description="Alternate allele copy number difference from '
-                             'its reference SREP_repeat copy number">'))
-        if self.refanno:
-            for headinfo  in self.refanno[1]:
-                header.add_line(headinfo)
-
-        if self.full:
-            header.add_line(('##INFO=<ID=TRF_starts,Number=.,Type=Integer,'
-                             'Description="TRF starts">'))
-            header.add_line(('##INFO=<ID=TRF_ends,Number=.,Type=Integer,'
-                             'Description="TRF ends">'))
-            header.add_line(('##INFO=<ID=TRF_periods,Number=.,Type=Integer,'
-                             'Description="TRF periods">'))
-            header.add_line(('##INFO=<ID=TRF_consizes,Number=.,Type=Integer,'
-                             'Description="TRF consizes">'))
-            header.add_line(('##INFO=<ID=TRF_pctmats,Number=.,Type=Integer,'
-                             'Description="TRF pctmats">'))
-            header.add_line(('##INFO=<ID=TRF_pctindels,Number=.,Type=Integer,'
-                             'Description="TRF pctindels">'))
-            header.add_line(('##INFO=<ID=TRF_As,Number=.,Type=Integer,'
-                             'Description="TRF As">'))
-            header.add_line(('##INFO=<ID=TRF_Cs,Number=.,Type=Integer,'
-                             'Description="TRF Cs">'))
-            header.add_line(('##INFO=<ID=TRF_Gs,Number=.,Type=Integer,'
-                             'Description="TRF Gs">'))
-            header.add_line(('##INFO=<ID=TRF_Ts,Number=.,Type=Integer,'
-                             'Description="TRF Ts">'))
-            header.add_line(('##INFO=<ID=TRF_entropies,Number=.,Type=Float,'
-                             'Description="TRF entropies">'))
-            # TRF HIT - if refanno, just report if we hit a reference TRF region
-            # Might want some pct/ovl -- this is handled... nowhere
-            pass
-        # TODO: Need to put a source line that says this thing was run with whatever parameters
-        return header
-
-    def run_trf(self, altseqs, refseqs=None):
-        """
-        Runs trf on the ref/alt sequences
-        returns {'a': [althitsdict,..], 'r':[refhitsdict]}
-        """
-        def parse_output():
-            """
-            Parse the outputs from trf, turn to a dictionary
-            """
-            hits = defaultdict(list)
-            with open(TRFAnno.TRNAME, 'r') as fh:
-                name = fh.readline()
-                if name == "": # no hits
-                    return hits
-                name = name.strip()[1:]
-                while True:
-                    # If there are multiple, need to parameters for 'take best' or take top N or something
-                    # Will need name now that there's ref/alt seq
-                    data = fh.readline()
-                    if data == "":
-                        break
-                    if data.startswith("@"):
-                        name = data.strip()[1:]
-                        continue
-                    data = data.strip().split(' ')
-                    data = {x[0]: y for x, y in zip(TRFAnno.TRFCOLS, data) if not x[0].startswith("unk")}
-                    # don't really need until parallel
-                    data["TRF_scores"] = int(data["TRF_scores"])
-                    hits[name].append(data)
-            return hits
-
-        with open(TRFAnno.FANAME, 'w') as fout:
-            for seq in altseqs:
-                fout.write(">a\n%s\n" % (seq))
-            for seq in refseqs:
-                fout.write(">r\n%s\n" % (seq))
-                
-        ret = cmd_exe(self.cmd)
-        if ret.ret_code != 0:
-            logging.error("Couldn't run trf")
-            logging.error(str(ret))
-            exit(ret.ret_code)
-        return parse_output()
-
-    def annotate_entry(self, entry, altseq):
-        """
-        Annotates an insertion. Insertions are assumed to have a 
-        refspan of a single anchor base and full ALT sequence
-        """
-        trf_hits = None
-        srep_hits = None
-        # Make srep_hits if we have the bed
-        if self.refanno:
-            srep_hits = self.refanno[0][entry.chrom].overlap(entry.start, entry.stop)
-
-        # If we also have the reference, we want to do the fancy diff comparison
-        # This wasn't working out, removing for now
-        if self.refanno and self.ref and srep_hits and False:
-            # This has a whole other thing for making ref/alt
-            refseqs = []
-            #for hit in srep_hits:
-                #seq = self.ref.get_seq(entry.chrom, hit.begin + 1, hit.end).seq
-                #altseq, refseq = truvari.create_pos_haplotype(entry.chrom, entry.start, entry.stop, entry.alts[0],\
-                                                         #hit.begin, hit.end, seq, self.ref)
-                #refseqs.append(seq)
-            trf_hits = self.run_trf([altseq], refseqs)
-        else:
-            trf_hits = self.run_trf([altseq], [])
-        entry = self.edit_entry(entry, trf_hits, srep_hits)
-        return entry
-
-    def edit_entry(self, entry, trf_annos=None, srep_hits=None):
-        """
-        puts the annos in vcf entry
-        trf_annos = {'a': [hit, hit, hit], 'r':[hit, hit, hit]}
-        """
-        if not trf_annos and not srep_hits:
-            return entry
-       
-        # Let's assume we're only doing the alt allele
-        alt_annos = trf_annos['a']
-        alt_annos = sorted(alt_annos, key=lambda x: x["TRF_scores"], reverse=True)
-        if len(alt_annos) > self.bestn:
-            alt_annos = alt_annos[:self.bestn]
-
-        try:
-            entry = truvari.copy_entry(entry, self.n_header)
-        except TypeError:
-            return entry
-        n_dat = defaultdict(list)
-        for i in alt_annos:
-            if self.full:
-                for key, cnvt in TRFAnno.TRFCOLS:
-                    if cnvt:
-                        n_dat[key].append(cnvt(i[key]))
-            else:
-                n_dat["TRF_repeats"].append(i["TRF_repeats"])
-                n_dat["TRF_periods"].append(int(i["TRF_periods"]))
-                n_dat["TRF_copies"].append(float(i["TRF_copies"]))
-                n_dat["TRF_scores"].append(int(i["TRF_scores"]))
-        
-        # Adding srep hits to n_dat also
-        # this is getting kinda choppy with the converters
-        # may have over engineered it early
-        if srep_hits is not None:
-            for i in srep_hits:
-                for k,v in i.data.items():
-                    n_dat[k].extend(v)
-        
-        # Can calculate the diffs
-        if self.refanno and self.ref and srep_hits and alt_annos: 
-            lookup = {}
-            diffs = []
-            # make a lookup of the trf_annos from the reference
-            for i in srep_hits:
-                i = i.data
-                lookup[i["SREP_repeats"][0]] = i["SREP_copies"][0]
-            
-            has_diff = False
-            # Subtract each alt_repeat from its corresponding ref_repeat
-            for alt_repeat, alt_copy in zip(n_dat["TRF_repeats"], n_dat["TRF_copies"]):
-                if alt_repeat in lookup:
-                    has_diff = True
-                    diffs.append(alt_copy - lookup[alt_repeat])
-                else:
-                    diffs.append(None)
-            
-            if has_diff:
-                n_dat["TRF_diffs"] = diffs
-
-        for key in n_dat:
-            entry.info[key] = n_dat[key]
-        
-                    
-        return entry
-
-    def run(self):
-        """
-        The work
-        """
-        logging.info("Annotating VCF")
-        # should probably 'batch' it instead of running individually
-        with pysam.VariantFile(self.in_vcf) as vcf, \
-                pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as output:
-            for entry in vcf:
-                sz = truvari.entry_size(entry)
-                if sz < self.min_length:
-                    output.write(entry)
-                    continue
-                svtype = truvari.entry_variant_type(entry)
-                if svtype == "INS":
-                    entry = self.annotate_entry(entry, entry.alts[0])
-                elif svtype == "DEL":
-                    entry = self.annotate_entry(entry, entry.ref)
-                output.write(entry)
+    v = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(v.header)
+    out = StringIO()
+    decimal.getcontext().prec = 1
+    for entry in v.fetch(chrom, start, stop):
+        if truvari.entry_size(entry) >= trfshared.args.min_length:
+            key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+            entry = tanno.annotate(entry, key, new_header)
+        out.write(str(entry))
+    out.seek(0)
+    setproctitle(f"trf done {chrom}:{start}-{stop}")
+    logging.debug(f"Done region {chrom}:{start}-{stop}")
+    return (chrom, start, stop, out.read())
 
 
 def parse_args(args):
     """
     Pull the command line parameters
     """
-    def restricted_float(x):
-        x = float(x)
-        if x < 0.0 or x > 1.0:
-            raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
-        return x
     parser = argparse.ArgumentParser(prog="trf", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
-                        help="VCF to annotate (stdin)")
+    parser.add_argument("-i", "--input", type=str, required=True,
+                        help="VCF to annotate")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     parser.add_argument("-e", "--executable", type=str, default="trf409.linux64",
                         help="Path to tandem repeat finder (%(default)s)")
-    parser.add_argument("-f", "--full", action="store_true",
-                        help="Write full trf output to entries")
+    parser.add_argument("-T", "--trf-params", type=str, default="3 7 7 80 5 40 500 -h -ngs",
+                        help="Default parameters to send to trf (%(default)s)")
+    parser.add_argument("-s", "--simple-repeats", type=str, required=True,
+                        help="Simple repeats bed")
+    parser.add_argument("-f", "--reference", type=str, required=True,
+                        help="Reference fasta file")
     parser.add_argument("-m", "--min-length", type=int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    parser.add_argument("-b", "--bestn", type=int, default=5,
-                        help="Top trf hits to report (%(default)s)")
-    parser.add_argument("-t", "--trf-params", type=str, default="2 7 7 80 10 50 500 -m -f -h -d -ngs",
-                        help="Default parameters to send to tr (%(default)s)")
-    parser.add_argument("-R", "--ref-bed", type=str, default=None,
-                        help="Reference bed of tandem repeat regions")
-    parser.add_argument("-r", "--ref", type=str, default=None,
-                        help="Reference fasta file (use with -R)")
-    #parser.add_argument("-p", "--pctovl", type=restricted_float, default=0.2,
-                        #help="Minimum percent reciprocal overlap (use with -R) (%(default)s)")
-    parser.add_argument("-l", "--layered", action="store_true",
-                        help="(non-functional)")
+    parser.add_argument("-M", "--max-length", type=int, default=10000,
+                        help="Maximum size of sequence to run through trf (%(default)s)")
+    parser.add_argument("-t", "--threads", type=int, default=multiprocessing.cpu_count(),
+                        help="Number of threads to use (%(default)s)")
+    parser.add_argument("-C", "--chunk-size", type=int, default=1,
+                        help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    setup_logging(args.debug)
+    truvari.setup_logging(args.debug)
     return args
 
 
+class TRFAnno():
+    """ Class for trf annotation """
+
+    def __init__(self, executable="trf409.linux64",
+                 trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
+                 tmpdir=None, simple_repeats=None, reference=None):
+        """ setup """
+        # This is slow, so I only want to do it once
+        # And actually, let's put it in a shared memory spot just
+        # because we can
+        self.simple_repeats = simple_repeats if simple_repeats else trfshared.args.simple_repeats
+        self.reference = pysam.FastaFile(
+            reference) if reference else pysam.FastaFile(trfshared.args.reference)
+        self.executable = executable
+        if "-ngs" not in trf_params:
+            trf_params = trf_params + " -ngs "
+        self.trf_params = trf_params
+        if tmpdir is None:
+            tmpdir = tempfile._get_default_tempdir()
+        # Where we write the fasta entries
+        self.fa_fn = os.path.join(tmpdir, next(
+            tempfile._get_candidate_names()))
+        self.tr_fn = os.path.join(tmpdir, next(
+            tempfile._get_candidate_names()))
+        # lookup from the vcf entries to the hits
+        self.trf_lookup = defaultdict(dict)
+        self.srep_lookup = defaultdict(dict)
+
+    def make_seq(self, start, end, entry):
+        """
+        Make the haplotype sequence
+        """
+        if entry.info["SVTYPE"] == "INS":
+            ref_seq = self.reference.fetch(entry.chrom, start, end)
+            m_seq = ref_seq[:entry.start - start] + \
+                entry.alts[0] + ref_seq[entry.stop - start:]
+        elif entry.info["SVTYPE"] == "DEL":
+            m_start = max(start, entry.start)
+            m_end = min(end, entry.stop)
+            m_seq = self.reference.fetch(entry.chrom, m_start, m_end)
+        else:
+            logging.critical("Can only consider entries with 'SVTYPE' INS/DEL")
+            sys.exit(1)
+        return m_seq
+
+    def run_trf(self, entries):
+        """
+        Given a list of entries, run TRF on each of them
+        """
+        n_seqs = 0
+        with open(self.fa_fn, 'w') as fout:
+            for entry in entries:
+                hits = list(fetch_simple_repeats(
+                    entry.chrom, entry.start - 1, entry.stop + 1))
+                if not hits:
+                    continue
+                key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+                for srep in hits:
+                    seq = self.make_seq(srep["start"], srep["end"], entry)
+                    self.srep_lookup[key][srep['repeat']] = srep
+                    if len(seq) <= trfshared.args.max_length:
+                        n_seqs += 1
+                        fout.write(f">{key}\n{seq}\n")
+
+        if not n_seqs:
+            return
+
+        # Run it
+        ret = truvari.cmd_exe(
+            f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
+        if ret.ret_code != 0:
+            logging.error("Couldn't run trf")
+            logging.error(str(ret))
+            sys.exit(ret.ret_code)
+
+        self.parse_output()
+
+    def parse_output(self):
+        """
+        Parse the outputs from trf, turn to a dictionary
+        """
+        trf_cols = [("start", int),
+                    ("end", int),
+                    ("period", int),
+                    ("copies", float),
+                    ("consize", int),
+                    ("pctmat", int),
+                    ("pctindel", int),
+                    ("score", int),
+                    ("A", int),
+                    ("C", int),
+                    ("G", int),
+                    ("T",  int),
+                    ("entropy", float),
+                    ("repeat", str),
+                    ("unk1", None),
+                    ("unk2", None),
+                    ("unk3", None)]
+        with open(self.tr_fn, 'r') as fh:
+            name = fh.readline()
+            if name == "":  # no hits
+                return
+            name = name.strip()[1:]
+            while True:
+                line = fh.readline()
+                if line == "":
+                    break
+                if line.startswith("@"):
+                    name = line.strip()[1:]
+                    continue
+                line = line.strip().split(' ')
+                data = {x[0]: x[1](y) for x, y in zip(
+                    trf_cols, line) if not x[0].startswith("unk")}
+                self.trf_lookup[name][data["repeat"]] = data
+
+    def annotate(self, entry, key, new_header):
+        """
+        Edit the entry if it has a hit
+        """
+        def edit_entry(repeat, entry, new_header, diff=None):
+            # put in the annotations
+            entry = truvari.copy_entry(entry, new_header)
+            entry.info["TRF"] = True
+            if diff:
+                entry.info["TRFDiff"] = diff
+            entry.info["TRFperiod"] = repeat["period"]
+            entry.info["TRFcopies"] = repeat["copies"]
+            #entry.info["TRFconsize"] = repeat["consize"]
+            entry.info["TRFscore"] = repeat["score"]
+            entry.info["TRFentropy"] = repeat["entropy"]
+            entry.info["TRFrepeat"] = repeat["repeat"]
+            return entry
+
+        # 1 - I want trf hits that have srep hits
+        if key in self.trf_lookup:
+            for repeat in sorted(self.trf_lookup[key].keys(), key=len, reverse=True):
+                if repeat in self.srep_lookup[key]:
+                    diff = self.trf_lookup[key][repeat]['copies'] - \
+                        self.srep_lookup[key][repeat]['copies']
+                    repeat = self.trf_lookup[key][repeat]
+                    return edit_entry(repeat, entry, new_header, diff)
+
+        # 2 - if there are none, I'll take srep hits
+        if key in self.srep_lookup:
+            repeat = sorted(
+                self.srep_lookup[key].keys(), key=len, reverse=True)[0]
+            repeat = self.srep_lookup[key][repeat]
+            return edit_entry(repeat, entry, new_header)
+        # 3 - otherwise quit
+        return entry
+
+
+def edit_header(header):
+    """
+    New VCF INFO fields
+    """
+    header = header.copy()
+    header.add_line(('##INFO=<ID=TRF,Number=1,Type=Flag,'
+                     'Description="Entry hits a simple repeat region">'))
+    header.add_line(('##INFO=<ID=TRFDiff,Number=1,Type=Float,'
+                     'Description="Simple repeat copy difference">'))
+    header.add_line(('##INFO=<ID=TRFperiod,Number=1,Type=Integer,'
+                     'Description="Period size of the repeat">'))
+    header.add_line(('##INFO=<ID=TRFcopies,Number=1,Type=Float,'
+                     'Description="Number of copies aligned with the consensus pattern">'))
+    header.add_line(('##INFO=<ID=TRFscore,Number=1,Type=Integer,'
+                     'Description="TRF Alignment score">'))
+    header.add_line(('##INFO=<ID=TRFentropy,Number=1,Type=Float,'
+                     'Description="TRF Entropy measure">'))
+    header.add_line(('##INFO=<ID=TRFrepeat,Number=1,Type=String,'
+                     'Description="TRF Repeat found on entry">'))
+
+    return header
+
+
 def trf_main(cmdargs):
-    """ Main """
+    """ TRF annotation """
     args = parse_args(cmdargs)
-    anno = TRFAnno(in_vcf=args.input,
-                   out_vcf=args.output,
-                   executable=args.executable,
-                   min_length=args.min_length,
-                   bestn=args.bestn,
-                   layered=args.layered,
-                   full=args.full,
-                   trf_params=args.trf_params,
-                   refanno=args.ref_bed,
-                   ref=args.ref)
-    anno.run()
-    logging.info("Finished")
+    trfshared.args = args
+
+    v = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(v.header)
+
+    m_regions = truvari.ref_ranges(
+        args.reference, chunk_size=int(args.chunk_size * 1e6))
+    with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
+        chunks = pool.imap_unordered(process_entries, m_regions)
+        pool.close()
+        with open(args.output, 'w') as fout:
+            fout.write(str(new_header))
+            for i in chunks:
+                fout.write(i[3])
+        pool.join()
+
+    logging.info("Finished trf")
 
 
 if __name__ == '__main__':
-    main()
-
-
-"""
-1) I can't guarantee that TRF alt seq hits are going to happend
-    But I'm returning nulls - not good. need to remove I think
-    | 
-
-So 1- you can give up on the reference, totally un-needed unti you get to 'denovo mode'
-Which at this point you should just abandon until it beocmes a feature request
-"""
+    trf_main(sys.argv[1:])

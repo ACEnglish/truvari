@@ -1,0 +1,76 @@
+# Performance
+recall: 0.0
+precision: 0.0
+f1: NaN
+gt_concordance: NaN
+	state
+fp	16
+fn	8
+tpbase	0
+tp	0
+
+
+# State by SizeCat and SVTYPE
+sizecat	SVTYPE	tpbase	fn	tp	fp	pct
+50to99	DEL	0	3	0	0	0.0
+50to99	INS	0	1	0	0	0.0
+100to299	DEL	0	1	0	0	0.0
+100to299	INS	0	3	0	0	0.0
+300to999	DEL	0	0	0	0	
+300to999	INS	0	0	0	0	
+gt1000	DEL	0	0	0	0	
+gt1000	INS	0	0	0	0	
+
+
+# State by REPTYPE
+REPTYPE	tpbase	fn	tp	fp	pct
+DUP	0	2	0	0	0.0
+SIMPLEDEL	0	4	0	0	0.0
+SIMPLEINS	0	2	0	0	0.0
+
+
+# State by Tech
+tech_str	tpbase	fn	tp	fp	pct
+Ill+CG	0	1	0	0	0.0
+Ill+TenX+CG	0	2	0	0	0.0
+PB	0	1	0	0	0.0
+PB+TenX	0	4	0	0	0.0
+
+
+# State by Genotype
+state	HET	HOM	NON	REF	TOT
+tpbase	0.0	0.0	0.0	0.0	0.0
+fn	2.0	4.0	1.0	1.0	8.0
+tp	0.0	0.0	0.0	0.0	0.0
+fp	12.0	4.0	0.0	0.0	16.0
+total	14.0	8.0	1.0	1.0	24.0
+recall	0.0	0.0	0.0	0.0	0.0
+precision	0.0	0.0			0.0
+
+
+# Args
+bSample	None
+base	repo_utils/test_files/giab.vcf.gz
+buffer	0.1
+cSample	None
+chunksize	1000
+comp	repo_utils/test_files/input1.vcf.gz
+debug	False
+giabreport	True
+gtcomp	False
+includebed	repo_utils/test_files/giab.bed
+multimatch	True
+no_ref	False
+output	test_results/bench_giab/
+passonly	False
+pctovl	0.0
+pctsim	0.7
+pctsize	0.7
+prog	True
+refdist	500
+reference	repo_utils/test_files/reference.fa
+sizefilt	30
+sizemax	50000
+sizemin	50
+typeignore	False
+use_lev	False
