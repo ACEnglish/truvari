@@ -20,6 +20,7 @@ import numpy as np
 import truvari
 from truvari.giab_report import make_giabreport
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -245,6 +246,7 @@ class StatsBox(OrderedDict):
         self["TP-base_TP-gt"] = 0
         self["TP-base_FP-gt"] = 0
         self["gt_concordance"] = 0
+        self["gt_matrix"] = defaultdict(Counter)
 
     def calc_performance(self):
         """
@@ -536,6 +538,11 @@ def output_writer(call, outs, sizemin):
         box["base cnt"] += 1
         entry = annotate_entry(call.base, call, outs['n_base_header'])
         if call.state:
+            if call.comp:
+                gtBase = str(call.base.samples[outs["sampleBase"]]["GT"])
+                gtComp = str(call.comp.samples[outs["sampleComp"]]["GT"])
+                box["gt_matrix"][gtBase][gtComp] += 1
+
             box["TP-base"] += 1
             outs["tpb_out"].write(entry)
             if call.gt_match:
@@ -767,7 +774,9 @@ def bench_main(cmdargs):
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
 
-    regions = truvari.RegionVCFIterator(base, comp, args.includebed, args.sizemax)
+    regions = truvari.RegionVCFIterator(base, comp,
+                                        args.includebed,
+                                        args.sizemax)
     base_i = regions.iterate(base)
     comp_i = regions.iterate(comp)
 
