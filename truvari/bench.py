@@ -26,12 +26,15 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
     A base/comp match holder
     """
-    __slots__ = ["base", "comp", "state", "seqsim", "sizesim", "ovlpct", "sizediff",
-                 "st_dist", "ed_dist", "gt_match", "multi", "score", "matid"]
+    __slots__ = ["base", "comp", "base_gt", "comp_gt", "state", "seqsim", "sizesim",
+                 "ovlpct", "sizediff", "st_dist", "ed_dist", "gt_match", "multi",
+                 "score", "matid"]
 
     def __init__(self):
         self.base = None
         self.comp = None
+        self.base_gt = None
+        self.comp_gt = None
         self.matid = None
         self.seqsim = None
         self.sizesim = None
@@ -104,8 +107,8 @@ class Matcher():
         ret.use_lev = False
         ret.chunksize = 1000
         ret.gtcomp = False
-        ret.bSample = None
-        ret.cSample = None
+        ret.bSample = 0
+        ret.cSample = 0
         # filtering properties
         ret.sizemin = 50
         ret.sizefilt = 30
@@ -132,8 +135,8 @@ class Matcher():
         ret.use_lev = args.use_lev
         ret.chunksize = args.chunksize
         ret.gtcomp = args.gtcomp
-        ret.bSample = args.bSample
-        ret.cSample = args.cSample
+        ret.bSample = args.bSample if args.bSample else 0
+        ret.cSample = args.cSample if args.bSample else 0
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt
@@ -175,6 +178,8 @@ class Matcher():
         ret = MatchResult()
         ret.base = base
         ret.comp = comp
+        ret.base_gt = base.samples[self.params.bSample]["GT"]
+        ret.comp_gt = comp.samples[self.params.cSample]["GT"]
         ret.matid = matid
         ret.state = True
 
@@ -538,10 +543,9 @@ def output_writer(call, outs, sizemin):
         box["base cnt"] += 1
         entry = annotate_entry(call.base, call, outs['n_base_header'])
         if call.state:
-            if call.comp:
-                gtBase = str(call.base.samples[outs["sampleBase"]]["GT"])
-                gtComp = str(call.comp.samples[outs["sampleComp"]]["GT"])
-                box["gt_matrix"][gtBase][gtComp] += 1
+            gtBase = str(call.base_gt)
+            gtComp = str(call.comp_gt)
+            box["gt_matrix"][gtBase][gtComp] += 1
 
             box["TP-base"] += 1
             outs["tpb_out"].write(entry)
