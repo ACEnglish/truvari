@@ -731,11 +731,9 @@ def setup_outputs(args):
     outputs = {}
     outputs["vcf_base"] = pysam.VariantFile(args.base)
     outputs["n_base_header"] = edit_header(outputs["vcf_base"])
-    outputs["sampleBase"] = args.bSample if args.bSample else outputs["vcf_base"].header.samples[0]
 
     outputs["vcf_comp"] = pysam.VariantFile(args.comp)
     outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
-    outputs["sampleComp"] = args.cSample if args.cSample else outputs["vcf_comp"].header.samples[0]
 
     # Setup outputs
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(
