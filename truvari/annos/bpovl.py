@@ -1,7 +1,6 @@
 """
 Creates intersection of features in an annotation file with SVs' breakpoints and overlap
 """
-import sys
 import gzip
 import logging
 import argparse
@@ -22,7 +21,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    parser = argparse.ArgumentParser(prog="gcpct", description=__doc__,
+    parser = argparse.ArgumentParser(prog="bpovl", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
                         help="VCF to annotate (stdin)")
@@ -31,9 +30,9 @@ def parse_args(args):
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
     parser.add_argument("--spanmin", type=int, default=50,
-                        help="Minimum span of SVs to annotate (%(default)))")
+                        help="Minimum span of SVs to annotate (%(default)s)")
     parser.add_argument("--spanmax", type=int, default=50000,
-                        help="Maximum span of SVs to annotate (%(default)))")
+                        help="Maximum span of SVs to annotate (%(default)s)")
     annosg = parser.add_argument_group("Annotation File Arguments")
     annosg.add_argument("-p", "--preset", choices=PRESET_FMTS.keys(), default=None,
                         help=("Annotation format. This option overwrites "
@@ -131,7 +130,3 @@ def bpovl_main(cmdargs):
                                           "anno_key"])
     joblib.dump(out, args.output)
     logging.info("Finished bpovl")
-
-
-if __name__ == '__main__':
-    bpovl_main(sys.argv[1:])
