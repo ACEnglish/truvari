@@ -237,6 +237,13 @@ assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 run test_anno_repmask_err $truv anno repmask -i $INDIR/input1.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 assert_exit_code 1
 
+#                                 bpovl
+run test_anno_bpovl $truv anno bpovl -i $INDIR/input1.vcf.gz \
+                    -o $OD/anno_bpovl.jl \
+                    -a $INDIR/anno.gtf.gz -p gff --spanmin 1
+assert_exit_code 0
+df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
+
 # ------------------------------------------------------------
 #                                 vcf2df
 # ------------------------------------------------------------

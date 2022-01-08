@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from intervaltree import IntervalTree
 import truvari.comparisons as tcomp
+from truvari.annos.bpovl import build_anno_tree
 
 class RegionVCFIterator():
     """
@@ -29,30 +30,22 @@ class RegionVCFIterator():
             contigB_set = set(vcfB.header.contigs.keys())
         else:
             contigB_set = contigA_set
-        all_regions = defaultdict(IntervalTree)
-        if self.includebed is not None:
-            counter = 0
-            with open(self.includebed, 'r') as fh:
-                for line in fh:
-                    if line.startswith("#"):
-                        continue
-                    data = line.strip().split('\t')
-                    chrom = data[0]
-                    start = int(data[1])
-                    end = int(data[2])
-                    all_regions[chrom].addi(start, end)
-                    counter += 1
-            logging.info("Including %d bed regions", counter)
-        else:
-            excluding = contigB_set - contigA_set
-            if excluding:
-                logging.warning(
-                    "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
-            for contig in contigA_set:
-                name = vcfA.header.contigs[contig].name
-                length = vcfA.header.contigs[contig].length
-                all_regions[name].addi(0, length)
+        if self.includebed is not None:
+            all_regions, counter = build_anno_tree(self.includebed)
+            logging.info("Including %d bed regions", counter)
+            return all_regions
+
+        all_regions = defaultdict(IntervalTree)
+        excluding = contigB_set - contigA_set
+        if excluding:
+            logging.warning(
+                "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+
+        for contig in contigA_set:
+            name = vcfA.header.contigs[contig].name
+            length = vcfA.header.contigs[contig].length
+            all_regions[name].addi(0, length)
         return all_regions
 
     def iterate(self, vcf_file):
