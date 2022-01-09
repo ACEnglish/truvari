@@ -29,8 +29,8 @@ def parse_args(args):
                         help="Tab-delimited annotation file")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
-    parser.add_argument("--spanmin", type=int, default=50,
-                        help="Minimum span of SVs to annotate (%(default)s)")
+    parser.add_argument("--sizemin", type=int, default=50,
+                        help="Minimum size of variant to annotate (%(default)s)")
     parser.add_argument("--spanmax", type=int, default=50000,
                         help="Maximum span of SVs to annotate (%(default)s)")
     annosg = parser.add_argument_group("Annotation File Arguments")
@@ -106,10 +106,15 @@ def bpovl_main(cmdargs):
     hit_cnt = 0
     for entry in in_vcf:
         has_hit = False
+
         start, end = truvari.entry_boundaries(entry)
         span = abs(end - start)
-        if span < args.spanmin or span > args.spanmax:
+        if span > args.spanmax:
             continue
+        svlen = truvari.entry_size(entry)
+        if svlen < args.sizemin:
+            continue
+
         key = truvari.entry_to_key(entry)
         for anno_idx in anno_tree[entry.chrom].at(start):
             has_hit = True
@@ -120,10 +125,11 @@ def bpovl_main(cmdargs):
             out_rows.append([key, 'end_bnd', anno_idx.data])
 
         for anno_idx in anno_tree[entry.chrom].overlap(start, end):
-            has_hit = True
-            if anno_idx.begin >= start and anno_idx.end <= end:
+            if start <= anno_idx.begin and anno_idx.end <= end:
+                has_hit = True
                 out_rows.append([key, 'overlaps', anno_idx.data])
-            elif anno_idx.begin < start and anno_idx.end > end:
+            elif anno_idx.begin <= start and end <= anno_idx.end:
+                has_hit = True
                 out_rows.append([key, 'contains', anno_idx.data])
         hit_cnt += has_hit
     logging.info("%d SVs hit annotations", hit_cnt)
