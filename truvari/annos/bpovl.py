@@ -55,7 +55,7 @@ def parse_args(args):
         args.anno_psets = PRESET_FMTS[args.preset]
     else:
         args.anno_psets = [args.sequence, args.begin, args.end,
-                           args.comment, args.one_based]
+                           args.one_based, args.comment]
     truvari.setup_logging()
     return args
 
@@ -121,8 +121,10 @@ def bpovl_main(cmdargs):
 
         for anno_idx in anno_tree[entry.chrom].overlap(start, end):
             has_hit = True
-            if anno_idx.begin >= start and anno_idx.end <= anno_idx.end:
-                out_rows.append([key, 'overlap', anno_idx.data])
+            if anno_idx.begin >= start and anno_idx.end <= end:
+                out_rows.append([key, 'overlaps', anno_idx.data])
+            elif anno_idx.begin < start and anno_idx.end > end:
+                out_rows.append([key, 'contains', anno_idx.data])
         hit_cnt += has_hit
     logging.info("%d SVs hit annotations", hit_cnt)
     out = pd.DataFrame(out_rows, columns=["vcf_key",
