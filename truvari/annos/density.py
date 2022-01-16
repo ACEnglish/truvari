@@ -19,8 +19,8 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-g", "--genome", type=str, required=True,
                         help="Genome bed file")
-    parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Input VCF")
+    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+                        help="Input VCF (%(default)s)")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
     parser.add_argument("-m", "--mask", type=str,
