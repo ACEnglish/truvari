@@ -13,11 +13,12 @@ ANNOS = {"gcpct": tannos.gcpct_main,
          "hompct": tannos.hompct_main,
          "numneigh": tannos.numneigh_main,
          "svinfo": tannos.svinfo_main,
-         "bpovl": tannos.bpovl_main}
+         "bpovl": tannos.bpovl_main,
+         "density": tannos.density_main}
 
 USAGE = """\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo, bpovl
+        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo, bpovl, density
 """
 
 

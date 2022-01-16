@@ -244,6 +244,13 @@ run test_anno_bpovl $truv anno bpovl -i $INDIR/input1.vcf.gz \
 assert_exit_code 0
 df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
 
+#                                 density
+run truvari_anno_density $truv anno density -i $INDIR/input3.vcf.gz \
+                    -o $OD/anno_density.jl \
+                    -g $INDIR/genome.bed -m $INDIR/mask.bed
+assert_exit_code 0
+df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
+
 # ------------------------------------------------------------
 #                                 vcf2df
 # ------------------------------------------------------------

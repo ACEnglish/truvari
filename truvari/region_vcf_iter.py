@@ -1,12 +1,13 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
+import gzip
 import logging
 from collections import defaultdict
 
 from intervaltree import IntervalTree
 import truvari.comparisons as tcomp
-from truvari.annos.bpovl import build_anno_tree
+
 
 class RegionVCFIterator():
     """
@@ -68,7 +69,41 @@ class RegionVCFIterator():
         if self.max_span is None or aend - astart > self.max_span:
             return False
         overlaps = self.tree[entry.chrom].overlaps(astart) \
-                   and self.tree[entry.chrom].overlaps(aend)
+            and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
+
+
+def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
+    """
+    Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
+    """
+    def gz_hdlr(fn):
+        with gzip.open(fn) as fh:
+            for line in fh:
+                yield line.decode()
+
+    def fh_hdlr(fn):
+        with open(fn) as fh:
+            for line in fh:
+                yield line
+
+    correction = 1 if one_based else 0
+    tree = defaultdict(IntervalTree)
+    if filename.endswith('.gz'):
+        fh = gz_hdlr(filename)
+    else:
+        fh = fh_hdlr(filename)
+
+    idx = 0
+    for line in fh:
+        if line.startswith(comment):
+            continue
+        data = line.strip().split('\t')
+        chrom = data[chrom_col]
+        start = int(data[start_col]) - correction
+        end = int(data[end_col])
+        tree[chrom].addi(start, end, data=idx)
+        idx += 1
+    return tree, idx
