@@ -1,7 +1,6 @@
 """
 Identify 'dense' and 'sparse' variant windows of the genome
 """
-import sys
 import logging
 import argparse
 from collections import Counter, defaultdict
@@ -29,7 +28,7 @@ def parse_args(args):
     parser.add_argument("-w", "--windowsize", type=int, default=10000,
                         help="Window size (%(default)s)")
     parser.add_argument("-t", "--threshold", type=float, default=3,
-                        help="std for identifying 'dense' regions (%(default))")
+                        help="std for identifying 'dense' regions (%(default)s)")
     args = parser.parse_args(args)
     truvari.setup_logging()
     return args
@@ -68,7 +67,7 @@ def density_main(args):
 
     # Counting
     counts = Counter()
-    v = pysam.VariantFile(sys.argv[3])
+    v = pysam.VariantFile(args.input)
     cnt = 0
     for entry in v:
         for intv in tree[entry.chrom].overlap(entry.start, entry.stop):
@@ -91,6 +90,6 @@ def density_main(args):
     data["anno"] = None
     data.loc[data["count"] == 0, "anno"] = "sparse"
     data.loc[data["count"] > hs_threshold, "anno"] = "dense"
-    logging.info("Density Counts\t%s", str(data["anno"].value_counts(dropna=False)))
+    logging.info("Density Counts\n%s", str(data["anno"].value_counts(dropna=False)))
 
     joblib.dump(data, args.output)
