@@ -75,6 +75,7 @@ from truvari.bench import (
 
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
+    build_anno_tree
 )
 
 from truvari.comparisons import (

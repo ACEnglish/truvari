@@ -1,15 +1,12 @@
 """
 Creates intersection of features in an annotation file with SVs' breakpoints and overlap
 """
-import gzip
 import logging
 import argparse
-from collections import defaultdict
 
 import pysam
 import joblib
 import pandas as pd
-from intervaltree import IntervalTree
 
 import truvari
 # config of [chrom_idx, begin_idx, end_idx, one-based, comment]
@@ -60,47 +57,13 @@ def parse_args(args):
     return args
 
 
-def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
-    """
-    Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
-    """
-    def gz_hdlr(fn):
-        with gzip.open(fn) as fh:
-            for line in fh:
-                yield line.decode()
-
-    def fh_hdlr(fn):
-        with open(fn) as fh:
-            for line in fh:
-                yield line
-
-    correction = 1 if one_based else 0
-    tree = defaultdict(IntervalTree)
-    if filename.endswith('.gz'):
-        fh = gz_hdlr(filename)
-    else:
-        fh = fh_hdlr(filename)
-
-    idx = 0
-    for line in fh:
-        if line.startswith(comment):
-            continue
-        data = line.strip().split('\t')
-        chrom = data[chrom_col]
-        start = int(data[start_col]) - correction
-        end = int(data[end_col])
-        tree[chrom].addi(start, end, data=idx)
-        idx += 1
-    return tree, idx
-
-
 def bpovl_main(cmdargs):
     """
     Main method
     """
     args = parse_args(cmdargs)
     in_vcf = pysam.VariantFile(args.input)
-    anno_tree, anno_cnt = build_anno_tree(args.anno, *args.anno_psets)
+    anno_tree, anno_cnt = truvari.build_anno_tree(args.anno, *args.anno_psets)
     out_rows = []
     logging.info("Loaded %d annotations", anno_cnt)
     hit_cnt = 0
