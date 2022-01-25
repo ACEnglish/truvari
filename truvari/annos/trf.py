@@ -53,6 +53,9 @@ def process_entries(ref_section):
 
     to_consider = []
     for entry in vcf.fetch(chrom, start, stop):
+        # Prevent duplication
+        if not entry.start >= start and entry.end < stop:
+            continue
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             to_consider.append(entry)
 
