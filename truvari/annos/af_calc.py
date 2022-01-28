@@ -74,6 +74,44 @@ def calc_hwe(nref, nalt, nhet):
     p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
     return p_exc_het, 1 - p_hwe
 
+def calc_af(gts):
+    """
+    Calculate allele annotations for a list of genotypes
+
+    :param `gts`: Genotype tuples
+    :type `gts`: list
+
+    :return: | Dictonary of
+             | AF - allele frequency
+             | MAF - minor allele frequency
+             | ExcHet - excess heterozygosity
+             | HWE - hardy weinberg equilibrium
+             | AC - allele count
+             | MAC - minor allele count
+    :rtype: dict
+    """
+    n_samps = 0
+    n_het = 0
+    cnt = Counter()  # 0 or 1 allele counts
+    for g in gts:
+        if None in g:
+            continue
+        n_samps += 1
+        for j in g:
+            cnt[j] += 1
+        n_het += 1 if g[0] != g[1] else 0
+
+    if n_samps == 0:
+        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0}
+
+    af = cnt[1] / (n_samps * 2)
+    srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
+    ac = [cnt[_] for _ in [0, 1]]
+    mac = srt[0][0]
+    maf = 1 - (srt[-1][0] / (n_samps * 2))
+
+    p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
+    return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac}
 
 def allele_freq_annos(entry, samples=None):
     """
@@ -102,27 +140,5 @@ def allele_freq_annos(entry, samples=None):
     """
     if samples is None:
         samples = list(entry.samples.keys())
-
-    n_samps = 0
-    n_het = 0
-    cnt = Counter()  # 0 or 1 allele counts
-    for samp in samples:
-        dat = entry.samples[samp]
-        if None in dat["GT"]:
-            continue
-        n_samps += 1
-        for j in dat["GT"]:
-            cnt[j] += 1
-        n_het += 1 if dat["GT"][0] != dat["GT"][1] else 0
-
-    if n_samps == 0:
-        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0}
-
-    af = cnt[1] / (n_samps * 2)
-    srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
-    ac = [cnt[_] for _ in [0, 1]]
-    mac = srt[0][0]
-    maf = 1 - (srt[-1][0] / (n_samps * 2))
-
-    p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
-    return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac}
+    gts = [entry.samples[_]["GT"] for _ in samples]
+    return calc_af(gts)
