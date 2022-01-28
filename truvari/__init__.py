@@ -65,7 +65,9 @@ __version__ = '3.2.0-dev'
 
 
 from truvari.annos.af_calc import (
-    allele_freq_annos
+    allele_freq_annos,
+    calc_af,
+    calc_hwe
 )
 
 from truvari.bench import (
