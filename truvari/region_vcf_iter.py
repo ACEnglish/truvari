@@ -1,6 +1,7 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
+import sys
 import gzip
 import logging
 from collections import defaultdict
@@ -46,6 +47,9 @@ class RegionVCFIterator():
         for contig in contigA_set:
             name = vcfA.header.contigs[contig].name
             length = vcfA.header.contigs[contig].length
+            if not length:
+                logging.error("Contig %s has no length definition. Fix header.", name)
+                sys.exit(10)
             all_regions[name].addi(0, length)
         return all_regions
 

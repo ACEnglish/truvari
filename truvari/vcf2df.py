@@ -365,7 +365,7 @@ def parse_args(args):
                               "column names will be flattened"))
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
-    parser.add_argument("-c", "--compress", type=int default=3, choices=range(9),
+    parser.add_argument("-c", "--compress", type=int, default=3, choices=range(9),
                         help="Compression level for joblib (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
