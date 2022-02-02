@@ -44,7 +44,7 @@ def make_giabreport(args, stats_box):
         sum_out.write(f"recall: {stats_box['recall']}\n")
         sum_out.write(f"precision: {stats_box['precision']}\n")
         sum_out.write(f"f1: {stats_box['f1']}\n")
-        sum_out.write(f"gt_concordance: {stats_box['f1']}\n")
+        sum_out.write(f"gt_concordance: {stats_box['gt_concordance']}\n")
         sum_out.write(data["state"].value_counts().to_csv(sep="\t") + "\n")
         sum_out.write("\n")
 
