@@ -1,8 +1,8 @@
 # Performance
 recall: 0.0
 precision: 0.0
-f1: NaN
-gt_concordance: NaN
+f1: 0
+gt_concordance: 0
 	state
 fp	16
 fn	8
