@@ -116,7 +116,12 @@ def collapse_into_entry(entry, others, hap_mode=False):
         elif n_idx is not None:
             o_entry = others[n_idx].comp
             for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
-                entry.samples[sample][key] = o_entry.samples[sample][key]
+                try:
+                    entry.samples[sample][key] = o_entry.samples[sample][key]
+                except TypeError:
+                    logging.warning("Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.warning("Kept entry: %s", str(entry))
+                    logging.warning("Colap entry: %s", str(o_entry))
 
     return entry
 

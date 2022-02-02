@@ -264,9 +264,6 @@ class StatsBox(OrderedDict):
         elif self["TP-call"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
             do_stats_math = False
-        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall",
-                     self["TP-base"], self["FN"],
-                     100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
 
         # Final calculations
         if do_stats_math:
@@ -283,8 +280,6 @@ class StatsBox(OrderedDict):
         denom = self["recall"] + self["precision"]
         if denom != 0:
             self["f1"] = 2 * (neum / denom)
-        else:
-            self["f1"] = "NaN"
 
 
 ############################
