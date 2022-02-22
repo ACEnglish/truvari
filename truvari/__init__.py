@@ -23,6 +23,9 @@ VariantRecord methods:
 Extra methods:
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
+:meth:`build_anno_tree`
+:meth:`calc_af`
+:meth:`calc_hwe`
 :meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
