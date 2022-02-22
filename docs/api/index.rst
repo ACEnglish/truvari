@@ -11,7 +11,7 @@ This documentation is aimed at developers looking to reuse truvari's code.
 For those looking to use truavari as a tool for analysis, full documentation 
 is available via the github page
 
-https://github.com/spiralgenetics/truvari
+https://github.com/ACEnglish/truvari
 
 .. toctree::
    :maxdepth: 2

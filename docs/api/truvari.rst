@@ -90,8 +90,8 @@ entry_size_similarity
 ^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_size_similarity
 
-entry_to_key
-^^^^^^^^^^^^
+entry_to_haplotype
+^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_to_haplotype
 
 entry_to_key
@@ -111,6 +111,18 @@ allele_freq_annos
 bed_ranges
 ^^^^^^^^^^
 .. autofunction:: bed_ranges
+
+build_anno_tree
+^^^^^^^^^^^^^^^
+.. autofunction:: build_anno_tree
+
+calc_af
+^^^^^^^
+.. autofunction:: calc_af
+
+calc_hwe
+^^^^^^^^
+.. autofunction:: calc_hwe
 
 create_pos_haplotype
 ^^^^^^^^^^^^^^^^^^^^
