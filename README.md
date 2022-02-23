@@ -44,3 +44,8 @@ The current most common Truvari use case is for structural variation benchmarkin
 ## More Information
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
+
+## Citing Truvari
+
+Truvari: Refined Structural Variant Comparison Preserves Allelic Diversity
+doi: https://doi.org/10.1101/2022.02.21.481353
