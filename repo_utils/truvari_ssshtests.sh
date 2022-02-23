@@ -254,6 +254,14 @@ df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
 # ------------------------------------------------------------
 #                                 vcf2df
 # ------------------------------------------------------------
+run test_vcf2df_bare $truv vcf2df $INDIR/input1.vcf.gz $OD/vcf2df_bare.jl
+assert_exit_code 0
+df_check test_vcf2df_bare_result $ANSDIR/vcf2df_bare.jl $OD/vcf2df_bare.jl
+
+run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
+assert_exit_code 0
+df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
+
 run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
 assert_exit_code 0
 df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl

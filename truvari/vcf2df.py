@@ -272,8 +272,6 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         logging.debug(info_header)
         header.extend(info_header)
 
-    if sample is None:
-        sample = v.header.samples[0]
     fmt_ops = []
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
@@ -284,8 +282,13 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         else:
             header.extend(fmt_header)
 
-    if not isinstance(sample, list):
-        sample = [sample]
+        if sample is None:
+            sample = v.header.samples[0]
+
+        if not isinstance(sample, list):
+            sample = [sample]
+    else:
+        sample = []
 
     rows = []
     for entry in v:
