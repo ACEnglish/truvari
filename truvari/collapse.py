@@ -119,7 +119,8 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 try:
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
-                    logging.warning("Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.warning(
+                        "Unable to set FORMAT %s for sample %s", key, sample)
                     logging.warning("Kept entry: %s", str(entry))
                     logging.warning("Colap entry: %s", str(o_entry))
 
@@ -188,10 +189,9 @@ def annotate_entry(entry, num_collapsed, match_id, header):
     """
     Edit an entry that's going to be collapsed into another entry
     """
-    new_entry = truvari.copy_entry(entry, header)
-    new_entry.info["NumCollapsed"] = num_collapsed
-    new_entry.info["CollapseId"] = match_id
-    return new_entry
+    entry.translate(header)
+    entry.info["NumCollapsed"] = num_collapsed
+    entry.info["CollapseId"] = match_id
 
 
 ##################
@@ -343,14 +343,14 @@ def output_writer(to_collapse, outputs):
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    entry = annotate_entry(entry, len(collapsed),
-                           match_id, outputs["o_header"])
+    annotate_entry(entry, len(collapsed),
+                   match_id, outputs["o_header"])
     outputs["output_vcf"].write(entry)
     outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
     for match in collapsed:
-        entry = trubench.annotate_entry(match.comp, match, outputs["c_header"])
-        outputs["collap_vcf"].write(entry)
+        trubench.annotate_entry(match.comp, match, outputs["c_header"])
+        outputs["collap_vcf"].write(match.comp)
         outputs['stats_box']["collap_cnt"] += 1
 
 

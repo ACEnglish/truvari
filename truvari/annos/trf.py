@@ -232,7 +232,7 @@ class TRFAnno():
         """
         def edit_entry(repeat, entry, new_header, diff=None):
             # put in the annotations
-            entry = truvari.copy_entry(entry, new_header)
+            entry.translate(new_header)
             entry.info["TRF"] = True
             if diff:
                 entry.info["TRFDiff"] = diff

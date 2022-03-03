@@ -513,7 +513,7 @@ def annotate_entry(entry, match, header):
     """
     Make a new entry with all the information
     """
-    entry = truvari.copy_entry(entry, header)
+    entry.translate(header)
     entry.info["PctSeqSimilarity"] = match.seqsim
     entry.info["PctSizeSimilarity"] = match.sizesim
     entry.info["PctRecOverlap"] = match.ovlpct
@@ -524,7 +524,6 @@ def annotate_entry(entry, match, header):
     entry.info["TruScore"] = int(match.score) if match.score else None
     entry.info["MatchId"] = match.matid
     entry.info["Multi"] = match.multi
-    return entry
 
 
 def output_writer(call, outs, sizemin):
@@ -536,37 +535,37 @@ def output_writer(call, outs, sizemin):
     box = outs["stats_box"]
     if call.base:
         box["base cnt"] += 1
-        entry = annotate_entry(call.base, call, outs['n_base_header'])
+        annotate_entry(call.base, call, outs['n_base_header'])
         if call.state:
             gtBase = str(call.base_gt)
             gtComp = str(call.comp_gt)
             box["gt_matrix"][gtBase][gtComp] += 1
 
             box["TP-base"] += 1
-            outs["tpb_out"].write(entry)
+            outs["tpb_out"].write(call.base)
             if call.gt_match:
                 box["TP-base_TP-gt"] += 1
             else:
                 box["TP-base_FP-gt"] += 1
         else:
             box["FN"] += 1
-            outs["fn_out"].write(entry)
+            outs["fn_out"].write(call.base)
 
     if call.comp:
-        entry = annotate_entry(call.comp, call, outs['n_comp_header'])
+        annotate_entry(call.comp, call, outs['n_comp_header'])
         if call.state:
             box["call cnt"] += 1
             box["TP-call"] += 1
-            outs["tpc_out"].write(entry)
+            outs["tpc_out"].write(call.comp)
             if call.gt_match:
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        elif truvari.entry_size(entry) >= sizemin:
+        elif truvari.entry_size(call.comp) >= sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
             box["call cnt"] += 1
             box["FP"] += 1
-            outs["fp_out"].write(entry)
+            outs["fp_out"].write(call.comp)
 
 
 ##########################

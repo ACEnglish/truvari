@@ -160,7 +160,7 @@ class RepMask():
         """
         if not rm_hit:
             return entry
-        entry = truvari.copy_entry(entry, self.n_header)
+        entry.translate(self.n_header)
 
         entry.info["RM_score"] = rm_hit["RM_score"]
         entry.info["RM_repeat"] = rm_hit["RM_repeat"]

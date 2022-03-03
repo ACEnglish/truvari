@@ -42,10 +42,6 @@ SV
 
 VariantRecord Methods
 ---------------------
-copy_entry
-^^^^^^^^^^
-.. autofunction:: copy_entry
-
 entry_boundaries
 ^^^^^^^^^^^^^^^^
 .. autofunction:: entry_boundaries

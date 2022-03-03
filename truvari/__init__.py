@@ -4,7 +4,6 @@ Truvari - SV comparison and annotation toolkit
 See `help()` of specific functions / objects for details
 
 VariantRecord methods:
-:meth:`copy_entry`
 :meth:`entry_boundaries`
 :meth:`entry_create_haplotype`
 :meth:`entry_distance`
@@ -111,7 +110,6 @@ from truvari.utils import (
     LogFileStderr,
     bed_ranges,
     cmd_exe,
-    copy_entry,
     help_unknown_cmd,
     ref_ranges,
     restricted_float,
