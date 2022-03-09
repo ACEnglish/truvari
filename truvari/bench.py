@@ -100,7 +100,7 @@ class Matcher():
         ret.reference = None
         ret.refdist = 500
         ret.pctsim = 0.70
-        ret.buffer = 0.10
+        ret.minhaplen = 50
         ret.pctsize = 0.70
         ret.pctovl = 0.0
         ret.typeignore = False
@@ -128,7 +128,7 @@ class Matcher():
             args.reference) if args.reference else None
         ret.refdist = args.refdist
         ret.pctsim = args.pctsim
-        ret.buffer = args.buffer
+        ret.minhaplen = args.minhaplen
         ret.pctsize = args.pctsize
         ret.pctovl = args.pctovl
         ret.typeignore = args.typeignore
@@ -224,13 +224,8 @@ class Matcher():
                     b_seq, c_seq = base.alts[0], comp.alts[0]
                 ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
             else:
-                # Only buffer small variants
-                if max(bend - bstart, cend - cstart) < 100:
-                    buf = self.params.buffer
-                else:
-                    buf = 0
                 ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
-                                                  buf, self.params.use_lev)
+                                                  self.params.minhaplen, self.params.use_lev)
             if ret.seqsim < self.params.pctsim:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -611,8 +606,8 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=defaults.buffer,
-                        help="Percent of the reference span to buffer the haplotype sequence created for <100bp SVs")
+    thresg.add_argument("-B", "--minhaplen", type=int, default=defaults.minhaplen,
+                        help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,

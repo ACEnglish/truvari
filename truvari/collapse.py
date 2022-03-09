@@ -223,8 +223,8 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=0.10,
-                        help="Percent of the reference span to buffer the haplotype sequence created")
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_float, default=50,
+                        help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,

@@ -51,7 +51,6 @@ precision	0.0	0.0			0.0
 # Args
 bSample	None
 base	repo_utils/test_files/giab.vcf.gz
-buffer	0.1
 cSample	None
 chunksize	1000
 comp	repo_utils/test_files/input1.vcf.gz
@@ -59,6 +58,7 @@ debug	False
 giabreport	True
 gtcomp	False
 includebed	repo_utils/test_files/giab.bed
+minhaplen	50
 multimatch	True
 no_ref	False
 output	test_results/bench_giab/
