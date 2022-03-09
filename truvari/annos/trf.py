@@ -54,10 +54,13 @@ def process_entries(ref_section):
     to_consider = []
     for entry in vcf.fetch(chrom, start, stop):
         # Prevent duplication
-        if not entry.start >= start and entry.end < stop:
+        if not (entry.start >= start and entry.start < stop):
             continue
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             to_consider.append(entry)
+
+    if not to_consider:
+        return (chrom, start, stop, "")
 
     tanno = TRFAnno(executable=trfshared.args.executable,
                     trf_params=trfshared.args.trf_params)
@@ -106,6 +109,7 @@ def parse_args(args):
                         help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
+
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug)
     return args
@@ -182,9 +186,10 @@ class TRFAnno():
         ret = truvari.cmd_exe(
             f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
         if ret.ret_code != 0:
-            logging.error("Couldn't run trf")
+            logging.error("Couldn't run trf. Check Parameters")
+            logging.error(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
             logging.error(str(ret))
-            sys.exit(ret.ret_code)
+            return
 
         self.parse_output()
 
@@ -290,7 +295,6 @@ def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
     trfshared.args = args
-
     v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
 

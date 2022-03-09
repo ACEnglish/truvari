@@ -53,6 +53,20 @@ class RegionVCFIterator():
             all_regions[name].addi(0, length)
         return all_regions
 
+    def merge_overlaps(self):
+        """
+        Runs IntervalTree.merge_overlaps on all trees. Returns list of all chromosomes having overlapping regions
+        and the pre_post totals
+        """
+        chr_with_overlaps = []
+        for i in self.tree:
+            pre_len = len(self.tree[i])
+            self.tree[i].merge_overlaps()
+            post_len = len(self.tree[i])
+            if pre_len != post_len:
+                chr_with_overlaps.append(i)
+        return chr_with_overlaps
+
     def iterate(self, vcf_file):
         """
         Iterates a vcf and yields only the entries that overlap included regions

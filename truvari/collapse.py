@@ -32,8 +32,9 @@ def collapse_chunk(chunk):
     # collap_key : keep_key
     chain_lookup = {}
 
-    call_id = 0
+    call_id = -1
     while calls:
+        call_id += 1
         # Take the first variant
         cur_keep_candidate = calls.pop(0)
         keep_key = truvari.entry_to_key(cur_keep_candidate)

@@ -214,9 +214,23 @@ class Matcher():
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
 
+        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctsim > 0:
-            ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
-                                              self.params.buffer, self.params.use_lev)
+            # No need to create a haplotype for variants that already lineup
+            if ret.st_dist == 0 or ret.ed_dist == 0:
+                if truvari.entry_variant_type(base) == 'DEL':
+                    b_seq, c_seq = base.ref, comp.ref
+                else:
+                    b_seq, c_seq = base.alts[0], comp.alts[0]
+                ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
+            else:
+                # Only buffer small variants
+                if max(bend - bstart, cend - cstart) < 100:
+                    buf = self.params.buffer
+                else:
+                    buf = 0
+                ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
+                                                  buf, self.params.use_lev)
             if ret.seqsim < self.params.pctsim:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -224,7 +238,6 @@ class Matcher():
         else:
             ret.seqsim = 0
 
-        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         ret.calc_score()
 
         return ret
@@ -599,7 +612,7 @@ def parse_args(args):
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
     thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=defaults.buffer,
-                        help="Percent of the reference span to buffer the haplotype sequence created")
+                        help="Percent of the reference span to buffer the haplotype sequence created for <100bp SVs")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,
@@ -773,6 +786,13 @@ def bench_main(cmdargs):
     regions = truvari.RegionVCFIterator(base, comp,
                                         args.includebed,
                                         args.sizemax)
+
+    merged_overlaps = regions.merge_overlaps()
+    if merged_overlaps:
+        logging.info("Found %d chromosomes with overlapping regions",
+                     len(merged_overlaps))
+        logging.debug("CHRs: %s", merged_overlaps)
+
     base_i = regions.iterate(base)
     comp_i = regions.iterate(comp)
 
