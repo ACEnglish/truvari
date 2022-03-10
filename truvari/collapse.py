@@ -49,7 +49,8 @@ def collapse_chunk(chunk):
         for cur_collapse_candidate in calls:
             mat = matcher.build_match(cur_keep_candidate,
                                       cur_collapse_candidate,
-                                      ret[keep_key][2])
+                                      ret[keep_key][2],
+                                      skip_gt=True)
             if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
             # to collapse
@@ -110,7 +111,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
             if o_gt not in replace_gts:
                 n_idx = pos
-                break  # this is the first other that's set
+                break # this is the first other that's set
         # consolidate
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)

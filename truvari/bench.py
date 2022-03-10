@@ -171,7 +171,7 @@ class Matcher():
 
         return False
 
-    def build_match(self, base, comp, matid=None):
+    def build_match(self, base, comp, matid=None, skip_gt=False):
         """
         Build a MatchResult
         """
@@ -201,12 +201,13 @@ class Matcher():
                           str(base), str(comp), ret.sizesim)
             ret.state = False
 
-        ret.gt_match = truvari.entry_gt_comp(
-            base, comp, self.params.bSample, self.params.cSample)
-        if self.params.gtcomp and not ret.gt_match:
-            logging.debug("%s and %s are not the same genotype",
-                          str(base), str(comp))
-            ret.state = False
+        if not skip_gt:
+            ret.gt_match = truvari.entry_gt_comp(
+                base, comp, self.params.bSample, self.params.cSample)
+            if self.params.gtcomp and not ret.gt_match:
+                logging.debug("%s and %s are not the same genotype",
+                              str(base), str(comp))
+                ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
         if truvari.entry_variant_type(base) == "DEL" and ret.ovlpct < self.params.pctovl:
