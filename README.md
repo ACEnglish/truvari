@@ -12,10 +12,11 @@
 [![coverage](imgs/coverage.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
 [![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v3.1.0)](https://github.com/spiralgenetics/truvari/commits/develop)
 
-Structural variant toolkit for benchmarking, annotating and more for VCFs
+Toolkit for benchmarking, merging, and annotating Structrual Variants
 
-[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.
-See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
+[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.  
+See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.  
+Read our [Paper](https://doi.org/10.1101/2022.02.21.481353) for more details.
 
 ## Installation
 Truvari uses Python 3.6+ and can be installed with pip:
@@ -44,8 +45,3 @@ The current most common Truvari use case is for structural variation benchmarkin
 ## More Information
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
-
-## Citing Truvari
-
-Truvari: Refined Structural Variant Comparison Preserves Allelic Diversity
-doi: https://doi.org/10.1101/2022.02.21.481353
