@@ -293,6 +293,18 @@ run test_segment_result
 assert_equal $(fn_md5 $ANSDIR/segment.vcf) $(fn_md5 $OD/segment.vcf)
 
 # ------------------------------------------------------------
+#                                 divide
+# ------------------------------------------------------------
+run test_divide $truv divide $INDIR/multi.vcf.gz $OD/divided/ --no-compress
+assert_exit_code 0
+
+run test_divide_result
+for i in $ANSDIR/divided/*.vcf
+do
+    assert_equal $(fn_md5 $i) $(fn_md5 $OD/divided/$(basename $i))
+done
+
+# ------------------------------------------------------------
 #                                 doctests
 # ------------------------------------------------------------
 

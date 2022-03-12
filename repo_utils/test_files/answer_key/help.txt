@@ -9,6 +9,7 @@ Truvari v3.2.0-dev - Structural Variant Benchmarking and Annotation
         collapse      Collapse possibly redundant VCF entries
         vcf2df        Turn a VCF into a pandas DataFrame
         segment       Normalization of SVs into disjointed genomic regions
+        divide        Divide a VCF into multiple parts
         version       Print the Truvari version and exit
 
 positional arguments:
