@@ -11,6 +11,7 @@
 [![FuncTests](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
 [![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v3.1.0)](https://github.com/spiralgenetics/truvari/commits/develop)
+[![Downloads](https://pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 Toolkit for benchmarking, merging, and annotating Structrual Variants
 
