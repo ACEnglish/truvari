@@ -27,7 +27,7 @@ def collapse_chunk(chunk):
     logging.debug(f"Comparing chunk {calls}")
     calls.sort(reverse=True, key=matcher.sorter)
 
-    # keep_key : [keep entry, [collap entries], match_id]
+    # keep_key : [keep entry, [collap matches], match_id]
     ret = {}
     # collap_key : keep_key
     chain_lookup = {}
@@ -67,9 +67,9 @@ def collapse_chunk(chunk):
         # Only put in the single best match
         # Leave the others to be handled later
         if matcher.hap and ret[keep_key][1]:
-            candidates = sorted(ret[keep_key][1], reverse=True)
-            ret[keep_key][1] = [candidates.pop(0)]
-            remaining_calls.extend(candidates)
+            mats = sorted(ret[keep_key][1], reverse=True)
+            ret[keep_key][1] = [mats.pop(0)]
+            remaining_calls.extend(mat.comp for mat in mats)
 
         calls = remaining_calls
 
