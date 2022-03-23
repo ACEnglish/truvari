@@ -75,7 +75,7 @@ def collapse_chunk(chunk):
 
     for key, val in ret.items():
         logging.debug("Collapsing %s", key)
-        val[0] = collapse_into_entry(val[0], val[1])
+        val[0] = collapse_into_entry(val[0], val[1], matcher.hap)
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
