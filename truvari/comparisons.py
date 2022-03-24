@@ -200,8 +200,10 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, min_len=0):
         """
         We compare the longer of the ref/alt sequence to increase comparability
         """
-        if use_ref_seq and (entry.alts[0] == "<DEL>" or len(entry.alts[0]) < len(entry.ref)):
-            return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
+        if entry_variant_type(entry) == "DEL":
+            if use_ref_seq:
+                return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
+            return entry.chrom, entry.start, entry.stop, entry.ref
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
     a1 = get_props(entryA)
     a2 = get_props(entryB)
