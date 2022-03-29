@@ -171,6 +171,8 @@ def create_pos_haplotype(a1, a2, ref, min_len=0):
     if min_size < min_len:
         start -= (min_len - min_size) // 2
         end += (min_len + min_size) // 2
+    # no negative fetch
+    start = max(0, start)
     hap1_seq = ref.fetch(chrom, start, a1_start) + \
         a1_seq + ref.fetch(chrom, a1_end, end)
     hap2_seq = ref.fetch(chrom, start, a2_start) + \
