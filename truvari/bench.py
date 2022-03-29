@@ -210,7 +210,7 @@ class Matcher():
                 ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
-        if truvari.entry_variant_type(base) == "DEL" and ret.ovlpct < self.params.pctovl:
+        if ret.ovlpct < self.params.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
