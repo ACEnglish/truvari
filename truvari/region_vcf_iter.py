@@ -73,9 +73,12 @@ class RegionVCFIterator():
         """
         for chrom in sorted(self.tree.keys()):
             for intv in sorted(self.tree[chrom]):
-                for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
-                    if self.includebed is None or self.include(entry):
-                        yield entry
+                try:
+                    for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
+                        if self.includebed is None or self.include(entry):
+                            yield entry
+                except ValueError:
+                    logging.warning("Unable to fetch %s from %s", chrom, vcf_file.filename)
 
     def include(self, entry):
         """
