@@ -64,7 +64,7 @@ def hompct_main(cmd_args):
     v2 = pysam.VariantFile(args.input)
     for entry in v2:
         if truvari.entry_size(entry) >= args.minanno:
-            entry = truvari.copy_entry(entry, header)
+            entry.translate(header)
             entry.info["HOMPCT"] = get_pct(
                 entry.chrom, *truvari.entry_boundaries(entry))
         out.write(entry)

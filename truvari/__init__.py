@@ -4,7 +4,6 @@ Truvari - SV comparison and annotation toolkit
 See `help()` of specific functions / objects for details
 
 VariantRecord methods:
-:meth:`copy_entry`
 :meth:`entry_boundaries`
 :meth:`entry_create_haplotype`
 :meth:`entry_distance`
@@ -23,6 +22,9 @@ VariantRecord methods:
 Extra methods:
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
+:meth:`build_anno_tree`
+:meth:`calc_af`
+:meth:`calc_hwe`
 :meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
@@ -61,11 +63,13 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '3.1.0'
+__version__ = '3.2.0'
 
 
 from truvari.annos.af_calc import (
-    allele_freq_annos
+    allele_freq_annos,
+    calc_af,
+    calc_hwe
 )
 
 from truvari.bench import (
@@ -75,6 +79,7 @@ from truvari.bench import (
 
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
+    build_anno_tree
 )
 
 from truvari.comparisons import (
@@ -105,7 +110,6 @@ from truvari.utils import (
     LogFileStderr,
     bed_ranges,
     cmd_exe,
-    copy_entry,
     help_unknown_cmd,
     ref_ranges,
     restricted_float,

@@ -54,12 +54,12 @@ def add_gtcnt(vcf, n_header=None):
             else:
                 cnt[0] += 1
         try:
-            nentry = truvari.copy_entry(entry, n_header)
+            entry.translate(n_header)
         except TypeError:
             yield entry
             continue
-        nentry.info["GTCNT"] = cnt
-        yield nentry
+        entry.info["GTCNT"] = cnt
+        yield entry
 
 
 def gtcnt_main(cmdargs):

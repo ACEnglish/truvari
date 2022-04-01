@@ -1,11 +1,14 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
+import sys
+import gzip
 import logging
 from collections import defaultdict
 
 from intervaltree import IntervalTree
 import truvari.comparisons as tcomp
+
 
 class RegionVCFIterator():
     """
@@ -29,31 +32,40 @@ class RegionVCFIterator():
             contigB_set = set(vcfB.header.contigs.keys())
         else:
             contigB_set = contigA_set
-        all_regions = defaultdict(IntervalTree)
-        if self.includebed is not None:
-            counter = 0
-            with open(self.includebed, 'r') as fh:
-                for line in fh:
-                    if line.startswith("#"):
-                        continue
-                    data = line.strip().split('\t')
-                    chrom = data[0]
-                    start = int(data[1])
-                    end = int(data[2])
-                    all_regions[chrom].addi(start, end)
-                    counter += 1
-            logging.info("Including %d bed regions", counter)
-        else:
-            excluding = contigB_set - contigA_set
-            if excluding:
-                logging.warning(
-                    "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
 
-            for contig in contigA_set:
-                name = vcfA.header.contigs[contig].name
-                length = vcfA.header.contigs[contig].length
-                all_regions[name].addi(0, length)
+        if self.includebed is not None:
+            all_regions, counter = build_anno_tree(self.includebed)
+            logging.info("Including %d bed regions", counter)
+            return all_regions
+
+        all_regions = defaultdict(IntervalTree)
+        excluding = contigB_set - contigA_set
+        if excluding:
+            logging.warning(
+                "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+
+        for contig in contigA_set:
+            name = vcfA.header.contigs[contig].name
+            length = vcfA.header.contigs[contig].length
+            if not length:
+                logging.error("Contig %s has no length definition. Fix header.", name)
+                sys.exit(10)
+            all_regions[name].addi(0, length)
         return all_regions
+
+    def merge_overlaps(self):
+        """
+        Runs IntervalTree.merge_overlaps on all trees. Returns list of all chromosomes having overlapping regions
+        and the pre_post totals
+        """
+        chr_with_overlaps = []
+        for i in self.tree:
+            pre_len = len(self.tree[i])
+            self.tree[i].merge_overlaps()
+            post_len = len(self.tree[i])
+            if pre_len != post_len:
+                chr_with_overlaps.append(i)
+        return chr_with_overlaps
 
     def iterate(self, vcf_file):
         """
@@ -61,9 +73,12 @@ class RegionVCFIterator():
         """
         for chrom in sorted(self.tree.keys()):
             for intv in sorted(self.tree[chrom]):
-                for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
-                    if self.includebed is None or self.include(entry):
-                        yield entry
+                try:
+                    for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
+                        if self.includebed is None or self.include(entry):
+                            yield entry
+                except ValueError:
+                    logging.warning("Unable to fetch %s from %s", chrom, vcf_file.filename)
 
     def include(self, entry):
         """
@@ -75,7 +90,41 @@ class RegionVCFIterator():
         if self.max_span is None or aend - astart > self.max_span:
             return False
         overlaps = self.tree[entry.chrom].overlaps(astart) \
-                   and self.tree[entry.chrom].overlaps(aend)
+            and self.tree[entry.chrom].overlaps(aend)
         if astart == aend:
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
+
+
+def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
+    """
+    Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
+    """
+    def gz_hdlr(fn):
+        with gzip.open(fn) as fh:
+            for line in fh:
+                yield line.decode()
+
+    def fh_hdlr(fn):
+        with open(fn) as fh:
+            for line in fh:
+                yield line
+
+    correction = 1 if one_based else 0
+    tree = defaultdict(IntervalTree)
+    if filename.endswith('.gz'):
+        fh = gz_hdlr(filename)
+    else:
+        fh = fh_hdlr(filename)
+
+    idx = 0
+    for line in fh:
+        if line.startswith(comment):
+            continue
+        data = line.strip().split('\t')
+        chrom = data[chrom_col]
+        start = int(data[start_col]) - correction
+        end = int(data[end_col])
+        tree[chrom].addi(start, end, data=idx)
+        idx += 1
+    return tree, idx

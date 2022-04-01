@@ -47,7 +47,7 @@ def svinfo_main(cmdargs):
         for entry in vcf:
             sz = truvari.entry_size(entry)
             if sz >= args.minsize:
-                entry = truvari.copy_entry(entry, n_header)
+                entry.translate(n_header)
                 svtype = truvari.entry_variant_type(entry)
                 entry.info["SVTYPE"] = svtype
                 entry.info["SVLEN"] = sz

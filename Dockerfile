@@ -10,10 +10,10 @@ RUN apt-get -qq update && apt-get install -yq \
 ADD . /opt/truvari-source
 WORKDIR /opt/truvari-source
 
-RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install setproctitle pylint anybadge coverage
-RUN python3 -m pip install --upgrade setuptools
-RUN python3 -m pip install ./
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install setproctitle pylint anybadge coverage && \
+    python3 -m pip install --upgrade setuptools && \
+    python3 -m pip install ./
 
 WORKDIR /data
 

@@ -33,5 +33,4 @@ fails += tester(af_calc)
 fails ++ tester(bench)
 
 os.remove("log.txt")
-os.remove("test.vcf")
 sys.exit(fails)

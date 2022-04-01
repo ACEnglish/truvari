@@ -27,13 +27,14 @@ def collapse_chunk(chunk):
     logging.debug(f"Comparing chunk {calls}")
     calls.sort(reverse=True, key=matcher.sorter)
 
-    # keep_key : [keep entry, [collap entries], match_id]
+    # keep_key : [keep entry, [collap matches], match_id]
     ret = {}
     # collap_key : keep_key
     chain_lookup = {}
 
-    call_id = 0
+    call_id = -1
     while calls:
+        call_id += 1
         # Take the first variant
         cur_keep_candidate = calls.pop(0)
         keep_key = truvari.entry_to_key(cur_keep_candidate)
@@ -48,7 +49,8 @@ def collapse_chunk(chunk):
         for cur_collapse_candidate in calls:
             mat = matcher.build_match(cur_keep_candidate,
                                       cur_collapse_candidate,
-                                      ret[keep_key][2])
+                                      ret[keep_key][2],
+                                      skip_gt=True)
             if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
             # to collapse
@@ -65,15 +67,15 @@ def collapse_chunk(chunk):
         # Only put in the single best match
         # Leave the others to be handled later
         if matcher.hap and ret[keep_key][1]:
-            candidates = sorted(ret[keep_key][1], reverse=True)
-            ret[keep_key][1] = [candidates.pop(0)]
-            remaining_calls.extend(candidates)
+            mats = sorted(ret[keep_key][1], reverse=True)
+            ret[keep_key][1] = [mats.pop(0)]
+            remaining_calls.extend(mat.comp for mat in mats)
 
         calls = remaining_calls
 
     for key, val in ret.items():
         logging.debug("Collapsing %s", key)
-        val[0] = collapse_into_entry(val[0], val[1])
+        val[0] = collapse_into_entry(val[0], val[1], matcher.hap)
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
@@ -109,14 +111,20 @@ def collapse_into_entry(entry, others, hap_mode=False):
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
             if o_gt not in replace_gts:
                 n_idx = pos
-                break  # this is the first other that's set
+                break # this is the first other that's set
         # consolidate
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)
         elif n_idx is not None:
             o_entry = others[n_idx].comp
             for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
-                entry.samples[sample][key] = o_entry.samples[sample][key]
+                try:
+                    entry.samples[sample][key] = o_entry.samples[sample][key]
+                except TypeError:
+                    logging.warning(
+                        "Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.warning("Kept entry: %s", str(entry))
+                    logging.warning("Colap entry: %s", str(o_entry))
 
     return entry
 
@@ -183,10 +191,9 @@ def annotate_entry(entry, num_collapsed, match_id, header):
     """
     Edit an entry that's going to be collapsed into another entry
     """
-    new_entry = truvari.copy_entry(entry, header)
-    new_entry.info["NumCollapsed"] = num_collapsed
-    new_entry.info["CollapseId"] = match_id
-    return new_entry
+    entry.translate(header)
+    entry.info["NumCollapsed"] = num_collapsed
+    entry.info["CollapseId"] = match_id
 
 
 ##################
@@ -217,8 +224,8 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=0.10,
-                        help="Percent of the reference span to buffer the haplotype sequence created")
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_float, default=50,
+                        help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,
@@ -338,14 +345,14 @@ def output_writer(to_collapse, outputs):
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    entry = annotate_entry(entry, len(collapsed),
-                           match_id, outputs["o_header"])
+    annotate_entry(entry, len(collapsed),
+                   match_id, outputs["o_header"])
     outputs["output_vcf"].write(entry)
     outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
     for match in collapsed:
-        entry = trubench.annotate_entry(match.comp, match, outputs["c_header"])
-        outputs["collap_vcf"].write(entry)
+        trubench.annotate_entry(match.comp, match, outputs["c_header"])
+        outputs["collap_vcf"].write(match.comp)
         outputs['stats_box']["collap_cnt"] += 1
 
 

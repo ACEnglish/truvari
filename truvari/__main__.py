@@ -8,6 +8,7 @@ import argparse
 import truvari
 from truvari import __version__
 from truvari.bench import bench_main
+from truvari.divide import divide_main
 from truvari.vcf2df import vcf2df_main
 from truvari.annotation import anno_main
 from truvari.collapse import collapse_main
@@ -28,6 +29,7 @@ TOOLS = {'bench': bench_main,
          'collapse': collapse_main,
          'vcf2df': vcf2df_main,
          'segment': segment_main,
+         'divide': divide_main,
          'version': version}
 
 USAGE = f"""\
@@ -40,6 +42,7 @@ Truvari v{__version__} - Structural Variant Benchmarking and Annotation
         collapse      Collapse possibly redundant VCF entries
         vcf2df        Turn a VCF into a pandas DataFrame
         segment       Normalization of SVs into disjointed genomic regions
+        divide        Divide a VCF into multiple parts
         version       Print the Truvari version and exit
 """
 

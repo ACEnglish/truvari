@@ -144,7 +144,7 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
 
 
-def create_pos_haplotype(a1, a2, ref, buf_len=0):
+def create_pos_haplotype(a1, a2, ref, min_len=0):
     """
     Create haplotypes of two allele's regions that are assumed to be overlapping
 
@@ -154,8 +154,8 @@ def create_pos_haplotype(a1, a2, ref, buf_len=0):
     :type `a2`: tuple
     :param `ref`: Reference genome
     :type `ref`: :class:`pysam.FastaFile`
-    :param `buf_len`: Percent of selected region's range length to buffer
-    :type `buf_len`: float, optional
+    :param `min_len`: Minimum length of the haplotype sequence to create
+    :type `min_len`: int, optional
 
     :return: allele haplotype sequences created
     :rtupe: tuple (string, string)
@@ -164,9 +164,15 @@ def create_pos_haplotype(a1, a2, ref, buf_len=0):
     chrom, a2_start, a2_end, a2_seq = a2
     start = min(a1_start, a2_start)
     end = max(a1_end, a2_end)
-    buff = int((end - start) * buf_len)
-    start -= buff
-    end += buff
+
+    hap_len1 = (abs(a1_start - start) + len(a1_seq) + abs(a1_end - end))
+    hap_len2 = (abs(a2_start - start) + len(a2_seq) + abs(a2_end - end))
+    min_size = min(hap_len1, hap_len2)
+    if min_size < min_len:
+        start -= (min_len - min_size) // 2
+        end += (min_len + min_size) // 2
+    # no negative fetch
+    start = max(0, start)
     hap1_seq = ref.fetch(chrom, start, a1_start) + \
         a1_seq + ref.fetch(chrom, a1_end, end)
     hap2_seq = ref.fetch(chrom, start, a2_start) + \
@@ -174,7 +180,7 @@ def create_pos_haplotype(a1, a2, ref, buf_len=0):
     return str(hap1_seq), str(hap2_seq)
 
 
-def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
+def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, min_len=0):
     """
     Turn two entries into their haplotype sequence for comparison
 
@@ -186,8 +192,8 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
     :type `ref`: :class:`pysam.FastaFile`
     :param `use_ref_seq`: If True, use the reference genome to get the sequence instead of the vcf entries
     :type `use_ref_seq`: bool, optional
-    :param `buf_len`: Percent of selected region's range length to buffer
-    :type `buf_len`: float, optional
+    :param `min_len`: Minimum length of the haplotype sequence to create
+    :type `min_len`: int, optional
 
     :return: allele haplotype sequences created
     :rtype: tuple : (string, string)
@@ -201,7 +207,7 @@ def entry_create_haplotype(entryA, entryB, ref, use_ref_seq=False, buf_len=0):
         return entry.chrom, entry.start, entry.stop, entry.alts[0]
     a1 = get_props(entryA)
     a2 = get_props(entryB)
-    return create_pos_haplotype(a1, a2, ref, buf_len=buf_len)
+    return create_pos_haplotype(a1, a2, ref, min_len=min_len)
 
 def entry_to_haplotype(entry, ref, start=None, end=None):
     """
@@ -226,7 +232,7 @@ def entry_to_haplotype(entry, ref, start=None, end=None):
         entry.alts[0] + ref.fetch(chrom, a1_end, end)
     return hap1_seq
 
-def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
+def entry_pctsim(entryA, entryB, ref, min_len=0, use_lev=True):
     """
     Calculate similarity of two entries' haplotype changes
 
@@ -236,8 +242,8 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
     :type `entryB`: :class:`pysam.VariantRecord`
     :param `ref`: Reference genome
     :type `ref`: :class:`pysam.FastaFile`
-    :param `buf_len`: Percent of selected region's range length to buffer
-    :type `buf_len`: float, optional
+    :param `min_len`: Percent of selected region's range length to buffer
+    :type `min_len`: float, optional
     :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
     :type `use_lev`: bool, optional
 
@@ -254,7 +260,7 @@ def entry_pctsim(entryA, entryB, ref, buf_len=0, use_lev=True):
         return seqsim(allele1, allele2, use_lev)
 
     # Handling of breakends should be here
-    allele1, allele2 = entry_create_haplotype(entryA, entryB, ref, buf_len=buf_len)
+    allele1, allele2 = entry_create_haplotype(entryA, entryB, ref, min_len=min_len)
     return seqsim(allele1, allele2, use_lev)
 
 

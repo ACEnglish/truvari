@@ -205,60 +205,6 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     return ret
 
 
-def copy_entry(entry, header):
-    """
-    Make a :class:`pysam.VariantRecord` editable
-
-    :param `entry`: entry to make editable
-    :type `entry`: :class:`pysam.VariantRecord`
-    :param `header`: header of output vcf
-    :type `header`: :class:`pysam.VariantHeader`
-
-    :return: editable record
-    :rtype: :class:`pysam.VariantRecord`
-
-    Example
-        >>> import truvari
-        >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/giab.vcf.gz')
-        >>> new_header = v.header.copy() # Add new INFO field
-        >>> new_header.add_line("##INFO=<ID=A,Type=Flag,Description='test'>")
-        >>> o = pysam.VariantFile('test.vcf', 'w', header=new_header)
-        >>> entry = truvari.copy_entry(next(v), new_header)
-        >>> entry.info["A"] = True # This wouldn't be possible without `copy_entry`
-        >>> o.write(entry)
-        0
-    """
-    try:
-        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
-                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
-                                info=entry.info)
-    except TypeError as e:
-        new_entry_info = dict(entry.info)
-        for key, value in new_entry_info.items():
-            if isinstance(value, tuple):
-                if header.info[key].type != "String":
-                    logging.error("Entry is not copyable by pysam. INFO %s has Number=%s and Type=%s",
-                                  key, header.info[key].number, header.info[key].type)
-                    logging.error(
-                        "Number should be changed to '.' or Type to 'String'")
-                    logging.error("Check VCF header (%s)", str(entry))
-                    raise e
-                new_entry_info[key] = ",".join(value)
-        ret = header.new_record(contig=entry.chrom, start=entry.start, stop=entry.stop,
-                                alleles=entry.alleles, id=entry.id, qual=entry.qual, filter=entry.filter,
-                                info=new_entry_info)
-    for sample in entry.samples:
-        for k, v in entry.samples[sample].items():
-            # this will be a problem for pVCFs with differing Number=./A/G and set on input as (None,).. maybe
-            try:
-                ret.samples[sample][k] = v
-            except TypeError:
-                pass
-
-    return ret
-
-
 def ref_ranges(reference, chunk_size=10000000):
     """
     Chunk reference into pieces. Useful for multiprocessing.

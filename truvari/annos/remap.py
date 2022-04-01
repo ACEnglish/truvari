@@ -119,7 +119,7 @@ class Remap():
         Annotates entries in the vcf and writes to new vcf
         """
         if truvari.entry_size(entry) >= self.min_length:
-            entry = truvari.copy_entry(entry, self.n_header)
+            entry.translate(self.n_header)
             remap, hits = self.remap_entry(entry)
             entry.info["REMAP"] = remap
             if self.anno_hits and hits:

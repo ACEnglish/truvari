@@ -10,12 +10,14 @@
 [![pylint](imgs/pylint.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/spiralgenetics/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v3.0.0)](https://github.com/spiralgenetics/truvari/commits/develop)
+[![develop](https://img.shields.io/github/commits-since/spiralgenetics/truvari/v3.1.0)](https://github.com/spiralgenetics/truvari/commits/develop)
+[![Downloads](https://pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
-Structural variant toolkit for benchmarking, annotating and more for VCFs
+Toolkit for benchmarking, merging, and annotating Structrual Variants
 
-[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.
-See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.
+[WIKI page](https://github.com/spiralgenetics/truvari/wiki) has detailed documentation.  
+See [Updates](https://github.com/spiralgenetics/truvari/wiki/Updates) on new versions.  
+Read our [Paper](https://doi.org/10.1101/2022.02.21.481353) for more details.
 
 ## Installation
 Truvari uses Python 3.6+ and can be installed with pip:
@@ -39,10 +41,9 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [anno](https://github.com/spiralgenetics/truvari/wiki/anno) - Add SV annotations to a VCF
  - [vcf2df](https://github.com/spiralgenetics/truvari/wiki/vcf2df) - Turn a VCF into a pandas DataFrame
  - [consistency](https://github.com/spiralgenetics/truvari/wiki/consistency) - Consistency report between multiple VCFs
+ - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent parts
  - [segment](https://github.com/spiralgenetics/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
 
 ## More Information
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/spiralgenetics/truvari/wiki).
-
-[https://www.spiralgenetics.com](https://www.spiralgenetics.com)

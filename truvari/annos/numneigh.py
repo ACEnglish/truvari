@@ -85,10 +85,10 @@ class NeighAnno():
         """
         Annotate and write an entry
         """
-        new_entry = truvari.copy_entry(entry, self.header)
-        new_entry.info["NumNeighbors"] = neigh_cnt
-        new_entry.info["NeighId"] = self.neigh_id
-        self.out_vcf.write(new_entry)
+        entry.translate(self.header)
+        entry.info["NumNeighbors"] = neigh_cnt
+        entry.info["NeighId"] = self.neigh_id
+        self.out_vcf.write(entry)
 
     def flush_push_stack(self, cur_range):
         """

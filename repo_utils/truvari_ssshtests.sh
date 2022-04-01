@@ -237,9 +237,31 @@ assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 run test_anno_repmask_err $truv anno repmask -i $INDIR/input1.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 assert_exit_code 1
 
+#                                 bpovl
+run test_anno_bpovl $truv anno bpovl -i $INDIR/input1.vcf.gz \
+                    -o $OD/anno_bpovl.jl \
+                    -a $INDIR/anno.gtf.gz -p gff --sizemin 1
+assert_exit_code 0
+df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
+
+#                                 density
+run truvari_anno_density $truv anno density -i $INDIR/input3.vcf.gz \
+                    -o $OD/anno_density.jl \
+                    -g $INDIR/genome.bed -m $INDIR/mask.bed
+assert_exit_code 0
+df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
+
 # ------------------------------------------------------------
 #                                 vcf2df
 # ------------------------------------------------------------
+run test_vcf2df_bare $truv vcf2df $INDIR/input1.vcf.gz $OD/vcf2df_bare.jl
+assert_exit_code 0
+df_check test_vcf2df_bare_result $ANSDIR/vcf2df_bare.jl $OD/vcf2df_bare.jl
+
+run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
+assert_exit_code 0
+df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
+
 run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
 assert_exit_code 0
 df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
@@ -269,6 +291,18 @@ assert_exit_code 0
 
 run test_segment_result
 assert_equal $(fn_md5 $ANSDIR/segment.vcf) $(fn_md5 $OD/segment.vcf)
+
+# ------------------------------------------------------------
+#                                 divide
+# ------------------------------------------------------------
+run test_divide $truv divide $INDIR/multi.vcf.gz $OD/divided/ --no-compress
+assert_exit_code 0
+
+run test_divide_result
+for i in $ANSDIR/divided/*.vcf
+do
+    assert_equal $(fn_md5 $i) $(fn_md5 $OD/divided/$(basename $i))
+done
 
 # ------------------------------------------------------------
 #                                 doctests

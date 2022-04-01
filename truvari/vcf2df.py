@@ -272,8 +272,6 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         logging.debug(info_header)
         header.extend(info_header)
 
-    if sample is None:
-        sample = v.header.samples[0]
     fmt_ops = []
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
@@ -284,8 +282,13 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         else:
             header.extend(fmt_header)
 
-    if not isinstance(sample, list):
-        sample = [sample]
+        if sample is None:
+            sample = v.header.samples[0]
+
+        if not isinstance(sample, list):
+            sample = [sample]
+    else:
+        sample = []
 
     rows = []
     for entry in v:
@@ -365,6 +368,8 @@ def parse_args(args):
                               "column names will be flattened"))
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
+    parser.add_argument("-c", "--compress", type=int, default=3, choices=range(9),
+                        help="Compression level for joblib (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -414,5 +419,5 @@ def vcf2df_main(args):
     pre_size, post_size = optimize_df_memory(out)
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)
 
-    joblib.dump(out, args.output)
+    joblib.dump(out, args.output, compress=args.compress)
     logging.info("Finished vcf2df")

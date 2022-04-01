@@ -20,17 +20,21 @@ import numpy as np
 import truvari
 from truvari.giab_report import make_giabreport
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
     A base/comp match holder
     """
-    __slots__ = ["base", "comp", "state", "seqsim", "sizesim", "ovlpct", "sizediff",
-                 "st_dist", "ed_dist", "gt_match", "multi", "score", "matid"]
+    __slots__ = ["base", "comp", "base_gt", "comp_gt", "state", "seqsim", "sizesim",
+                 "ovlpct", "sizediff", "st_dist", "ed_dist", "gt_match", "multi",
+                 "score", "matid"]
 
     def __init__(self):
         self.base = None
         self.comp = None
+        self.base_gt = None
+        self.comp_gt = None
         self.matid = None
         self.seqsim = None
         self.sizesim = None
@@ -96,15 +100,15 @@ class Matcher():
         ret.reference = None
         ret.refdist = 500
         ret.pctsim = 0.70
-        ret.buffer = 0.10
+        ret.minhaplen = 50
         ret.pctsize = 0.70
         ret.pctovl = 0.0
         ret.typeignore = False
         ret.use_lev = False
         ret.chunksize = 1000
         ret.gtcomp = False
-        ret.bSample = None
-        ret.cSample = None
+        ret.bSample = 0
+        ret.cSample = 0
         # filtering properties
         ret.sizemin = 50
         ret.sizefilt = 30
@@ -124,15 +128,15 @@ class Matcher():
             args.reference) if args.reference else None
         ret.refdist = args.refdist
         ret.pctsim = args.pctsim
-        ret.buffer = args.buffer
+        ret.minhaplen = args.minhaplen
         ret.pctsize = args.pctsize
         ret.pctovl = args.pctovl
         ret.typeignore = args.typeignore
         ret.use_lev = args.use_lev
         ret.chunksize = args.chunksize
         ret.gtcomp = args.gtcomp
-        ret.bSample = args.bSample
-        ret.cSample = args.cSample
+        ret.bSample = args.bSample if args.bSample else 0
+        ret.cSample = args.cSample if args.cSample else 0
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt
@@ -167,13 +171,15 @@ class Matcher():
 
         return False
 
-    def build_match(self, base, comp, matid=None):
+    def build_match(self, base, comp, matid=None, skip_gt=False):
         """
         Build a MatchResult
         """
         ret = MatchResult()
         ret.base = base
         ret.comp = comp
+        ret.base_gt = base.samples[self.params.bSample]["GT"]
+        ret.comp_gt = comp.samples[self.params.cSample]["GT"]
         ret.matid = matid
         ret.state = True
 
@@ -195,22 +201,32 @@ class Matcher():
                           str(base), str(comp), ret.sizesim)
             ret.state = False
 
-        ret.gt_match = truvari.entry_gt_comp(
-            base, comp, self.params.bSample, self.params.cSample)
-        if self.params.gtcomp and not ret.gt_match:
-            logging.debug("%s and %s are not the same genotype",
-                          str(base), str(comp))
-            ret.state = False
+        if not skip_gt:
+            ret.gt_match = truvari.entry_gt_comp(
+                base, comp, self.params.bSample, self.params.cSample)
+            if self.params.gtcomp and not ret.gt_match:
+                logging.debug("%s and %s are not the same genotype",
+                              str(base), str(comp))
+                ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
-        if truvari.entry_variant_type(base) == "DEL" and ret.ovlpct < self.params.pctovl:
+        if ret.ovlpct < self.params.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
 
+        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctsim > 0:
-            ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
-                                              self.params.buffer, self.params.use_lev)
+            # No need to create a haplotype for variants that already lineup
+            if ret.st_dist == 0 or ret.ed_dist == 0:
+                if truvari.entry_variant_type(base) == 'DEL':
+                    b_seq, c_seq = base.ref, comp.ref
+                else:
+                    b_seq, c_seq = base.alts[0], comp.alts[0]
+                ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
+            else:
+                ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
+                                                  self.params.minhaplen, self.params.use_lev)
             if ret.seqsim < self.params.pctsim:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -218,7 +234,6 @@ class Matcher():
         else:
             ret.seqsim = 0
 
-        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         ret.calc_score()
 
         return ret
@@ -245,6 +260,7 @@ class StatsBox(OrderedDict):
         self["TP-base_TP-gt"] = 0
         self["TP-base_FP-gt"] = 0
         self["gt_concordance"] = 0
+        self["gt_matrix"] = defaultdict(Counter)
 
     def calc_performance(self):
         """
@@ -257,9 +273,6 @@ class StatsBox(OrderedDict):
         elif self["TP-call"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
             do_stats_math = False
-        logging.info("Results peek: %d TP-base %d FN %.2f%% Recall",
-                     self["TP-base"], self["FN"],
-                     100 * (float(self["TP-base"]) / (self["TP-base"] + self["FN"])))
 
         # Final calculations
         if do_stats_math:
@@ -276,8 +289,6 @@ class StatsBox(OrderedDict):
         denom = self["recall"] + self["precision"]
         if denom != 0:
             self["f1"] = 2 * (neum / denom)
-        else:
-            self["f1"] = "NaN"
 
 
 ############################
@@ -511,7 +522,7 @@ def annotate_entry(entry, match, header):
     """
     Make a new entry with all the information
     """
-    entry = truvari.copy_entry(entry, header)
+    entry.translate(header)
     entry.info["PctSeqSimilarity"] = match.seqsim
     entry.info["PctSizeSimilarity"] = match.sizesim
     entry.info["PctRecOverlap"] = match.ovlpct
@@ -522,7 +533,6 @@ def annotate_entry(entry, match, header):
     entry.info["TruScore"] = int(match.score) if match.score else None
     entry.info["MatchId"] = match.matid
     entry.info["Multi"] = match.multi
-    return entry
 
 
 def output_writer(call, outs, sizemin):
@@ -534,33 +544,37 @@ def output_writer(call, outs, sizemin):
     box = outs["stats_box"]
     if call.base:
         box["base cnt"] += 1
-        entry = annotate_entry(call.base, call, outs['n_base_header'])
+        annotate_entry(call.base, call, outs['n_base_header'])
         if call.state:
+            gtBase = str(call.base_gt)
+            gtComp = str(call.comp_gt)
+            box["gt_matrix"][gtBase][gtComp] += 1
+
             box["TP-base"] += 1
-            outs["tpb_out"].write(entry)
+            outs["tpb_out"].write(call.base)
             if call.gt_match:
                 box["TP-base_TP-gt"] += 1
             else:
                 box["TP-base_FP-gt"] += 1
         else:
             box["FN"] += 1
-            outs["fn_out"].write(entry)
+            outs["fn_out"].write(call.base)
 
     if call.comp:
-        entry = annotate_entry(call.comp, call, outs['n_comp_header'])
+        annotate_entry(call.comp, call, outs['n_comp_header'])
         if call.state:
             box["call cnt"] += 1
             box["TP-call"] += 1
-            outs["tpc_out"].write(entry)
+            outs["tpc_out"].write(call.comp)
             if call.gt_match:
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        elif truvari.entry_size(entry) >= sizemin:
+        elif truvari.entry_size(call.comp) >= sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
             box["call cnt"] += 1
             box["FP"] += 1
-            outs["fp_out"].write(entry)
+            outs["fp_out"].write(call.comp)
 
 
 ##########################
@@ -593,8 +607,8 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--buffer", type=truvari.restricted_float, default=defaults.buffer,
-                        help="Percent of the reference span to buffer the haplotype sequence created")
+    thresg.add_argument("-B", "--minhaplen", type=int, default=defaults.minhaplen,
+                        help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,
@@ -720,11 +734,9 @@ def setup_outputs(args):
     outputs = {}
     outputs["vcf_base"] = pysam.VariantFile(args.base)
     outputs["n_base_header"] = edit_header(outputs["vcf_base"])
-    outputs["sampleBase"] = args.bSample if args.bSample else outputs["vcf_base"].header.samples[0]
 
     outputs["vcf_comp"] = pysam.VariantFile(args.comp)
     outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
-    outputs["sampleComp"] = args.cSample if args.cSample else outputs["vcf_comp"].header.samples[0]
 
     # Setup outputs
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(
@@ -767,7 +779,16 @@ def bench_main(cmdargs):
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
 
-    regions = truvari.RegionVCFIterator(base, comp, args.includebed, args.sizemax)
+    regions = truvari.RegionVCFIterator(base, comp,
+                                        args.includebed,
+                                        args.sizemax)
+
+    merged_overlaps = regions.merge_overlaps()
+    if merged_overlaps:
+        logging.info("Found %d chromosomes with overlapping regions",
+                     len(merged_overlaps))
+        logging.debug("CHRs: %s", merged_overlaps)
+
     base_i = regions.iterate(base)
     comp_i = regions.iterate(comp)
 
