@@ -22,7 +22,7 @@ def parse_args(args):
     parser.add_argument("-b", "--buffer", type=int, default=5000,
                         help="Number of base-pairs up/dn-stream to query (%(default)s)")
     parser.add_argument("-m", "--minanno", type=int, default=50,
-                        help="Minimum size of event to annotate")
+                        help="Minimum size of event to annotate (%(default)s)")
     parser.add_argument("-M", "--maxgt", type=int, default=1,
                         help="Largest event size to count for genotyping (%(default)s)")
     parser.add_argument("--debug", action="store_true",
