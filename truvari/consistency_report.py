@@ -18,8 +18,8 @@ def parse_vcf(fn):
     """
     Simple vcf reader
     """
-    VCFLine = namedtuple(
-        "VCFline", "CHROM POS ID REF ALT QUAL FILT INFO FORMAT SAMPLES")
+    VCFLine = namedtuple("VCFline",
+        "CHROM POS ID REF ALT QUAL FILT INFO FORMAT SAMPLES")
     if fn.endswith(".gz"):
         fh = io.TextIOWrapper(gzip.open(fn))
     else:
