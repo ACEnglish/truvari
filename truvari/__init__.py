@@ -35,11 +35,13 @@ Extra methods:
 :meth:`ref_ranges`
 :meth:`seqsim`
 :meth:`sizesim`
+:meth:`vcf_ranges`
 :meth:`weighted_score`
 
 Dev methods:
 :meth:`cmd_exe`
 :meth:`help_unknown_cmd`
+:meth:`make_temp_filename`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
 :meth:`setup_logging`
@@ -111,10 +113,12 @@ from truvari.utils import (
     bed_ranges,
     cmd_exe,
     help_unknown_cmd,
+    make_temp_filename,
     ref_ranges,
     restricted_float,
     setup_logging,
     setup_progressbar,
+    vcf_ranges,
 )
 
 from truvari.vcf2df import (

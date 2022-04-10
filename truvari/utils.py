@@ -8,6 +8,7 @@ import time
 import signal
 import logging
 import argparse
+import tempfile
 import warnings
 import subprocess
 from datetime import timedelta
@@ -265,6 +266,56 @@ def bed_ranges(bed, chunk_size=10000000):
                 stop += chunk_size
             yield data[0], start, final_stop
 
+def vcf_ranges(vcf, min_dist=1000):
+    """
+    Chunk vcf into discrete pieces. Useful for multiprocessing.
+    :param `vcf`: Filename of vcf to find ranges
+    :type `vcf`: string
+    :param `min_dist`: Minimum distance between entries for new range
+    :type `min_dist`: int, optional
+
+    :return: generator of tuples (ref_name, start, stop)
+    :rtype: iterator
+    
+    Example
+        >>> import truvari
+        >>> gen = truvari.vcf_ranges("repo_utils/test_files/input1.vcf.gz")
+        >>> print(len([_ for _ in gen]))
+        228
+    """
+    in_vcf = pysam.VariantFile(vcf)
+    
+    cur_chrom = None
+    min_start = None
+    max_end = None
+    for entry in in_vcf:
+        if cur_chrom is None:
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        elif entry.chrom != cur_chrom:
+            yield cur_chrom, min_start, max_end
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        elif entry.start >= max_end + min_dist:
+            yield cur_chrom, min_start, max_end
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        else:
+            max_end = max(max_end, entry.stop)
+
+    yield cur_chrom, min_start, max_end
+
+def make_temp_filename(tmpdir=None, extension=""):
+    """
+    Get a random filename in a tmpdir with an optional extension
+    """
+    if tmpdir is None:
+        tmpdir = tempfile._get_default_tempdir()
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
+    return fn
 
 def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     """
