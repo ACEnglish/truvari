@@ -276,7 +276,7 @@ def vcf_ranges(vcf, min_dist=1000):
 
     :return: generator of tuples (ref_name, start, stop)
     :rtype: iterator
-    
+
     Example
         >>> import truvari
         >>> gen = truvari.vcf_ranges("repo_utils/test_files/input1.vcf.gz")
@@ -284,7 +284,7 @@ def vcf_ranges(vcf, min_dist=1000):
         228
     """
     in_vcf = pysam.VariantFile(vcf)
-    
+
     cur_chrom = None
     min_start = None
     max_end = None
@@ -313,8 +313,8 @@ def make_temp_filename(tmpdir=None, extension=""):
     Get a random filename in a tmpdir with an optional extension
     """
     if tmpdir is None:
-        tmpdir = tempfile._get_default_tempdir()
-    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names()))
+        tmpdir = tempfile._get_default_tempdir() # pylint: disable=protected-access
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + extension
     return fn
 
 def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
