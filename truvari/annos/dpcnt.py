@@ -34,12 +34,16 @@ def edit_header(my_vcf, bins):
     header.add_line('##INFO=<ID=DPCNT,Number=.,Type=Integer,' + desc)
     return header
 
-def add_dpcnt(vcf, n_header=None, bins=[0, 5, 10, 15]):
+def add_dpcnt(vcf, n_header=None, bins=None):
     """
     Adds DPCNT to each entry in VCF and yields them
     """
+    if bins is None:
+        bins = [0, 5, 10, 15]
+
     if n_header is None:
-        n_header = edit_header(vcf)
+        n_header = edit_header(vcf, bins)
+
     for entry in vcf:
         dat = [0] * (len(bins) - 1)
         for sample in entry.samples.values():

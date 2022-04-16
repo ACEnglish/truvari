@@ -10,6 +10,8 @@ from truvari.annos.numneigh import numneigh_main
 from truvari.annos.svinfo import svinfo_main
 from truvari.annos.bpovl import bpovl_main
 from truvari.annos.density import density_main
+from truvari.annos.dpcnt import dpcnt_main
+from truvari.annos.lcr import lcr_main
 
 __all__ = [
     'gcpct_main',
@@ -22,5 +24,7 @@ __all__ = [
     'numneigh_main',
     'svinfo_main',
     'bpovl_main',
-    'density_main'
+    'density_main',
+    'dpcnt_main',
+    'lcr_main'
 ]

@@ -1,15 +1,14 @@
 """
 Annotate low complexity region entropy score for variants
+Credit: https://jszym.com/blog/dna_protein_complexity/
 """
-import re
-import sys
 import math
+import logging
+import argparse
+
 import pysam
 
-"""
-Credit
-https://jszym.com/blog/dna_protein_complexity/
-"""
+import truvari
 
 def overlapping_windows(sequence, L):
     """
@@ -18,9 +17,9 @@ def overlapping_windows(sequence, L):
     :param L: the length of the windows to yield
     """
     windows = []
-
-    for index, residue in enumerate(sequence):
-        if (index + L) < (len(sequence) + 1):
+    seq_len = len(sequence)
+    for index in range(seq_len):
+        if (index + L) < (seq_len + 1):
             window = sequence[index:L+index]
             windows.append(window)
 
@@ -70,56 +69,11 @@ def sequence_entropy(sequence, N=4):
 
     return entropy
 
-def mask_low_complexity(seq, L=12, N=20, maskchar="x"):
-    """
-    Mask LCR sequence
-    """
-    windows = overlapping_windows(seq, L)
-
-    rep_vectors = [(window, compute_rep_vector(window, N)) for window in windows]
-
-    window_complexity_pairs = [(rep_vector[0], complexity(rep_vector[1], N)) for rep_vector in rep_vectors]
-
-    complexities = np.array([complexity(rep_vector[1], N) for rep_vector in rep_vectors])
-
-    avg_complexity = complexities.mean()
-    std_complexity = complexities.std()
-
-    k1_cutoff = min([avg_complexity + std_complexity,
-                 avg_complexity - std_complexity])
-
-    alignment = [[] for i in range(0, len(seq))]
-
-    for window_offset, window_complexity_pair in enumerate(window_complexity_pairs):
-
-        if window_complexity_pair[1] < k1_cutoff:
-            window = "".join([maskchar for i in range(0, L)])
-
-        else:
-            window = window_complexity_pair[0]
-
-        for residue_offset, residue in enumerate(window):
-            i = window_offset+residue_offset
-            alignment[i].append(residue)
-
-    new_seq = []
-
-    for residue_array in alignment:
-        if residue_array.count(maskchar) > 3:
-            new_seq.append(maskchar)
-        else:
-            new_seq.append(residue_array[0])
-
-    new_seq = "".join(new_seq)
-
-    return (new_seq, alignment)
-
- def edit_header(my_vcf):
+def edit_header(my_vcf):
     """
     Add INFO for new field to vcf
     """
     header = my_vcf.header.copy()
-    desc = 'Description="' + ",".join([f"{_}x" for _ in bins]) + '">'
     header.add_line(('##INFO=<ID=LCR,Number=1,Type=Float,'
                      'Description="Low complexity region entropy score">'))
     return header
@@ -137,13 +91,26 @@ def add_lcr(vcf, n_header):
         entry.info["LCR"] = score
         yield entry
 
+def parse_args(args):
+    """
+    Pull the command line parameters
+    """
+    parser = argparse.ArgumentParser(prog="lcr", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+                        help="VCF to annotate (stdin)")
+    parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
+                        help="Output filename (stdout)")
+    truvari.setup_logging()
+    return parser.parse_args(args)
+
 def lcr_main(cmdargs):
     """
     Main
     """
     args = parse_args(cmdargs)
     vcf = pysam.VariantFile(args.input)
-    n_header = edit_header(vcf, bins)
+    n_header = edit_header(vcf)
     out = pysam.VariantFile(args.output, 'w', header=n_header)
     for entry in add_lcr(vcf, n_header):
         out.write(entry)

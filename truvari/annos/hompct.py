@@ -57,7 +57,7 @@ def hompct_main(cmd_args):
 
     header = v.header.copy()
     header.add_line(('##INFO=<ID=HOMPCT,Number=1,Type=Float,'  # pylint: disable=consider-using-f-string
-                     'Description="Percent of calls < %dbp long within %dbp that are homozygous')
+                     'Description="Percent of calls < %dbp long within %dbp that are homozygous">')
                     % (args.maxgt, args.buffer))
 
     out = pysam.VariantFile(args.output, 'w', header=header)
