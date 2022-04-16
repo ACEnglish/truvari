@@ -10,21 +10,6 @@ import pysam
 
 import truvari
 
-def overlapping_windows(sequence, L):
-    """
-    Returns overlapping windows of size `L` from sequence `sequence`
-    :param sequence: the nucleotide or protein sequence to scan over
-    :param L: the length of the windows to yield
-    """
-    windows = []
-    seq_len = len(sequence)
-    for index in range(seq_len):
-        if (index + L) < (seq_len + 1):
-            window = sequence[index:L+index]
-            windows.append(window)
-
-    return windows
-
 def sequence_to_repvec(sequence, N):
     """
     Computes the repetition vector (as seen in Wooton, 1993) from a
