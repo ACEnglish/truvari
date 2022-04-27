@@ -269,6 +269,7 @@ def bed_ranges(bed, chunk_size=10000000):
 def vcf_ranges(vcf, min_dist=1000):
     """
     Chunk vcf into discrete pieces. Useful for multiprocessing.
+
     :param `vcf`: Filename of vcf to find ranges
     :type `vcf`: string
     :param `min_dist`: Minimum distance between entries for new range

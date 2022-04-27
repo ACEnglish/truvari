@@ -71,6 +71,9 @@ def process_entries(ref_section):
     out = StringIO()
     decimal.getcontext().prec = 1
     for entry in v.fetch(chrom, start, stop):
+        # Prevent duplication
+        if not (entry.start >= start and entry.start < stop):
+            continue
         if truvari.entry_size(entry) >= trfshared.args.min_length:
             key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
             entry = tanno.annotate(entry, key, new_header)
