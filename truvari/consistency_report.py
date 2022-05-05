@@ -92,7 +92,7 @@ def create_file_intersections(allVCFs):
 
 def parse_args(args):
     """ parse args """
-    parser = argparse.ArgumentParser(prog="consistency_report", description=__doc__,
+    parser = argparse.ArgumentParser(prog="consistency", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
