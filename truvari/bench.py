@@ -641,6 +641,8 @@ def parse_args(args):
                         help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
+    thresg.add_argument("--extend", type=int, default=0,
+                        help="Number of bases to extend the regions in the bed file for variant matching, default is 0, only used if --includebed is defined. Allows matching base variants to comp variants that are just outside the regions. ")
     filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
                               "Output vcfs will have redundant entries. (%(default)s)"))
@@ -650,6 +652,8 @@ def parse_args(args):
         parser.error("--reference is required when --pctsim is set")
     if args.chunksize < args.refdist:
         parser.error("--chunksize must be >= --refdist")
+    if args.extend > 0 and args.includebed is None:
+        parser.error("--extend can only be used when --includebed is set")
     return args
 
 
@@ -789,11 +793,26 @@ def bench_main(cmdargs):
                      len(merged_overlaps))
         logging.debug("CHRs: %s", merged_overlaps)
 
+    if args.extend > 0:
+        logging.info("Extending the regions by %d bases on each side", args.extend)
+        regions_extended = copy.deepcopy(regions)
+        regions_extended.extend(args.extend)
+        merged_overlaps_extended = regions_extended.merge_overlaps()
+        if merged_overlaps_extended:
+            logging.info("After region extension found %d chromosomes with overlapping regions. Merged the overlaps", len(merged_overlaps_extended))
+            logging.debug("CHRs: %s", merged_overlaps_extended)
+    else:
+        regions_extended = regions
+
     base_i = regions.iterate(base)
-    comp_i = regions.iterate(comp)
+    comp_i = regions_extended.iterate(comp)
 
     chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        # setting non-matched call variants that are not fully contained in the original regions to None
+        # These don't count as FP or TP and don't appear in the output vcf files
+        if args.extend > 0 and call.comp is not None and not call.state and not regions.include(call.comp):
+            call.comp = None
         output_writer(call, outputs, args.sizemin)
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:

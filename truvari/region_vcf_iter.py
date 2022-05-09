@@ -95,6 +95,13 @@ class RegionVCFIterator():
             return overlaps
         return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
 
+    def extend(self, pad):
+        """
+        Extends all intervals by a fixed number of bases on each side
+        """
+        for chrom in self.tree:
+            self.tree[chrom] = IntervalTree.from_tuples(((max(0, i.begin - pad), i.end + pad)) for i in self.tree[chrom])
+
 
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
     """
