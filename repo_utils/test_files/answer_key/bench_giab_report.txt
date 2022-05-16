@@ -55,6 +55,7 @@ cSample	None
 chunksize	1000
 comp	repo_utils/test_files/input1.vcf.gz
 debug	False
+extend	0
 giabreport	True
 gtcomp	False
 includebed	repo_utils/test_files/giab.bed

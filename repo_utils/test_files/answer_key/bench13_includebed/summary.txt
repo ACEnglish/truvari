@@ -1,0 +1,26 @@
+{
+    "TP-base": 5,
+    "TP-call": 5,
+    "FP": 4,
+    "FN": 5,
+    "precision": 0.5555555555555556,
+    "recall": 0.5,
+    "f1": 0.5263157894736842,
+    "base cnt": 10,
+    "call cnt": 9,
+    "TP-call_TP-gt": 2,
+    "TP-call_FP-gt": 3,
+    "TP-base_TP-gt": 2,
+    "TP-base_FP-gt": 3,
+    "gt_concordance": 0.4,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(1, 0)": 1,
+            "(1, 1)": 2
+        },
+        "(0, 1)": {
+            "(1, 1)": 1,
+            "(1, 0)": 1
+        }
+    }
+}
