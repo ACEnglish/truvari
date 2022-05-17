@@ -46,6 +46,29 @@ def restricted_float(x):
             f"{x} not in range (0, 1)")
     return x
 
+def restricted_int(x):
+    """
+    Restrict int to positive. Raises argparse.ArgumentTypeError if int is negative
+    Used with :class:`argparse.ArgumentParser.add_argument` type parameter
+
+    :param `x`: number to check
+    :type `x`: int
+
+    :return: input number
+    :rtype: float
+
+    Example
+        >>> import truvari
+        >>> truvari.restricted_int(5)
+        5
+        >>> truvari.restricted_int(-2)
+        Traceback (most recent call last):
+        argparse.ArgumentTypeError: -2 is < 0
+    """
+    x = int(x)
+    if x < 0:
+        raise argparse.ArgumentTypeError(f"{x} is < 0")
+    return x
 
 def setup_progressbar(size):
     """

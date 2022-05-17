@@ -182,15 +182,15 @@ def parse_args(args):
                         help="Output filename (%(default)s)")
     parser.add_argument("-e", "--executable", type=str, default="RepeatMasker",
                         help="Path to RepeatMasker (%(default)s)")
-    parser.add_argument("-m", "--min-length", type=int, default=50,
+    parser.add_argument("-m", "--min-length", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    parser.add_argument("-M", "--max-length", type=int, default=50000,
+    parser.add_argument("-M", "--max-length", type=truvari.restricted_int, default=50000,
                         help="Maximum size of entry to annotate (%(default)s)")
     parser.add_argument("-t", "--threshold", type=truvari.restricted_float, default=.8,
                         help="Threshold for pct of allele covered (%(default)s)")
     parser.add_argument("-p", "--params", type=str, default=DEFAULTPARAMS,
                         help="Default parameter string to send to RepeatMasker (%(default)s)")
-    parser.add_argument("-T", "--threads", type=int, default=os.cpu_count(),
+    parser.add_argument("-T", "--threads", type=truvari.restricted_int, default=os.cpu_count(),
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")

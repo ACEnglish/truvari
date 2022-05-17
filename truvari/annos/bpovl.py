@@ -26,9 +26,9 @@ def parse_args(args):
                         help="Tab-delimited annotation file")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
-    parser.add_argument("--sizemin", type=int, default=50,
+    parser.add_argument("--sizemin", type=truvari.restricted_int, default=truvari.restricted_int,
                         help="Minimum size of variant to annotate (%(default)s)")
-    parser.add_argument("--spanmax", type=int, default=50000,
+    parser.add_argument("--spanmax", type=truvari.restricted_int, default=50000,
                         help="Maximum span of SVs to annotate (%(default)s)")
     annosg = parser.add_argument_group("Annotation File Arguments")
     annosg.add_argument("-p", "--preset", choices=PRESET_FMTS.keys(), default=None,
@@ -36,11 +36,11 @@ def parse_args(args):
                               "-s, -b, -e, -c and -1 (%(default)s)"))
     annosg.add_argument("-c", "--comment", type=str, default="#",
                         help="Skip lines started with character. (%(default)s)")
-    annosg.add_argument("-s", "--sequence", type=int, default=0,
+    annosg.add_argument("-s", "--sequence", type=truvari.restricted_int, default=0,
                         help="Column of sequence/chromosome name. (%(default)s)")
-    annosg.add_argument("-b", "--begin", type=int, default=1,
+    annosg.add_argument("-b", "--begin", type=truvari.restricted_int, default=1,
                         help="Column of start chromosomal position. (%(default)s)")
-    annosg.add_argument("-e", "--end", type=int, default=2,
+    annosg.add_argument("-e", "--end", type=truvari.restricted_int, default=2,
                         help="Column of end chromosomal position. (%(default)s)")
     # The end column can be the same as the start column. [2]
     annosg.add_argument("-1", "--one-based", action='store_true',

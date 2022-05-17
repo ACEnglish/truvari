@@ -19,11 +19,11 @@ def parse_args(args):
                         help="Compressed, indexed VCF to annotate ")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
-    parser.add_argument("-b", "--buffer", type=int, default=5000,
+    parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=5000,
                         help="Number of base-pairs up/dn-stream to query (%(default)s)")
-    parser.add_argument("-m", "--minanno", type=int, default=50,
+    parser.add_argument("-m", "--minanno", type=truvari.restricted_int, default=50,
                         help="Minimum size of event to annotate (%(default)s)")
-    parser.add_argument("-M", "--maxgt", type=int, default=1,
+    parser.add_argument("-M", "--maxgt", type=truvari.restricted_int, default=1,
                         help="Largest event size to count for genotyping (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")

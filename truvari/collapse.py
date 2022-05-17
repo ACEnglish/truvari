@@ -247,11 +247,11 @@ def parse_args(args):
 
     # trubench.add_comparison_args(parser)
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
-    thresg.add_argument("-r", "--refdist", type=int, default=500,
+    thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_float, default=50,
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
@@ -270,9 +270,9 @@ def parse_args(args):
                         help=("Comma separated list of FORMAT fields to consolidate into the kept "
                               "entry by taking the first non-null from all neighbors (%(default)s)"))
     filteg = parser.add_argument_group("Filtering Arguments")
-    filteg.add_argument("-s", "--sizemin", type=int, default=50,
+    filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizemax", type=int, default=50000,
+    filteg.add_argument("-S", "--sizemax", type=truvari.restricted_int, default=50000,
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=False,
                         help="Only consider calls with FILTER == PASS")

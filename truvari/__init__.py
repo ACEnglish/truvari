@@ -116,6 +116,7 @@ from truvari.utils import (
     make_temp_filename,
     ref_ranges,
     restricted_float,
+    restricted_int,
     setup_logging,
     setup_progressbar,
     vcf_ranges,

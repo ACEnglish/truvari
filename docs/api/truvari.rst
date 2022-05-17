@@ -190,6 +190,10 @@ restricted_float
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_float
 
+restricted_int
+^^^^^^^^^^^^^^^^
+.. autofunction:: restricted_int
+
 setup_logging
 ^^^^^^^^^^^^^
 .. autofunction:: setup_logging

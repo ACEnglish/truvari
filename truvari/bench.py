@@ -67,6 +67,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 
+    def __repr__(self):
+        return f'<truvari.bench.MatchResult ({self.state} {self.score})>'
+
 
 class Matcher():
     """
@@ -80,7 +83,7 @@ class Matcher():
         >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
-        <0 False chr20:66235->chr20:68303>
+        <truvari.bench.MatchResult (False 0.0)>
     """
 
     def __init__(self, params=None, args=None):
@@ -603,11 +606,11 @@ def parse_args(args):
                         help="Turn on progress monitoring")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
-    thresg.add_argument("-r", "--refdist", type=int, default=defaults.refdist,
+    thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=int, default=defaults.minhaplen,
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
@@ -617,7 +620,7 @@ def parse_args(args):
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",
                         help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
-    thresg.add_argument("-C", "--chunksize", type=int, default=defaults.chunksize,
+    thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
@@ -629,11 +632,11 @@ def parse_args(args):
                         help="Comparison calls sample to use (first)")
 
     filteg = parser.add_argument_group("Filtering Arguments")
-    filteg.add_argument("-s", "--sizemin", type=int, default=defaults.sizemin,
+    filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=defaults.sizemin,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizefilt", type=int, default=defaults.sizefilt,
+    filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=defaults.sizefilt,
                         help="Minimum variant size to load into IntervalTree (%(default)s)")
-    filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
+    filteg.add_argument("--sizemax", type=truvari.restricted_int, default=defaults.sizemax,
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
                         help="Only consider calls with FILTER == PASS")
@@ -641,7 +644,7 @@ def parse_args(args):
                         help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
-    thresg.add_argument("--extend", type=int, default=0,
+    thresg.add_argument("--extend", type=truvari.restricted_int, default=0,
                         help="Distance to allow comp entries outside of includebed regions (%(default)s)")
     filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
@@ -652,7 +655,7 @@ def parse_args(args):
         parser.error("--reference is required when --pctsim is set")
     if args.chunksize < args.refdist:
         parser.error("--chunksize must be >= --refdist")
-    if args.extend > 0 and args.includebed is None:
+    if args.extend and args.includebed is None:
         parser.error("--extend can only be used when --includebed is set")
     return args
 
@@ -797,7 +800,7 @@ def bench_main(cmdargs):
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         # setting non-matched call variants that are not fully contained in the original regions to None
         # These don't count as FP or TP and don't appear in the output vcf files
-        if args.extend > 0 and call.comp is not None and not call.state and not regions.include(call.comp):
+        if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
             call.comp = None
         output_writer(call, outputs, args.sizemin)
 

@@ -102,13 +102,13 @@ def parse_args(args):
                         help="Simple repeats bed")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference fasta file")
-    parser.add_argument("-m", "--min-length", type=int, default=50,
+    parser.add_argument("-m", "--min-length", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    parser.add_argument("-M", "--max-length", type=int, default=10000,
+    parser.add_argument("-M", "--max-length", type=truvari.restricted_int, default=10000,
                         help="Maximum size of sequence to run through trf (%(default)s)")
-    parser.add_argument("-t", "--threads", type=int, default=multiprocessing.cpu_count(),
+    parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=multiprocessing.cpu_count(),
                         help="Number of threads to use (%(default)s)")
-    parser.add_argument("-C", "--chunk-size", type=int, default=1,
+    parser.add_argument("-C", "--chunk-size", type=truvari.restricted_int, default=1,
                         help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")

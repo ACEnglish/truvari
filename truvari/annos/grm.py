@@ -167,11 +167,11 @@ def parse_args(args):
                         help="Bed file of regions to parse (None)")
     parser.add_argument("-o", "--output", default="results.jl",
                         help="Output dataframe (%(default)s)")
-    parser.add_argument("-k", "--kmersize", default=50, type=int,
+    parser.add_argument("-k", "--kmersize", default=50, type=truvari.restricted_int,
                         help="Size of kmer to map (%(default)s)")
-    parser.add_argument("-m", "--min-size", default=25, type=int,
+    parser.add_argument("-m", "--min-size", default=25, type=truvari.restricted_int,
                         help="Minimum size of variants to map (%(default)s)")
-    parser.add_argument("-t", "--threads", default=os.cpu_count(), type=int,
+    parser.add_argument("-t", "--threads", default=os.cpu_count(), type=truvari.restricted_int,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
