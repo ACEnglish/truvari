@@ -2,6 +2,7 @@
 Helper class to specify included regions of the genome when iterating events.
 """
 import sys
+import copy
 import gzip
 import logging
 from collections import defaultdict
@@ -65,7 +66,10 @@ class RegionVCFIterator():
             post_len = len(self.tree[i])
             if pre_len != post_len:
                 chr_with_overlaps.append(i)
-        return chr_with_overlaps
+        if chr_with_overlaps:
+            logging.info("Found %d chromosomes with overlapping regions",
+                     len(chr_with_overlaps))
+            logging.debug("CHRs: %s", chr_with_overlaps)
 
     def iterate(self, vcf_file):
         """
@@ -98,10 +102,16 @@ class RegionVCFIterator():
     def extend(self, pad):
         """
         Extends all intervals by a fixed number of bases on each side
+        Returns a copy of this IntervalTree
         """
-        for chrom in self.tree:
-            self.tree[chrom] = IntervalTree.from_tuples(((max(0, i.begin - pad), i.end + pad)) for i in self.tree[chrom])
+        logging.info("Extending the regions by %d bases", pad)
+        ret = copy.deepcopy(self)
 
+        for chrom in ret.tree:
+            ret.tree[chrom] = IntervalTree.from_tuples(((max(0, i.begin - pad), i.end + pad)) for i in ret.tree[chrom])
+
+        ret.merge_overlaps()
+        return ret
 
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
     """

@@ -642,7 +642,7 @@ def parse_args(args):
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
     thresg.add_argument("--extend", type=int, default=0,
-                        help="Number of bases to extend the regions in the bed file for variant matching, default is 0, only used if --includebed is defined. Allows matching base variants to comp variants that are just outside the regions. ")
+                        help="Distance to allow comp entries outside of includebed regions (%(default)s)")
     filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
                               "Output vcfs will have redundant entries. (%(default)s)"))
@@ -787,22 +787,8 @@ def bench_main(cmdargs):
                                         args.includebed,
                                         args.sizemax)
 
-    merged_overlaps = regions.merge_overlaps()
-    if merged_overlaps:
-        logging.info("Found %d chromosomes with overlapping regions",
-                     len(merged_overlaps))
-        logging.debug("CHRs: %s", merged_overlaps)
-
-    if args.extend > 0:
-        logging.info("Extending the regions by %d bases on each side", args.extend)
-        regions_extended = copy.deepcopy(regions)
-        regions_extended.extend(args.extend)
-        merged_overlaps_extended = regions_extended.merge_overlaps()
-        if merged_overlaps_extended:
-            logging.info("After region extension found %d chromosomes with overlapping regions. Merged the overlaps", len(merged_overlaps_extended))
-            logging.debug("CHRs: %s", merged_overlaps_extended)
-    else:
-        regions_extended = regions
+    regions.merge_overlaps()
+    regions_extended = regions.extend(args.extend) if args.extend else regions
 
     base_i = regions.iterate(base)
     comp_i = regions_extended.iterate(comp)
