@@ -25,6 +25,7 @@ def collapse_chunk(chunk):
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
     logging.debug(f"Comparing chunk {calls}")
+    # Need to add a deterministic sort here...
     calls.sort(key=matcher.sorter)
 
     # keep_key : [keep entry, [collap matches], match_id]
@@ -143,6 +144,21 @@ def hap_resolve(entryA, entryB):
         return False
     return True
 
+def sort_length(b1, b2):
+    """
+    Order entries from longest to shortest SVLEN, ties are by alphanumeric of REF
+    """
+    s1 = truvari.entry_size(b1)
+    s2 = truvari.entry_size(b2)
+    if s1 < s2:
+        return 1
+    if s1 > s2:
+        return -1
+    if b1.ref < b2.ref:
+        return 1
+    if b1.ref > b2.ref:
+        return -1
+    return 0
 
 def sort_first(b1, b2):
     """
@@ -152,7 +168,7 @@ def sort_first(b1, b2):
         return 1
     if b1.pos < b2.pos:
         return -1
-    return 0
+    return sort_length(b1, b2)
 
 
 def sort_maxqual(b1, b2):
