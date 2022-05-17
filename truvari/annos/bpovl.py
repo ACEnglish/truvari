@@ -26,7 +26,7 @@ def parse_args(args):
                         help="Tab-delimited annotation file")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
-    parser.add_argument("--sizemin", type=truvari.restricted_int, default=truvari.restricted_int,
+    parser.add_argument("--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum size of variant to annotate (%(default)s)")
     parser.add_argument("--spanmax", type=truvari.restricted_int, default=50000,
                         help="Maximum span of SVs to annotate (%(default)s)")
