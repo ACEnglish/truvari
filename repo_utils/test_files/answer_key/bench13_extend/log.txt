@@ -1,0 +1,67 @@
+2022-05-16 12:27:07,999 [INFO] Running /mmfs1/groups/res_data/active/bnoyvert/git/truvari-github/truvari/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/include.bed --extend 500
+2022-05-16 12:27:08,000 [INFO] Params:
+{
+    "base": "repo_utils/test_files/input1.vcf.gz",
+    "comp": "repo_utils/test_files/input3.vcf.gz",
+    "output": "test_results/bench13_extend/",
+    "reference": "repo_utils/test_files/reference.fa",
+    "giabreport": false,
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "minhaplen": 50,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": null,
+    "cSample": null,
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": "repo_utils/test_files/include.bed",
+    "extend": 500,
+    "multimatch": false
+}
+2022-05-16 12:27:08,002 [INFO] Truvari version: 3.3.0-dev
+2022-05-16 12:27:08,007 [INFO] Including 11 bed regions
+2022-05-16 12:27:08,008 [INFO] Found 1 chromosomes with overlapping regions
+2022-05-16 12:27:08,008 [INFO] Extending the regions by 500 bases on each side
+2022-05-16 12:27:08,009 [INFO] After region extension found 1 chromosomes with overlapping regions. Merged the overlaps
+2022-05-16 12:27:08,084 [INFO] Zipped 2050 variants. Counter({'base': 1130, 'comp': 920})
+2022-05-16 12:27:08,084 [INFO] 11 chunks of 2050 variants. Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
+2022-05-16 12:27:08,085 [INFO] Stats: {
+    "TP-base": 6,
+    "TP-call": 6,
+    "FP": 4,
+    "FN": 4,
+    "precision": 0.6,
+    "recall": 0.6,
+    "f1": 0.6,
+    "base cnt": 10,
+    "call cnt": 10,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 3,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 3,
+    "gt_concordance": 0.5,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(1, 0)": 1,
+            "(1, 1)": 2
+        },
+        "(0, 1)": {
+            "(1, 1)": 1,
+            "(1, 0)": 1
+        },
+        "(1, 0)": {
+            "(1, 0)": 1
+        }
+    }
+}
+2022-05-16 12:27:08,091 [INFO] Finished bench
