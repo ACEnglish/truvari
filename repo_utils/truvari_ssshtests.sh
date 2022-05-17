@@ -260,7 +260,7 @@ df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
 #                                 dpcnt
 run test_anno_dpcnt $truv anno dpcnt -i $VCF -o $OD/anno_dpcnt.vcf
 assert_exit_code 0
-info_tests dpcnt $OD/anno_dpcnt.vcf DPCNT
+info_tests dpcnt $OD/anno_dpcnt.vcf DPCNT,ADCNT
 
 #                                 lcr
 run test_anno_lcr $truv anno lcr -i $VCF -o $OD/anno_lcr.vcf
