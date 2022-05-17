@@ -25,7 +25,7 @@ def collapse_chunk(chunk):
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
     logging.debug(f"Comparing chunk {calls}")
-    calls.sort(reverse=True, key=matcher.sorter)
+    calls.sort(key=matcher.sorter)
 
     # keep_key : [keep entry, [collap matches], match_id]
     ret = {}
@@ -146,26 +146,37 @@ def hap_resolve(entryA, entryB):
 
 def sort_first(b1, b2):
     """
-    Remove all but the single best neighbor from the list of neighs in-place
+    Order entries from left-most to right-most POS
     """
-    return b1.pos < b2.pos
+    if b1.pos > b2.pos:
+        return 1
+    if b1.pos < b2.pos:
+        return -1
+    return 0
 
 
 def sort_maxqual(b1, b2):
     """
-    Swap the entry with the one containing the call with the maximum quality score
+    Order entries from highest to lowest qual
     """
-    return b1.qual < b2.qual
+    if b1.qual < b2.qual:
+        return 1
+    if b1.qual > b2.qual:
+        return -1
+    return sort_first(b1, b2)
 
 
 def sort_common(b1, b2):
     """
-    Swap the entry with the one containing the highest MAC
+    Order entries from highest to lowest MAC
     """
     mac1 = truvari.allele_freq_annos(b1)["MAC"]
     mac2 = truvari.allele_freq_annos(b2)["MAC"]
-    return mac1 < mac2
-
+    if mac1 < mac2:
+        return 1
+    if mac1 > mac2:
+        return -1
+    return sort_first(b1, b2)
 
 SORTS = {'first': cmp_to_key(sort_first),
          'maxqual': cmp_to_key(sort_maxqual),
