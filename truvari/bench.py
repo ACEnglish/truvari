@@ -644,7 +644,7 @@ def parse_args(args):
                         help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
-    thresg.add_argument("--extend", type=truvari.restricted_int, default=0,
+    filteg.add_argument("--extend", type=truvari.restricted_int, default=0,
                         help="Distance to allow comp entries outside of includebed regions (%(default)s)")
     filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
