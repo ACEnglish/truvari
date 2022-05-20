@@ -651,12 +651,6 @@ def parse_args(args):
                               "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
-    if args.pctsim != 0 and not args.reference:
-        parser.error("--reference is required when --pctsim is set")
-    if args.chunksize < args.refdist:
-        parser.error("--chunksize must be >= --refdist")
-    if args.extend and args.includebed is None:
-        parser.error("--extend can only be used when --includebed is set")
     return args
 
 
@@ -666,43 +660,51 @@ def check_params(args):
     All errors are written to stderr without logging since failures mean no output
     """
     check_fail = False
+    if args.pctsim != 0 and not args.reference:
+        logging.error("--reference is required when --pctsim is set")
+        check_fail = True
+    if args.chunksize < args.refdist:
+        logging.error("--chunksize must be >= --refdist")
+        check_fail = True
+    if args.extend and args.includebed is None:
+        logging.error("--extend can only be used when --includebed is set")
+        check_fail = True
     if os.path.isdir(args.output):
         logging.error("Output directory '%s' already exists", args.output)
         check_fail = True
     if not os.path.exists(args.comp):
-        check_fail = True
         logging.error("File %s does not exist", args.comp)
+        check_fail = True
     if not os.path.exists(args.base):
-        check_fail = True
         logging.error("File %s does not exist", args.base)
-    if not args.comp.endswith(".gz"):
         check_fail = True
+    if not args.comp.endswith(".gz"):
         logging.error(
             "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
-    if not os.path.exists(args.comp + '.tbi'):
         check_fail = True
+    if not os.path.exists(args.comp + '.tbi'):
         logging.error(
             "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
-    if not args.base.endswith(".gz"):
         check_fail = True
+    if not args.base.endswith(".gz"):
         logging.error(
             "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
-    if not os.path.exists(args.base + '.tbi'):
         check_fail = True
+    if not os.path.exists(args.base + '.tbi'):
         logging.error(
             "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
-    if args.includebed and not os.path.exists(args.includebed):
         check_fail = True
+    if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
+        check_fail = True
 
     return check_fail
 
 
 def check_sample(vcf_fn, sampleId=None):
     """
-    Return the given sampleId from the var_file
-    if sampleId is None, return the first sample
-    if there is no first sample in the var_file, raise an error
+    Checks that a sample is inside a vcf
+    Returns True if check failed
     """
     vcf_file = pysam.VariantFile(vcf_fn)
     check_fail = False
@@ -717,14 +719,10 @@ def check_sample(vcf_fn, sampleId=None):
 
 def check_inputs(args):
     """
-    Checks the inputs against the arguments as much as possible before creating any output
-    Returns:
-        vcf_bse
+    Checks the inputs to ensure expected values are found inside of files
+    Returns True if check failed
     """
-    check_fail = False
-    check_fail = check_sample(args.base, args.bSample)
-    check_fail = check_sample(args.comp, args.cSample)
-    return check_fail
+    return check_sample(args.base, args.bSample) or check_sample(args.comp, args.cSample)
 
 
 def setup_outputs(args):
@@ -745,7 +743,6 @@ def setup_outputs(args):
     outputs["vcf_comp"] = pysam.VariantFile(args.comp)
     outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
 
-    # Setup outputs
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(
         args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
     outputs["tpc_out"] = pysam.VariantFile(os.path.join(
