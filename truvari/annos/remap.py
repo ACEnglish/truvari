@@ -150,14 +150,14 @@ def parse_args(args):
                         help="BWA indexed reference")
     parser.add_argument("-o", "--output", default="/dev/stdout",
                         help="Output VCF (%(default)s)")
-    parser.add_argument("-m", "--minlength", default=50, type=int,
+    parser.add_argument("-m", "--minlength", default=50, type=truvari.restricted_int,
                         help="Smallest length of allele to remap (%(default)s)")
     parser.add_argument("-t", "--threshold", type=truvari.restricted_float, default=.8,
                         help="Threshold for pct of allele covered to consider hit (%(default)s)")
-    parser.add_argument("-d", "--dist", type=int, default=10,
+    parser.add_argument("-d", "--dist", type=truvari.restricted_int, default=10,
                         help=("Minimum distance an alignment must be from a DEL's "
                               "position to be considered (%(default)s))"))
-    parser.add_argument("-H", "--hits", type=int, default=0,
+    parser.add_argument("-H", "--hits", type=truvari.restricted_int, default=0,
                         help="Report top hits as chr:start-end.pct (max %(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")

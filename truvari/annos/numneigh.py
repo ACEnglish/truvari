@@ -29,9 +29,9 @@ def parse_args(args):
                         help="VCF to annotate")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output vcf (stdout)")
-    parser.add_argument("-r", "--refdist", type=int, default=1000,
+    parser.add_argument("-r", "--refdist", type=truvari.restricted_int, default=1000,
                         help="Max reference location distance (%(default)s)")
-    parser.add_argument("-s", "--sizemin", type=int, default=50,
+    parser.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum variant size to consider for annotation (%(default)s)")
     parser.add_argument("--passonly", action="store_true", default=False,
                         help="Only count calls with FILTER == PASS")

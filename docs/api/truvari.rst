@@ -160,6 +160,10 @@ sizesim
 ^^^^^^^
 .. autofunction:: sizesim
 
+vcf_ranges
+^^^^^^^^^^
+.. autofunction:: vcf_ranges
+
 weighted_score
 ^^^^^^^^^^^^^^
 .. autofunction:: weighted_score
@@ -174,6 +178,10 @@ help_unknown_cmd
 ^^^^^^^^^^^^^^^^
 .. autofunction:: help_unknown_cmd
 
+make_temp_filename
+^^^^^^^^^^^^^^^^^^
+.. autofunction:: make_temp_filename
+
 optimize_df_memory
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: optimize_df_memory
@@ -181,6 +189,10 @@ optimize_df_memory
 restricted_float
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_float
+
+restricted_int
+^^^^^^^^^^^^^^^^
+.. autofunction:: restricted_int
 
 setup_logging
 ^^^^^^^^^^^^^

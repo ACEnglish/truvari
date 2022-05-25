@@ -8,6 +8,7 @@ import time
 import signal
 import logging
 import argparse
+import tempfile
 import warnings
 import subprocess
 from datetime import timedelta
@@ -45,6 +46,29 @@ def restricted_float(x):
             f"{x} not in range (0, 1)")
     return x
 
+def restricted_int(x):
+    """
+    Restrict int to positive. Raises argparse.ArgumentTypeError if int is negative
+    Used with :class:`argparse.ArgumentParser.add_argument` type parameter
+
+    :param `x`: number to check
+    :type `x`: int
+
+    :return: input number
+    :rtype: float
+
+    Example
+        >>> import truvari
+        >>> truvari.restricted_int(5)
+        5
+        >>> truvari.restricted_int(-2)
+        Traceback (most recent call last):
+        argparse.ArgumentTypeError: -2 is < 0
+    """
+    x = int(x)
+    if x < 0:
+        raise argparse.ArgumentTypeError(f"{x} is < 0")
+    return x
 
 def setup_progressbar(size):
     """
@@ -265,6 +289,57 @@ def bed_ranges(bed, chunk_size=10000000):
                 stop += chunk_size
             yield data[0], start, final_stop
 
+def vcf_ranges(vcf, min_dist=1000):
+    """
+    Chunk vcf into discrete pieces. Useful for multiprocessing.
+
+    :param `vcf`: Filename of vcf to find ranges
+    :type `vcf`: string
+    :param `min_dist`: Minimum distance between entries for new range
+    :type `min_dist`: int, optional
+
+    :return: generator of tuples (ref_name, start, stop)
+    :rtype: iterator
+
+    Example
+        >>> import truvari
+        >>> gen = truvari.vcf_ranges("repo_utils/test_files/input1.vcf.gz")
+        >>> print(len([_ for _ in gen]))
+        228
+    """
+    in_vcf = pysam.VariantFile(vcf)
+
+    cur_chrom = None
+    min_start = None
+    max_end = None
+    for entry in in_vcf:
+        if cur_chrom is None:
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        elif entry.chrom != cur_chrom:
+            yield cur_chrom, min_start, max_end
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        elif entry.start >= max_end + min_dist:
+            yield cur_chrom, min_start, max_end
+            cur_chrom = entry.chrom
+            min_start = entry.start
+            max_end = entry.stop
+        else:
+            max_end = max(max_end, entry.stop)
+
+    yield cur_chrom, min_start, max_end
+
+def make_temp_filename(tmpdir=None, extension=""):
+    """
+    Get a random filename in a tmpdir with an optional extension
+    """
+    if tmpdir is None:
+        tmpdir = tempfile._get_default_tempdir() # pylint: disable=protected-access
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + extension # pylint: disable=protected-access
+    return fn
 
 def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     """

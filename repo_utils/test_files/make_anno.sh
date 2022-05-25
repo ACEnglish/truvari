@@ -4,4 +4,7 @@ truvari anno hompct -i multi.vcf.gz \
         | truvari anno gtcnt \
         | truvari anno numneigh \
         | truvari anno svinfo \
+        | truvari anno dpcnt \
+        | truvari anno lcr \
+        | vcf-sort \
         | bgzip > hold.vcf.gz

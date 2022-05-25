@@ -25,7 +25,7 @@ def parse_args(args):
                         help="Output joblib DataFrame")
     parser.add_argument("-m", "--mask", type=str,
                         help="Mask bed file")
-    parser.add_argument("-w", "--windowsize", type=int, default=10000,
+    parser.add_argument("-w", "--windowsize", type=truvari.restricted_int, default=10000,
                         help="Window size (%(default)s)")
     parser.add_argument("-t", "--threshold", type=float, default=3,
                         help="std for identifying 'dense' regions (%(default)s)")

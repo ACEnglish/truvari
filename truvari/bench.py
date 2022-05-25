@@ -67,6 +67,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     def __str__(self):
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 
+    def __repr__(self):
+        return f'<truvari.bench.MatchResult ({self.state} {self.score})>'
+
 
 class Matcher():
     """
@@ -80,7 +83,7 @@ class Matcher():
         >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
-        <0 False chr20:66235->chr20:68303>
+        <truvari.bench.MatchResult (False 0.0)>
     """
 
     def __init__(self, params=None, args=None):
@@ -603,21 +606,21 @@ def parse_args(args):
                         help="Turn on progress monitoring")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
-    thresg.add_argument("-r", "--refdist", type=int, default=defaults.refdist,
+    thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=int, default=defaults.minhaplen,
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,
-                        help="Min pct reciprocal overlap (%(default)s) for DEL events")
+                        help="Min pct reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",
                         help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
-    thresg.add_argument("-C", "--chunksize", type=int, default=defaults.chunksize,
+    thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
@@ -629,11 +632,11 @@ def parse_args(args):
                         help="Comparison calls sample to use (first)")
 
     filteg = parser.add_argument_group("Filtering Arguments")
-    filteg.add_argument("-s", "--sizemin", type=int, default=defaults.sizemin,
+    filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=defaults.sizemin,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizefilt", type=int, default=defaults.sizefilt,
+    filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=defaults.sizefilt,
                         help="Minimum variant size to load into IntervalTree (%(default)s)")
-    filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
+    filteg.add_argument("--sizemax", type=truvari.restricted_int, default=defaults.sizemax,
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
                         help="Only consider calls with FILTER == PASS")
@@ -641,15 +644,13 @@ def parse_args(args):
                         help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
                         help="Bed file of regions in the genome to include only calls overlapping")
+    filteg.add_argument("--extend", type=truvari.restricted_int, default=0,
+                        help="Distance to allow comp entries outside of includebed regions (%(default)s)")
     filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
                         help=("Allow base calls to match multiple comparison calls, and vice versa. "
                               "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
-    if args.pctsim != 0 and not args.reference:
-        parser.error("--reference is required when --pctsim is set")
-    if args.chunksize < args.refdist:
-        parser.error("--chunksize must be >= --refdist")
     return args
 
 
@@ -659,43 +660,51 @@ def check_params(args):
     All errors are written to stderr without logging since failures mean no output
     """
     check_fail = False
+    if args.pctsim != 0 and not args.reference:
+        logging.error("--reference is required when --pctsim is set")
+        check_fail = True
+    if args.chunksize < args.refdist:
+        logging.error("--chunksize must be >= --refdist")
+        check_fail = True
+    if args.extend and args.includebed is None:
+        logging.error("--extend can only be used when --includebed is set")
+        check_fail = True
     if os.path.isdir(args.output):
         logging.error("Output directory '%s' already exists", args.output)
         check_fail = True
     if not os.path.exists(args.comp):
-        check_fail = True
         logging.error("File %s does not exist", args.comp)
+        check_fail = True
     if not os.path.exists(args.base):
-        check_fail = True
         logging.error("File %s does not exist", args.base)
-    if not args.comp.endswith(".gz"):
         check_fail = True
+    if not args.comp.endswith(".gz"):
         logging.error(
             "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
-    if not os.path.exists(args.comp + '.tbi'):
         check_fail = True
+    if not os.path.exists(args.comp + '.tbi'):
         logging.error(
             "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
-    if not args.base.endswith(".gz"):
         check_fail = True
+    if not args.base.endswith(".gz"):
         logging.error(
             "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
-    if not os.path.exists(args.base + '.tbi'):
         check_fail = True
+    if not os.path.exists(args.base + '.tbi'):
         logging.error(
             "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
-    if args.includebed and not os.path.exists(args.includebed):
         check_fail = True
+    if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
+        check_fail = True
 
     return check_fail
 
 
 def check_sample(vcf_fn, sampleId=None):
     """
-    Return the given sampleId from the var_file
-    if sampleId is None, return the first sample
-    if there is no first sample in the var_file, raise an error
+    Checks that a sample is inside a vcf
+    Returns True if check failed
     """
     vcf_file = pysam.VariantFile(vcf_fn)
     check_fail = False
@@ -710,14 +719,10 @@ def check_sample(vcf_fn, sampleId=None):
 
 def check_inputs(args):
     """
-    Checks the inputs against the arguments as much as possible before creating any output
-    Returns:
-        vcf_bse
+    Checks the inputs to ensure expected values are found inside of files
+    Returns True if check failed
     """
-    check_fail = False
-    check_fail = check_sample(args.base, args.bSample)
-    check_fail = check_sample(args.comp, args.cSample)
-    return check_fail
+    return check_sample(args.base, args.bSample) or check_sample(args.comp, args.cSample)
 
 
 def setup_outputs(args):
@@ -738,7 +743,6 @@ def setup_outputs(args):
     outputs["vcf_comp"] = pysam.VariantFile(args.comp)
     outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
 
-    # Setup outputs
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(
         args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
     outputs["tpc_out"] = pysam.VariantFile(os.path.join(
@@ -783,17 +787,18 @@ def bench_main(cmdargs):
                                         args.includebed,
                                         args.sizemax)
 
-    merged_overlaps = regions.merge_overlaps()
-    if merged_overlaps:
-        logging.info("Found %d chromosomes with overlapping regions",
-                     len(merged_overlaps))
-        logging.debug("CHRs: %s", merged_overlaps)
+    regions.merge_overlaps()
+    regions_extended = regions.extend(args.extend) if args.extend else regions
 
     base_i = regions.iterate(base)
-    comp_i = regions.iterate(comp)
+    comp_i = regions_extended.iterate(comp)
 
     chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        # setting non-matched call variants that are not fully contained in the original regions to None
+        # These don't count as FP or TP and don't appear in the output vcf files
+        if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
+            call.comp = None
         output_writer(call, outputs, args.sizemin)
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:

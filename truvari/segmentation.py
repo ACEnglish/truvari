@@ -16,7 +16,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    parser = argparse.ArgumentParser(prog="vcf2df", description=__doc__,
+    parser = argparse.ArgumentParser(prog="segment", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("vcf", metavar="IN",

@@ -25,7 +25,8 @@ def collapse_chunk(chunk):
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
     logging.debug(f"Comparing chunk {calls}")
-    calls.sort(reverse=True, key=matcher.sorter)
+    # Need to add a deterministic sort here...
+    calls.sort(key=matcher.sorter)
 
     # keep_key : [keep entry, [collap matches], match_id]
     ret = {}
@@ -143,29 +144,55 @@ def hap_resolve(entryA, entryB):
         return False
     return True
 
+def sort_length(b1, b2):
+    """
+    Order entries from longest to shortest SVLEN, ties are by alphanumeric of REF
+    """
+    s1 = truvari.entry_size(b1)
+    s2 = truvari.entry_size(b2)
+    if s1 < s2:
+        return 1
+    if s1 > s2:
+        return -1
+    if b1.ref < b2.ref:
+        return 1
+    if b1.ref > b2.ref:
+        return -1
+    return 0
 
 def sort_first(b1, b2):
     """
-    Remove all but the single best neighbor from the list of neighs in-place
+    Order entries from left-most to right-most POS
     """
-    return b1.pos < b2.pos
+    if b1.pos > b2.pos:
+        return 1
+    if b1.pos < b2.pos:
+        return -1
+    return sort_length(b1, b2)
 
 
 def sort_maxqual(b1, b2):
     """
-    Swap the entry with the one containing the call with the maximum quality score
+    Order entries from highest to lowest qual
     """
-    return b1.qual < b2.qual
+    if b1.qual < b2.qual:
+        return 1
+    if b1.qual > b2.qual:
+        return -1
+    return sort_first(b1, b2)
 
 
 def sort_common(b1, b2):
     """
-    Swap the entry with the one containing the highest MAC
+    Order entries from highest to lowest MAC
     """
     mac1 = truvari.allele_freq_annos(b1)["MAC"]
     mac2 = truvari.allele_freq_annos(b2)["MAC"]
-    return mac1 < mac2
-
+    if mac1 < mac2:
+        return 1
+    if mac1 > mac2:
+        return -1
+    return sort_first(b1, b2)
 
 SORTS = {'first': cmp_to_key(sort_first),
          'maxqual': cmp_to_key(sort_maxqual),
@@ -220,11 +247,11 @@ def parse_args(args):
 
     # trubench.add_comparison_args(parser)
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
-    thresg.add_argument("-r", "--refdist", type=int, default=500,
+    thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_float, default=50,
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
@@ -243,9 +270,9 @@ def parse_args(args):
                         help=("Comma separated list of FORMAT fields to consolidate into the kept "
                               "entry by taking the first non-null from all neighbors (%(default)s)"))
     filteg = parser.add_argument_group("Filtering Arguments")
-    filteg.add_argument("-s", "--sizemin", type=int, default=50,
+    filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizemax", type=int, default=50000,
+    filteg.add_argument("-S", "--sizemax", type=truvari.restricted_int, default=50000,
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=False,
                         help="Only consider calls with FILTER == PASS")

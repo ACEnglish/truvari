@@ -18,7 +18,7 @@ def parse_args(args):
                         help="VCF to annotate (stdin)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
-    parser.add_argument("-m", "--minsize", type=int, default=50,
+    parser.add_argument("-m", "--minsize", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
     truvari.setup_logging()
     return parser.parse_args(args)
