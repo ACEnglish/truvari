@@ -186,7 +186,7 @@ class Matcher():
         else:
             ret.base_gt = (None, None)
         if "GT" in comp.samples[self.params.cSample]:
-            ret.base_gt = comp.samples[self.params.cSample]["GT"]
+            ret.comp_gt = comp.samples[self.params.cSample]["GT"]
         else:
             ret.comp_gt = (None, None)
         ret.matid = matid
