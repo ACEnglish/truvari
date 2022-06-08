@@ -183,12 +183,8 @@ class Matcher():
         ret.comp = comp
         if "GT" in base.samples[self.params.bSample]:
             ret.base_gt = base.samples[self.params.bSample]["GT"]
-        else:
-            ret.base_gt = (None, None)
         if "GT" in comp.samples[self.params.cSample]:
             ret.comp_gt = comp.samples[self.params.cSample]["GT"]
-        else:
-            ret.comp_gt = (None, None)
         ret.matid = matid
         ret.state = True
 
