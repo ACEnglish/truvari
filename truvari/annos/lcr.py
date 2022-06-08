@@ -50,7 +50,7 @@ def sequence_entropy(sequence, N=4):
 
     L = len(sequence)
 
-    entropy = sum([-1*(n/L)*math.log((n/L), N) for n in repvec if n != 0])
+    entropy = sum((-1*(n/L)*math.log((n/L), N) for n in repvec if n != 0))
 
     return entropy
 
