@@ -229,6 +229,9 @@ def tags_to_ops(items):
             columns.extend(prod(key, ['ref', 'het', 'hom']))
             ops.append(
                 (key, lambda dat, k: dat[k] if pres_check(dat, k, True) else [None, None, None]))
+        elif isinstance(num, int):
+            columns.append(key)
+            ops.append((key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [()]))
         else:
             logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
     return columns, ops
