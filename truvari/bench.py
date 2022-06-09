@@ -222,7 +222,7 @@ class Matcher():
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctsim > 0:
-            # No need to create a haplotype for variants that already lineup
+            # No need to create a haplotype for variants that already line up
             if ret.st_dist == 0 or ret.ed_dist == 0:
                 if truvari.entry_variant_type(base) == 'DEL':
                     b_seq, c_seq = base.ref, comp.ref
