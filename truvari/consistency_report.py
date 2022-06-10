@@ -81,8 +81,8 @@ def create_file_intersections(allVCFs):
     Generate all possible intersections of vcfs
     """
     count_lookup = {}
-    combo_gen = [x for l in range(1, len(allVCFs) + 1)
-                 for x in itertools.combinations(allVCFs, l)]
+    combo_gen = (x for l in range(1, len(allVCFs) + 1)
+                 for x in itertools.combinations(allVCFs, l))
     for files_combo in combo_gen:
         files_combo = hash_list(files_combo)
         files_combo.sort()
