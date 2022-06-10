@@ -5,6 +5,7 @@ Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
 # pylint: disable=consider-using-f-string
+import io
 import gzip
 import argparse
 
@@ -15,13 +16,15 @@ def parse_vcf(fn):
     """
     Simple vcf reader
     """
-    openfn = gzip.open if fn.endswith(".gz") else open
-    with openfn(fn, "r") as fh:
-        for line in fh:
-            if line.startswith("#"):
-                continue
-            # Only keep the first 5 fields, and use them as key
-            yield "\t".join(line.split("\t")[:5])
+    if fn.endswith(".gz"):
+        fh = io.TextIOWrapper(gzip.open(fn))
+    else:
+        fh = open(fn, 'r')  # pylint: disable=consider-using-with
+    for line in fh:
+        if line.startswith("#"):
+            continue
+        # Only keep the first 5 fields, and use them as key
+        yield "\t".join(line.split("\t")[:5])
 
 
 def read_files(allVCFs):
