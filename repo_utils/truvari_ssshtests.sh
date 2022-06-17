@@ -178,6 +178,9 @@ assert_exit_code 0
 run test_consistency_results $truv consistency $INDIR/input*.vcf.gz
 assert_equal $(fn_md5 $ANSDIR/consistency.txt) $(fn_md5 $STDOUT_FILE)
 
+run test_consistency_results $truv consistency --json $INDIR/input*.vcf.gz
+assert_equal $(fn_md5 $ANSDIR/consistency.json) $(fn_md5 $STDOUT_FILE)
+
 # ------------------------------------------------------------
 #                                 anno
 # ------------------------------------------------------------
