@@ -8,7 +8,7 @@ Calls will match between VCFs if they have a matching key of:
 import io
 import gzip
 import argparse
-
+import json
 from collections import defaultdict, Counter
 
 
@@ -70,52 +70,85 @@ def parse_args(args):
     """ parse args """
     parser = argparse.ArgumentParser(prog="consistency", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-j", "--json", action='store_true',
+                        help="Output report in json format")
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
     args = parser.parse_args(args)
     return args
 
 
-def write_report(allVCFs, all_presence, n_calls_per_vcf):
+def make_report(allVCFs, all_presence, n_calls_per_vcf):
+    """
+    Create the report
+    """
+    output = {}
+    output['vcfs'] = allVCFs
+    total_unique_calls = len(all_presence)
+    output['total_calls'] = total_unique_calls
+    n_vcfs = len(allVCFs)
+    output['num_vcfs'] = n_vcfs
+    output['vcf_counts'] = {}
+    for i, fn in enumerate(allVCFs):
+        output['vcf_counts'][fn] = n_calls_per_vcf[i]
+    output['shared'] = []
+    for i in reversed(range(n_vcfs)):
+        shared_calls = get_shared_calls(all_presence, i + 1)
+        call_pct = shared_calls / total_unique_calls
+        output['shared'].append({'vcf_count': i + 1, 'num_calls': shared_calls, 'call_pct': call_pct})
+    output['detailed'] = []
+    all_overlap = Counter(all_presence)
+    for group, ncalls in sorted(all_overlap.items(), key=lambda x: (-x[1], x[0])):
+        group = bin(group)[2:].rjust(n_vcfs, '0')
+        tot_pct = ncalls / total_unique_calls
+        c = [(ncalls / n_calls_per_vcf[i])
+             if group[i] == "1"
+             else 0
+             for i in range(n_vcfs)
+        ]
+        row = {'group': group,
+               'total': ncalls,
+               'total_pct': tot_pct}
+        for i, v in enumerate(c):
+            row[i] = v
+        output['detailed'].append(row)
+    return output
+
+
+
+def write_report(output):
     """
     Write the report
     """
-    total_unique_calls = len(all_presence)
-    n_vcfs = len(allVCFs)
-
     print("#\n# Total %d calls across %d VCFs\n#" %
-          (total_unique_calls, n_vcfs))
+          (output['total_calls'], output['num_vcfs']))
+    
     print("#File\tNumCalls")
-    for i, fn in enumerate(allVCFs):
-        print("%s\t%d" % (fn, n_calls_per_vcf[i]))
+    for name in output['vcfs']:
+        print("%s\t%d" % (name, output['vcf_counts'][name]))
 
     print("#\n# Summary of consistency\n#")
     print("#VCFs\tCalls\tPct")
-
-    for i in reversed(range(n_vcfs)):
-        shared_calls = get_shared_calls(all_presence, i + 1)
+    for row in output['shared']:
         print("%d\t%d\t%.2f%%" % (
-            i + 1,
-            shared_calls,
-            shared_calls / total_unique_calls * 100
+            row['vcf_count'],
+            row['num_calls'],
+            row['call_pct'] * 100
         ))
 
     print("#\n# Breakdown of VCFs' consistency\n#")
     print("#Group\tTotal\tTotalPct\tPctOfFileCalls")
-
-    all_overlap = Counter(all_presence)
-    for group, ncalls in sorted(all_overlap.items(), key=lambda x: (-x[1], x[0])):
-        # '0b100' -> '100'
-        group = bin(group)[2:].rjust(n_vcfs, '0')
-        c_text = " ".join(
-            "%.2f%%" % (ncalls / n_calls_per_vcf[i] * 100)
-            if group[i] == "1"
-            else "0%"
-            for i in range(n_vcfs)
-        )
+    for row in output['detailed']:
+        group = row['group']
+        ncalls = row['total']
+        tot_pct = row['total_pct'] * 100
+        c_text = " ".join(["%.2f%%" % (row[i] * 100)
+             if row['group'][i] == "1"
+             else "0%"
+             for i in range(output['num_vcfs'])
+        ])
         print("%s\t%d\t%.2f%%\t%s" %
-              (group, ncalls, ncalls / total_unique_calls * 100, c_text))
-
+              (group, ncalls, tot_pct, c_text))
 
 def consistency_main(args):
     """
@@ -124,5 +157,8 @@ def consistency_main(args):
     args = parse_args(args)
 
     all_presence, n_calls_per_vcf = read_files(args.allVCFs)
-
-    write_report(args.allVCFs, all_presence, n_calls_per_vcf)
+    data = make_report(args.allVCFs, all_presence, n_calls_per_vcf)
+    if args.json:
+        print(json.dumps(data, indent=4))
+    else:
+        write_report(data)
