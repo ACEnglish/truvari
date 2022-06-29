@@ -74,9 +74,10 @@ def collapse_chunk(chunk):
 
         calls = remaining_calls
 
-    for key, val in ret.items():
-        logging.debug("Collapsing %s", key)
-        val[0] = collapse_into_entry(val[0], val[1], matcher.hap)
+    if matcher.no_consolidate:
+        for key, val in ret.items():
+            logging.debug("Collapsing %s", key)
+            val[0] = collapse_into_entry(val[0], val[1], matcher.hap)
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
@@ -266,6 +267,8 @@ def parse_args(args):
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
     parser.add_argument("--chain", action="store_true", default=False,
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
+    parser.add_argument("--no-consolidate", action="store_false", default=True,
+                        help="Skip consolidation of sample genotype fields (%(default)s)")
     parser.add_argument("--null-consolidate", type=str, default=None,
                         help=("Comma separated list of FORMAT fields to consolidate into the kept "
                               "entry by taking the first non-null from all neighbors (%(default)s)"))
@@ -331,6 +334,7 @@ def build_collapse_matcher(args):
     matcher.hap = args.hap
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
+    matcher.no_consolidate = args.no_consolidate
 
     return matcher
 
