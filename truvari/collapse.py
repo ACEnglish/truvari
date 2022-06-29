@@ -28,7 +28,7 @@ def collapse_chunk(chunk):
     # Need to add a deterministic sort here...
     calls.sort(key=matcher.sorter)
 
-    # keep_key : [keep entry, [collap matches], match_id]
+    # keep_key : [keep entry, [collap matches], match_id, gt_consolidate_count]
     ret = {}
     # collap_key : keep_key
     chain_lookup = {}
@@ -43,7 +43,7 @@ def collapse_chunk(chunk):
         if matcher.chain and keep_key in chain_lookup:
             keep_key = chain_lookup[keep_key]
         else:  # otherwise, this is assumed to be a keep call
-            ret[keep_key] = [cur_keep_candidate, [], f'{chunk_id}.{call_id}']
+            ret[keep_key] = [cur_keep_candidate, [], f'{chunk_id}.{call_id}', 0]
 
         # Separate calls collapsing with this keep from the rest
         remaining_calls = []
@@ -77,7 +77,9 @@ def collapse_chunk(chunk):
     if matcher.no_consolidate:
         for key, val in ret.items():
             logging.debug("Collapsing %s", key)
-            val[0] = collapse_into_entry(val[0], val[1], matcher.hap)
+            edited_entry, collapse_cnt = collapse_into_entry(val[0], val[1], matcher.hap)
+            val[0] = edited_entry
+            val[3] = collapse_cnt
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
@@ -93,7 +95,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
     """
     # short circuit
     if not others:
-        return entry
+        return entry, 0
 
     # We'll populate with the most similar, first
     others.sort(reverse=True)
@@ -103,10 +105,11 @@ def collapse_into_entry(entry, others, hap_mode=False):
         replace_gts.append("HET")
 
     # Each sample of this entry needs to be checked/set
+    n_consolidate = 0
     for sample in entry.samples:
         m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
         if m_gt not in replace_gts:
-            continue  # already set
+            continue # already set
         n_idx = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
@@ -115,6 +118,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 n_idx = pos
                 break # this is the first other that's set
         # consolidate
+        n_consolidate += 1
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)
         elif n_idx is not None:
@@ -126,9 +130,9 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     logging.warning(
                         "Unable to set FORMAT %s for sample %s", key, sample)
                     logging.warning("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
-                    logging.warning("Colap entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
+                    logging.warning("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
 
-    return entry
+    return entry, n_consolidate
 
 
 def hap_resolve(entryA, entryB):
@@ -212,15 +216,18 @@ def edit_header(my_vcf):
                      'Description="Number of calls collapsed into this call by truvari">'))
     header.add_line(('##INFO=<ID=CollapseId,Number=1,Type=String,'
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
+    header.add_line(('##INFO=<ID=NumConsolidated,Number=1,Type=Integer,'
+                     'Description="Number of samples consolidated into this call by truvari">'))
     return header
 
 
-def annotate_entry(entry, num_collapsed, match_id, header):
+def annotate_entry(entry, num_collapsed, num_consolidate, match_id, header):
     """
     Edit an entry that's going to be collapsed into another entry
     """
     entry.translate(header)
     entry.info["NumCollapsed"] = num_collapsed
+    entry.info["NumConsolidated"] = num_consolidate
     entry.info["CollapseId"] = match_id
 
 
@@ -361,7 +368,7 @@ def setup_outputs(args):
                                               header=outputs["o_header"])
     outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
                                               header=outputs["c_header"])
-    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0, "out_cnt": 0}
+    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0, "out_cnt": 0, "consol_cnt": 0}
     return outputs
 
 
@@ -369,18 +376,19 @@ def output_writer(to_collapse, outputs):
     """
     Annotate and write kept/collapsed calls to appropriate files
     """
-    entry, collapsed, match_id = to_collapse
+    entry, collapsed, match_id, consol_cnt = to_collapse
     # Save copying time
     if not collapsed:
         outputs["output_vcf"].write(entry)
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    annotate_entry(entry, len(collapsed),
+    annotate_entry(entry, len(collapsed), consol_cnt,
                    match_id, outputs["o_header"])
     outputs["output_vcf"].write(entry)
     outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
+    outputs["stats_box"]["consol_cnt"] += consol_cnt
     for match in collapsed:
         trubench.annotate_entry(match.comp, match, outputs["c_header"])
         outputs["collap_vcf"].write(match.comp)
@@ -417,6 +425,7 @@ def collapse_main(args):
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
     logging.info("%d variants collapsed into %d variants", outputs["stats_box"]["collap_cnt"],
                  outputs["stats_box"]["kept_cnt"])
+    logging.info("%d samples' FORMAT fields consolidated", outputs["stats_box"]["consol_cnt"])
     logging.info("Finished collapse")
 
 

@@ -21,6 +21,8 @@ def parse_args(args):
                         help="Coverage bins to bisect left the counts (%(default)s)")
     parser.add_argument("--no-ad", action="store_false",
                         help="Skip adding ADCNT bins")
+    parser.add_argument("-p", "--present", action="store_true", default=True,
+                        help="Only count sites with present (non ./.) genotypes")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     truvari.setup_logging()
@@ -52,6 +54,8 @@ def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False):
         dat = [0] * (len(bins) - 1)
         dat_ad = [0] * (len(bins) - 1)
         for sample in entry.samples.values():
+            if sample["GT"] == (None, None):
+                continue
             if "DP" in sample and not sample["DP"] is None:
                 dp = sample["DP"]
                 p = bisect.bisect(bins, dp)
