@@ -37,8 +37,9 @@
 ##bcftools_viewCommand=view -r chr20:0-1000000 -O z /home/english/science/english/msru/data/unused_samples/grch38/HG00733/exact.vcf.gz; Date=Mon Aug 16 16:57:27 2021
 ##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
 ##INFO=<ID=CollapseId,Number=1,Type=String,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
+##INFO=<ID=NumConsolidated,Number=1,Type=Integer,Description="Number of samples consolidated into this call by truvari">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00733
-chr20	149013	.	A	ACCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCGAATCCTGAC	60	.	QNAME=cluster23_scaffold_3;QSTART=25562871;QSTRAND=-;SVTYPE=INS;SVLEN=69;NumCollapsed=1;CollapseId=1.0	GT	1/0
+chr20	149013	.	A	ACCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCGAATCCTGAC	60	.	QNAME=cluster23_scaffold_3;QSTART=25562871;QSTRAND=-;SVTYPE=INS;SVLEN=69;NumCollapsed=1;NumConsolidated=0;CollapseId=1.0	GT	1/0
 chr20	66141	.	AATTCC	A	60	.	EDGEFLAG;QNAME=cluster23_scaffold_3;QSTART=25645835;QSTRAND=-	GT	1|1
 chr20	66235	.	C	CGACTCCACTCCATT	60	.	QNAME=cluster23_scaffold_3;QSTART=25645732;QSTRAND=-	GT	1|1
 chr20	67373	.	G	GAAATGTGAT	60	.	QNAME=cluster23_scaffold_2;QSTART=25629267;QSTRAND=-	GT	0|1

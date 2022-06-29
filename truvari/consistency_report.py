@@ -122,7 +122,7 @@ def write_report(output):
     """
     print("#\n# Total %d calls across %d VCFs\n#" %
           (output['total_calls'], output['num_vcfs']))
-    
+
     print("#File\tNumCalls")
     for name in output['vcfs']:
         print("%s\t%d" % (name, output['vcf_counts'][name]))

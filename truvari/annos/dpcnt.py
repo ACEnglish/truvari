@@ -21,7 +21,7 @@ def parse_args(args):
                         help="Coverage bins to bisect left the counts (%(default)s)")
     parser.add_argument("--no-ad", action="store_false",
                         help="Skip adding ADCNT bins")
-    parser.add_argument("-p", "--present", action="store_true", default=True,
+    parser.add_argument("-p", "--present", action="store_true", default=False,
                         help="Only count sites with present (non ./.) genotypes")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
@@ -40,7 +40,7 @@ def edit_header(my_vcf, bins, add_ad=False):
         header.add_line('##INFO=<ID=ADCNT,Number=.,Type=Integer,' + desc)
     return header
 
-def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False):
+def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False, present=False):
     """
     Adds DPCNT to each entry in VCF and yields them
     """
@@ -54,7 +54,7 @@ def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False):
         dat = [0] * (len(bins) - 1)
         dat_ad = [0] * (len(bins) - 1)
         for sample in entry.samples.values():
-            if sample["GT"] == (None, None):
+            if present and sample["GT"] == (None, None):
                 continue
             if "DP" in sample and not sample["DP"] is None:
                 dp = sample["DP"]
@@ -88,7 +88,7 @@ def dpcnt_main(cmdargs):
     bins.append(sys.maxsize)
     n_header = edit_header(vcf, bins, args.no_ad)
     out = pysam.VariantFile(args.output, 'w', header=n_header)
-    for entry in add_dpcnt(vcf, n_header, bins, args.no_ad):
+    for entry in add_dpcnt(vcf, n_header, bins, args.no_ad, args.present):
         out.write(entry)
     out.close()
     logging.info("Finished dpcnt")

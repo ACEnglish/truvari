@@ -83,7 +83,7 @@ def collapse_chunk(chunk):
 
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
-        ret.append([i, None, None])
+        ret.append([i, None, None, 0])
 
     return ret
 
