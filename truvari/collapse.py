@@ -124,8 +124,8 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 except TypeError:
                     logging.warning(
                         "Unable to set FORMAT %s for sample %s", key, sample)
-                    logging.warning("Kept entry: %s", str(entry))
-                    logging.warning("Colap entry: %s", str(o_entry))
+                    logging.warning("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
+                    logging.warning("Colap entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
 
     return entry
 
