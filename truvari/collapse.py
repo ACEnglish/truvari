@@ -118,10 +118,11 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 n_idx = pos
                 break # this is the first other that's set
         # consolidate
-        n_consolidate += 1
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)
+            n_consolidate += 1
         elif n_idx is not None:
+            n_consolidate += 1
             o_entry = others[n_idx].comp
             for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
                 try:
