@@ -25,6 +25,8 @@ def parse_args(args):
                         help="Minimum size of event to annotate (%(default)s)")
     parser.add_argument("-M", "--maxgt", type=truvari.restricted_int, default=1,
                         help="Largest event size to count for genotyping (%(default)s)")
+    parser.add_argument("-c", "--mincount", type=int, default=0,
+                        help="Minimum number of genotyping events to report HOMPCT (%(default)s")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -49,6 +51,8 @@ def hompct_main(cmd_args):
             if truvari.get_gt(entry.samples[0]["GT"]).name == "HOM":
                 homs += 1
             tot += 1
+        if tot < cmd_args.min_count:
+            return None
 
         if tot == 0:
             return float('nan')
@@ -65,7 +69,8 @@ def hompct_main(cmd_args):
     for entry in v2:
         if truvari.entry_size(entry) >= args.minanno:
             entry.translate(header)
-            entry.info["HOMPCT"] = get_pct(
-                entry.chrom, *truvari.entry_boundaries(entry))
+            anno = get_pct(entry.chrom, *truvari.entry_boundaries(entry))
+            if anno is not None
+                entry.info["HOMPCT"] = anno
         out.write(entry)
     logging.info("Finished hompct")
