@@ -70,7 +70,7 @@ def hompct_main(cmd_args):
         if truvari.entry_size(entry) >= args.minanno:
             entry.translate(header)
             anno = get_pct(entry.chrom, *truvari.entry_boundaries(entry))
-            if anno is not None
+            if anno is not None:
                 entry.info["HOMPCT"] = anno
         out.write(entry)
     logging.info("Finished hompct")
