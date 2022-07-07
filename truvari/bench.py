@@ -181,8 +181,7 @@ class Matcher():
         ret = MatchResult()
         ret.base = base
         ret.comp = comp
-        ret.base_gt = base.samples[self.params.bSample]["GT"]
-        ret.comp_gt = comp.samples[self.params.cSample]["GT"]
+
         ret.matid = matid
         ret.state = True
 
@@ -205,8 +204,11 @@ class Matcher():
             ret.state = False
 
         if not skip_gt:
-            ret.gt_match = truvari.entry_gt_comp(
-                base, comp, self.params.bSample, self.params.cSample)
+            if "GT" in base.samples[self.params.bSample]:
+                ret.base_gt = base.samples[self.params.bSample]["GT"]
+            if "GT" in comp.samples[self.params.cSample]:
+                ret.comp_gt = comp.samples[self.params.cSample]["GT"]
+            ret.gt_match = ret.base_gt == ret.comp_gt
             if self.params.gtcomp and not ret.gt_match:
                 logging.debug("%s and %s are not the same genotype",
                               str(base), str(comp))
@@ -220,7 +222,7 @@ class Matcher():
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctsim > 0:
-            # No need to create a haplotype for variants that already lineup
+            # No need to create a haplotype for variants that already line up
             if ret.st_dist == 0 or ret.ed_dist == 0:
                 if truvari.entry_variant_type(base) == 'DEL':
                     b_seq, c_seq = base.ref, comp.ref

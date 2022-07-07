@@ -150,11 +150,12 @@ class TRFAnno():
         """
         Make the haplotype sequence
         """
-        if entry.info["SVTYPE"] == "INS":
+        svtype = truvari.entry_variant_type(entry)
+        if svtype == "INS":
             ref_seq = self.reference.fetch(entry.chrom, start, end)
             m_seq = ref_seq[:entry.start - start] + \
                 entry.alts[0] + ref_seq[entry.stop - start:]
-        elif entry.info["SVTYPE"] == "DEL":
+        elif svtype == "DEL":
             m_start = max(start, entry.start)
             m_end = min(end, entry.stop)
             m_seq = self.reference.fetch(entry.chrom, m_start, m_end)

@@ -278,6 +278,8 @@ def seqsim(allele1, allele2, use_lev=False):
     :return: sequence similarity
     :rtype: float
     """
+    allele1 = allele1.upper()
+    allele2 = allele2.upper()
     if use_lev:
         return Levenshtein.ratio(allele1, allele2)
     scr = edlib.align(allele1, allele2)

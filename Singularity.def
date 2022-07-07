@@ -1,0 +1,30 @@
+Bootstrap: docker
+From: ubuntu:20.04
+Stage: spython-base
+
+%files
+. /opt/truvari-source
+%post
+
+apt-get -qq update && apt-get install -yq \
+python3-pip \
+python3-dev \
+curl \
+&& \
+rm -rf /var/lib/apt/lists/*
+
+cd /opt/truvari-source
+
+python3 -m pip install --upgrade pip && \
+python3 -m pip install setproctitle pylint anybadge coverage && \
+python3 -m pip install --upgrade setuptools && \
+python3 -m pip install ./
+
+cd /data
+
+%runscript
+cd /data
+exec truvari "$@"
+%startscript
+cd /data
+exec truvari "$@"
