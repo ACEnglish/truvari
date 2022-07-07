@@ -26,7 +26,7 @@ def parse_args(args):
     parser.add_argument("-M", "--maxgt", type=truvari.restricted_int, default=1,
                         help="Largest event size to count for genotyping (%(default)s)")
     parser.add_argument("-c", "--mincount", type=truvari.restricted_int, default=0,
-                        help="Minimum number of genotyping events to report HOMPCT (%(default)s")
+                        help="Minimum number of genotyping events to report HOMPCT (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
