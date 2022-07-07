@@ -181,10 +181,7 @@ class Matcher():
         ret = MatchResult()
         ret.base = base
         ret.comp = comp
-        if "GT" in base.samples[self.params.bSample]:
-            ret.base_gt = base.samples[self.params.bSample]["GT"]
-        if "GT" in comp.samples[self.params.cSample]:
-            ret.comp_gt = comp.samples[self.params.cSample]["GT"]
+
         ret.matid = matid
         ret.state = True
 
@@ -207,6 +204,10 @@ class Matcher():
             ret.state = False
 
         if not skip_gt:
+            if "GT" in base.samples[self.params.bSample]:
+                ret.base_gt = base.samples[self.params.bSample]["GT"]
+            if "GT" in comp.samples[self.params.cSample]:
+                ret.comp_gt = comp.samples[self.params.cSample]["GT"]
             ret.gt_match = ret.base_gt == ret.comp_gt
             if self.params.gtcomp and not ret.gt_match:
                 logging.debug("%s and %s are not the same genotype",
@@ -462,28 +463,32 @@ def pick_single_matches(match_matrix):
 
         base_is_used = str(match.base) in used_base
         comp_is_used = str(match.comp) in used_comp
-        to_process = copy.copy(match)
         # Only write the comp
         if base_cnt == 0 and not comp_is_used:
+            to_process = copy.copy(match)
             to_process.base = None
             to_process.state = False
             to_process.multi = True
             comp_cnt -= 1
             used_comp.add(str(to_process.comp))
+            ret.append(to_process)
         # Only write the base
         elif comp_cnt == 0 and not base_is_used:
+            to_process = copy.copy(match)
             to_process.comp = None
             to_process.state = False
             to_process.multi = True
             base_cnt -= 1
             used_base.add(str(to_process.base))
+            ret.append(to_process)
         # Write both
         elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
             base_cnt -= 1
             used_base.add(str(to_process.base))
             comp_cnt -= 1
             used_comp.add(str(to_process.comp))
-        ret.append(to_process)
+            ret.append(to_process)
     return ret
 
 
