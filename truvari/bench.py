@@ -112,6 +112,7 @@ class Matcher():
         ret.gtcomp = False
         ret.bSample = 0
         ret.cSample = 0
+        ret.dup_to_ins = False
         # filtering properties
         ret.sizemin = 50
         ret.sizefilt = 30
@@ -140,6 +141,7 @@ class Matcher():
         ret.gtcomp = args.gtcomp
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
+        ret.dup_to_ins = args.dup_to_ins
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt
@@ -185,7 +187,7 @@ class Matcher():
         ret.matid = matid
         ret.state = True
 
-        if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp):
+        if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp, self.params.dup_to_ins):
             logging.debug("%s and %s are not the same SVTYPE",
                           str(base), str(comp))
             ret.state = False
@@ -620,6 +622,8 @@ def parse_args(args):
                         help="Min pct reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Variant types don't need to match to compare (%(default)s)")
+    thresg.add_argument("--dup-to-ins", action="store_true",
+                        help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("--use-lev", action="store_true",
                         help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,

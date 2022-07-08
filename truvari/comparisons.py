@@ -356,7 +356,7 @@ def entry_variant_type(entry):
     return "UNK"
 
 
-def entry_same_variant_type(entryA, entryB):
+def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
     """
     Check if entryA svtype == entryB svtype
 
@@ -364,12 +364,18 @@ def entry_same_variant_type(entryA, entryB):
     :type `entryA`: :class:`pysam.VariantRecord`
     :param `entryB`: second entry
     :type `entryB`: :class:`pysam.VariantRecord`
+    :param `dup_to_ins`: Convert DUP to INS types
+    :type `dup_to_ins`: bool
 
     :return: True if entry SVTYPEs match
     :rtype: bool
     """
     a_type = entry_variant_type(entryA)
     b_type = entry_variant_type(entryB)
+    if a_type == 'DUP':
+        a_type = 'INS'
+    if b_type == 'DUP':
+        b_type == 'INS'
     return a_type == b_type
 
 
