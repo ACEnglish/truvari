@@ -375,7 +375,7 @@ def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
     if dup_to_ins and a_type == 'DUP':
         a_type = 'INS'
     if dup_to_ins and b_type == 'DUP':
-        b_type == 'INS'
+        b_type = 'INS'
     return a_type == b_type
 
 
