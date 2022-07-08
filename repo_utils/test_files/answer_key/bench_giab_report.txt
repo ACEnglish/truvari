@@ -55,6 +55,7 @@ cSample	None
 chunksize	1000
 comp	repo_utils/test_files/input1.vcf.gz
 debug	False
+dup_to_ins	False
 extend	0
 giabreport	True
 gtcomp	False
