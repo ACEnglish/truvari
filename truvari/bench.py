@@ -141,7 +141,7 @@ class Matcher():
         ret.gtcomp = args.gtcomp
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
-        ret.dup_to_ins = args.dup_to_ins
+        ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt

@@ -372,9 +372,9 @@ def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
     """
     a_type = entry_variant_type(entryA)
     b_type = entry_variant_type(entryB)
-    if a_type == 'DUP':
+    if dup_to_ins and a_type == 'DUP':
         a_type = 'INS'
-    if b_type == 'DUP':
+    if dup_to_ins and b_type == 'DUP':
         b_type == 'INS'
     return a_type == b_type
 
