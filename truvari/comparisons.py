@@ -410,6 +410,7 @@ def entry_size(entry):
         - If SVLEN is unavailable and ALT field is an SV (e.g. <INS>, <DEL>, etc), \
         use abs(vcf.start - vcf.end). The INFO/END tag needs to be available, \
         especially for INS.
+        - If len of vcf.REF and vcf.ALT[0] are equal, return len of vcf.REF
         - Otherwise, return the size difference of the sequence resolved call using \
         abs(len(vcf.REF) - len(str(vcf.ALT[0])))
 
@@ -428,7 +429,12 @@ def entry_size(entry):
         start, end = entry_boundaries(entry)
         size = end - start
     else:
-        size = abs(len(entry.ref) - len(entry.alts[0]))
+        r_len = len(entry.ref)
+        a_len = len(entry.alts[0])
+        if r_len == a_len:
+            size = r_len
+        else:
+            size = abs(r_len - a_len)
     return size
 
 

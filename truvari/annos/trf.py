@@ -151,14 +151,15 @@ class TRFAnno():
         Make the haplotype sequence
         """
         svtype = truvari.entry_variant_type(entry)
+        ref_seq = self.reference.fetch(entry.chrom, start, end)
         if svtype == "INS":
-            ref_seq = self.reference.fetch(entry.chrom, start, end)
             m_seq = ref_seq[:entry.start - start] + \
                 entry.alts[0] + ref_seq[entry.stop - start:]
         elif svtype == "DEL":
+            # Be sure to trim within the region
             m_start = max(start, entry.start)
             m_end = min(end, entry.stop)
-            m_seq = self.reference.fetch(entry.chrom, m_start, m_end)
+            m_seq = ref_seq[:m_start - start] + ref_seq[m_end - start:]
         else:
             logging.critical("Can only consider entries with 'SVTYPE' INS/DEL")
             sys.exit(1)
