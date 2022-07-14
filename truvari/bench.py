@@ -530,9 +530,9 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
-    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim else None
-    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim else None
-    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct else None
+    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim is not None else None
+    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim is not None else None
+    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct is not None else None
     entry.info["SizeDiff"] = match.sizediff
     entry.info["StartDistance"] = match.st_dist
     entry.info["EndDistance"] = match.ed_dist
