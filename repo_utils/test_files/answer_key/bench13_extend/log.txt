@@ -1,5 +1,5 @@
-2022-05-16 12:27:07,999 [INFO] Running /mmfs1/groups/res_data/active/bnoyvert/git/truvari-github/truvari/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/include.bed --extend 500
-2022-05-16 12:27:08,000 [INFO] Params:
+2022-07-14 01:29:29,330 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/include.bed --extend 500
+2022-07-14 01:29:29,332 [INFO] Params:
 {
     "base": "repo_utils/test_files/input1.vcf.gz",
     "comp": "repo_utils/test_files/input3.vcf.gz",
@@ -14,6 +14,7 @@
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "dup_to_ins": false,
     "use_lev": false,
     "chunksize": 1000,
     "gtcomp": false,
@@ -28,14 +29,14 @@
     "extend": 500,
     "multimatch": false
 }
-2022-05-16 12:27:08,002 [INFO] Truvari version: 3.3.0-dev
-2022-05-16 12:27:08,007 [INFO] Including 11 bed regions
-2022-05-16 12:27:08,008 [INFO] Found 1 chromosomes with overlapping regions
-2022-05-16 12:27:08,008 [INFO] Extending the regions by 500 bases on each side
-2022-05-16 12:27:08,009 [INFO] After region extension found 1 chromosomes with overlapping regions. Merged the overlaps
-2022-05-16 12:27:08,084 [INFO] Zipped 2050 variants. Counter({'base': 1130, 'comp': 920})
-2022-05-16 12:27:08,084 [INFO] 11 chunks of 2050 variants. Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
-2022-05-16 12:27:08,085 [INFO] Stats: {
+2022-07-14 01:29:29,334 [INFO] Truvari version: 3.5.0-dev
+2022-07-14 01:29:29,409 [INFO] Including 11 bed regions
+2022-07-14 01:29:29,413 [INFO] Found 1 chromosomes with overlapping regions
+2022-07-14 01:29:29,414 [INFO] Extending the regions by 500 bases
+2022-07-14 01:29:29,420 [INFO] Found 1 chromosomes with overlapping regions
+2022-07-14 01:29:30,063 [INFO] Zipped 2050 variants. Counter({'base': 1130, 'comp': 920})
+2022-07-14 01:29:30,065 [INFO] 11 chunks of 2050 variants. Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
+2022-07-14 01:29:30,076 [INFO] Stats: {
     "TP-base": 6,
     "TP-call": 6,
     "FP": 4,
@@ -64,4 +65,4 @@
         }
     }
 }
-2022-05-16 12:27:08,091 [INFO] Finished bench
+2022-07-14 01:29:30,094 [INFO] Finished bench

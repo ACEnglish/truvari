@@ -249,7 +249,7 @@ assert_exit_code 1
 #                                 bpovl
 run test_anno_bpovl $truv anno bpovl -i $INDIR/input1.vcf.gz \
                     -o $OD/anno_bpovl.jl \
-                    -a $INDIR/anno.gtf.gz -p gff --sizemin 1
+                    -a $INDIR/anno.gtf.gz -p gff --sizemin 2
 assert_exit_code 0
 df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
 
@@ -276,10 +276,6 @@ info_tests lcr $OD/anno_lcr.vcf LCR
 run test_vcf2df_bare $truv vcf2df $INDIR/input1.vcf.gz $OD/vcf2df_bare.jl
 assert_exit_code 0
 df_check test_vcf2df_bare_result $ANSDIR/vcf2df_bare.jl $OD/vcf2df_bare.jl
-
-run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
-assert_exit_code 0
-df_check test_vcf2df_result $ANSDIR/vcf2df.jl $OD/vcf2df.jl
 
 run test_vcf2df $truv vcf2df -f -i $INDIR/input1.vcf.gz $OD/vcf2df.jl
 assert_exit_code 0

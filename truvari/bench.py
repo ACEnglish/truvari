@@ -68,7 +68,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 
     def __repr__(self):
-        return f'<truvari.bench.MatchResult ({self.state} {self.score})>'
+        return f'<truvari.bench.MatchResult ({self.state} {round(self.score, 3)})>'
 
 
 class Matcher():
@@ -83,7 +83,7 @@ class Matcher():
         >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
-        <truvari.bench.MatchResult (False 0.0)>
+        <truvari.bench.MatchResult (False 2.381)>
     """
 
     def __init__(self, params=None, args=None):
@@ -530,9 +530,9 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
-    entry.info["PctSeqSimilarity"] = match.seqsim
-    entry.info["PctSizeSimilarity"] = match.sizesim
-    entry.info["PctRecOverlap"] = match.ovlpct
+    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim else None
+    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim else None
+    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct else None
     entry.info["SizeDiff"] = match.sizediff
     entry.info["StartDistance"] = match.st_dist
     entry.info["EndDistance"] = match.ed_dist

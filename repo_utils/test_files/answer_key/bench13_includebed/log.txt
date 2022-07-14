@@ -1,5 +1,5 @@
-2022-05-13 23:29:09,465 [INFO] Running /mmfs1/groups/res_data/active/bnoyvert/git/truvari-github/truvari/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/include.bed
-2022-05-13 23:29:09,466 [INFO] Params:
+2022-07-14 01:29:24,275 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/include.bed
+2022-07-14 01:29:24,277 [INFO] Params:
 {
     "base": "repo_utils/test_files/input1.vcf.gz",
     "comp": "repo_utils/test_files/input3.vcf.gz",
@@ -14,6 +14,7 @@
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "dup_to_ins": false,
     "use_lev": false,
     "chunksize": 1000,
     "gtcomp": false,
@@ -28,12 +29,12 @@
     "extend": 0,
     "multimatch": false
 }
-2022-05-13 23:29:09,468 [INFO] Truvari version: 3.3.0-dev
-2022-05-13 23:29:09,475 [INFO] Including 10 bed regions
-2022-05-13 23:29:09,475 [INFO] Found 1 chromosomes with overlapping regions
-2022-05-13 23:29:09,547 [INFO] Zipped 2026 variants. Counter({'base': 1129, 'comp': 897})
-2022-05-13 23:29:09,547 [INFO] 10 chunks of 2026 variants. Counter({'__filtered': 2005, 'comp': 11, 'base': 10})
-2022-05-13 23:29:09,549 [INFO] Stats: {
+2022-07-14 01:29:24,278 [INFO] Truvari version: 3.5.0-dev
+2022-07-14 01:29:24,347 [INFO] Including 11 bed regions
+2022-07-14 01:29:24,351 [INFO] Found 1 chromosomes with overlapping regions
+2022-07-14 01:29:24,619 [INFO] Zipped 2030 variants. Counter({'base': 1130, 'comp': 900})
+2022-07-14 01:29:24,621 [INFO] 10 chunks of 2030 variants. Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
+2022-07-14 01:29:24,627 [INFO] Stats: {
     "TP-base": 5,
     "TP-call": 5,
     "FP": 4,
@@ -59,4 +60,4 @@
         }
     }
 }
-2022-05-13 23:29:09,556 [INFO] Finished bench
+2022-07-14 01:29:24,636 [INFO] Finished bench

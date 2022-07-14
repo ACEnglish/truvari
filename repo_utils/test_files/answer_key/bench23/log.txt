@@ -1,5 +1,5 @@
-2021-12-21 13:57:52,218 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input2.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench23/ --multimatch
-2021-12-21 13:57:52,219 [INFO] Params:
+2022-07-14 01:29:20,229 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input2.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench23/ --multimatch
+2022-07-14 01:29:20,232 [INFO] Params:
 {
     "base": "repo_utils/test_files/input2.vcf.gz",
     "comp": "repo_utils/test_files/input3.vcf.gz",
@@ -10,10 +10,11 @@
     "prog": false,
     "refdist": 500,
     "pctsim": 0.7,
-    "buffer": 0.1,
+    "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "dup_to_ins": false,
     "use_lev": false,
     "chunksize": 1000,
     "gtcomp": false,
@@ -25,13 +26,13 @@
     "passonly": false,
     "no_ref": false,
     "includebed": null,
+    "extend": 0,
     "multimatch": true
 }
-2021-12-21 13:57:52,219 [INFO] Truvari version: 3.1.0-dev
-2021-12-21 13:57:52,329 [INFO] Zipped 3848 variants. Counter({'comp': 2065, 'base': 1783})
-2021-12-21 13:57:52,330 [INFO] 15 chunks of 3848 variants. Counter({'__filtered': 3816, 'comp': 21, 'base': 11})
-2021-12-21 13:57:52,333 [INFO] Results peek: 7 TP-base 4 FN 63.64% Recall
-2021-12-21 13:57:52,334 [INFO] Stats: {
+2022-07-14 01:29:20,234 [INFO] Truvari version: 3.5.0-dev
+2022-07-14 01:29:20,479 [INFO] Zipped 3848 variants. Counter({'comp': 2065, 'base': 1783})
+2022-07-14 01:29:20,480 [INFO] 15 chunks of 3848 variants. Counter({'__filtered': 3816, 'comp': 21, 'base': 11})
+2022-07-14 01:29:20,488 [INFO] Stats: {
     "TP-base": 7,
     "TP-call": 8,
     "FP": 9,
@@ -45,6 +46,16 @@
     "TP-call_FP-gt": 5,
     "TP-base_TP-gt": 3,
     "TP-base_FP-gt": 4,
-    "gt_concordance": 0.375
+    "gt_concordance": 0.375,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(0, 1)": 2,
+            "(1, 1)": 2
+        },
+        "(1, 0)": {
+            "(1, 1)": 2,
+            "(1, 0)": 1
+        }
+    }
 }
-2021-12-21 13:57:52,338 [INFO] Finished bench
+2022-07-14 01:29:20,505 [INFO] Finished bench

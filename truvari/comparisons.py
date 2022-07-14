@@ -95,8 +95,8 @@ def entry_size_similarity(entryA, entryB):
     :param `entryB`: second entry
     :type `entryB`: :class:`pysam.VariantRecord`
 
-    :return: size similarity percent
-    :rtype: float
+    :return: size similarity percent and size diff (A - B)
+    :rtype: (float, int)
 
     Example
         >>> import truvari
@@ -105,7 +105,7 @@ def entry_size_similarity(entryA, entryB):
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_size_similarity(a, b)
-        (0.0, 14)
+        (0.07142857142857142, 13)
     """
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)
