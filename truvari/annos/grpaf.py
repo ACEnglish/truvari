@@ -21,10 +21,10 @@ def parse_args(args):
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     parser.add_argument("-l", "--labels", type=str, required=True,
-                        help="Tab-delimited file of sample : group")
+                        help="Tab-delimited file of sample and group")
     parser.add_argument("-t", "--tags", type=str, default='all',
-                        help=("Comma-separated list of tags to add (%(default)s)"
-                        "Options: AF,MAF,ExcHet,HWE,MAC,AC"))
+                        help=("Comma-separated list of tags to add "
+                        "from AF,MAF,ExcHet,HWE,MAC,AC (%(default)s)"))
     parser.add_argument("--strict", action="store_true",
                         help="Exit if sample listed in labels is not present in VCF (%(default)s)")
     parser.add_argument("--debug", action="store_true",
