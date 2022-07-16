@@ -52,12 +52,15 @@ def process_entries(ref_section):
     vcf = pysam.VariantFile(trfshared.args.input)
 
     to_consider = []
-    for entry in vcf.fetch(chrom, start, stop):
-        # Prevent duplication
-        if not (entry.start >= start and entry.start < stop):
-            continue
-        if truvari.entry_size(entry) >= trfshared.args.min_length:
-            to_consider.append(entry)
+    try:
+        for entry in vcf.fetch(chrom, start, stop):
+            # Prevent duplication
+            if not (entry.start >= start and entry.start < stop):
+                continue
+            if truvari.entry_size(entry) >= trfshared.args.min_length:
+                to_consider.append(entry)
+    except ValueError as e:
+        logging.debug("Skipping VCF fetch %s", e)
 
     if not to_consider:
         return (chrom, start, stop, "")
@@ -75,7 +78,7 @@ def process_entries(ref_section):
         if not (entry.start >= start and entry.start < stop):
             continue
         if truvari.entry_size(entry) >= trfshared.args.min_length:
-            key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+            key = f"{entry.chrom}:{entry.start}-{entry.stop}-{hash(entry.ref)}-{hash(entry.alts[0])}"
             entry = tanno.annotate(entry, key, new_header)
         out.write(str(entry))
     out.seek(0)
@@ -176,7 +179,7 @@ class TRFAnno():
                     entry.chrom, entry.start - 1, entry.stop + 1))
                 if not hits:
                     continue
-                key = f"{entry.chrom}:{entry.start}-{entry.stop}.{hash(entry.alts[0])}"
+                key = f"{entry.chrom}:{entry.start}-{entry.stop}-{hash(entry.ref)}-{hash(entry.alts[0])}"
                 for srep in hits:
                     seq = self.make_seq(srep["start"], srep["end"], entry)
                     self.srep_lookup[key][srep['repeat']] = srep
@@ -254,22 +257,23 @@ class TRFAnno():
             entry.info["TRFrepeat"] = repeat["repeat"]
             return entry
 
-        # 1 - I want trf hits that have srep hits
         if key in self.trf_lookup:
             for repeat in sorted(self.trf_lookup[key].keys(), key=len, reverse=True):
+                # 1 - If also an srep hit, note the diff
+                diff = None
                 if repeat in self.srep_lookup[key]:
                     diff = self.trf_lookup[key][repeat]['copies'] - \
                         self.srep_lookup[key][repeat]['copies']
-                    repeat = self.trf_lookup[key][repeat]
-                    return edit_entry(repeat, entry, new_header, diff)
+                repeat = self.trf_lookup[key][repeat]
+                return edit_entry(repeat, entry, new_header, diff)
 
-        # 2 - if there are none, I'll take srep hits
+        # 2 - if there are no TRF hits, I'll take srep hits
         if key in self.srep_lookup:
             repeat = sorted(
                 self.srep_lookup[key].keys(), key=len, reverse=True)[0]
             repeat = self.srep_lookup[key][repeat]
             return edit_entry(repeat, entry, new_header)
-        # 3 - otherwise quit
+
         return entry
 
 
@@ -296,9 +300,34 @@ def edit_header(header):
     return header
 
 
+def check_params(args):
+    """
+    Ensure the files are compressed/indexed
+    """
+    check_fail = False
+    if not os.path.exists(args.input):
+        logging.error(f"{args.input} doesn't exit")
+        check_fail = True
+    if not args.input.endswith(".vcf.gz"):
+        logging.error(f"{args.input} isn't compressed vcf")
+        check_fail = True
+    if not os.path.exists(args.input + '.tbi'):
+        logging.error(f"{args.input}.tbi doesn't exit")
+        check_fail = True
+    if not args.simple_repeats.endswith(".bed.gz"):
+        logging.error(f"{args.input} isn't compressed bed")
+        check_fail = True
+    if not os.path.exists(args.simple_repeats + '.tbi'):
+        logging.error(f"{args.input}.tbi doesn't exit")
+        check_fail = True
+    if check_fail:
+        logging.error("Please fix parameters")
+        sys.exit(1)
+
 def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
+    check_params(args)
     trfshared.args = args
     v = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(v.header)
