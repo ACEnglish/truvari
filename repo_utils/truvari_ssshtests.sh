@@ -231,6 +231,14 @@ run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
                                  -o $OD/trf.vcf
 assert_exit_code 0
 
+run test_anno_badparam $truv anno trf -i $INDIR/input_null.vcf \
+                                 -s $INDIR/simplerepeat_null.bed \
+                                 -f $INDIR/reference.fa \
+                                 -e $INDIR/external/trf  \
+                                 -o $OD/trf.vcf
+assert_exit_code 1
+
+
 # TRF isn't deterministic for some reason, so it gives a different answer in the action
 #run test_anno_trf_result
 #assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.vcf)
