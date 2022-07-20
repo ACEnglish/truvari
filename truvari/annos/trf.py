@@ -315,10 +315,10 @@ def check_params(args):
         logging.error(f"{args.input}.tbi doesn't exit")
         check_fail = True
     if not args.simple_repeats.endswith(".bed.gz"):
-        logging.error(f"{args.input} isn't compressed bed")
+        logging.error(f"{args.simple_repeats} isn't compressed bed")
         check_fail = True
     if not os.path.exists(args.simple_repeats + '.tbi'):
-        logging.error(f"{args.input}.tbi doesn't exit")
+        logging.error(f"{args.simple_repeats}.tbi doesn't exit")
         check_fail = True
     if check_fail:
         logging.error("Please fix parameters")

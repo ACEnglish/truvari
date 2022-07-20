@@ -223,9 +223,6 @@ assert_exit_code 0
 
 df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
-#                               af
-# waiting on unit tests. might make an anno tool out of this eventually, though
-
 #                                 trf
 run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
                                  -s $INDIR/simplerepeat.bed.gz \
@@ -233,6 +230,14 @@ run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
                                  -e $INDIR/external/trf  \
                                  -o $OD/trf.vcf
 assert_exit_code 0
+
+run test_anno_badparam $truv anno trf -i $INDIR/input_null.vcf \
+                                 -s $INDIR/simplerepeat_null.bed \
+                                 -f $INDIR/reference.fa \
+                                 -e $INDIR/external/trf  \
+                                 -o $OD/trf.vcf
+assert_exit_code 1
+
 
 # TRF isn't deterministic for some reason, so it gives a different answer in the action
 #run test_anno_trf_result
@@ -269,6 +274,18 @@ info_tests dpcnt $OD/anno_dpcnt.vcf DPCNT,ADCNT
 run test_anno_lcr $truv anno lcr -i $VCF -o $OD/anno_lcr.vcf
 assert_exit_code 0
 info_tests lcr $OD/anno_lcr.vcf LCR
+
+#                                 grpaf
+run test_anno_grpaf $truv anno grpaf -i $INDIR/grpaf.vcf.gz -l $INDIR/grpaf.labels.txt -o $OD/anno_grpaf.vcf
+assert_exit_code 0
+assert_equal $(fn_md5 $ANSDIR/anno_grpaf.vcf) $(fn_md5 $OD/anno_grpaf.vcf)
+
+run test_anno_grpaf_strict $truv anno grpaf --strict -i $INDIR/grpaf.vcf.gz -l $INDIR/grpaf.labels.txt -o $OD/anno_grpaf.vcf
+assert_exit_code 1
+
+run test_anno_grpaf_subset $truv anno grpaf --tags AF,HWE,ExcHet -i $INDIR/grpaf.vcf.gz -l $INDIR/grpaf.labels.txt -o $OD/anno_grpaf.subtags.vcf
+assert_exit_code 0
+assert_equal $(fn_md5 $ANSDIR/anno_grpaf.subtags.vcf) $(fn_md5 $OD/anno_grpaf.subtags.vcf)
 
 # ------------------------------------------------------------
 #                                 vcf2df
