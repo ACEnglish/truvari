@@ -113,7 +113,7 @@ class RegionVCFIterator():
         ret.merge_overlaps()
         return ret
 
-def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#'):
+def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
     """
@@ -142,6 +142,10 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
         chrom = data[chrom_col]
         start = int(data[start_col]) - correction
         end = int(data[end_col])
-        tree[chrom].addi(start, end, data=idx)
+        if idxfmt is not None:
+            m_idx = idxfmt.format(idx)
+        else:
+            m_idx = idx
+        tree[chrom].addi(start, end, data=m_idx)
         idx += 1
     return tree, idx
