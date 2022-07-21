@@ -78,7 +78,7 @@ def divide_main(args):
     oname.pop(-1)
     oname = ".".join(oname)
 
-    out_name_template = os.path.join(args.output, oname) + "_{part_num}.vcf"
+    out_name_template = os.path.join(args.output, oname) + "_{part_num:08d}.vcf"
     cluster_counts = []
     stack = [next(in_vcf)]
 
