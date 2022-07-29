@@ -88,6 +88,7 @@ def calc_af(gts):
              | HWE - hardy weinberg equilibrium
              | AC - allele count
              | MAC - minor allele count
+             | AN - number of called alleles
     :rtype: dict
     """
     n_samps = 0
@@ -102,16 +103,16 @@ def calc_af(gts):
         n_het += 1 if g[0] != g[1] else 0
 
     if n_samps == 0:
-        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0}
-
-    af = cnt[1] / (n_samps * 2)
+        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0, "AN": 0}
+    an = n_samps * 2
+    af = cnt[1] / an
     srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     ac = [cnt[_] for _ in [0, 1]]
     mac = srt[0][0]
     maf = 1 - (srt[-1][0] / (n_samps * 2))
 
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
-    return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac}
+    return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac, "AN": an}
 
 def allele_freq_annos(entry, samples=None):
     """
@@ -129,6 +130,7 @@ def allele_freq_annos(entry, samples=None):
              | HWE - hardy weinberg equilibrium
              | AC - allele count
              | MAC - minor allele count
+             | AN - number of called alleles
     :rtype: dict
 
     Example
@@ -136,7 +138,7 @@ def allele_freq_annos(entry, samples=None):
         >>> import pysam
         >>> v = pysam.VariantFile('repo_utils/test_files/multi.vcf.gz')
         >>> truvari.allele_freq_annos(next(v))
-        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1]}
+        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2}
     """
     if samples is None:
         samples = list(entry.samples.keys())
