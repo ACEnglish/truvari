@@ -70,7 +70,6 @@ def calc_hwe(nref, nalt, nhet):
     probs = probs / my_sum
 
     p_exc_het = probs[nhet:].sum()
-
     p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
     return p_exc_het, 1 - p_hwe
 
@@ -91,25 +90,26 @@ def calc_af(gts):
              | AN - number of called alleles
     :rtype: dict
     """
-    n_samps = 0
+    an = 0
     n_het = 0
     cnt = Counter()  # 0 or 1 allele counts
     for g in gts:
-        if None in g:
+        if len(g) > 2:
             continue
-        n_samps += 1
         for j in g:
-            cnt[j] += 1
-        n_het += 1 if g[0] != g[1] else 0
+            if j is not None:
+                an += 1
+                cnt[j] += 1
+        if len(g) == 2:
+            n_het += 1 if g[0] != g[1] and None not in g else 0
 
-    if n_samps == 0:
+    if an == 0:
         return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0, "AN": 0}
-    an = n_samps * 2
     af = cnt[1] / an
     srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     ac = [cnt[_] for _ in [0, 1]]
     mac = srt[0][0]
-    maf = 1 - (srt[-1][0] / (n_samps * 2))
+    maf = 1 - (srt[-1][0] / an)
 
     p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
     return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac, "AN": an}
