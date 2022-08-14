@@ -14,7 +14,7 @@ from truvari import (
     utils,
     vcf2df
 )
-from truvari.annos import af_calc
+from truvari.annotations import af_calc
     
 
 def tester(module):
