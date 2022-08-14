@@ -2,7 +2,7 @@
 Wrapper around the different annotations available
 """
 import argparse
-import truvari.annos as tannos
+import truvari.annotations as tannos
 
 ANNOS = {"gcpct": tannos.gcpct_main,
          "gtcnt": tannos.gtcnt_main,

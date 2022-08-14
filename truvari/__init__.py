@@ -68,7 +68,7 @@ Data:
 __version__ = '3.5.0-dev'
 
 
-from truvari.annos.af_calc import (
+from truvari.annotations.af_calc import (
     allele_freq_annos,
     calc_af,
     calc_hwe

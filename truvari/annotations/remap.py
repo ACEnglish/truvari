@@ -25,7 +25,7 @@ except OSError:
     HASBWALIB = False
 
 import truvari
-from truvari.annos.grm import cigmatch
+from truvari.annotations.grm import cigmatch
 
 
 class Remap():

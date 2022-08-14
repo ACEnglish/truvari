@@ -10,7 +10,7 @@ from truvari import __version__
 from truvari.bench import bench_main
 from truvari.divide import divide_main
 from truvari.vcf2df import vcf2df_main
-from truvari.annotation import anno_main
+from truvari.anno import anno_main
 from truvari.collapse import collapse_main
 from truvari.segmentation import segment_main
 from truvari.consistency_report import consistency_main

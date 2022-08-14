@@ -308,11 +308,11 @@ def check_params(args):
     if not os.path.exists(args.input):
         logging.error(f"{args.input} doesn't exit")
         check_fail = True
-    if not args.input.endswith(".vcf.gz"):
+    if not args.input.endswith((".vcf.gz", ".bcf.gz")):
         logging.error(f"{args.input} isn't compressed vcf")
         check_fail = True
-    if not os.path.exists(args.input + '.tbi'):
-        logging.error(f"{args.input}.tbi doesn't exit")
+    if not os.path.exists(args.input + '.tbi') and not os.path.exists(args.input + '.csi'):
+        logging.error(f"{args.input}[.tbi|.csi] doesn't exit")
         check_fail = True
     if not args.simple_repeats.endswith(".bed.gz"):
         logging.error(f"{args.simple_repeats} isn't compressed bed")
