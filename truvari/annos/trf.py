@@ -66,7 +66,8 @@ def process_entries(ref_section):
         return (chrom, start, stop, "")
 
     tanno = TRFAnno(executable=trfshared.args.executable,
-                    trf_params=trfshared.args.trf_params)
+                    trf_params=trfshared.args.trf_params,
+                    tmpdir=trfshared.args.tmpdir)
     tanno.run_trf(to_consider)
 
     v = pysam.VariantFile(trfshared.args.input)
@@ -113,6 +114,8 @@ def parse_args(args):
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=truvari.restricted_int, default=1,
                         help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
+    parser.add_argument("--tmpdir", type=str, default=None,
+                        help="Temporary directory")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
 
@@ -138,13 +141,10 @@ class TRFAnno():
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
         self.trf_params = trf_params
-        if tmpdir is None:
-            tmpdir = tempfile._get_default_tempdir()
+
         # Where we write the fasta entries
-        self.fa_fn = os.path.join(tmpdir, next(
-            tempfile._get_candidate_names()))
-        self.tr_fn = os.path.join(tmpdir, next(
-            tempfile._get_candidate_names()))
+        self.fa_fn = truvari.make_temp_filename(tmpdir, '.fa')
+        self.tr_fn = truvari.make_temp_filename(tmpdir, '.txt')
         # lookup from the vcf entries to the hits
         self.trf_lookup = defaultdict(dict)
         self.srep_lookup = defaultdict(dict)

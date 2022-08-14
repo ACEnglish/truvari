@@ -332,7 +332,7 @@ def vcf_ranges(vcf, min_dist=1000):
 
     yield cur_chrom, min_start, max_end
 
-def make_temp_filename(tmpdir=None, extension=""):
+def make_temp_filename(tmpdir=None, suffix=""):
     """
     Get a random filename in a tmpdir with an optional extension
     """
