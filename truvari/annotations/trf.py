@@ -80,7 +80,7 @@ def process_entries(ref_section):
             continue
         sz = truvari.entry_size(entry)
         if truvari.entry_size(entry) >= trfshared.args.min_length:
-            key = f"{entry.chrom}:{entry.start}-{entry.stop}-{sz}-{hash(entry.ref)}-{hash(entry.alts[0])}"
+            key = f"{entry.chrom}:{entry.start}:{entry.stop}:{sz}:{hash(entry.ref)}:{hash(entry.alts[0])}"
             entry = tanno.annotate(entry, key, new_header)
         out.write(str(entry))
     out.seek(0)
@@ -184,12 +184,12 @@ class TRFAnno():
                 if not hits:
                     continue
                 sz = truvari.entry_size(entry)
-                key = f"{entry.chrom}:{entry.start}-{entry.stop}-{sz}-{hash(entry.ref)}-{hash(entry.alts[0])}"
+                key = f"{entry.chrom}:{entry.start}:{entry.stop}:{sz}:{hash(entry.ref)}:{hash(entry.alts[0])}"
                 for srep in hits:
                     if not truvari.overlaps(entry.start, entry.stop, srep["start"], srep["end"]):
                         continue
                     seq = self.make_seq(srep["start"], srep["end"], entry)
-                    if len(seq) <= trfshared.args.max_length:
+                    if trfshared.args.min_length <= len(seq) <= trfshared.args.max_length:
                         self.region_lookup[key][srep['repeat']] = srep
                         n_seqs += 1
                         fout.write(f">{key}\n{seq}\n")
@@ -254,8 +254,7 @@ class TRFAnno():
         annos = self.anno_lookup[key]
         regions = self.region_lookup[key]
         # absolute coordinates
-        var_start, var_end, var_len = key.split("-")[:3]
-        var_start = var_start.split(':')[1]
+        var_start, var_end, var_len = key.split(":")[1:4]
         var_start = int(var_start)
         var_end = int(var_end)
         var_len = int(var_len)
