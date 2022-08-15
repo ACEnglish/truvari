@@ -78,8 +78,9 @@ def process_entries(ref_section):
         # Prevent duplication
         if not (entry.start >= start and entry.start < stop):
             continue
+        sz = truvari.entry_size(entry)
         if truvari.entry_size(entry) >= trfshared.args.min_length:
-            key = f"{entry.chrom}:{entry.start}-{entry.stop}-{hash(entry.ref)}-{hash(entry.alts[0])}"
+            key = f"{entry.chrom}:{entry.start}-{entry.stop}-{sz}-{hash(entry.ref)}-{hash(entry.alts[0])}"
             entry = tanno.annotate(entry, key, new_header)
         out.write(str(entry))
     out.seek(0)
@@ -121,6 +122,8 @@ def parse_args(args):
 
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug)
+    if args.tmpdir and not os.path.exists(args.tmpdir):
+        os.mkdir(args.tmpdir)
     return args
 
 
@@ -144,10 +147,10 @@ class TRFAnno():
 
         # Where we write the fasta entries
         self.fa_fn = truvari.make_temp_filename(tmpdir, '.fa')
-        self.tr_fn = truvari.make_temp_filename(tmpdir, '.txt')
-        # lookup from the vcf entries to the hits
-        self.trf_lookup = defaultdict(dict)
-        self.srep_lookup = defaultdict(dict)
+        self.tr_fn = self.fa_fn + '.txt'
+        # lookup from the vcf entries to the annotations/regions
+        self.anno_lookup = defaultdict(dict)
+        self.region_lookup = defaultdict(dict)
 
     def make_seq(self, start, end, entry):
         """
@@ -175,15 +178,19 @@ class TRFAnno():
         n_seqs = 0
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
-                hits = list(fetch_simple_repeats(
-                    entry.chrom, entry.start - 1, entry.stop + 1))
+                hits = list(fetch_simple_repeats(entry.chrom,
+                                                 entry.start - 1,
+                                                 entry.stop + 1))
                 if not hits:
                     continue
-                key = f"{entry.chrom}:{entry.start}-{entry.stop}-{hash(entry.ref)}-{hash(entry.alts[0])}"
+                sz = truvari.entry_size(entry)
+                key = f"{entry.chrom}:{entry.start}-{entry.stop}-{sz}-{hash(entry.ref)}-{hash(entry.alts[0])}"
                 for srep in hits:
+                    if not truvari.overlaps(entry.start, entry.stop, srep["start"], srep["end"]):
+                        continue
                     seq = self.make_seq(srep["start"], srep["end"], entry)
-                    self.srep_lookup[key][srep['repeat']] = srep
                     if len(seq) <= trfshared.args.max_length:
+                        self.region_lookup[key][srep['repeat']] = srep
                         n_seqs += 1
                         fout.write(f">{key}\n{seq}\n")
 
@@ -205,6 +212,7 @@ class TRFAnno():
         """
         Parse the outputs from trf, turn to a dictionary
         """
+        # I think I need to translate these to 0-based coordinates
         trf_cols = [("start", int),
                     ("end", int),
                     ("period", int),
@@ -237,7 +245,41 @@ class TRFAnno():
                 line = line.strip().split(' ')
                 data = {x[0]: x[1](y) for x, y in zip(
                     trf_cols, line) if not x[0].startswith("unk")}
-                self.trf_lookup[name][data["repeat"]] = data
+                self.anno_lookup[name][data["repeat"]] = data
+
+    def annotation_score_sorter(self, key):
+        """
+        score/sort the annotations, yields them in order
+        """
+        annos = self.anno_lookup[key]
+        regions = self.region_lookup[key]
+        # absolute coordinates
+        var_start, var_end, var_len = key.split("-")[:3]
+        var_start = var_start.split(':')[1]
+        var_start = int(var_start)
+        var_end = int(var_end)
+        var_len = int(var_len)
+
+        scores = []
+        for m_anno_repeat in annos:
+            m_anno = annos[m_anno_repeat]
+            # Hmm.. this assumes that there's unique repeat motifs. keep an eye on that
+            # the variant may have found a repeat from the regions
+            if m_anno['repeat'] not in regions:
+                continue
+            m_reg = regions[m_anno["repeat"]]
+
+            # Translate to the sequence's coordinates
+            m_start = var_start - m_reg['start']
+            m_end = m_start + var_len
+
+            # Does the annotation (i) overlap the variant's position
+            # reciprocal overlap then score is how we'll do it
+            ovl_pct = truvari.overlap_percent(m_start, m_end, m_anno['start'], m_anno['end'])
+            scores.append((ovl_pct, m_anno['score'], m_anno['repeat']))
+        scores.sort(reverse=True)
+        for i in scores:
+            yield i[2]
 
     def annotate(self, entry, key, new_header):
         """
@@ -251,27 +293,27 @@ class TRFAnno():
                 entry.info["TRFDiff"] = diff
             entry.info["TRFperiod"] = repeat["period"]
             entry.info["TRFcopies"] = repeat["copies"]
-            #entry.info["TRFconsize"] = repeat["consize"]
             entry.info["TRFscore"] = repeat["score"]
             entry.info["TRFentropy"] = repeat["entropy"]
             entry.info["TRFrepeat"] = repeat["repeat"]
             return entry
 
-        if key in self.trf_lookup:
-            for repeat in sorted(self.trf_lookup[key].keys(), key=len, reverse=True):
+        if key in self.anno_lookup:
+            # Does the repeat annotation cover the alt confidently
+            for repeat in self.annotation_score_sorter(key):
                 # 1 - If also an srep hit, note the diff
                 diff = None
-                if repeat in self.srep_lookup[key]:
-                    diff = self.trf_lookup[key][repeat]['copies'] - \
-                        self.srep_lookup[key][repeat]['copies']
-                repeat = self.trf_lookup[key][repeat]
+                if repeat in self.region_lookup[key]:
+                    diff = self.anno_lookup[key][repeat]['copies'] - \
+                        self.region_lookup[key][repeat]['copies']
+                repeat = self.anno_lookup[key][repeat]
                 return edit_entry(repeat, entry, new_header, diff)
 
         # 2 - if there are no TRF hits, I'll take srep hits
-        if key in self.srep_lookup:
+        if key in self.region_lookup:
             repeat = sorted(
-                self.srep_lookup[key].keys(), key=len, reverse=True)[0]
-            repeat = self.srep_lookup[key][repeat]
+                self.region_lookup[key].keys(), key=len, reverse=True)[0]
+            repeat = self.region_lookup[key][repeat]
             return edit_entry(repeat, entry, new_header)
 
         return entry

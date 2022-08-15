@@ -30,6 +30,7 @@ Extra methods:
 :meth:`get_scalebin`
 :meth:`get_sizebin`
 :meth:`get_svtype`
+:meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
@@ -100,6 +101,7 @@ from truvari.comparisons import (
     entry_to_haplotype,
     entry_to_key,
     entry_variant_type,
+    overlap_percent,
     overlaps,
     reciprocal_overlap,
     seqsim,
