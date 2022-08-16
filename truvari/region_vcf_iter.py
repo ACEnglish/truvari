@@ -8,6 +8,7 @@ import logging
 from collections import defaultdict
 
 from intervaltree import IntervalTree
+import truvari
 import truvari.comparisons as tcomp
 
 
@@ -117,25 +118,10 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
     """
-    def gz_hdlr(fn):
-        with gzip.open(fn) as fh:
-            for line in fh:
-                yield line.decode()
-
-    def fh_hdlr(fn):
-        with open(fn) as fh:
-            for line in fh:
-                yield line
-
+    idx = 0
     correction = 1 if one_based else 0
     tree = defaultdict(IntervalTree)
-    if filename.endswith('.gz'):
-        fh = gz_hdlr(filename)
-    else:
-        fh = fh_hdlr(filename)
-
-    idx = 0
-    for line in fh:
+    for line in truvari.opt_gz_open(filename):
         if line.startswith(comment):
             continue
         data = line.strip().split('\t')

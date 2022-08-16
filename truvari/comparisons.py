@@ -487,7 +487,7 @@ def reciprocal_overlap(astart, aend, bstart, bend):
 
 def overlap_percent(astart, aend, bstart, bend):
     """
-    Calculates the percent of range A which overlapping with  range B
+    Calculates the percent of range A which overlaps with range B
     :param `astart`: First range's start position
     :type `astart`: int
     :param `aend`: First range's end position
@@ -500,6 +500,8 @@ def overlap_percent(astart, aend, bstart, bend):
     :return: overlap percent
     :rtype: float
     """
+    if astart >= bstart and aend <= bend:
+        return 1
     ovl_start = max(astart, bstart)
     ovl_end = min(aend, bend)
     if ovl_start < ovl_end:  # Otherwise, they're not overlapping

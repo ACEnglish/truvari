@@ -224,19 +224,19 @@ assert_exit_code 0
 df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
 
 #                                 trf
-run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
-                                 -s $INDIR/simplerepeat.bed.gz \
-                                 -f $INDIR/reference.fa \
-                                 -e $INDIR/external/trf  \
-                                 -o $OD/trf.vcf
-assert_exit_code 0
+#run test_anno_trf $truv anno trf -i $INDIR/input1.vcf.gz \
+                                 #-s $INDIR/simplerepeat.bed.gz \
+                                 #-f $INDIR/reference.fa \
+                                 #-e $INDIR/external/trf  \
+                                 #-o $OD/trf.vcf
+#assert_exit_code 0
 
-run test_anno_badparam $truv anno trf -i $INDIR/input_null.vcf \
-                                 -s $INDIR/simplerepeat_null.bed \
-                                 -f $INDIR/reference.fa \
-                                 -e $INDIR/external/trf  \
-                                 -o $OD/trf.vcf
-assert_exit_code 1
+#run test_anno_badparam $truv anno trf -i $INDIR/input_null.vcf \
+                                 #-s $INDIR/simplerepeat_null.bed \
+                                 #-f $INDIR/reference.fa \
+                                 #-e $INDIR/external/trf  \
+                                 #-o $OD/trf.vcf
+#assert_exit_code 1
 
 
 # TRF isn't deterministic for some reason, so it gives a different answer in the action

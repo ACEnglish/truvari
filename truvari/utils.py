@@ -4,6 +4,7 @@ Miscellaneous utilites for truvari
 import os
 import re
 import sys
+import gzip
 import time
 import signal
 import logging
@@ -331,6 +332,26 @@ def vcf_ranges(vcf, min_dist=1000):
             max_end = max(max_end, entry.stop)
 
     yield cur_chrom, min_start, max_end
+
+def opt_gz_open(in_fn):
+    """
+    Chooses file handler for plain-text files or `*.gz` files.
+    returns a generator which yields lines of the file
+    """
+    def gz_hdlr(fn):
+        with gzip.open(fn) as fh:
+            for line in fh:
+                yield line.decode()
+
+    def fh_hdlr(fn):
+        with open(fn) as fh:
+            for line in fh:
+                yield line
+
+    if in_fn.endswith('.gz'):
+        return gz_hdlr(in_fn)
+
+    return fh_hdlr(in_fn)
 
 def make_temp_filename(tmpdir=None, suffix=""):
     """

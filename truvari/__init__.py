@@ -43,6 +43,7 @@ Dev methods:
 :meth:`cmd_exe`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
+:meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
 :meth:`setup_logging`
@@ -116,6 +117,7 @@ from truvari.utils import (
     cmd_exe,
     help_unknown_cmd,
     make_temp_filename,
+    opt_gz_open,
     ref_ranges,
     restricted_float,
     restricted_int,
