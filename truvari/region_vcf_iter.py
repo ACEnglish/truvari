@@ -3,7 +3,6 @@ Helper class to specify included regions of the genome when iterating events.
 """
 import sys
 import copy
-import gzip
 import logging
 from collections import defaultdict
 

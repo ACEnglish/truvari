@@ -7,17 +7,14 @@ import sys
 import json
 import types
 import shutil
-import decimal
 import logging
 import argparse
-import tempfile
 import multiprocessing
 from io import StringIO
 from functools import cmp_to_key
 from collections import defaultdict
 
 import pysam
-import tabix
 import truvari
 
 trfshared = types.SimpleNamespace()
@@ -72,26 +69,27 @@ def compare_scores(a, b):
     comparator for scoring
     """
     # Prefer reference first
+    ret = 0
     if 'diff' in a[2] and 'diff' not in b[2]:
-        return 1
-    if 'diff' not in a[2] and 'diff' in b[2]:
-        return -1
+        ret = 1
+    elif 'diff' not in a[2] and 'diff' in b[2]:
+        ret = -1
     # Overlap
-    if a[0] > b[0]:
-        return 1
-    if a[0] < b[0]:
-        return -1
+    elif a[0] > b[0]:
+        ret = 1
+    elif a[0] < b[0]:
+        ret = -1
     # Score
-    if a[1] > b[1]:
-        return 1
-    if a[1] < b[1]:
-        return -1
+    elif a[1] > b[1]:
+        ret = 1
+    elif a[1] < b[1]:
+        ret = -1
     # Take the longer motif
-    if len(a[2]["repeat"]) > len(b[2]["repeat"]):
-        return 1
-    if len(a[2]["repeat"]) < len(b[2]["repeat"]):
-        return -1
-    return 0
+    elif len(a[2]["repeat"]) > len(b[2]["repeat"]):
+        ret = 1
+    elif len(a[2]["repeat"]) < len(b[2]["repeat"]):
+        ret = -1
+    return ret
 score_sorter = cmp_to_key(compare_scores)
 
 class TRFAnno():
@@ -100,26 +98,20 @@ class TRFAnno():
     Operates on a single TRF region across multiple TRF annotations
     """
 
-    def __init__(self, chrom, start, end, reference, repeats,
-                 min_length=50, max_length=10000,
+    def __init__(self, region, reference,
                  executable="trf409.linux64",
-                 trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs",
-                 tmpdir=None):
+                 trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs"):
         """ setup """
-        self.region_chrom = chrom
-        self.region_start = start
-        self.region_end = end
+        self.region = region[:3]
         self.reference = reference
-        self.repeats = repeats
-        self.min_length = min_length
-        self.max_length = max_length
+        self.repeats = region[3]
         self.executable = executable
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
         self.trf_params = trf_params
 
         # Where we write the fasta entries
-        self.fa_fn = truvari.make_temp_filename(tmpdir, '.fa')
+        self.fa_fn = truvari.make_temp_filename(suffix='.fa')
         self.tr_fn = self.fa_fn + '.txt'
         # Populated later
         self.unfilt_annotations = None # 1-to-N entrykey to trf results
@@ -142,18 +134,18 @@ class TRFAnno():
         Make the haplotype sequence
         """
         if svtype == "INS":
-            m_seq = self.reference[:entry.start - self.region_start] + \
-                entry.alts[0] + self.reference[entry.stop - self.region_start:]
+            m_seq = self.reference[:entry.start - self.region[1]] + \
+                entry.alts[0] + self.reference[entry.stop - self.region[1]:]
         elif svtype == "DEL":
-            m_start = max(self.region_start, entry.start)
-            m_end = min(self.region_end, entry.stop)
-            m_seq = self.reference[:m_start - self.region_start] + self.reference[m_end - self.region_start:]
+            m_start = max(self.region[1], entry.start)
+            m_end = min(self.region[2], entry.stop)
+            m_seq = self.reference[:m_start - self.region[1]] + self.reference[m_end - self.region[1]:]
         else:
             logging.critical("Can only consider entries with 'SVTYPE' INS/DEL")
             sys.exit(1)
         return m_seq
 
-    def run_trf(self, entries):
+    def run_trf(self, entries, min_length=50, max_length=10000):
         """
         Given a list of entries, run TRF on each of them
         """
@@ -161,10 +153,10 @@ class TRFAnno():
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
                 key, sz, svtype = self.entry_to_key(entry)
-                if sz < self.min_length:
+                if sz < min_length:
                     continue
                 seq = self.make_seq(entry, svtype)
-                if self.min_length <= len(seq) <= self.max_length:
+                if min_length <= len(seq) <= max_length:
                     n_seqs += 1
                     fout.write(f">{key}\n{seq}\n")
         if not n_seqs:
@@ -197,7 +189,7 @@ class TRFAnno():
             var_len = int(var_len)
             scores = []
             for m_anno in self.unfilt_annotations[var_key]:
-                m_start = var_start - self.region_start
+                m_start = var_start - self.region[1]
                 m_end = m_start + var_len
                 m_sc = self.score_annotation(m_start, m_end, m_anno, True)
                 if m_sc:
@@ -225,7 +217,7 @@ class TRFAnno():
         anno['ovl_pct'] = ovl_pct
         return ovl_pct, anno['score'], anno
 
-    def annotate(self, entry):
+    def annotate(self, entry, min_length=50):
         """
         Edit the entry if it has a hit
         """
@@ -242,7 +234,7 @@ class TRFAnno():
 
         entry.info["TRF"] = True
         key, sz, _ = self.entry_to_key(entry)
-        if sz < self.min_length:
+        if sz < min_length:
             return
         if key in self.annotations:
             logging.debug("okay, we're inside")
@@ -277,7 +269,7 @@ def process_tr_region(region):
     """
     Process vcf lines from a tr reference section
     """
-    r_chrom, r_start, r_end, r_annos = region
+    r_chrom, r_start, r_end = region[:3]
     logging.debug(f"Starting region {r_chrom}:{r_start}-{r_end}")
     setproctitle(f"trf {r_chrom}:{r_start}-{r_end}")
     vcf = pysam.VariantFile(trfshared.args.input)
@@ -296,19 +288,16 @@ def process_tr_region(region):
         return ""
 
     ref_seq = pysam.FastaFile(trfshared.args.reference).fetch(r_chrom, r_start, r_end)
-    tanno = TRFAnno(r_chrom, r_start, r_end, ref_seq, r_annos,
-                    min_length = trfshared.args.min_length,
-                    max_length = trfshared.args.max_length,
-                    executable=trfshared.args.executable,
-                    trf_params=trfshared.args.trf_params,
-                    tmpdir=trfshared.args.tmpdir)
-    tanno.run_trf(to_consider)
+    tanno = TRFAnno(region, ref_seq,
+                    trfshared.args.executable,
+                    trfshared.args.trf_params)
+    tanno.run_trf(to_consider, trfshared.args.min_length, trfshared.args.max_length)
 
     new_header = edit_header(vcf.header)
     out = StringIO()
     for entry in to_consider:
         entry.translate(new_header)
-        tanno.annotate(entry)
+        tanno.annotate(entry, trfshared.args.min_length)
         out.write(str(entry))
     out.seek(0)
     # cleanup after yourself
@@ -342,15 +331,11 @@ def parse_args(args):
                         help="Maximum size of sequence to run through trf (%(default)s)")
     parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=multiprocessing.cpu_count(),
                         help="Number of threads to use (%(default)s)")
-    parser.add_argument("--tmpdir", type=str, default=None,
-                        help="Temporary directory")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
 
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug)
-    if args.tmpdir and not os.path.exists(args.tmpdir):
-        os.mkdir(args.tmpdir)
     return args
 
 
