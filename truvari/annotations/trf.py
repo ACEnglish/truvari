@@ -26,6 +26,24 @@ except ModuleNotFoundError:
         """ dummy function """
         return
 
+
+
+def iter_tr_regions(fn):
+    """
+    Read a repeats file with structure chrom, start, end, annotations.json
+    returns generator of dicts
+    """
+    for line in truvari.opt_gz_open(fn):
+        chrom, start, end, annos = line.strip().split('\t')
+        start = int(start)
+        end = int(end)
+        annos = json.loads(annos)
+        yield {'chrom': chrom,
+               'start': start,
+               'end': end,
+               'annos': annos}
+
+
 def parse_trf_output(fn):
     """
     Parse the outputs from TRF
@@ -66,29 +84,25 @@ def parse_trf_output(fn):
 
 def compare_scores(a, b):
     """
-    comparator for scoring
+    sort annotations
     """
-    # Prefer reference first
+    # most amount of SV covered
     ret = 0
-    if 'diff' in a[2] and 'diff' not in b[2]:
+    if a['ovl_pct'] > b['ovl_pct']:
         ret = 1
-    elif 'diff' not in a[2] and 'diff' in b[2]:
+    elif a['ovl_pct'] < b['ovl_pct']:
         ret = -1
-    # Overlap
-    elif a[0] > b[0]:
+    elif a['score'] > b['score']:
         ret = 1
-    elif a[0] < b[0]:
+    elif a['score'] < b['score']:
         ret = -1
-    # Score
-    elif a[1] > b[1]:
-        ret = 1
-    elif a[1] < b[1]:
-        ret = -1
-    # Take the longer motif
-    elif len(a[2]["repeat"]) > len(b[2]["repeat"]):
-        ret = 1
-    elif len(a[2]["repeat"]) < len(b[2]["repeat"]):
-        ret = -1
+    else:
+        aspan = a['end'] - a['start']
+        bspan = b['end'] = b['start']
+        if aspan > bspan:
+            ret = 1
+        elif aspan < bspan:
+            ret = -1
     return ret
 score_sorter = cmp_to_key(compare_scores)
 
@@ -102,21 +116,14 @@ class TRFAnno():
                  executable="trf409.linux64",
                  trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs"):
         """ setup """
-        self.region = region[:3]
+        self.region = region
         self.reference = reference
-        self.repeats = region[3]
         self.executable = executable
         if "-ngs" not in trf_params:
             trf_params = trf_params + " -ngs "
         self.trf_params = trf_params
 
-        # Where we write the fasta entries
-        self.fa_fn = truvari.make_temp_filename(suffix='.fa')
-        self.tr_fn = self.fa_fn + '.txt'
-        # Populated later
-        self.unfilt_annotations = None # 1-to-N entrykey to trf results
-        self.annotations = None # 1-to-1 entrykey to trf result
-        self.known_motifs = {_['repeat']:_['copies'] for _ in self.repeats}
+        self.known_motifs = {_['repeat']:_['copies'] for _ in self.region['annos']}
 
     def entry_to_key(self, entry):
         """
@@ -133,23 +140,28 @@ class TRFAnno():
         """
         Make the haplotype sequence
         """
+        # variant position relative to this region
+        r_start = entry.start - self.region['start']
+        r_end = entry.stop - self.region['start']
+
+        up_seq = self.reference[:r_start]
+        dn_seq = self.reference[r_end:]
         if svtype == "INS":
-            m_seq = self.reference[:entry.start - self.region[1]] + \
-                entry.alts[0] + self.reference[entry.stop - self.region[1]:]
+            m_seq = up_seq + entry.alts[0] + dn_seq
         elif svtype == "DEL":
-            m_start = max(self.region[1], entry.start)
-            m_end = min(self.region[2], entry.stop)
-            m_seq = self.reference[:m_start - self.region[1]] + self.reference[m_end - self.region[1]:]
+            m_seq = up_seq + dn_seq
         else:
             logging.critical("Can only consider entries with 'SVTYPE' INS/DEL")
             sys.exit(1)
         return m_seq
 
-    def run_trf(self, entries, min_length=50, max_length=10000):
+    def build_seqs(self, entries, min_length=50, max_length=10000):
         """
-        Given a list of entries, run TRF on each of them
+        Write sequences into self.fa_fn
+        returns the number of sequences and their total length
         """
         n_seqs = 0
+        seq_l = 0
         with open(self.fa_fn, 'w') as fout:
             for entry in entries:
                 key, sz, svtype = self.entry_to_key(entry)
@@ -158,22 +170,36 @@ class TRFAnno():
                 seq = self.make_seq(entry, svtype)
                 if min_length <= len(seq) <= max_length:
                     n_seqs += 1
+                    seq_l += len(seq)
                     fout.write(f">{key}\n{seq}\n")
-        if not n_seqs:
-            self.annotations = {}
-            return
+        return n_seqs, seq_l
 
-        ret = truvari.cmd_exe(
-            f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
+    def run_trf(self, seq):
+        """
+        Given a sequence, run TRF and return result
+        """
+        fa_fn = truvari.make_temp_filename(suffix='.fa')
+        tr_fn = fa_fn + '.txt'
+        with open(fa_fn, 'w') as fout:
+            fout.write(f">key\n{seq}\n")
+
+        cmd = f"{self.executable} {fa_fn} {self.trf_params} > {tr_fn}"
+        ret = truvari.cmd_exe(cmd)
         if ret.ret_code != 0:
             logging.error("Couldn't run trf. Check Parameters")
-            logging.error(f"{self.executable} {self.fa_fn} {self.trf_params} > {self.tr_fn}")
+            logging.error(cmd)
             logging.error(str(ret))
-            self.annotations = {}
-            return
+            return []
 
-        self.unfilt_annotations = parse_trf_output(self.tr_fn)
-        self.filter_annotations()
+        annos = parse_trf_output(tr_fn)
+        if annos:
+            annos = annos['key']
+            for anno in annos:
+                anno['start'] += self.region['start']
+                anno['end'] += self.region['start']
+        else:
+            annos = []
+        return annos
 
     def filter_annotations(self):
         """
@@ -189,96 +215,106 @@ class TRFAnno():
             var_len = int(var_len)
             scores = []
             for m_anno in self.unfilt_annotations[var_key]:
-                m_start = var_start - self.region[1]
-                m_end = m_start + var_len
-                m_sc = self.score_annotation(m_start, m_end, m_anno, True)
+                m_sc = self.score_annotation(var_start, var_end, m_anno, True)
                 if m_sc:
-                    logging.debug("made trf score %s", str(m_anno))
                     scores.append(m_sc)
             scores.sort(reverse=True, key=score_sorter)
             if scores:
                 self.annotations[var_key] = scores[0][-1]
 
-    def score_annotation(self, var_start, var_end, anno, is_new=False):
+    def score_annotation(self, var_start, var_end, anno):
         """
         Scores the annotation. Addes fields in place.
         if is_new, we calculate the diff
         """
         ovl_pct = truvari.overlap_percent(var_start, var_end, anno['start'], anno['end'])
-        logging.debug('ovl')
-        logging.debug(ovl_pct)
-        logging.debug("%d %d - %d %d", var_start, var_end, anno['start'], anno['end'])
         # has to hit
         if ovl_pct <= 0:
             return None
-        if is_new and anno['repeat'] in self.known_motifs:
-            logging.debug('in motifs? %s', anno['repeat'])
+        if anno['repeat'] in self.known_motifs:
             anno['diff'] = anno['copies'] - self.known_motifs[anno['repeat']]
+        else:
+            anno['diff'] = 0
         anno['ovl_pct'] = ovl_pct
-        return ovl_pct, anno['score'], anno
+        return anno
+
+    def del_annotator(self, entry, svlen):
+        """
+        Annotate a deletion
+        """
+        var_start = entry.start
+        var_end = entry.stop
+        scores = []
+        for anno in self.region['annos']:
+            ovl_pct = truvari.overlap_percent(var_start, var_end, anno['start'], anno['end'])
+            if ovl_pct == 0:
+                continue
+            m_sc = dict(anno)
+            m_sc['ovl_pct'] = ovl_pct
+            m_sc['diff'] = - (ovl_pct * svlen) / anno['period']
+            scores.append(m_sc)
+        scores.sort(reverse=True, key=score_sorter)
+        if scores:
+            return scores[0]
+        return None
+
+    def ins_annotator(self, entry):
+        """
+        Annotate an insertion
+        """
+        seq = self.make_seq(entry, 'INS')
+        annos = self.run_trf(seq)
+        scores = []
+        for anno in annos:
+            m_sc = self.score_annotation(entry.start, entry.stop, anno)
+            if m_sc:
+                scores.append(m_sc)
+        scores.sort(reverse=True, key=score_sorter)
+        if scores:
+            return scores[0]
+        return None
 
     def annotate(self, entry, min_length=50):
         """
-        Edit the entry if it has a hit
+        Figure out the hit
         """
-        def edit_entry(entry, repeat):
-            if 'ovl_pct' in repeat:
-                entry.info["TRFovl"] = round(repeat['ovl_pct'], 3)
-            if 'diff' in repeat:
-                entry.info["TRFdiff"] = repeat['diff']
+        svtype = truvari.entry_variant_type(entry)
+        sz = truvari.entry_size(entry)
+        entry.info['TRF'] = True
+        if sz < min_length:
+            return
+        repeat = None
+        if svtype == 'DEL':
+            repeat = self.del_annotator(entry, sz)
+            # if it is inside a known repeat, do special math
+            # otherwise, annotate as a new change
+            # and also try to unite it with the knowns
+        elif svtype == 'INS':
+            repeat = self.ins_annotator(entry)
+
+        if repeat:
+            entry.info["TRFovl"] = round(repeat['ovl_pct'], 3)
+            entry.info["TRFdiff"] = round(repeat['diff'], 1)
             entry.info["TRFperiod"] = repeat["period"]
             entry.info["TRFcopies"] = repeat["copies"]
             entry.info["TRFscore"] = repeat["score"]
             entry.info["TRFentropy"] = repeat["entropy"]
             entry.info["TRFrepeat"] = repeat["repeat"]
 
-        entry.info["TRF"] = True
-        key, sz, _ = self.entry_to_key(entry)
-        if sz < min_length:
-            return
-        if key in self.annotations:
-            logging.debug("okay, we're inside")
-            edit_entry(entry, self.annotations[key])
-            return
-
-        # pick best reference annotation
-        scores = []
-        for m_anno in self.repeats:
-            m_sc = self.score_annotation(entry.start, entry.stop, dict(m_anno))
-            if m_sc:
-                logging.debug("made ref score")
-                scores.append(m_sc)
-        scores.sort(reverse=True, key=score_sorter)
-        if scores:
-            edit_entry(entry, scores[0][-1])
-
-    def cleanup(self):
-        """
-        remove temporary files
-        """
-        try:
-            os.remove(self.fa_fn)
-        except FileNotFoundError:
-            pass
-        try:
-            os.remove(self.tr_fn)
-        except FileNotFoundError:
-            pass
-
 def process_tr_region(region):
     """
     Process vcf lines from a tr reference section
     """
-    r_chrom, r_start, r_end = region[:3]
-    logging.debug(f"Starting region {r_chrom}:{r_start}-{r_end}")
-    setproctitle(f"trf {r_chrom}:{r_start}-{r_end}")
+    logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
+    setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
     vcf = pysam.VariantFile(trfshared.args.input)
     to_consider = []
     try:
-        for entry in vcf.fetch(r_chrom, r_start, r_end):
+        for entry in vcf.fetch(region['chrom'], region['start'], region['end']):
             # Variants must be entirely contained within region
-            if not (entry.start >= r_start and entry.stop < r_end):
+            if not (entry.start >= region['start'] and entry.stop < region['end']):
                 continue
+            # variant must be over minlength?
             to_consider.append(entry)
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
@@ -287,11 +323,11 @@ def process_tr_region(region):
     if not to_consider:
         return ""
 
-    ref_seq = pysam.FastaFile(trfshared.args.reference).fetch(r_chrom, r_start, r_end)
+    ref = pysam.FastaFile(trfshared.args.reference)
+    ref_seq = ref.fetch(region['chrom'], region['start'], region['end'])
     tanno = TRFAnno(region, ref_seq,
                     trfshared.args.executable,
                     trfshared.args.trf_params)
-    tanno.run_trf(to_consider, trfshared.args.min_length, trfshared.args.max_length)
 
     new_header = edit_header(vcf.header)
     out = StringIO()
@@ -300,12 +336,33 @@ def process_tr_region(region):
         tanno.annotate(entry, trfshared.args.min_length)
         out.write(str(entry))
     out.seek(0)
-    # cleanup after yourself
-    tanno.cleanup()
-    setproctitle(f"trf done {r_chrom}:{r_start}-{r_end}")
-    logging.debug(f"Done region {r_chrom}:{r_start}-{r_end}")
+    setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
 
+
+def edit_header(header):
+    """
+    New VCF INFO fields
+    """
+    header = header.copy()
+    header.add_line(('##INFO=<ID=TRF,Number=1,Type=Flag,'
+                     'Description="Entry hits a simple repeat region">'))
+    header.add_line(('##INFO=<ID=TRFdiff,Number=1,Type=Float,'
+                     'Description="ALT TR copy difference from reference">'))
+    header.add_line(('##INFO=<ID=TRFperiod,Number=1,Type=Integer,'
+                     'Description="Period size of the repeat">'))
+    header.add_line(('##INFO=<ID=TRFcopies,Number=1,Type=Float,'
+                     'Description="Number of copies aligned with the consensus pattern">'))
+    header.add_line(('##INFO=<ID=TRFscore,Number=1,Type=Integer,'
+                     'Description="Alignment score">'))
+    header.add_line(('##INFO=<ID=TRFentropy,Number=1,Type=Float,'
+                     'Description="Entropy measure">'))
+    header.add_line(('##INFO=<ID=TRFrepeat,Number=1,Type=String,'
+                     'Description="Repeat motif">'))
+    header.add_line(('##INFO=<ID=TRFovl,Number=1,Type=Float,'
+                     'Description="Percent of ALT covered by TRF annotation">'))
+    return header
 
 def parse_args(args):
     """
@@ -338,32 +395,6 @@ def parse_args(args):
     truvari.setup_logging(args.debug)
     return args
 
-
-
-def edit_header(header):
-    """
-    New VCF INFO fields
-    """
-    header = header.copy()
-    header.add_line(('##INFO=<ID=TRF,Number=1,Type=Flag,'
-                     'Description="Entry hits a simple repeat region">'))
-    header.add_line(('##INFO=<ID=TRFdiff,Number=1,Type=Float,'
-                     'Description="ALT TR copy difference from reference">'))
-    header.add_line(('##INFO=<ID=TRFperiod,Number=1,Type=Integer,'
-                     'Description="Period size of the repeat">'))
-    header.add_line(('##INFO=<ID=TRFcopies,Number=1,Type=Float,'
-                     'Description="Number of copies aligned with the consensus pattern">'))
-    header.add_line(('##INFO=<ID=TRFscore,Number=1,Type=Integer,'
-                     'Description="Alignment score">'))
-    header.add_line(('##INFO=<ID=TRFentropy,Number=1,Type=Float,'
-                     'Description="Entropy measure">'))
-    header.add_line(('##INFO=<ID=TRFrepeat,Number=1,Type=String,'
-                     'Description="Repeat motif">'))
-    header.add_line(('##INFO=<ID=TRFovl,Number=1,Type=Float,'
-                     'Description="Percent of ALT covered by TRF annotation">'))
-    return header
-
-
 def check_params(args):
     """
     Ensure the files are compressed/indexed
@@ -391,28 +422,35 @@ def check_params(args):
         logging.error("Please fix parameters")
         sys.exit(1)
 
-def iter_tr_regions(fn):
-    """
-    Read a repeats file with structure chrom, start, end, annotations.json
-    returns generator
-    """
-    for line in truvari.opt_gz_open(fn):
-        chrom, start, end, annos = line.strip().split('\t')
-        start = int(start)
-        end = int(end)
-        annos = json.loads(annos)
-        yield chrom, start, end, annos
+def trf_single_main(cmdargs):
+    """ TRF annotation """
+    args = parse_args(cmdargs)
+    check_params(args)
+    trfshared.args = args
+
+    m_lookup, _ = truvari.build_anno_tree(args.repeats)
+    m_regions = iter_tr_regions(args.repeats)
+
+    vcf = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(vcf.header)
+    
+    with open(args.output, 'w') as fout:
+        fout.write(str(new_header))
+        for i in m_regions:
+            fout.write(process_tr_region(i))
+    logging.info("Finished trf")
 
 def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
     check_params(args)
     trfshared.args = args
-    vcf = pysam.VariantFile(trfshared.args.input)
-    new_header = edit_header(vcf.header)
 
     m_lookup, _ = truvari.build_anno_tree(args.repeats)
     m_regions = iter_tr_regions(args.repeats)
+
+    vcf = pysam.VariantFile(trfshared.args.input)
+    new_header = edit_header(vcf.header)
 
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         chunks = pool.imap_unordered(process_tr_region, m_regions)
@@ -421,6 +459,7 @@ def trf_main(cmdargs):
             fout.write(str(new_header))
             # Write variants not considered
             for entry in vcf:
+                # If this is what's slow..... IDK
                 hits = m_lookup[entry.chrom][entry.start:entry.stop]
                 has_hit = False
                 for i in hits:
@@ -438,4 +477,4 @@ def trf_main(cmdargs):
 
 
 if __name__ == '__main__':
-    trf_main(sys.argv[1:])
+    trf_single_main(sys.argv[1:])
