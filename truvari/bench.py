@@ -354,6 +354,10 @@ def chunker(matcher, *files):
     cur_end = None
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
+        if entry.alts is None: # ignore monomorphic reference
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
