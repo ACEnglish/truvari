@@ -201,27 +201,6 @@ class TRFAnno():
             annos = []
         return annos
 
-    def filter_annotations(self):
-        """
-        Pick the best annotation for every entry in self.unfilt_annotations
-        places results into self.annotations
-        I've put this into its own method because eventually, maybe, we can have options on how to choose
-        """
-        self.annotations = {}
-        for var_key in self.unfilt_annotations:
-            var_start, var_end, var_len = var_key.split(":")[1:4]
-            var_start = int(var_start)
-            var_end = int(var_end)
-            var_len = int(var_len)
-            scores = []
-            for m_anno in self.unfilt_annotations[var_key]:
-                m_sc = self.score_annotation(var_start, var_end, m_anno, True)
-                if m_sc:
-                    scores.append(m_sc)
-            scores.sort(reverse=True, key=score_sorter)
-            if scores:
-                self.annotations[var_key] = scores[0][-1]
-
     def score_annotation(self, var_start, var_end, anno):
         """
         Scores the annotation. Addes fields in place.
@@ -428,12 +407,11 @@ def trf_single_main(cmdargs):
     check_params(args)
     trfshared.args = args
 
-    m_lookup, _ = truvari.build_anno_tree(args.repeats)
     m_regions = iter_tr_regions(args.repeats)
 
     vcf = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(vcf.header)
-    
+
     with open(args.output, 'w') as fout:
         fout.write(str(new_header))
         for i in m_regions:
