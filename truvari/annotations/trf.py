@@ -103,7 +103,7 @@ class TRFAnno():
         # variant position relative to this region
         v_start = entry.start - self.region['start']
         v_end = entry.stop - self.region['start']
-        
+
         #if substr is None:
             #substr = (0, len(self.reference))
         up_seq = self.reference[:v_start]
@@ -141,7 +141,7 @@ class TRFAnno():
                 if sq >= self.motif_similarity and sq > best_score:
                     best_score = sq
                     best_pos = known
-   
+
             if best_pos:
                 anno['diff'] = anno['copies'] - best_pos['copies']
                 anno['orig_repeat'] = anno['repeat']
@@ -185,7 +185,7 @@ class TRFAnno():
             if annos:
                 annos = annos['key']
             self.translate_coords(annos)
-                
+
 
         scores = []
         for anno in annos:
@@ -218,7 +218,7 @@ class TRFAnno():
             anno['start'] += self.region['start']
             anno['end'] += self.region['start']
 
-    def ins_estimate_anno(self, entry, svlen, score_filter=True):
+    def ins_estimate_anno(self, entry, score_filter=True):
         """
         Given an annotation, can I fake compare?
         1) Get the alt seq
@@ -318,6 +318,37 @@ def run_trf(fa_fn, executable="trf409.linux64",
 
     return parse_trf_output(tr_fn)
 
+class AnnoStack():
+    """
+    Treat a list like a stack
+    Creates a TRFAnno for the top
+    We can pop from the stack based on vcf entry coordinates
+    which will update self.tanno
+    """
+    def __init__(self, annos, ref, motif_sim):
+        self.annos = annos
+        self.ref = ref
+        self.motif_sim = motif_sim
+        self.tanno = None
+        self.build_from_top()
+
+    def pop(self, entry):
+        """
+        Pop the stack to the next annotation that could possibly hit an entry
+        """
+        while self.annos and entry.start > self.tanno.region['end']:
+            self.build_from_top()
+
+    def build_from_top(self):
+        """
+        Create the TRFAnno from the top of the stack
+        """
+        if not self.annos:
+            self.tanno = None
+        cur_anno = self.annos.pop(0)
+        ref_seq = self.ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
+        self.tanno = TRFAnno(cur_anno, ref_seq, self.motif_sim)
+
 
 def process_ref_region(region):
     """
@@ -334,100 +365,65 @@ def process_ref_region(region):
     new_header = edit_header(vcf.header)
     out = StringIO()
 
-    fa_fn = truvari.make_temp_filename(suffix='.fa')
-    batch = []
-    batch_size = 0
     try:
         m_fetch = vcf.fetch(region['chrom'], region['start'], region['end'])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
 
-    ref = pysam.FastaFile(trfshared.args.reference)
-    
-    all_annos = iter_tr_regions(trfshared.args.repeats, (region['chrom'], region['start'], region['end']))
-    anno_stack = [_ for _ in all_annos]
-    cur_anno = anno_stack.pop(0) if anno_stack else None
-    tanno = None
-    if cur_anno:
-        ref_seq = ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
-        tanno = TRFAnno(cur_anno, ref_seq, trfshared.args.motif_similarity)
-    else:
-        tanno = None
+    m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
+                             (region['chrom'], region['start'], region['end']))),
+                        pysam.FastaFile(trfshared.args.reference),
+                        trfshared.args.motif_similarity)
 
-
+    batch = []
+    fa_fn = truvari.make_temp_filename(suffix='.fa')
     with open(fa_fn, 'w') as fa_out:
         for entry in m_fetch:
             # Variants must start within region
             if not (entry.start >= region['start'] and entry.start < region['end']):
                 continue
 
-            # If we're out of annotations, just flush
-            if tanno is None:
+            m_stack.pop(entry)
+            # If we're out of annotations, ou not inside an annotation
+            if m_stack.tanno is None or \
+            not (entry.start >= m_stack.tanno.region['start'] \
+                 and entry.stop < m_stack.tanno.region['end']):
                 out.write(str(entry))
                 continue
 
-            # If we're done with the cur_anno
-            if entry.start > tanno.region['end']:
-                cur_anno = anno_stack.pop(0) if anno_stack else None
-                if cur_anno:
-                    ref_seq = ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
-                    tanno = TRFAnno(cur_anno, ref_seq, trfshared.args.motif_similarity)
-                else:
-                    tanno = None
-                    out.write(str(entry))
-                    continue
-
-
-            # before
-            if entry.start < tanno.region['start']:
-                out.write(str(entry))
-                continue
-            
-            # not in
-            if not (entry.start >= tanno.region['start'] and entry.stop < tanno.region['end']):
-                out.write(str(entry))
-                continue
-
-            entry.translate(new_header)
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
             if svlen < trfshared.args.min_length or svtype not in ["DEL", "INS"]:
-                edit_entry(entry, None)
-                out.write(str(entry))
+                out.write(str(edit_entry(entry, None, new_header)))
                 continue
-    
+
             if svtype == 'DEL':
-                m_anno = tanno.del_annotate(entry, svlen)
-                edit_entry(entry, m_anno)
-                out.write(str(entry))
+                m_anno = m_stack.tanno.del_annotate(entry, svlen)
+                out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == 'INS':
-                m_anno = tanno.ins_estimate_anno(entry, svlen) if not trfshared.args.no_estimate else None
+                m_anno = m_stack.tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
                 if m_anno:
-                    edit_entry(entry, m_anno)
-                    out.write(str(entry))
+                    out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
-                    batch.append((entry, tanno))
-                    seq = tanno.make_seq(entry, 'INS')
-                    fa_out.write(f">{batch_size}\n{seq}\n")
-                    batch_size += 1
-    
+                    batch.append((entry, m_stack.tanno))
+                    fa_out.write(f">{len(batch) - 1}\n{m_stack.tanno.make_seq(entry, 'INS')}\n")
+
     if batch:
         annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
-        for idx, (entry, tanno) in enumerate(batch):
-            key = str(idx)
+        for key, (entry, tanno) in enumerate(batch):
+            key = str(key)
             m_anno = None
             if key in annotations:
                 # translate coords back
                 tanno.translate_coords(annotations[key])
                 m_anno = tanno.ins_annotate(entry, annotations[key])
-            edit_entry(entry, m_anno)
-            out.write(str(entry))
+            out.write(str(edit_entry(entry, m_anno, new_header)))
 
     out.seek(0)
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
     logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
-  
+
 def process_tr_region(region):
     """
     Process vcf lines from a tr reference section
@@ -444,39 +440,33 @@ def process_tr_region(region):
 
     fa_fn = truvari.make_temp_filename(suffix='.fa')
     batch = []
-    batch_size = 0
     try:
         m_fetch = vcf.fetch(region['chrom'], region['start'], region['end'])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
-    
+
     with open(fa_fn, 'w') as fa_out:
         for entry in m_fetch:
             # Variants must be entirely contained within region
             if not (entry.start >= region['start'] and entry.stop < region['end']):
                 continue
-            entry.translate(new_header)
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
             if svlen < trfshared.args.min_length or svtype not in ["DEL", "INS"]:
-                edit_entry(entry, None)
-                out.write(str(entry))
+                out.write(str(edit_entry(entry, None, new_header)))
                 continue
-    
+
             if svtype == 'DEL':
                 m_anno = tanno.del_annotate(entry, svlen)
-                edit_entry(entry, m_anno)
-                out.write(str(entry))
+                out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == 'INS':
-                m_anno = tanno.ins_estimate_anno(entry, svlen) if not trfshared.args.no_estimate else None
+                m_anno = tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
                 if m_anno:
-                    edit_entry(entry, m_anno)
-                    out.write(str(entry))
+                    out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
                     batch.append(entry)
                     seq = tanno.make_seq(entry, 'INS')
-                    fa_out.write(f">{batch_size}\n{seq}\n")
-                    batch_size += 1
+                    fa_out.write(f">{len(batch) - 1}\n{seq}\n")
 
                 # calculate coords for a subsequence of the region
                 # This is an attempt to save run time
@@ -488,18 +478,17 @@ def process_tr_region(region):
                 #sub_start = max(0, r_start - region['start'] - buff)
                 #sub_end = r_end - region['start'] + buff
                 #batch.append((entry, r_start))
-    
+
     if batch:
         annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
-        for idx, entry in enumerate(batch):
-            key = str(idx)
+        for key, entry in enumerate(batch):
+            key = str(key)
             m_anno = None
             if key in annotations:
                 # translate coords back
                 tanno.translate_coords(annotations[key])
                 m_anno = tanno.ins_annotate(entry, annotations[key])
-            edit_entry(entry, m_anno)
-            out.write(str(entry))
+            out.write(str(edit_entry(entry, m_anno, new_header)))
 
     out.seek(0)
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
@@ -558,11 +547,13 @@ def edit_header(header):
                      'Description="Percent of ALT covered by TRF annotation">'))
     return header
 
-def edit_entry(entry, repeat):
+def edit_entry(entry, repeat, new_header):
     """
     places the INFO fields into the entry
     assumes entry has been translated to a vcf header holding the correct fields
+    Returns the entry but also annotates in-place
     """
+    entry.translate(new_header)
     entry.info['TRF'] = True
     if repeat:
         entry.info["TRFovl"] = round(repeat['ovl_pct'], 3)
@@ -572,6 +563,7 @@ def edit_entry(entry, repeat):
         entry.info["TRFscore"] = repeat["score"]
         entry.info["TRFentropy"] = repeat["entropy"]
         entry.info["TRFrepeat"] = repeat["repeat"]
+    return entry
 
 def parse_args(args):
     """
@@ -659,7 +651,7 @@ def trf_main(cmdargs):
     args = parse_args(cmdargs)
     check_params(args)
     trfshared.args = args
-    
+
     m_regions = None
     m_process = None
     if args.regions_only:
@@ -668,7 +660,7 @@ def trf_main(cmdargs):
     else:
         m_regions = truvari.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
         m_process = process_ref_region
-    
+
 
     vcf = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(vcf.header)
