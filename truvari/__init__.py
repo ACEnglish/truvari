@@ -36,6 +36,7 @@ Extra methods:
 :meth:`ref_ranges`
 :meth:`seqsim`
 :meth:`sizesim`
+:meth:`unroll_compare`
 :meth:`vcf_ranges`
 :meth:`weighted_score`
 
@@ -107,6 +108,7 @@ from truvari.comparisons import (
     reciprocal_overlap,
     seqsim,
     sizesim,
+    unroll_compare,
     weighted_score,
 )
 

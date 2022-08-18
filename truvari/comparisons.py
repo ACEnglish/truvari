@@ -561,3 +561,19 @@ def entry_is_filtered(entry, values=None):
     if values is None:
         return len(entry.filter) != 0 and 'PASS' not in entry.filter
     return len(set(values).intersection(set(entry.filter))) == 0
+
+def unroll_compare(seqA, seqB, p):
+    """
+    Unroll two sequences and compare.
+    See https://gist.github.com/ACEnglish/1e7421c46ee10c71bee4c03982e5df6c for details
+
+    :param `seqA`: sequence
+    :param `seqB`: sequence
+    :param `p`: positional difference
+
+    :return: sequence similarity of seqA vs seqB after unrolling
+    :rtype: float
+    """
+    f = p % len(seqB)
+    uB = seqB[-f:] + seqB[:-f]
+    return seqsim(seqA, uB)
