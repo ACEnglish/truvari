@@ -5,6 +5,7 @@ how the an alternate allele affects the copies using TRF
 import os
 import sys
 import json
+import math
 import types
 import shutil
 import logging
@@ -157,12 +158,14 @@ class TRFAnno():
         """
         scores = []
         for anno in self.region['annos']:
-            ovl_pct = truvari.overlap_percent(entry.start, entry.stop, anno['start'], anno['end'])
+            # +1 for anchor base
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, anno['start'], anno['end'])
             if ovl_pct == 0:
                 continue
             m_sc = dict(anno)
             m_sc['ovl_pct'] = ovl_pct
-            m_sc['diff'] = - (ovl_pct * svlen) / anno['period']
+            m_sc['diff'] = -(ovl_pct * svlen) / anno['period']
+            m_sc['copies'] += m_sc['diff']
             scores.append(m_sc)
 
         scores.sort(reverse=True, key=score_sorter)
@@ -230,17 +233,23 @@ class TRFAnno():
         If the similarity isn't high enough, then we send it to TRF
         """
         scores = []
+        best_score = None
         for anno in self.region['annos']:
             ovl_pct = truvari.overlap_percent(entry.start, entry.stop, anno['start'], anno['end'])
             if ovl_pct == 0:
                 continue
 
             f = entry.start - anno['start']
+            # get rid of anchor base
+            seq = entry.alts[1:]
             uB = entry.alts[0][-f:] + entry.alts[0][:-f]
 
-            motif_len = len(anno['repeat'])
-            copy_diff = len(uB) / motif_len
-            faux_seq = anno['repeat'] * round(copy_diff)
+            copy_diff = len(uB) / anno['period']
+            faux_seq = anno['repeat'] * math.floor(copy_diff)
+            # add partial motif extension
+            partial = int(copy_diff % 1 * anno['period'])
+            if partial:
+                faux_seq += anno['repeat'][:partial]
             sim = truvari.seqsim(uB, faux_seq)
 
             if sim < self.motif_similarity:
@@ -250,10 +259,13 @@ class TRFAnno():
             m_sc['copies'] += copy_diff
             m_sc['diff'] = copy_diff
             m_sc['ovl_pct'] = ovl_pct
+            m_sc['similarity'] = sim
+            if not best_score or best_score['similarity'] < sim:
+                best_score = m_sc
             scores.append(m_sc)
 
         if score_filter and scores:
-            return scores[0]
+            return best_score
         return scores
 
 def parse_trf_output(fn):
@@ -345,6 +357,7 @@ class AnnoStack():
         """
         if not self.annos:
             self.tanno = None
+            return
         cur_anno = self.annos.pop(0)
         ref_seq = self.ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
         self.tanno = TRFAnno(cur_anno, ref_seq, self.motif_sim)
