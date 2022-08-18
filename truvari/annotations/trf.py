@@ -14,6 +14,7 @@ from io import StringIO
 from functools import cmp_to_key
 
 import pysam
+import tabix
 import truvari
 
 trfshared = types.SimpleNamespace()
@@ -94,23 +95,19 @@ class TRFAnno():
             max_end = self.region['end']
         return min_start, max_end
 
-    def make_seq(self, entry, svtype, substr=None):
+    def make_seq(self, entry, svtype):
         """
         Make the haplotype sequence
         use r_start/r_end to make sequence a subsequence
         """
         # variant position relative to this region
-        r_start = entry.start - self.region['start']
-        r_end = entry.stop - self.region['start']
-        seq = self.reference
-        r_start = entry.start - self.region['start']
-        r_end = entry.stop - self.region['start']
-        if substr:
-            seq = seq[substr[0]:substr[1]]
-            r_start += substr[0]
-            r_end += substr[0]
-        up_seq = seq[:r_start]
-        dn_seq = seq[r_end:]
+        v_start = entry.start - self.region['start']
+        v_end = entry.stop - self.region['start']
+        
+        #if substr is None:
+            #substr = (0, len(self.reference))
+        up_seq = self.reference[:v_start]
+        dn_seq = self.reference[v_end:]
         if svtype == "INS":
             m_seq = up_seq + entry.alts[0] + dn_seq
         elif svtype == "DEL":
@@ -187,10 +184,7 @@ class TRFAnno():
             annos = run_trf(fa_fn)
             if annos:
                 annos = annos['key']
-            # Shift back to genomic coordinates
-            for i in annos:
-                i['start'] += self.region['start']
-                i['end'] += self.region['end']
+            self.translate_coords(annos)
                 
 
         scores = []
@@ -223,6 +217,44 @@ class TRFAnno():
         for anno in annos:
             anno['start'] += self.region['start']
             anno['end'] += self.region['start']
+
+    def ins_estimate_anno(self, entry, svlen, score_filter=True):
+        """
+        Given an annotation, can I fake compare?
+        1) Get the alt seq
+        2) Roll the alt seq based on its distance from the annotation start
+        3) Get the motif length
+        5) estimated copy_diff in alt = round(len(alt) / motif length)
+        4) feaux_seq = motif length * estimated copy_diff in alt seq
+        Align rolled alt seq and feaux seq, if similarity is high enough, just take that annotation
+        If the similarity isn't high enough, then we send it to TRF
+        """
+        scores = []
+        for anno in self.region['annos']:
+            ovl_pct = truvari.overlap_percent(entry.start, entry.stop, anno['start'], anno['end'])
+            if ovl_pct == 0:
+                continue
+
+            f = entry.start - anno['start']
+            uB = entry.alts[0][-f:] + entry.alts[0][:-f]
+
+            motif_len = len(anno['repeat'])
+            copy_diff = len(uB) / motif_len
+            faux_seq = anno['repeat'] * round(copy_diff)
+            sim = truvari.seqsim(uB, faux_seq)
+
+            if sim < self.motif_similarity:
+                continue
+
+            m_sc = dict(anno)
+            m_sc['copies'] += copy_diff
+            m_sc['diff'] = copy_diff
+            m_sc['ovl_pct'] = ovl_pct
+            scores.append(m_sc)
+
+        if score_filter and scores:
+            return scores[0]
+        return scores
 
 def parse_trf_output(fn):
     """
@@ -266,6 +298,7 @@ def parse_trf_output(fn):
 
     return ret
 
+
 def run_trf(fa_fn, executable="trf409.linux64",
             trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs"):
     """
@@ -291,66 +324,110 @@ def process_ref_region(region):
     Process a section of the reference.
     Tries to run TRF only once
     """
+    region = {'chrom': region[0],
+              'start': region[1],
+              'end': region[2]}
     logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
     vcf = pysam.VariantFile(trfshared.args.input)
-    to_consider = []
+    new_header = edit_header(vcf.header)
+    out = StringIO()
+
+    fa_fn = truvari.make_temp_filename(suffix='.fa')
+    batch = []
+    batch_size = 0
     try:
-        for entry in vcf.fetch(region['chrom'], region['start'], region['end']):
-            # Variants must start within region
-            if not (entry.start >= region['start'] and entry.start < region['end']):
-                continue
-            to_consider.append(entry)
+        m_fetch = vcf.fetch(region['chrom'], region['start'], region['end'])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
 
-    """
-    1 - I'll need to pull all the annotations . So we can use tabix to just pull them out for this ref region
-    Every Region will need its own TRFAnno
-    anno_regions = [] (list of TRFAnnos)
-    I'll build these as we traverse the regions
-
-    If it's a DEL, we can process it immediately and write
-
-    If it's an INS, we can build the sequence (will need keys.. which point to entry and TRFAnnos)
-        (I also want to 'shorten' the sequences we're looking at to as few bases as possible - 
-        So Don't annotate the entire reference sequence, trf on just the annotation sub-region
-
-    Then we can submit all the INS at once
-    Then we can...
-        run_batch_trf
-        Which will create from entries.. we have options here
-        
-        This will return the dictionary from parse_trf_output
-        And this will make keys of the position in the list
-    Then we can iterate the annotations per position on the list
-    for key, (entry, TRFAnno) in enumerate(all_ins_were_looking_at):
-        annos = ret from run_batch_trf[key]
-        TRFAnno.annotate(entry, annos)
-        write
-    Done
+    ref = pysam.FastaFile(trfshared.args.reference)
     
-    So.. this will reduce the overhead of creating lots of processes.
-    And if I can get the coordinate shifting to so that INS are only over the max span, that'd 
-    help things out as well
+    all_annos = iter_tr_regions(trfshared.args.repeats, (region['chrom'], region['start'], region['end']))
+    anno_stack = [_ for _ in all_annos]
+    cur_anno = anno_stack.pop(0) if anno_stack else None
+    tanno = None
+    if cur_anno:
+        ref_seq = ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
+        tanno = TRFAnno(cur_anno, ref_seq, trfshared.args.motif_similarity)
+    else:
+        tanno = None
 
-    TODO:
-    A) need to try an shorten the coordinates to only the maximum intersecting span
-        put into the key a way to identify the variant (int position will work) and the absolute start of the subseq
-    I) Add a --region option (either a string of a file) so that we don't always have to iterate the whole genome
-    J) I could add (just do it per-region and extract the variants) then process_tr_region doesn't exactly go to waste
-    COMPLETED:
-    B) Extract run_trf from TRFAnno (It shouldn't actually need anything inside TRFAnno
-    C) Make the ins_annotation thing write its own fasta and then call the extracted run_trf
-    D) The TRFAnno.annotate shold return the annotation (repeat annotation dict)
-    E) Add TRFAnno.edit_entry(entry, annotation) - static method, probably
-    F) main doesn't need to do all this crazy pre-reading of the VCF stuff. each chunk will work
-    G) For chunking only the START needs to be in the chunk-region
-    H) Need to get back the reference chunking stuff
 
-    """
+    with open(fa_fn, 'w') as fa_out:
+        for entry in m_fetch:
+            # Variants must start within region
+            if not (entry.start >= region['start'] and entry.start < region['end']):
+                continue
 
+            # If we're out of annotations, just flush
+            if tanno is None:
+                out.write(str(entry))
+                continue
+
+            # If we're done with the cur_anno
+            if entry.start > tanno.region['end']:
+                cur_anno = anno_stack.pop(0) if anno_stack else None
+                if cur_anno:
+                    ref_seq = ref.fetch(cur_anno['chrom'], cur_anno['start'], cur_anno['end'])
+                    tanno = TRFAnno(cur_anno, ref_seq, trfshared.args.motif_similarity)
+                else:
+                    tanno = None
+                    out.write(str(entry))
+                    continue
+
+
+            # before
+            if entry.start < tanno.region['start']:
+                out.write(str(entry))
+                continue
+            
+            # not in
+            if not (entry.start >= tanno.region['start'] and entry.stop < tanno.region['end']):
+                out.write(str(entry))
+                continue
+
+            entry.translate(new_header)
+            svtype = truvari.entry_variant_type(entry)
+            svlen = truvari.entry_size(entry)
+            if svlen < trfshared.args.min_length or svtype not in ["DEL", "INS"]:
+                edit_entry(entry, None)
+                out.write(str(entry))
+                continue
+    
+            if svtype == 'DEL':
+                m_anno = tanno.del_annotate(entry, svlen)
+                edit_entry(entry, m_anno)
+                out.write(str(entry))
+            elif svtype == 'INS':
+                m_anno = tanno.ins_estimate_anno(entry, svlen) if not trfshared.args.no_estimate else None
+                if m_anno:
+                    edit_entry(entry, m_anno)
+                    out.write(str(entry))
+                else:
+                    batch.append((entry, tanno))
+                    seq = tanno.make_seq(entry, 'INS')
+                    fa_out.write(f">{batch_size}\n{seq}\n")
+                    batch_size += 1
+    
+    if batch:
+        annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
+        for idx, (entry, tanno) in enumerate(batch):
+            key = str(idx)
+            m_anno = None
+            if key in annotations:
+                # translate coords back
+                tanno.translate_coords(annotations[key])
+                m_anno = tanno.ins_annotate(entry, annotations[key])
+            edit_entry(entry, m_anno)
+            out.write(str(entry))
+
+    out.seek(0)
+    setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
+    return out.read()
+  
 def process_tr_region(region):
     """
     Process vcf lines from a tr reference section
@@ -391,17 +468,26 @@ def process_tr_region(region):
                 edit_entry(entry, m_anno)
                 out.write(str(entry))
             elif svtype == 'INS':
-                # translate coords to subsequence of region
-                # This is broken. And it makes sense we get more consistent
-                # Annotations from the same reference span
-                # r_start, r_end = tanno.get_anno_span(entry)
-                # sub_start = r_start - region['start']
-                # sub_end = r_end - region['start']
-                seq = tanno.make_seq(entry, 'INS')
-                fa_out.write(f">{batch_size}\n{seq}\n")
+                m_anno = tanno.ins_estimate_anno(entry, svlen) if not trfshared.args.no_estimate else None
+                if m_anno:
+                    edit_entry(entry, m_anno)
+                    out.write(str(entry))
+                else:
+                    batch.append(entry)
+                    seq = tanno.make_seq(entry, 'INS')
+                    fa_out.write(f">{batch_size}\n{seq}\n")
+                    batch_size += 1
+
+                # calculate coords for a subsequence of the region
+                # This is an attempt to save run time
+                # However, it doesn't work because TRF is so sensitive to the initial input
+                # For whatever reason, a sub-sequence (even if it contains the same repeats)
+                # doesn't always return the same motifs as the super-sequence
+                #r_start, r_end = tanno.get_anno_span(entry)
+                #buff = 30
+                #sub_start = max(0, r_start - region['start'] - buff)
+                #sub_end = r_end - region['start'] + buff
                 #batch.append((entry, r_start))
-                batch.append(entry)
-                batch_size += 1
     
     if batch:
         annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
@@ -410,9 +496,7 @@ def process_tr_region(region):
             m_anno = None
             if key in annotations:
                 # translate coords back
-                for i in annotations[key]:
-                    i['start'] += region['start']
-                    i['end'] += region['start']
+                tanno.translate_coords(annotations[key])
                 m_anno = tanno.ins_annotate(entry, annotations[key])
             edit_entry(entry, m_anno)
             out.write(str(entry))
@@ -422,13 +506,27 @@ def process_tr_region(region):
     logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
 
-def iter_tr_regions(fn, coords=None):
+def iter_tr_regions(fn, region=None):
     """
     Read a repeats file with structure chrom, start, end, annotations.json
     returns generator of dicts
     """
-    for line in truvari.opt_gz_open(fn):
-        chrom, start, end, annos = line.strip().split('\t')
+    data = None
+    if region is None:
+        data = truvari.opt_gz_open(fn)
+    else:
+        tb = tabix.open(fn)
+        try:
+            data = tb.query(*region)
+        except tabix.TabixError as e:
+            logging.debug(f"Region {region} failed: {e}")
+            data = []
+
+    for line in data:
+        if isinstance(line, str):
+            chrom, start, end, annos = line.strip().split('\t')
+        else:
+            chrom, start, end, annos = line
         start = int(start)
         end = int(end)
         annos = json.loads(annos)
@@ -494,14 +592,14 @@ def parse_args(args):
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference fasta file")
     parser.add_argument("-s", "--motif-similarity", type=truvari.restricted_float, default=0.90,
-                        help="Motif similarity score (%(default)s)")
+                        help="Motif similarity threshold (%(default)s)")
     parser.add_argument("-m", "--min-length", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    parser.add_argument("-M", "--max-length", type=truvari.restricted_int, default=10000,
-                        help="Maximum size of sequence to run through trf (%(default)s)")
     parser.add_argument("-R", "--regions-only", action='store_true',
                         help="Only write variants within --repeats regions (%(default)s)")
-    parser.add_argument("-C", "--chunk-size", type=int, default=1,
+    parser.add_argument("--no-estimate", action='store_true',
+                        help="Skip INS estimation procedure and run everything through TRF. (%(default)s)")
+    parser.add_argument("-C", "--chunk-size", type=int, default=5,
                             help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=multiprocessing.cpu_count(),
                         help="Number of threads to use (%(default)s)")
