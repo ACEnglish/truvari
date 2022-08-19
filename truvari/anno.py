@@ -19,9 +19,9 @@ ANNOS = {"gcpct": tannos.gcpct_main,
          "lcr": tannos.lcr_main,
          "grpaf": tannos.grpaf_main}
 
-USAGE = """\
+USAGE = f"""\
 Truvari annotations:
-        gcpct, gtcnt, trf, grm, repmask, remap, hompct, numneigh, svinfo, bpovl, density, dpcnt, lcr, grpaf
+        {', '.join(ANNOS.keys())}
 """
 
 

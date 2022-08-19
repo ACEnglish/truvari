@@ -371,8 +371,8 @@ def parse_args(args):
                               "column names will be flattened"))
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
-    parser.add_argument("-c", "--compress", type=int, default=3, choices=range(9),
-                        help="Compression level for joblib (%(default)s)")
+    parser.add_argument("-c", "--compress", metavar="LVL", type=int, default=3,
+                        help="Compression level for joblib 0-9 (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -382,6 +382,9 @@ def parse_args(args):
         else:
             args.sample = [args.sample]
     truvari.setup_logging(args.debug)
+    if args.compress not in range(10):
+        logging.warning('--compress must be between 0-9. Setting to 3')
+        args.compress = 3
     return args
 
 def pull_samples(vcf_fn):
