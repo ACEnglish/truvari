@@ -1,5 +1,3 @@
 [run]
 concurrency = multiprocessing
 branch = true
-[report]
-omit = truvari/annotations/trf.py

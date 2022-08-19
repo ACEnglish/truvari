@@ -1,6 +1,7 @@
 """
-Intersect vcf with reference simple repeats and report
-how the an alternate allele affects the copies using TRF
+Intersect vcf with reference tandem repeats and annotate
+variants with the best fitting repeat motif and its copy number 
+relative to the reference
 """
 import os
 import sys
@@ -63,38 +64,6 @@ class TRFAnno():
         self.reference = reference
         self.motif_similarity = motif_similarity
         self.known_motifs = {_['repeat']:_['copies'] for _ in self.region['annos']}
-
-    def entry_to_key(self, entry):
-        """
-        VCF entries to names for the fa and header lines in the tr output
-        returns the key and the entry's size
-        """
-        sz = truvari.entry_size(entry)
-        svtype = truvari.entry_variant_type(entry)
-        o_sz = sz if svtype == 'INS' else 0 # span of variant in alt-seq
-        key = f"{entry.chrom}:{entry.start}:{entry.stop}:{o_sz}:{hash(entry.ref)}:{hash(entry.alts[0])}"
-        return key, sz, svtype
-
-    def get_anno_span(self, entry):
-        """
-        Get the subsequence positions of self.reference that maximally cover the entry
-        For example, an INS inside this region may only intersect some of the self.region['annos'],
-        Iterate those and get the min_start/max_end of those annos
-        If the entry doesn't hit any annnotations in the region, return 0, len(self.reference)
-        """
-        min_start = self.region['end']
-        max_end = self.region['start']
-        for i in self.region['annos']:
-            if i['start'] <= entry.start < i['end']:
-                min_start = min(min_start, i['start'])
-            if i['start'] <= entry.stop < i['end']:
-                max_end = max(max_end, i['end'])
-        # variant's start is not inside an annotation. set it to the region start
-        if min_start == self.region['end']:
-            min_start = self.region['start']
-        if max_end == self.region['start']:
-            max_end = self.region['end']
-        return min_start, max_end
 
     def make_seq(self, entry, svtype):
         """
@@ -240,9 +209,7 @@ class TRFAnno():
                 continue
 
             f = entry.start - anno['start']
-            # get rid of anchor base
-            seq = entry.alts[1:]
-            uB = seq[0][-f:] + seq[0][:-f]
+            uB = entry.alts[0][-f:] + entry.alts[0][:-f]
 
             copy_diff = len(uB) / anno['period']
             faux_seq = anno['repeat'] * math.floor(copy_diff)
@@ -481,17 +448,6 @@ def process_tr_region(region):
                     seq = tanno.make_seq(entry, 'INS')
                     fa_out.write(f">{len(batch) - 1}\n{seq}\n")
 
-                # calculate coords for a subsequence of the region
-                # This is an attempt to save run time
-                # However, it doesn't work because TRF is so sensitive to the initial input
-                # For whatever reason, a sub-sequence (even if it contains the same repeats)
-                # doesn't always return the same motifs as the super-sequence
-                #r_start, r_end = tanno.get_anno_span(entry)
-                #buff = 30
-                #sub_start = max(0, r_start - region['start'] - buff)
-                #sub_end = r_end - region['start'] + buff
-                #batch.append((entry, r_start))
-
     if batch:
         annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
         for key, entry in enumerate(batch):
@@ -542,7 +498,7 @@ def edit_header(header):
     New VCF INFO fields
     """
     header = header.copy()
-    header.add_line(('##INFO=<ID=TRF,Number=1,Type=Flag,'
+    header.add_line(('##INFO=<ID=TRF,Number=0,Type=Flag,'
                      'Description="Entry hits a simple repeat region">'))
     header.add_line(('##INFO=<ID=TRFdiff,Number=1,Type=Float,'
                      'Description="ALT TR copy difference from reference">'))
@@ -641,23 +597,6 @@ def check_params(args):
     if check_fail:
         logging.error("Please fix parameters")
         sys.exit(1)
-
-def trf_single_main(cmdargs):
-    """ TRF annotation but single threaded (for debugging/profiling)"""
-    args = parse_args(cmdargs)
-    check_params(args)
-    trfshared.args = args
-
-    m_regions = iter_tr_regions(args.repeats)
-
-    vcf = pysam.VariantFile(trfshared.args.input)
-    new_header = edit_header(vcf.header)
-
-    with open(args.output, 'w') as fout:
-        fout.write(str(new_header))
-        for i in m_regions:
-            fout.write(process_tr_region(i))
-    logging.info("Finished trf")
 
 def trf_main(cmdargs):
     """ TRF annotation """

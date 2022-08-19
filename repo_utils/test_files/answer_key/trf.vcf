@@ -38,7 +38,7 @@
 ##bcftools_mergeCommand=merge -O z -f x -m none input1.vcf.gz input2.vcf.gz input3.vcf.gz; Date=Mon Aug 16 18:05:13 2021
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description='test'>
 ##FORMAT=<ID=AD,Number=R,Type=Integer,Description='test'>
-##INFO=<ID=TRF,Number=1,Type=Flag,Description="Entry hits a simple repeat region">
+##INFO=<ID=TRF,Number=0,Type=Flag,Description="Entry hits a simple repeat region">
 ##INFO=<ID=TRFdiff,Number=1,Type=Float,Description="ALT TR copy difference from reference">
 ##INFO=<ID=TRFperiod,Number=1,Type=Integer,Description="Period size of the repeat">
 ##INFO=<ID=TRFcopies,Number=1,Type=Float,Description="Number of copies aligned with the consensus pattern">
