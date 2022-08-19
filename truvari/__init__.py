@@ -47,6 +47,7 @@ Dev methods:
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
+:meth:`restricted_int`
 :meth:`setup_logging`
 :meth:`setup_progressbar`
 :meth:`vcf_to_df`

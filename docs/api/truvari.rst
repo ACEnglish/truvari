@@ -15,8 +15,8 @@ GT
 .. autoclass:: GT
    :members:
 
-GenomeTree
-^^^^^^^^^^
+RegionVCFIterator
+^^^^^^^^^^^^^^^^^
 .. autoclass:: RegionVCFIterator
    :members:
 
@@ -140,6 +140,10 @@ get_svtype
 ^^^^^^^^^^
 .. autofunction:: get_svtype
 
+overlap_percent
+^^^^^^^^^^^^^^^
+.. autofunction:: overlap_percent
+
 overlaps
 ^^^^^^^^
 .. autofunction:: overlaps
@@ -159,6 +163,10 @@ seqsim
 sizesim
 ^^^^^^^
 .. autofunction:: sizesim
+
+unroll_compare
+^^^^^^^^^^^^^^
+.. autofunction:: unroll_compare
 
 vcf_ranges
 ^^^^^^^^^^
@@ -181,6 +189,10 @@ help_unknown_cmd
 make_temp_filename
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: make_temp_filename
+
+opt_gz_open
+^^^^^^^^^^^
+.. autofunction:: opt_gz_open
 
 optimize_df_memory
 ^^^^^^^^^^^^^^^^^^
