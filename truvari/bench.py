@@ -102,6 +102,7 @@ class Matcher():
         ret = types.SimpleNamespace()
         ret.reference = None
         ret.refdist = 500
+        ret.unroll = False
         ret.pctsim = 0.70
         ret.minhaplen = 50
         ret.pctsize = 0.70
@@ -130,6 +131,7 @@ class Matcher():
         ret = types.SimpleNamespace()
         ret.reference = pysam.FastaFile(
             args.reference) if args.reference else None
+        ret.unroll = args.unroll
         ret.refdist = args.refdist
         ret.pctsim = args.pctsim
         ret.minhaplen = args.minhaplen
@@ -223,16 +225,24 @@ class Matcher():
             ret.state = False
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
+        # TODO - clean this up
         if self.params.pctsim > 0:
-            # No need to create a haplotype for variants that already line up
-            if ret.st_dist == 0 or ret.ed_dist == 0:
+            if self.params.unroll:
                 if truvari.entry_variant_type(base) == 'DEL':
                     b_seq, c_seq = base.ref, comp.ref
                 else:
                     b_seq, c_seq = base.alts[0], comp.alts[0]
-                ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
-            else:
-                ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
+                ret.seqsim = truvari.unroll_compare(b_seq, c_seq, -ret.st_dist)
+            else: # reference context comparison
+                # No need to create a haplotype for variants that already line up
+                if ret.st_dist == 0 or ret.ed_dist == 0:
+                    if truvari.entry_variant_type(base) == 'DEL':
+                        b_seq, c_seq = base.ref, comp.ref
+                    else:
+                        b_seq, c_seq = base.alts[0], comp.alts[0]
+                    ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
+                else:
+                    ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
                                                   self.params.minhaplen, self.params.use_lev)
             if ret.seqsim < self.params.pctsim:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
@@ -616,6 +626,8 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
                         help="Max reference location distance (%(default)s)")
+    thresg.add_argument("-u", "--unroll", action='store_true', 
+                        help="Use the unrolling procedure to perform sequence comparison")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
     thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
@@ -670,8 +682,8 @@ def check_params(args):
     All errors are written to stderr without logging since failures mean no output
     """
     check_fail = False
-    if args.pctsim != 0 and not args.reference:
-        logging.error("--reference is required when --pctsim is set")
+    if args.pctsim != 0 and not args.reference and not args.unroll:
+        logging.error("--reference is required when --pctsim is set but not using --unroll")
         check_fail = True
     if args.chunksize < args.refdist:
         logging.error("--chunksize must be >= --refdist")

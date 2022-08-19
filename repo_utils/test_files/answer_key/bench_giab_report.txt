@@ -58,6 +58,7 @@ debug	False
 dup_to_ins	False
 extend	0
 giabreport	True
+unroll	False
 gtcomp	False
 includebed	repo_utils/test_files/giab.bed
 minhaplen	50
