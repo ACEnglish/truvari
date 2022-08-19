@@ -228,18 +228,16 @@ class Matcher():
         # TODO - clean this up
         if self.params.pctsim > 0:
             if self.params.unroll:
-                if truvari.entry_variant_type(base) == 'DEL':
-                    b_seq, c_seq = base.ref, comp.ref
-                else:
-                    b_seq, c_seq = base.alts[0], comp.alts[0]
-                ret.seqsim = truvari.unroll_compare(b_seq, c_seq, -ret.st_dist)
+                b_seq, c_seq = (base.ref, comp.ref) \
+                               if truvari.entry_variant_type(base) == 'DEL' else \
+                               (base.alts[0], comp.alts[0])
+                ret.seqsim = truvari.unroll_compare(c_seq, b_seq, ret.st_dist)
             else: # reference context comparison
                 # No need to create a haplotype for variants that already line up
                 if ret.st_dist == 0 or ret.ed_dist == 0:
-                    if truvari.entry_variant_type(base) == 'DEL':
-                        b_seq, c_seq = base.ref, comp.ref
-                    else:
-                        b_seq, c_seq = base.alts[0], comp.alts[0]
+                    b_seq, c_seq = (base.ref, comp.ref) \
+                                   if truvari.entry_variant_type(base) == 'DEL' else \
+                                   (base.alts[0], comp.alts[0])
                     ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
                 else:
                     ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
@@ -626,7 +624,7 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
                         help="Max reference location distance (%(default)s)")
-    thresg.add_argument("-u", "--unroll", action='store_true', 
+    thresg.add_argument("-u", "--unroll", action='store_true',
                         help="Use the unrolling procedure to perform sequence comparison")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=defaults.pctsim,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")

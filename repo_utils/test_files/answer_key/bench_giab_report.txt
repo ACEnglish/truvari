@@ -58,7 +58,6 @@ debug	False
 dup_to_ins	False
 extend	0
 giabreport	True
-unroll	False
 gtcomp	False
 includebed	repo_utils/test_files/giab.bed
 minhaplen	50
@@ -76,4 +75,5 @@ sizefilt	30
 sizemax	50000
 sizemin	50
 typeignore	False
+unroll	False
 use_lev	False

@@ -1,6 +1,6 @@
 """
 Intersect vcf with reference tandem repeats and annotate
-variants with the best fitting repeat motif and its copy number 
+variants with the best fitting repeat motif and its copy number
 relative to the reference
 """
 import os

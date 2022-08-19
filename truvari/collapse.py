@@ -258,6 +258,8 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")
+    thresg.add_argument("-u", "--unroll", action='store_true',
+                        help="Use the unrolling procedure to perform sequence comparison")
     thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
                         help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
     thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
@@ -289,7 +291,7 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
 
     args = parser.parse_args(args)
-    if args.pctsim != 0 and not args.reference:
+    if args.pctsim != 0 and not args.reference and not args.unroll:
         parser.error("--reference is required when --pctsim is set")
 
     if args.null_consolidate is not None:
