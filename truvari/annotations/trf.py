@@ -233,7 +233,7 @@ class TRFAnno():
         If the similarity isn't high enough, then we send it to TRF
         """
         scores = []
-        best_score = None
+        best_score = {}
         for anno in self.region['annos']:
             ovl_pct = truvari.overlap_percent(entry.start, entry.stop, anno['start'], anno['end'])
             if ovl_pct == 0:
@@ -242,7 +242,7 @@ class TRFAnno():
             f = entry.start - anno['start']
             # get rid of anchor base
             seq = entry.alts[1:]
-            uB = entry.alts[0][-f:] + entry.alts[0][:-f]
+            uB = seq[0][-f:] + seq[0][:-f]
 
             copy_diff = len(uB) / anno['period']
             faux_seq = anno['repeat'] * math.floor(copy_diff)
