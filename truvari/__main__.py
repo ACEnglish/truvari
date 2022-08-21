@@ -5,6 +5,8 @@ Truvari main entrypoint
 import sys
 import argparse
 
+from rich.console import Console
+
 import truvari
 from truvari import __version__
 from truvari.bench import bench_main
@@ -33,17 +35,17 @@ TOOLS = {'bench': bench_main,
          'version': version}
 
 USAGE = f"""\
-Truvari v{__version__} - Structural Variant Benchmarking and Annotation
+[bold]Truvari v{__version__}[/] Structural Variant Benchmarking and Annotation
 
-    CMDs:
-        bench         Performance metrics from comparison of two VCFs
-        consistency   Consistency report between multiple VCFs
-        anno          Annotate a VCF
-        collapse      Collapse possibly redundant VCF entries
-        vcf2df        Turn a VCF into a pandas DataFrame
-        segment       Normalization of SVs into disjointed genomic regions
-        divide        Divide a VCF into multiple parts
-        version       Print the Truvari version and exit
+Available commands:
+    [bold][cyan]bench[/][/]         Performance metrics from comparison of two VCFs
+    [bold][cyan]collapse[/][/]      Collapse possibly redundant VCF entries
+    [bold][cyan]anno[/][/]          Annotate a VCF
+    [bold][cyan]consistency[/][/]   Consistency report between multiple VCFs
+    [bold][cyan]vcf2df[/][/]        Turn a VCF into a pandas DataFrame
+    [bold][cyan]segment[/][/]       Normalization of SVs into disjointed genomic regions
+    [bold][cyan]divide[/][/]        Divide a VCF into multiple parts
+    [bold][cyan]version[/][/]       Print the Truvari version and exit
 """
 
 
@@ -56,14 +58,19 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         Check for similar commands before exiting
         """
-        sys.stderr.write(f'{self.prog}: error: {message}\n')
+        console = Console(stderr=True)
+        console.print(f'{self.prog}: error: {message}')
         if message.startswith("argument CMD: invalid choice"):
             guess = truvari.help_unknown_cmd(sys.argv[1], TOOLS.keys())
             if guess:
-                sys.stderr.write(f"\nThe most similar command is\n\t{guess}\n")
+                console.print(f"\nThe most similar command is\n\t[bold][cyan]{guess}[/][/]\n")
 
         self.exit(2)
 
+    def _print_message(self, message, file=None):
+        """ pretty print """
+        console = Console(stderr=True)
+        console.print(message, highlight=False)
 
 def main():
     """

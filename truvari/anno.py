@@ -2,35 +2,42 @@
 Wrapper around the different annotations available
 """
 import argparse
+from rich.console import Console
 import truvari.annotations as tannos
 
-ANNOS = {"gcpct": tannos.gcpct_main,
-         "gtcnt": tannos.gtcnt_main,
-         "trf": tannos.trf_main,
-         "grm": tannos.grm_main,
-         "repmask": tannos.rmk_main,
-         "remap": tannos.remap_main,
-         "hompct": tannos.hompct_main,
-         "numneigh": tannos.numneigh_main,
-         "svinfo": tannos.svinfo_main,
-         "bpovl": tannos.bpovl_main,
-         "density": tannos.density_main,
-         "dpcnt": tannos.dpcnt_main,
-         "lcr": tannos.lcr_main,
-         "grpaf": tannos.grpaf_main}
+ANNOS = {"gcpct": ("GC Percent", tannos.gcpct_main),
+         "gtcnt": ("Genotype Counts", tannos.gtcnt_main),
+         "trf": ("Tandem Repeats", tannos.trf_main),
+         "grm": ("Mappability", tannos.grm_main),
+         "repmask": ("Repeats", tannos.rmk_main),
+         "remap": ("Allele Remapping", tannos.remap_main),
+         "hompct": ("Homozygous Percent", tannos.hompct_main),
+         "numneigh": ("Number of Neighbors", tannos.numneigh_main),
+         "svinfo": ("SVINFO Fields", tannos.svinfo_main),
+         "bpovl": ("Annotation Intersection", tannos.bpovl_main),
+         "density": ("Variant Density", tannos.density_main),
+         "dpcnt": ("Call Depth Counts", tannos.dpcnt_main),
+         "lcr": ("Low-complexity Regions", tannos.lcr_main),
+         "grpaf": ("Sample Group Allele Frequency", tannos.grpaf_main)}
 
-USAGE = f"""\
-Truvari annotations:
-        {', '.join(ANNOS.keys())}
-"""
 
+USAGE = "Truvari annotations:\n" + "\n".join([f"    [bold][cyan]{k:9}[/][/] {t[0]}" for k,t in ANNOS.items()])
+
+class ArgumentParser(argparse.ArgumentParser):
+    """
+    Custom ArgumentParser
+    """
+    def _print_message(self, message, file=None):
+        """ pretty print """
+        console = Console(stderr=True)
+        console.print(message, highlight=False)
 
 def parseArgs(args):
     """
     Argument parsing
     """
-    parser = argparse.ArgumentParser(prog="truvari anno", description=USAGE,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = ArgumentParser(prog="truvari anno", description=USAGE,
+                            formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("cmd", metavar="CMD", choices=ANNOS.keys(), type=str,
                         help="Annotation to run")
@@ -46,4 +53,4 @@ def anno_main(args):
     Simple wrapper around the main
     """
     args = parseArgs(args)
-    ANNOS[args.cmd](args.options)
+    ANNOS[args.cmd][1](args.options)
