@@ -152,6 +152,24 @@ bench 1 3 13_includebed "--includebed $INDIR/include.bed"
 # Testing --extend
 bench 1 3 13_extend "--includebed $INDIR/include.bed --extend 500"
 
+
+# --unroll
+rm -rf $OD/bench_unroll
+run test_bench_unroll $truv bench -b $INDIR/real_small_base.vcf.gz \
+                                  -c $INDIR/real_small_comp.vcf.gz \
+                                  --unroll \
+                                  -o $OD/bench_unroll/
+assert_exit_code 0
+for i in $ANSDIR/bench_unroll/*.vcf
+do
+    bname=$(basename $i | sed 's/[\.|\-]/_/g')
+    result=$OD/bench_unroll/$(basename $i)
+    sort_vcf $result
+    run test_bench_unroll_${bname}
+    assert_equal $(fn_md5 $i) $(fn_md5 $result)
+done
+
+# --giabreport
 rm -rf $OD/bench_giab
 run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -c $INDIR/input1.vcf.gz \
@@ -168,6 +186,7 @@ assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/gia
 
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
 assert_exit_code 100
+
 
 # ------------------------------------------------------------
 #                                 collapse
