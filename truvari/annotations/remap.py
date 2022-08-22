@@ -21,7 +21,7 @@ import pysam
 try:
     from bwapy import BwaAligner
     HASBWALIB = True
-except OSError:
+except (OSError,  ModuleNotFoundError):
     HASBWALIB = False
 
 import truvari

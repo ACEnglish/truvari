@@ -68,7 +68,8 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 
     def __repr__(self):
-        return f'<truvari.bench.MatchResult ({self.state} {round(self.score, 3)})>'
+        sc = round(self.score, 3) if self.score is not None else None
+        return f'<truvari.bench.MatchResult ({self.state} {sc})>'
 
 
 class Matcher():
@@ -421,6 +422,8 @@ def compare_chunk(chunk):
         return fns
 
     # Build all v all matrix
+    # Should allow short-circuiting here.
+    # If we find a perfect match, don't need to keep comparing.
     match_matrix = []
     for bid, b in enumerate(chunk_dict['base']):
         base_matches = []
@@ -430,9 +433,12 @@ def compare_chunk(chunk):
             base_matches.append(mat)
         match_matrix.append(base_matches)
 
+    # For building custom pickers
+    match_matrix = np.array(match_matrix)
+    if matcher.params.multimatch == 'KEEPALL':
+        return match_matrix
     # Sort and annotate matches
     ret = []
-    match_matrix = np.array(match_matrix)
     if matcher.params.multimatch:
         ret = pick_multi_matches(match_matrix)
     else:
