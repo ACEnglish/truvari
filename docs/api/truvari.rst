@@ -178,9 +178,17 @@ weighted_score
 
 Dev methods
 -----------
+chunker
+^^^^^^^
+.. autofunction:: chunker
+
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
+
+file_zipper
+^^^^^^^^^^^
+.. autofunction:: file_zipper
 
 help_unknown_cmd
 ^^^^^^^^^^^^^^^^

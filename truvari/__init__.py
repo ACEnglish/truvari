@@ -41,7 +41,9 @@ Extra methods:
 :meth:`weighted_score`
 
 Dev methods:
+:meth:`chunker`
 :meth:`cmd_exe`
+:meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
 :meth:`opt_gz_open`
@@ -105,7 +107,9 @@ from truvari.comparisons import (
 
 from truvari.matching import (
     MatchResult,
-    Matcher
+    Matcher,
+    chunker,
+    file_zipper
 )
 
 from truvari.region_vcf_iter import (

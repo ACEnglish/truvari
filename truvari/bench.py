@@ -69,92 +69,6 @@ class StatsBox(OrderedDict):
         if denom != 0:
             self["f1"] = 2 * (neum / denom)
 
-
-############################
-# Parsing and set building #
-############################
-def file_zipper(*start_files):
-    """
-    Zip files to yield the entries in order.
-    Files must be sorted
-    Each parameter is a tuple of ('key', iterable)
-    where key is the identifier (so we know which file the yielded entry came from)
-    iterable is usually a pysam.VariantFile
-    yields key, pysam.VariantRecord
-    """
-    next_markers = []
-    files = []
-    names = []
-    file_counts = Counter()
-    for name, i in start_files:
-        try:
-            next_markers.append(next(i))
-            names.append(name)
-            files.append(i)
-        except StopIteration:
-            # For when there are no variants in the file
-            pass
-
-    while next_markers:
-        sidx = 0  # assume the first is the least
-        for idx, i in enumerate(next_markers):
-            if i.chrom < next_markers[sidx].chrom:
-                sidx = idx
-            elif i.chrom == next_markers[sidx].chrom and i.start < next_markers[sidx].start:
-                sidx = idx
-        entry = next_markers[sidx]
-        key = names[sidx]
-        file_counts[key] += 1
-        try:
-            next_markers[sidx] = next(files[sidx])
-        except StopIteration:
-            # This file is done
-            files.pop(sidx)
-            names.pop(sidx)
-            next_markers.pop(sidx)
-        yield key, entry
-    logging.info(f"Zipped {sum(file_counts.values())} variants. {file_counts}")
-
-
-def chunker(matcher, *files):
-    """
-    Given a Matcher and multiple files, zip them and create chunks
-    """
-    call_counts = Counter()
-    chunk_count = 0
-    cur_chrom = None
-    cur_end = None
-    cur_chunk = defaultdict(list)
-    for key, entry in file_zipper(*files):
-        if entry.alts is None: # ignore monomorphic reference
-            cur_chunk['__filtered'].append(entry)
-            call_counts['__filtered'] += 1
-            continue
-        new_chrom = cur_chrom and entry.chrom != cur_chrom
-        new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
-        if new_chunk or new_chrom:
-            chunk_count += 1
-            yield matcher, cur_chunk, chunk_count
-            # Reset
-            cur_chrom = None
-            cur_end = None
-            cur_chunk = defaultdict(list)
-
-        if not matcher.filter_call(entry, key == 'base'):
-            logging.debug(f"Adding to {key} -> {entry}")
-            cur_chrom = entry.chrom
-            cur_end = entry.stop
-            cur_chunk[key].append(entry)
-            call_counts[key] += 1
-        else:
-            cur_chunk['__filtered'].append(entry)
-            call_counts['__filtered'] += 1
-    chunk_count += 1
-    logging.info(
-        f"{chunk_count} chunks of {sum(call_counts.values())} variants. {call_counts}")
-    yield matcher, cur_chunk, chunk_count
-
-
 def compare_chunk(chunk):
     """
     Given a filtered chunk, (from chunker) compare all of the calls
@@ -582,7 +496,7 @@ def bench_main(cmdargs):
     base_i = regions.iterate(base)
     comp_i = regions_extended.iterate(comp)
 
-    chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
+    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
     for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
         # setting non-matched call variants that are not fully contained in the original regions to None
         # These don't count as FP or TP and don't appear in the output vcf files

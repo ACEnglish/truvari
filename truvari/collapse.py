@@ -421,7 +421,7 @@ def collapse_main(args):
     outputs = setup_outputs(args)
     base = pysam.VariantFile(args.input)
 
-    chunks = trubench.chunker(matcher, ('base', base))
+    chunks = truvari.chunker(matcher, ('base', base))
     for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
         output_writer(call, outputs)
     #with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:

@@ -3,6 +3,7 @@ Comparison engine
 """
 import types
 import logging
+from collections import Counter, defaultdict
 from functools import total_ordering
 import pysam
 import truvari
@@ -239,3 +240,85 @@ class Matcher():
         ret.calc_score()
 
         return ret
+
+############################
+# Parsing and set building #
+############################
+def file_zipper(*start_files):
+    """
+    Zip files to yield the entries in order.
+    Files must be sorted
+    Each parameter is a tuple of ('key', iterable)
+    where key is the identifier (so we know which file the yielded entry came from)
+    iterable is usually a pysam.VariantFile
+    yields key, pysam.VariantRecord
+    """
+    next_markers = []
+    files = []
+    names = []
+    file_counts = Counter()
+    for name, i in start_files:
+        try:
+            next_markers.append(next(i))
+            names.append(name)
+            files.append(i)
+        except StopIteration:
+            # For when there are no variants in the file
+            pass
+
+    while next_markers:
+        sidx = 0  # assume the first is the least
+        for idx, i in enumerate(next_markers):
+            if i.chrom < next_markers[sidx].chrom:
+                sidx = idx
+            elif i.chrom == next_markers[sidx].chrom and i.start < next_markers[sidx].start:
+                sidx = idx
+        entry = next_markers[sidx]
+        key = names[sidx]
+        file_counts[key] += 1
+        try:
+            next_markers[sidx] = next(files[sidx])
+        except StopIteration:
+            # This file is done
+            files.pop(sidx)
+            names.pop(sidx)
+            next_markers.pop(sidx)
+        yield key, entry
+    logging.info("Zipped %d variants %s", sum(file_counts.values()), file_counts)
+
+def chunker(matcher, *files):
+    """
+    Given a Matcher and multiple files, zip them and create chunks
+    """
+    call_counts = Counter()
+    chunk_count = 0
+    cur_chrom = None
+    cur_end = None
+    cur_chunk = defaultdict(list)
+    for key, entry in file_zipper(*files):
+        if entry.alts is None: # ignore monomorphic reference
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+        new_chrom = cur_chrom and entry.chrom != cur_chrom
+        new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
+        if new_chunk or new_chrom:
+            chunk_count += 1
+            yield matcher, cur_chunk, chunk_count
+            # Reset
+            cur_chrom = None
+            cur_end = None
+            cur_chunk = defaultdict(list)
+
+        if not matcher.filter_call(entry, key == 'base'):
+            logging.debug(f"Adding to {key} -> {entry}")
+            cur_chrom = entry.chrom
+            cur_end = entry.stop
+            cur_chunk[key].append(entry)
+            call_counts[key] += 1
+        else:
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+    chunk_count += 1
+    logging.info("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
+    yield matcher, cur_chunk, chunk_count
