@@ -41,7 +41,9 @@ Extra methods:
 :meth:`weighted_score`
 
 Dev methods:
+:meth:`chunker`
 :meth:`cmd_exe`
+:meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
 :meth:`opt_gz_open`
@@ -78,16 +80,6 @@ from truvari.annotations.af_calc import (
     calc_hwe
 )
 
-from truvari.bench import (
-    MatchResult,
-    Matcher
-)
-
-from truvari.region_vcf_iter import (
-    RegionVCFIterator,
-    build_anno_tree
-)
-
 from truvari.comparisons import (
     create_pos_haplotype,
     entry_boundaries,
@@ -111,6 +103,18 @@ from truvari.comparisons import (
     sizesim,
     unroll_compare,
     weighted_score,
+)
+
+from truvari.matching import (
+    MatchResult,
+    Matcher,
+    chunker,
+    file_zipper
+)
+
+from truvari.region_vcf_iter import (
+    RegionVCFIterator,
+    build_anno_tree
 )
 
 from truvari.utils import (
