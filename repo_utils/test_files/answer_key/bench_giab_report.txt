@@ -74,7 +74,6 @@ reference	repo_utils/test_files/reference.fa
 sizefilt	30
 sizemax	50000
 sizemin	50
-threads	1
 typeignore	False
 unroll	False
 use_lev	False

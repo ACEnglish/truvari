@@ -36,7 +36,7 @@ bench() {
     f2=$2
     k=$3
     rm -rf $OD/bench${k}
-    run test_bench_${k} $truv bench -T 1 -b $INDIR/input${f1}.vcf.gz \
+    run test_bench_${k} $truv bench -b $INDIR/input${f1}.vcf.gz \
                                       -c $INDIR/input${f2}.vcf.gz \
                                       -f $INDIR/reference.fa \
                                       -o $OD/bench${k}/ ${4}
@@ -54,7 +54,7 @@ bench() {
 
 collapse() {
     # run and test truvari collapse
-    run test_collapse_$1 $truv collapse -T 1 -f $INDIR/reference.fa \
+    run test_collapse_$1 $truv collapse -f $INDIR/reference.fa \
                      -i $INDIR/input${1}.vcf.gz \
                      -o $OD/input${1}_collapsed.vcf \
                      -c $OD/input${1}_removed.vcf \
@@ -75,7 +75,7 @@ collapse() {
 collapse_multi() {
     # tests multi sample collapse with provided keep method
     keep=$1
-    run test_collapse_multi_$keep $truv collapse -T 1 -f $INDIR/reference.fa \
+    run test_collapse_multi_$keep $truv collapse -f $INDIR/reference.fa \
                                              -i $INDIR/multi.vcf.gz \
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
@@ -157,7 +157,6 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -c $INDIR/input1.vcf.gz \
                                 -f $INDIR/reference.fa \
                                 -o $OD/bench_giab/ \
-                                -T 1 \
                                 --includebed $INDIR/giab.bed \
                                 --multimatch \
                                 --giabreport \

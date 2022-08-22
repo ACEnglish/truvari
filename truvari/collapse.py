@@ -9,8 +9,7 @@ import sys
 import json
 import logging
 import argparse
-#import itertools
-import concurrent.futures
+import itertools
 from functools import cmp_to_key
 
 import pysam
@@ -424,17 +423,18 @@ def collapse_main(args):
     base = pysam.VariantFile(args.input)
 
     chunks = trubench.chunker(matcher, ('base', base))
-    with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
-        future_chunks = {executor.submit(collapse_chunk, c): c for c in chunks}
-        for future in concurrent.futures.as_completed(future_chunks):
-            result = None
-            try:
-                result = future.result()
-            except Exception as exc: # pylint: disable=broad-except
-                logging.error('%r generated an exception: %s', result, exc)
-            else:
-                for call in result:
-                    output_writer(call, outputs)
+    for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
+        output_writer(call, outputs)
+    #with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
+    #    future_chunks = {executor.submit(collapse_chunk, c): c for c in chunks}
+    #    for future in concurrent.futures.as_completed(future_chunks):
+    #        result = None
+    #        try:
+    #            result = future.result()
+    #        except Exception as exc:
+    #            logging.error('%r generated an exception: %s', result, exc)
+    #        else:
+    #            for call in result:
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
