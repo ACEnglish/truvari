@@ -10,6 +10,8 @@ import types
 import logging
 import argparse
 import itertools
+import multiprocessing
+import concurrent.futures
 
 from functools import total_ordering
 from collections import defaultdict, OrderedDict, Counter
@@ -624,6 +626,8 @@ def parse_args(args):
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("-T", "--threads", type=int, default=multiprocessing.cpu_count(),
+                        help="Number of threads to use (%(default)s)")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")
 
@@ -820,12 +824,22 @@ def bench_main(cmdargs):
     comp_i = regions_extended.iterate(comp)
 
     chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        # setting non-matched call variants that are not fully contained in the original regions to None
-        # These don't count as FP or TP and don't appear in the output vcf files
-        if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
-            call.comp = None
-        output_writer(call, outputs, args.sizemin)
+    with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
+        future_chunks = {executor.submit(compare_chunk, c): c for c in chunks}
+        for future in concurrent.futures.as_completed(future_chunks):
+            m_chunk = future_chunks[future]
+            try:
+                result = future.result()
+            except Exception as exc:
+                logging.error('%r generated an exception: %s' % (result, exc))
+            else:
+                for call in result :#future_chunks[future]:
+                    # setting non-matched call variants that are not fully contained in the original regions to None
+                    # These don't count as FP or TP and don't appear in the output vcf files
+                    if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
+                        call.comp = None
+                    output_writer(call, outputs, args.sizemin)
+    #for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         box = outputs["stats_box"]
