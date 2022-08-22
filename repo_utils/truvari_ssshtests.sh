@@ -36,7 +36,7 @@ bench() {
     f2=$2
     k=$3
     rm -rf $OD/bench${k}
-    run test_bench_${k} $truv bench -b $INDIR/input${f1}.vcf.gz \
+    run test_bench_${k} $truv bench -T 2 -b $INDIR/input${f1}.vcf.gz \
                                       -c $INDIR/input${f2}.vcf.gz \
                                       -f $INDIR/reference.fa \
                                       -o $OD/bench${k}/ ${4}
