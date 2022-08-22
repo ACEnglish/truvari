@@ -9,7 +9,8 @@ import sys
 import json
 import logging
 import argparse
-import itertools
+#import itertools
+import concurrent.futures
 from functools import cmp_to_key
 
 import pysam
@@ -251,6 +252,8 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("-T", "--threads", type=int, default=2,
+                        help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -292,7 +295,7 @@ def parse_args(args):
 
     args = parser.parse_args(args)
     if args.pctsim != 0 and not args.reference and not args.unroll:
-        parser.error("--reference is required when --pctsim is set")
+        parser.error("--reference is required when --pctsim is set without --unroll")
 
     if args.null_consolidate is not None:
         args.null_consolidate = args.null_consolidate.split(',')
@@ -421,8 +424,17 @@ def collapse_main(args):
     base = pysam.VariantFile(args.input)
 
     chunks = trubench.chunker(matcher, ('base', base))
-    for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
-        output_writer(call, outputs)
+    with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
+        future_chunks = {executor.submit(collapse_chunk, c): c for c in chunks}
+        for future in concurrent.futures.as_completed(future_chunks):
+            result = None
+            try:
+                result = future.result()
+            except Exception as exc: # pylint: disable=broad-except
+                logging.error('%r generated an exception: %s', result, exc)
+            else:
+                for call in result:
+                    output_writer(call, outputs)
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])

@@ -14,10 +14,16 @@ COVERAGE_RCFILE=.coveragerc
 rm -rf $OD
 mkdir -p $OD
 
-truv="coverage run --concurrency=multiprocessing -p -m truvari.__main__"
+truv="coverage run --concurrency=multiprocessing,thread -p -m truvari.__main__"
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
+sort_vcf() {
+    fn=$1
+    python3 -c "import sys; from pysam import bcftools; sys.stdout.write(bcftools.sort(sys.argv[1]))" $fn > tmp
+    mv tmp $fn
+}
+
 fn_md5() {
     fn=$1
     # simple md5sum checking
@@ -30,7 +36,7 @@ bench() {
     f2=$2
     k=$3
     rm -rf $OD/bench${k}
-    run test_bench_${k} $truv bench -b $INDIR/input${f1}.vcf.gz \
+    run test_bench_${k} $truv bench -T 1 -b $INDIR/input${f1}.vcf.gz \
                                       -c $INDIR/input${f2}.vcf.gz \
                                       -f $INDIR/reference.fa \
                                       -o $OD/bench${k}/ ${4}
@@ -39,18 +45,24 @@ bench() {
     for i in $ANSDIR/bench${k}/*.vcf
     do
         bname=$(basename $i | sed 's/[\.|\-]/_/g')
+        result=$OD/bench${k}/$(basename $i)
+        sort_vcf $result
         run test_bench${k}_${bname}
-        assert_equal $(fn_md5 $i) $(fn_md5 $OD/bench${k}/$(basename $i))
+        assert_equal $(fn_md5 $i) $(fn_md5 $result)
     done
 }
 
 collapse() {
     # run and test truvari collapse
-    run test_collapse_$1 $truv collapse -f $INDIR/reference.fa \
+    run test_collapse_$1 $truv collapse -T 1 -f $INDIR/reference.fa \
                      -i $INDIR/input${1}.vcf.gz \
                      -o $OD/input${1}_collapsed.vcf \
                      -c $OD/input${1}_removed.vcf \
                      ${2}
+
+    sort_vcf $OD/input${1}_collapsed.vcf 
+    sort_vcf $OD/input${1}_removed.vcf 
+
     assert_exit_code 0
 
     run test_collapse_${1}_collapsed
@@ -63,12 +75,14 @@ collapse() {
 collapse_multi() {
     # tests multi sample collapse with provided keep method
     keep=$1
-    run test_collapse_multi_$keep $truv collapse -f $INDIR/reference.fa \
+    run test_collapse_multi_$keep $truv collapse -T 1 -f $INDIR/reference.fa \
                                              -i $INDIR/multi.vcf.gz \
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
                                              --keep $keep
     assert_exit_code 0
+    sort_vcf $OD/multi_collapsed_${keep}.vcf
+    sort_vcf $OD/multi_removed_${keep}.vcf
 
     run test_collapse_multi_${keep}_collapsed
     assert_equal $(fn_md5 $ANSDIR/multi_collapsed_${keep}.vcf) $(fn_md5 $OD/multi_collapsed_${keep}.vcf)
@@ -143,6 +157,7 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 -c $INDIR/input1.vcf.gz \
                                 -f $INDIR/reference.fa \
                                 -o $OD/bench_giab/ \
+                                -T 1 \
                                 --includebed $INDIR/giab.bed \
                                 --multimatch \
                                 --giabreport \

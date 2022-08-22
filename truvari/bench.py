@@ -9,7 +9,8 @@ import json
 import types
 import logging
 import argparse
-import itertools
+#import itertools
+import concurrent.futures
 
 from functools import total_ordering
 from collections import defaultdict, OrderedDict, Counter
@@ -68,7 +69,8 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         return f'{self.state} {self.score} ->\n {self.base} {self.comp}'
 
     def __repr__(self):
-        return f'<truvari.bench.MatchResult ({self.state} {round(self.score, 3)})>'
+        sc = round(self.score, 3) if self.score is not None else None
+        return f'<truvari.bench.MatchResult ({self.state} {sc})>'
 
 
 class Matcher():
@@ -421,6 +423,8 @@ def compare_chunk(chunk):
         return fns
 
     # Build all v all matrix
+    # Should allow short-circuiting here.
+    # If we find a perfect match, don't need to keep comparing.
     match_matrix = []
     for bid, b in enumerate(chunk_dict['base']):
         base_matches = []
@@ -430,9 +434,12 @@ def compare_chunk(chunk):
             base_matches.append(mat)
         match_matrix.append(base_matches)
 
+    # For building custom pickers
+    match_matrix = np.array(match_matrix)
+    if matcher.params.multimatch == 'KEEPALL':
+        return match_matrix
     # Sort and annotate matches
     ret = []
-    match_matrix = np.array(match_matrix)
     if matcher.params.multimatch:
         ret = pick_multi_matches(match_matrix)
     else:
@@ -618,6 +625,8 @@ def parse_args(args):
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("-T", "--threads", type=int, default=2,
+                        help="Number of threads to use (%(default)s)")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")
 
@@ -814,12 +823,22 @@ def bench_main(cmdargs):
     comp_i = regions_extended.iterate(comp)
 
     chunks = chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        # setting non-matched call variants that are not fully contained in the original regions to None
-        # These don't count as FP or TP and don't appear in the output vcf files
-        if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
-            call.comp = None
-        output_writer(call, outputs, args.sizemin)
+    with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
+        future_chunks = {executor.submit(compare_chunk, c): c for c in chunks}
+        for future in concurrent.futures.as_completed(future_chunks):
+            result = None
+            try:
+                result = future.result()
+            except Exception as exc: # pylint: disable=broad-except
+                logging.error('%r generated an exception: %s', result, exc)
+            else:
+                for call in result: #future_chunks[future]:
+                    # setting non-matched call variants that are not fully contained in the original regions to None
+                    # These don't count as FP or TP and don't appear in the output vcf files
+                    if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
+                        call.comp = None
+                    output_writer(call, outputs, args.sizemin)
+    #for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         box = outputs["stats_box"]
