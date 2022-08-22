@@ -10,7 +10,6 @@ import types
 import logging
 import argparse
 #import itertools
-import multiprocessing
 import concurrent.futures
 
 from functools import total_ordering
@@ -626,7 +625,7 @@ def parse_args(args):
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
-    parser.add_argument("-T", "--threads", type=int, default=multiprocessing.cpu_count(),
+    parser.add_argument("-T", "--threads", type=int, default=2,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")

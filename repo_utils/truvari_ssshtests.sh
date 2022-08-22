@@ -54,7 +54,7 @@ bench() {
 
 collapse() {
     # run and test truvari collapse
-    run test_collapse_$1 $truv collapse -f $INDIR/reference.fa \
+    run test_collapse_$1 $truv collapse -T 1 -f $INDIR/reference.fa \
                      -i $INDIR/input${1}.vcf.gz \
                      -o $OD/input${1}_collapsed.vcf \
                      -c $OD/input${1}_removed.vcf \
@@ -75,12 +75,14 @@ collapse() {
 collapse_multi() {
     # tests multi sample collapse with provided keep method
     keep=$1
-    run test_collapse_multi_$keep $truv collapse -f $INDIR/reference.fa \
+    run test_collapse_multi_$keep $truv collapse -T 1 -f $INDIR/reference.fa \
                                              -i $INDIR/multi.vcf.gz \
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
                                              --keep $keep
     assert_exit_code 0
+    sort_vcf $OD/multi_collapsed_${keep}.vcf
+    sort_vcf $OD/multi_removed_${keep}.vcf
 
     run test_collapse_multi_${keep}_collapsed
     assert_equal $(fn_md5 $ANSDIR/multi_collapsed_${keep}.vcf) $(fn_md5 $OD/multi_collapsed_${keep}.vcf)
