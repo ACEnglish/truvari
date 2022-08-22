@@ -256,7 +256,6 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
-    # trubench.add_comparison_args(parser)
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")

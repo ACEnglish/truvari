@@ -1,0 +1,59 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##source=cuteSV-1.0.13
+##fileDate=2022-08-21 18:02:57 0-CST
+##reference=ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/HGSVC2/technical/reference/20200513_hg38_NoALT/hg38.no_alt.fa.gz
+##contig=<ID=chr21,length=46709983>
+##ALT=<ID=INS,Description="Insertion of novel sequence relative to the reference">
+##ALT=<ID=DEL,Description="Deletion relative to the reference">
+##ALT=<ID=DUP,Description="Region of elevated copy number relative to the reference">
+##ALT=<ID=INV,Description="Inversion of reference sequence">
+##ALT=<ID=BND,Description="Breakend of translocation">
+##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Precise structural variant">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variant">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=CHR2,Number=1,Type=String,Description="Chromosome for END coordinate in case of a translocation">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS for imprecise variants">
+##INFO=<ID=CILEN,Number=2,Type=Integer,Description="Confidence interval around inserted/deleted material between breakends">
+##INFO=<ID=RE,Number=1,Type=Integer,Description="Number of read support this record">
+##INFO=<ID=STRAND,Number=A,Type=String,Description="Strand orientation of the adjacency in BEDPE format (DEL:+-, DUP:-+, INV:++/--)">
+##INFO=<ID=RNAMES,Number=.,Type=String,Description="Supporting read names of SVs (comma separated)">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency.">
+##FILTER=<ID=q5,Description="Quality below 5">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DR,Number=1,Type=Integer,Description="# High-quality reference reads">
+##FORMAT=<ID=DV,Number=1,Type=Integer,Description="# High-quality variant reads">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="# Phred-scaled genotype likelihoods rounded to the closest integer">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="# Genotype quality">
+##CommandLine="cuteSV --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3 lra.chr21.14-19_wr.bam chr21.fa lra.chr21.14-19_wr.vcf ./workdir_lra"
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NULL
+chr21	14088265	cuteSV.INS.0	A	AAATATATAAATATATTATATATAATTATATATAATATATAAATATAGTATATATATAAATATATAATATATTTTATATTATATAATTATATATAAT	.	PASS	PRECISE;SVTYPE=INS;SVLEN=96;CIPOS=-19,19;CILEN=-15,15;RE=8;RNAMES=NULL;PctSeqSimilarity=0.8348;PctSizeSimilarity=0.7273;PctRecOverlap=0;SizeDiff=36;StartDistance=-157;EndDistance=-157;TruScore=52;MatchId=1.0.0	GT:DR:DV:PL:GQ	./.:.:8:.,.,.:.
+chr21	14161670	cuteSV.DEL.0	TATACATTATTATATATTAATGTATAATATATACATTATTATATATTAATATATAATATATACATTATTATATATTAATATATAATATATACATTATTATATATTAATATATA	T	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-112;CIPOS=-18,18;CILEN=-3,3;RE=15;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.8863;PctSizeSimilarity=0.8661;PctRecOverlap=0;SizeDiff=-15;StartDistance=122;EndDistance=107;TruScore=58;MatchId=2.0.0	GT:DR:DV:PL:GQ	./.:.:15:.,.,.:.
+chr21	14261777	cuteSV.INS.1	G	GTCAGAAATAGACACAATGGATTATGATAATTTAGAATATAAAAGTACACATTGAATATTAATTGAGCTGAAGAAAG	.	PASS	PRECISE;SVTYPE=INS;SVLEN=76;CIPOS=-27,27;CILEN=-1,1;RE=14;RNAMES=NULL;PctSeqSimilarity=0.7244;PctSizeSimilarity=0.9744;PctRecOverlap=0.7215;SizeDiff=2;StartDistance=21;EndDistance=21;TruScore=80;MatchId=4.0.0	GT:DR:DV:PL:GQ	./.:.:14:.,.,.:.
+chr21	14475157	cuteSV.DEL.2	TATTAATTAAATAATTTAATTTATTTATTATTATAAATTTATTAATATAAATTAAATAATAAT	T	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-62;CIPOS=-6,6;CILEN=-4,4;RE=11;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9302;PctSizeSimilarity=0.9538;PctRecOverlap=0.8788;SizeDiff=3;StartDistance=-8;EndDistance=-5;TruScore=92;MatchId=6.0.0	GT:DR:DV:PL:GQ	./.:.:11:.,.,.:.
+chr21	14902963	cuteSV.DEL.5	GCAGTGAGCCGAGATCGTGCCACTGCACGCCAGCCTGGGGACAGAGCAAGACGCTGTTTCAAAAAAAAAAAATAATAA	G	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-77;CIPOS=-2,2;CILEN=-2,2;RE=12;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.962;PctSizeSimilarity=0.9747;PctRecOverlap=0.975;SizeDiff=2;StartDistance=-2;EndDistance=0;TruScore=97;MatchId=10.0.0	GT:DR:DV:PL:GQ	./.:.:12:.,.,.:.
+chr21	16359650	cuteSV.DEL.6	ATATAATATTTATATATTATATATATTTATGTATATTATATATAATATTTATATATTATATATATTTATGTATATTATATATAATATTTATATATTATATGTATTTATGTATATTATATATAATATTTATATATTATATGTAT	A	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-142;CIPOS=-14,14;CILEN=-5,5;RE=22;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9647;PctSizeSimilarity=0.9789;PctRecOverlap=0.9161;SizeDiff=-3;StartDistance=-9;EndDistance=-12;TruScore=95;MatchId=15.0.0	GT:DR:DV:PL:GQ	./.:.:22:.,.,.:.
+chr21	16564734	cuteSV.INS.3	T	TTTGCTGTGTCGAAATCAAACCAGTCAGGAAACTCATCCCACCATCAAATATACAGAGCAGTAATTCTGTAA	.	PASS	PRECISE;SVTYPE=INS;SVLEN=71;CIPOS=0,0;CILEN=0,0;RE=26;RNAMES=NULL;PctSeqSimilarity=0.9103;PctSizeSimilarity=0.9861;PctRecOverlap=0.9726;SizeDiff=1;StartDistance=0;EndDistance=0;TruScore=95;MatchId=16.0.0	GT:DR:DV:PL:GQ	./.:.:26:.,.,.:.
+chr21	16747513	cuteSV.INS.4	T	TTGTATATATATACATATACACTGTATATATGTATATATATACATATATTATGTATA	.	PASS	PRECISE;SVTYPE=INS;SVLEN=56;CIPOS=-16,16;CILEN=-1,1;RE=8;RNAMES=NULL;PctSeqSimilarity=0.8571;PctSizeSimilarity=0.9643;PctRecOverlap=0.7544;SizeDiff=-2;StartDistance=-13;EndDistance=-13;TruScore=85;MatchId=18.0.0	GT:DR:DV:PL:GQ	./.:.:8:.,.,.:.
+chr21	16972913	cuteSV.INS.5	T	TATTATATATTATATATATAAATATATATATTTATATAATATATTTATATATTTATATATATAATATATTATATATATATATAATATATTATATATTATATATATAATATATTATATATTCTATATAATATATTATA	.	PASS	PRECISE;SVTYPE=INS;SVLEN=136;CIPOS=-47,47;CILEN=-16,16;RE=20;RNAMES=NULL;PctSeqSimilarity=0.9149;PctSizeSimilarity=0.9444;PctRecOverlap=0.7862;SizeDiff=8;StartDistance=-27;EndDistance=-27;TruScore=88;MatchId=20.1.0	GT:DR:DV:PL:GQ	./.:.:20:.,.,.:.
+chr21	17069150	cuteSV.DEL.8	ATATATATACACATATATATGTGTGTATATATATATACATATATATATATATATAT	A	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-55;CIPOS=-4,4;CILEN=-1,1;RE=14;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9735;PctSizeSimilarity=0.9821;PctRecOverlap=0.8246;SizeDiff=1;StartDistance=-10;EndDistance=-9;TruScore=92;MatchId=21.0.0	GT:DR:DV:PL:GQ	./.:.:14:.,.,.:.
+chr21	17085175	cuteSV.DEL.9	TATATATATATATATATATATATATATATATATATATATATATATATATATATATATATATA	T	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-61;CIPOS=-2,2;CILEN=-1,1;RE=23;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.913;PctSizeSimilarity=0.8525;PctRecOverlap=0.7581;SizeDiff=-9;StartDistance=-6;EndDistance=-15;TruScore=84;MatchId=22.0.0	GT:DR:DV:PL:GQ	./.:.:23:.,.,.:.
+chr21	17453492	cuteSV.DEL.11	TTTGCTAAAAGAATCATCAATGGCTCTTGAATTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT	T	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-64;CIPOS=-1,1;CILEN=-1,1;RE=12;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9453;PctSizeSimilarity=0.9688;PctRecOverlap=0.8923;SizeDiff=-2;StartDistance=-5;EndDistance=-7;TruScore=93;MatchId=27.0.0	GT:DR:DV:PL:GQ	./.:.:12:.,.,.:.
+chr21	17682697	cuteSV.DEL.12	GAGGGAGAGAAGAGGAGGCCTGGCTAGAAAAGTTGGTCTTGTTATGTAGGTGAAAATTCATAGCTGGCAGCCCTCC	G	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-75;CIPOS=-15,15;CILEN=-1,1;RE=11;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9419;PctSizeSimilarity=0.9615;PctRecOverlap=0.7722;SizeDiff=3;StartDistance=-18;EndDistance=-15;TruScore=89;MatchId=29.0.0	GT:DR:DV:PL:GQ	./.:.:11:.,.,.:.
+chr21	18174116	cuteSV.INS.6	T	TTATATATATATATCTTATATATATATATATATATCTTGGTATATATATATATATCTTGGTATATATATATATATATATATATATATCT	.	PASS	PRECISE;SVTYPE=INS;SVLEN=88;CIPOS=-8,8;CILEN=-7,7;RE=17;RNAMES=NULL;PctSeqSimilarity=0.9194;PctSizeSimilarity=0.9167;PctRecOverlap=0.7835;SizeDiff=8;StartDistance=17;EndDistance=17;TruScore=87;MatchId=35.0.0	GT:DR:DV:PL:GQ	./.:.:17:.,.,.:.
+chr21	18251502	cuteSV.INS.7	T	TTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTAATATATAAAATAAATATTTATTTTAATATTAAAATAAATATTTATTTTATATATAAAATAAATATTTATTTAATATATAAAATAAATATTATTTTAATATATAAAATAAATATTTATTTAATATATAAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATAAAATAAATATTTATTTTAATATATTAAAATAAATATTTATTTTATTTATTTTAATATATAAAATATTTTTATTTATTTATTTTAATATATAAAATA	.	PASS	PRECISE;SVTYPE=INS;SVLEN=474;CIPOS=-6,6;CILEN=-4,4;RE=13;RNAMES=NULL;PctSeqSimilarity=0.9383;PctSizeSimilarity=0.9451;PctRecOverlap=0.9453;SizeDiff=-26;StartDistance=-4;EndDistance=-4;TruScore=94;MatchId=36.0.0	GT:DR:DV:PL:GQ	./.:.:13:.,.,.:.
+chr21	18315472	cuteSV.DEL.13	CGTAGAACTTAAAGTATAATAAAATATATATATATAAAATAATAAACATGAGTCCTTTGCCACAGCTCAAGGTGGAGCTAGCTTTGATACTGAGTAAATGACGAGTTAGTGGGTGCAGCACACCAACATGGCACATGTATACACATATAACAAACCTGCACGTTGTGCACATGT	C	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-173;CIPOS=-31,31;CILEN=0,0;RE=18;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9771;PctSizeSimilarity=0.9886;PctRecOverlap=0.6193;SizeDiff=2;StartDistance=-67;EndDistance=-65;TruScore=86;MatchId=37.0.0	GT:DR:DV:PL:GQ	./.:.:18:.,.,.:.
+chr21	18541732	cuteSV.DEL.15	AAATTTTTGCATTGTTTTTGATCAATTCTTATCTTCTTTTATTTAATTTTAAAAACCAAATGGCAGATATTTTGTATGAAAAACTATTAATATAGATTTATTCCCTAAATAGTAATATTTTATTCCACAACTTGTTGTTTTGTTTGAGTCTACCATTTAGTTGGAGGGTATATCACCAGATTTTAATCTTGCCTTTACTTCTTGTATTTATTGATCTATACCCAGTTCAGCTGGCCCCTAGGGTTCATACCGTCATGCACAATTGAAAGTATATGTTAATTACCAGAGACCATCATCCTTGGTGGATCCTTACCTTCAGTTTTTATTTGTCAAGCACTATA	A	.	PASS	PRECISE;SVTYPE=DEL;SVLEN=-340;CIPOS=-1,1;CILEN=-1,1;RE=16;RNAMES=NULL;STRAND=+-;PctSeqSimilarity=0.9971;PctSizeSimilarity=0.9971;PctRecOverlap=0.9912;SizeDiff=1;StartDistance=2;EndDistance=3;TruScore=99;MatchId=39.0.0	GT:DR:DV:PL:GQ	./.:.:16:.,.,.:.
+chr21	18674632	cuteSV.INS.8	T	TTATGTATATATATATACATATATATATTCTAGAATATATATATATGTATATATATATATACATATATATATTCTAGAATATATATATGTATATATATATACATATATATATTCTAGGAATATATATATGTATATATATACATACACATATATATTCTAGAATATATATATATACACATATATATTCTAGGAATATATATATACACATATATATTCTAGGAATATATATATACACATATATATTCTAGGAATATATATATATACATATATATTCTAGAATATATATATACACATATATATTCTAGAATATATATATACACATATATAATTTA	.	PASS	PRECISE;SVTYPE=INS;SVLEN=331;CIPOS=-18,18;CILEN=-7,7;RE=22;RNAMES=NULL;PctSeqSimilarity=0.9354;PctSizeSimilarity=0.9093;PctRecOverlap=0.7644;SizeDiff=33;StartDistance=-69;EndDistance=-69;TruScore=86;MatchId=41.0.0	GT:DR:DV:PL:GQ	./.:.:22:.,.,.:.

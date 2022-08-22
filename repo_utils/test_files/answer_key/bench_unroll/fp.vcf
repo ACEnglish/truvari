@@ -1,0 +1,42 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##source=cuteSV-1.0.13
+##fileDate=2022-08-21 18:02:57 0-CST
+##reference=ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/HGSVC2/technical/reference/20200513_hg38_NoALT/hg38.no_alt.fa.gz
+##contig=<ID=chr21,length=46709983>
+##ALT=<ID=INS,Description="Insertion of novel sequence relative to the reference">
+##ALT=<ID=DEL,Description="Deletion relative to the reference">
+##ALT=<ID=DUP,Description="Region of elevated copy number relative to the reference">
+##ALT=<ID=INV,Description="Inversion of reference sequence">
+##ALT=<ID=BND,Description="Breakend of translocation">
+##INFO=<ID=PRECISE,Number=0,Type=Flag,Description="Precise structural variant">
+##INFO=<ID=IMPRECISE,Number=0,Type=Flag,Description="Imprecise structural variant">
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">
+##INFO=<ID=CHR2,Number=1,Type=String,Description="Chromosome for END coordinate in case of a translocation">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant described in this record">
+##INFO=<ID=CIPOS,Number=2,Type=Integer,Description="Confidence interval around POS for imprecise variants">
+##INFO=<ID=CILEN,Number=2,Type=Integer,Description="Confidence interval around inserted/deleted material between breakends">
+##INFO=<ID=RE,Number=1,Type=Integer,Description="Number of read support this record">
+##INFO=<ID=STRAND,Number=A,Type=String,Description="Strand orientation of the adjacency in BEDPE format (DEL:+-, DUP:-+, INV:++/--)">
+##INFO=<ID=RNAMES,Number=.,Type=String,Description="Supporting read names of SVs (comma separated)">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency.">
+##FILTER=<ID=q5,Description="Quality below 5">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DR,Number=1,Type=Integer,Description="# High-quality reference reads">
+##FORMAT=<ID=DV,Number=1,Type=Integer,Description="# High-quality variant reads">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="# Phred-scaled genotype likelihoods rounded to the closest integer">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="# Genotype quality">
+##CommandLine="cuteSV --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 --max_cluster_bias_DEL 100 --diff_ratio_merging_DEL 0.3 lra.chr21.14-19_wr.bam chr21.fa lra.chr21.14-19_wr.vcf ./workdir_lra"
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NULL
+chr21	20288212	cuteSV.INS.9	A	AATTATATATTATATATAAAATATATTATATATATTATATAATATATATAAAATATATTATATATATTATATAATATATATAAAATATATTATATTATATATTATATAATATATATAAAATATATTTATTATATATTATATAATATATATATAAATATATTATATTATATATTATATAATATATATATAATATATTATATTATTATATAATATATATAAAATATATTATATTATATATTATATTATATAT	.	PASS	PRECISE;SVTYPE=INS;SVLEN=249;CIPOS=-21,21;CILEN=-13,13;RE=12;RNAMES=NULL;PctSeqSimilarity=.;PctSizeSimilarity=.;PctRecOverlap=.;SizeDiff=.;StartDistance=.;EndDistance=.;TruScore=.;MatchId=45._.0	GT:DR:DV:PL:GQ	./.:.:12:.,.,.:.
