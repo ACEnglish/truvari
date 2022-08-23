@@ -202,8 +202,8 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                             stdin=sys.stdin, stderr=stderr, close_fds=True,
                             start_new_session=True, executable="/bin/bash")
-    signal.signal(signal.SIGALRM, alarm_handler)
     if timeout > 0:
+        signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(int(timeout * 60))
     try:
         stdoutVal, stderrVal = proc.communicate()
