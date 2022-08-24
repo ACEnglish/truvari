@@ -1,7 +1,10 @@
 """
 Wrapper around MAFFT and other tools to perform an MSA comparison of phased variants
 """
+import os
 import re
+import sys
+import shutil
 import logging
 import argparse
 
@@ -18,97 +21,156 @@ def parse_args(args):
                         help="chrom:start-end of region to process")
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline vcf to MSA")
+    # could maybe allow this to be an existing MSA and then we just use comp and add-to
     parser.add_argument("-c", "--comp", type=str, default=None,
                         help="Comparison vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
     parser.add_argument("--buffer", type=int, default=100,
                         help="Number of reference bases before/after region to add to MSA")
-    parser.add_argument("--add-to", action='store_true',
-                        help="Build the baseMSA independentally of the compMSA, then add the comp")
+    #parser.add_argument("--add-to", action='store_true',
+    #                    help="Build the baseMSA independentally of the compMSA, then add the comp")
     parser.add_argument("-o", "--output", default="phab_out",
                         help="Output directory")
-    parser.add_argument("-s", "--samples", type=str, default=None,
+    parser.add_argument("--bSamples", type=str, default=None,
                         help="Subset of samples to MSA from base-VCF")
+    parser.add_argument("--cSamples", type=str, default=None,
+                        help="Subset of samples to MSA from comp-VCF")
     args = parser.parse_args(args)
     return args
 
-def pull_variants(vcf, output, samples=None):
+def get_reference(fn, chrom, start, end, output):
     """
-    given vcf and a region, grab only the relevant variants
-    bcftools view -c 1 -r $region $vcf \
-    | bcftools +fill-from-fasta /dev/stdin -- -c REF -f $ref \
-    | bgzip > msa_${region}/variants.vcf.gz
+    Pull a subset of the reference - name it so we can tie back later
     """
-
-
-def get_reference():
-    """
-    Pul the reference sequence of the region.
-    rename contig so we can use it downstream
-    # gotta be careful here? I think if I use pysam I'm going to undo my 0/1 based corrections
-    """
-    pass
-
-def build_consensus():
-    """
-    Make the consensus sequence
-    samtools faidx $ref $expand_region \
-        | bcftools consensus -H1 --sample $i --prefix $i_[1|2]_ msa_${region}/variants.vcf.gz \
-        | python $DIR/fa_rename.py ${i}_1 >> msa_${region}/haps.fa
-    """
-    pass
-
-def run_mafft()
-    """
-    /users/u233287/scratch/misc_software/mafft-linux64/mafft.bat --retree 2 --maxiterate 0 msa_${region}/haps.fa > msa_${region}/aln_results.txt
-    """
-    pass
-
-def msa2vcf():
-    """
-    python $DIR/msa2vcf.py msa_${region}/aln_results.txt \
-        | vcf-sort \
-        | bcftools +fill-tags | bgzip > msa_${region}/result.vcf.gz
-    tabix msa_${region}/result.vcf.gz
-    """
-    pass
-
-def reports():
-    pass
-
-
-def get_reference(fn, chrom, start, end):
     fasta = pysam.FastaFile(fn)
     # Ugh.. not sure about this -1 anymore
     oseq = fasta.fetch(chrom, start - 1, end)
     # no need to make it pretty?
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
-    print(f">ref_{chrom}_{start}_{end}\n{oseq}")
+    with open(output) as fout:
+        fout.write(f">ref_{chrom}_{start}_{end}\n{oseq}\n")
+
+def pull_variants(vcf, region, output, ref, samples=None):
+    """
+    Given vcf and a region, grab the relevant variants
+    Maybe can make fill-from fasta optional.. but it isn't huge overhead (for now)
+    """
+    if samples is not None:
+        samples = "-s " + ",".join(samples)
+    else:
+        samples = ""
+    cmd = f"""\
+bcftools view -c 1 -s {samples} -r {region} {vcf} | \
+bcftools +fill-from-fasta /dev/stdin -- -c REF {ref} | \
+bgzip > {output} && tabix {output}"""
+
+    ret = truvari.cmd_exe(cmd, pipefail=True)
+    if ret.ret_code != 0:
+        logging.error("Unable to pull variants from %s", vcf)
+        logging.error(ret.stderr)
+        sys.exit(1)
+
+def build_consensus(vcf, ref, region, output, samples=None):
+    """
+    Make the consensus sequence - appends to output
+    """
+    cmd = """\
+samtools faidx {ref} {region} | \
+bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {output}
+"""
+    for samp in samples:
+        for hap in [1, 2]:
+            m_cmd = cmd.format(ref=ref,
+                               region=region,
+                               hap=hap,
+                               sample=samples,
+                               vcf=vcf,
+                               output=output)
+            ret = truvari.cmd_exe(m_cmd, pipefail=True)
+            if ret.ret_code != 0:
+                logging.error("Unable to make haplotype %d for sample %s", hap, samp)
+                logging.error(ret.stderr)
+                sys.exit(1)
+
+def run_mafft(seq_fn, output):
+    """
+    Run mafft
+    """
+    cmd = f"mafft.bat --retree 2 --maxiterate {seq_fn} > {output}"
+    ret = truvari.cmd_exe(cmd)
+    if ret.ret_code != 0:
+        logging.error("Unable to run MAFFT on %s", seq_fn)
+        logging.error(ret.stderr)
+        sys.exit(1)
 
 def run_phab(args):
-    
+    """
+    Regularize variants with MSA
+    """
     # make buffered region coordinates
     chrom, start, end = re.split(':|-', args.region)
     start = int(start) - args.buffer
     end = int(end) + args.buffer
-    
-    pull_variants(args)
-    get_reference()
-    build_consensus
-    run_mafft
-    truvari.msa2vcf #
+    buff_region = f"{chrom}:{start}-{end}"
+
+    os.mkdir(args.output)
+    # if samples is none, we're building consensus for all the samples
+    # need to parse them out here
+
+    sequences = os.path.join(args.output, "haps.fa")
+    get_reference(args.reference, chrom, start, end, sequences)
+
+    base_input_vcf = os.path.join(args.output, "base.vcf.gz")
+    pull_variants(args.base, args.region, base_input_vcf, args.reference, args.bSamples)
+    build_consensus(base_input_vcf, args.reference, buff_region, args.bSamples, sequences)
+
+    # if add-to, we put this elsewhere and revisit for now I'll disable that feature
+    # because it assumes we already have an MSA
+    if args.comp is not None:
+        comp_input_vcf = os.path.join(args.output, "comp.vcf.gz")
+        pull_variants(args.comp, args.region, comp_input_vcf, args.reference, args.cSamples)
+        build_consensus(args.comp, args.reference, buff_region, args.cSamples, sequences)
+
+    msa_output = os.path.join(args.output, "msa.fa")
+    run_mafft(sequences, msa_output)
+
+    output_vcf = os.path.join(args.output, "output.vcf")
+    # isn't exactly safe.. what if it doesn't have GT?
+    #n_header = str(pysam.VariantFile(args.base).header)
+
+    with open(output_vcf, 'w') as fout:
+        fout.write(truvari.msa2vcf(msa_output))
+
+    # optionally sort/compress/index?
+    # And I would do the reports here
+    # How many input variants / bases
+    # How many output variants / bases
+    # How many variants match (by presence and by matching GT)
+    # Eventually I can do advanced features by reusing Truvari Matcher to allow 'almost' variants
+    # This joins right into Matcher api, really. Just chunk the whole VCF and compare bSample to cSample
+
+def check_requirements():
+    """
+    ensure external programs are in PATH
+    """
+    check_fail = False
+    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft.bat"]:
+        if not shutil.which(prog):
+            logging.error("Unable to find `%s` in PATH", prog)
+            check_fail = True
+    return check_fail
 
 def phab_main(cmdargs):
     """
     Main
     """
     args = parse_args(cmdargs)
-    if check_requirements(args):
-        # samtools bcftools tabix vcf-sort mafft.bat bgzip
-        pass
-    if check_params(args):
+    if check_requirements():
+        sys.exit(1)
+    #if check_params(args):
         # mainly just if files exist
-        pass
-    
+        #pass
+    # need to be api-ize
     run_phab(args)
+    logging.info("Finished phab")

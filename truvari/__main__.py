@@ -9,10 +9,11 @@ from rich.console import Console
 
 import truvari
 from truvari import __version__
+from truvari.anno import anno_main
+from truvari.phab import phab_main
 from truvari.bench import bench_main
 from truvari.divide import divide_main
 from truvari.vcf2df import vcf2df_main
-from truvari.anno import anno_main
 from truvari.collapse import collapse_main
 from truvari.segmentation import segment_main
 from truvari.consistency_report import consistency_main
@@ -32,6 +33,7 @@ TOOLS = {'bench': bench_main,
          'vcf2df': vcf2df_main,
          'segment': segment_main,
          'divide': divide_main,
+         'phab': phab_main,
          'version': version}
 
 USAGE = f"""\
@@ -45,6 +47,7 @@ Available commands:
     [bold][cyan]vcf2df[/][/]        Turn a VCF into a pandas DataFrame
     [bold][cyan]segment[/][/]       Normalization of SVs into disjointed genomic regions
     [bold][cyan]divide[/][/]        Divide a VCF into multiple parts
+    [bold][cyan]phab[/][/]          Phased variant benchmarking using MSA
     [bold][cyan]version[/][/]       Print the Truvari version and exit
 """
 

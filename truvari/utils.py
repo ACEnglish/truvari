@@ -213,7 +213,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
                        "Automatic Timeout Initiated after %d"), timeout)
         os.killpg(proc.pid, signal.SIGTERM)
         proc.kill()
-        return cmd_result(214, None, None, timedelta(seconds=time.time() - t_start))
+        return cmd_result(214, "", "", timedelta(seconds=time.time() - t_start))
     except KeyboardInterrupt:
         logging.error("KeyboardInterrupt on cmd %s", cmd)
         os.killpg(proc.pid, signal.SIGKILL)
@@ -225,7 +225,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
 
     stdoutVal = bytes.decode(stdoutVal)
     retCode = proc.returncode
-    ret = cmd_result(retCode, stdoutVal, stderrVal,
+    ret = cmd_result(retCode, stdoutVal, stderrVal.decode(),
                      timedelta(seconds=time.time() - t_start))
     return ret
 

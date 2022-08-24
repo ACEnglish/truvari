@@ -2,63 +2,48 @@
 Turn an MSA fasta into VCF. Assumes one entry is reference with name >ref_chrom:start-end
 """
 import sys
-import argparse
-import pysam
-from collections import defaultdict
 import logging
-import truvari
+from io import StringIO
+from collections import defaultdict
+
+import pysam
 
 REFIDX = 3
 ALTIDX = 4
 
-def build_header():
+def build_header(chrom=None):
     """
-    Pull header contig information from existing VCF if provided, otherwise we'll fake it
+    Bare minimum vcf header
     """
-    print("##fileformat=VCFv4.1")
-    print("##contig=<ID=chr1,length=248956422>")
-    print("##contig=<ID=chr2,length=242193529>")
-    print("##contig=<ID=chr3,length=198295559>")
-    print("##contig=<ID=chr4,length=190214555>")
-    print("##contig=<ID=chr5,length=181538259>")
-    print("##contig=<ID=chr6,length=170805979>")
-    print("##contig=<ID=chr7,length=159345973>")
-    print("##contig=<ID=chr8,length=145138636>")
-    print("##contig=<ID=chr9,length=138394717>")
-    print("##contig=<ID=chr10,length=133797422>")
-    print("##contig=<ID=chr11,length=135086622>")
-    print("##contig=<ID=chr12,length=133275309>")
-    print("##contig=<ID=chr13,length=114364328>")
-    print("##contig=<ID=chr14,length=107043718>")
-    print("##contig=<ID=chr15,length=101991189>")
-    print("##contig=<ID=chr16,length=90338345>")
-    print("##contig=<ID=chr17,length=83257441>")
-    print("##contig=<ID=chr18,length=80373285>")
-    print("##contig=<ID=chr19,length=58617616>")
-    print("##contig=<ID=chr20,length=64444167>")
-    print("##contig=<ID=chr21,length=46709983>")
-    print("##contig=<ID=chr22,length=50818468>")
-    print("##contig=<ID=chrX,length=156040895>")
-    print("##contig=<ID=chrY,length=57227415>")
-    print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
+    ret = '##fileformat=VCFv4.1\t##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
+    if chrom is not None:
+        ret += "\n##contig=<ID={chrom}>"
+    return ret
 
-def msa_to_vars(msa, startpos=0):
+def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
     """
-    build dictionary of variant : samples containing the variant
+    Turn MSA into VCF entries and their presence in samples
+    returns list of sample names parsed and dictionary of variant : samples containing the variant
     """
-    defaultdict(list)
+    sample_names = set()
+
+    final_vars = defaultdict(list)
+
     for alt_key in msa.references:
         if alt_key.startswith("ref_"):
             continue
-        cur_samps = alt_key.split(';')
-        sample_names.update([_.split('_')[0] for _ in cur_samps])
+        cur_samp = alt_key.split('_')[0]
+        sample_names.update(cur_samp)
         alt_seq = msa[alt_key].upper()
         # Gotta assume the first base is a match (little unsafe)
         anchor_base = ref_seq[0]
-        cur_variant = None
+        if anchor_base == '-':
+            logging.error("MSA starts with an indel in %s. Can't make VCF", alt_key)
+            sys.exit(1)
+
+        cur_variant = []
         cur_pos = start_pos
-        for pos, bases in enumerate(zip(ref_seq, alt_seq)):
-            ref_base, alt_base = bases
+        for ref_base, alt_base in zip(ref_seq, alt_seq):
             is_ref = ref_base != '-'
             if ref_base == '-':
                 ref_base = ""
@@ -70,7 +55,7 @@ def msa_to_vars(msa, startpos=0):
                 continue
 
             if ref_base == alt_base: # No variant
-                if cur_variant is not None and is_ref: # back to matching reference
+                if cur_variant and is_ref: # back to matching reference
                     # Anchor base correction
                     if len(cur_variant[REFIDX]) == len(cur_variant[ALTIDX]):
                         cur_variant[REFIDX] = cur_variant[REFIDX][1:]
@@ -80,10 +65,10 @@ def msa_to_vars(msa, startpos=0):
                     # this is a weird edge check
                     # sometimes reference bases aren't aligned
                     if cur_variant[REFIDX] != cur_variant[ALTIDX]:
-                        final_vars[key].extend(cur_samps)
-                    cur_variant = None
+                        final_vars[key].append(cur_samp)
+                    cur_variant = []
             else:
-                if cur_variant is None:
+                if cur_variant:
                     # -1 for the anchor base we're forcing on
                     cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base, anchor_base + alt_base, '.', '.', '.', 'GT']
                 else:
@@ -92,7 +77,8 @@ def msa_to_vars(msa, startpos=0):
             if is_ref:
                 cur_pos += 1
                 anchor_base = ref_base
-        if cur_variant is not None:
+
+        if cur_variant:
             # Anchor base correction
             if len(cur_variant[REFIDX]) == len(cur_variant[ALTIDX]):
                 cur_variant[REFIDX] = cur_variant[REFIDX][1:]
@@ -102,47 +88,49 @@ def msa_to_vars(msa, startpos=0):
             # this is a weird edge check
             # sometimes reference bases aren't aligned
             if cur_variant[REFIDX] != cur_variant[ALTIDX]:
-                final_vars[key].extend(cur_samps)
-            cur_variant = None
+                final_vars[key].append(cur_samp)
 
-def write_vcf(variants, sample_names):
+        sample_names = sorted(list(sample_names))
+        return sample_names, final_vars
+
+def make_vcf(variants, sample_names, header):
     """
     Write VCF - building GTs
     """
-    sys.stdout.write("#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT\t")
-    sys.stdout.write("\t".join(sample_names) + '\n')
+    out = StringIO()
+    out.write(header)
+    out.write("#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT\t")
+    out.write("\t".join(sample_names) + '\n')
 
     for var in variants:
-        sys.stdout.write(var)
+        out.write(var)
         for sample in sample_names:
-            sys.stdout.write('\t')
+            out.write('\t')
             gt = ["0", "0"]
-            if sample + '_1' in final_vars[var]:
+            if sample + '_1' in variants[var]:
                 gt[0] = "1"
-            if sample + '_2' in final_vars[var]:
+            if sample + '_2' in variants[var]:
                 gt[1] = "1"
-            sys.stdout.write("/".join(gt))
-        sys.stdout.write('\n')
+            out.write("/".join(gt))
+        out.write('\n')
+    out.seek(0)
+    return out.read()
 
-def msa2vcf(fn, ref_prefix="ref_", header=None):
-    
-    pass
-
-def msa2vcf_main():
-    
-    msa = pysam.FastaFile(sys.argv[1])
+def msa2vcf(fn, header=None):
+    """
+    Parses an MSA and returns its VCF as a string
+    Assumes one entry in the MSA is the reference with name ref_${chrom}:${start}-${end}
+    """
+    msa = pysam.FastaFile(fn)
 
     # The ref_key identifies reference
-    ref_key = [_ for _ in msa.references if _.startswith("ref_")][0]
+    ref_key = [_ for _ in msa.references if _.startswith("ref_")][0] # pylint: disable=not-an-iterable
     ref_seq = msa[ref_key].upper()
     chrom = ref_key.split('_')[1]
     start_pos = int(ref_key.split('_')[2])
 
-    # We merge variants that are identical
-    final_vars = msa_to_vars() 
-    
-    sample_names = set()
+    sample_names, variants = msa_to_vars(msa, ref_seq, chrom, start_pos)
+    if header is None:
+        header = build_header(chrom)
 
-    sample_names = sorted(list(sample_names))
-    write_vcf(final_vars, sample_names)
-    logging.info("Finished")
+    return make_vcf(variants, sample_names, header)

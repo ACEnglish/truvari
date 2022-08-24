@@ -46,6 +46,7 @@ Dev methods:
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
+:meth:`msa2vcf`
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
@@ -110,6 +111,10 @@ from truvari.matching import (
     Matcher,
     chunker,
     file_zipper
+)
+
+from truvari.msa2vcf import (
+    msa2vcf
 )
 
 from truvari.region_vcf_iter import (
