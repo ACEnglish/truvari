@@ -10,6 +10,7 @@ Available commands:
     vcf2df        Turn a VCF into a pandas DataFrame
     segment       Normalization of SVs into disjointed genomic regions
     divide        Divide a VCF into multiple parts
+    phab          Phased variant benchmarking using MSA
     version       Print the Truvari version and exit
 
 positional arguments:

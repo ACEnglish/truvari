@@ -1,6 +1,7 @@
 [run]
 concurrency = multiprocessing
 branch = true
-[omit]
-truvari/msa2vcf.py
-truvari/phab.py
+[report]
+omit = 
+	truvari/msa2vcf.py
+	truvari/phab.py
