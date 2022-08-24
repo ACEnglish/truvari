@@ -48,7 +48,7 @@ def get_reference(fn, chrom, start, end, output):
     oseq = fasta.fetch(chrom, start - 1, end)
     # no need to make it pretty?
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
-    with open(output) as fout:
+    with open(output, 'w') as fout:
         fout.write(f">ref_{chrom}_{start}_{end}\n{oseq}\n")
 
 def pull_variants(vcf, region, output, ref, samples=None):
@@ -61,10 +61,10 @@ def pull_variants(vcf, region, output, ref, samples=None):
     else:
         samples = ""
     cmd = f"""\
-bcftools view -c 1 -s {samples} -r {region} {vcf} | \
-bcftools +fill-from-fasta /dev/stdin -- -c REF {ref} | \
-bgzip > {output} && tabix {output}"""
-
+bcftools view -c 1 {samples} -r {region} {vcf} \
+| bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
+| bgzip > {output} && tabix {output}"""
+    
     ret = truvari.cmd_exe(cmd, pipefail=True)
     if ret.ret_code != 0:
         logging.error("Unable to pull variants from %s", vcf)
@@ -84,7 +84,7 @@ bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {
             m_cmd = cmd.format(ref=ref,
                                region=region,
                                hap=hap,
-                               sample=samples,
+                               sample=samp,
                                vcf=vcf,
                                output=output)
             ret = truvari.cmd_exe(m_cmd, pipefail=True)
@@ -97,9 +97,9 @@ def run_mafft(seq_fn, output):
     """
     Run mafft
     """
-    cmd = f"mafft.bat --retree 2 --maxiterate {seq_fn} > {output}"
+    cmd = f"mafft.bat --retree 2 --maxiterate 0 {seq_fn} > {output}"
     ret = truvari.cmd_exe(cmd)
-    if ret.ret_code != 0:
+    if ret.ret_code != 0: # this doesn't (ever?) exit non-zero
         logging.error("Unable to run MAFFT on %s", seq_fn)
         logging.error(ret.stderr)
         sys.exit(1)
@@ -114,8 +114,16 @@ def run_phab(args):
     end = int(end) + args.buffer
     buff_region = f"{chrom}:{start}-{end}"
 
-    os.mkdir(args.output)
+    try:
+        os.mkdir(args.output)
+    except FileExistsError:
+        # Remove this agression
+        pass
     # if samples is none, we're building consensus for all the samples
+    if args.bSamples is None:
+        args.bSamples = list(pysam.VariantFile(args.base).header.samples)
+    if args.comp and args.cSamples is None:
+        args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
     # need to parse them out here
 
     sequences = os.path.join(args.output, "haps.fa")
@@ -123,14 +131,14 @@ def run_phab(args):
 
     base_input_vcf = os.path.join(args.output, "base.vcf.gz")
     pull_variants(args.base, args.region, base_input_vcf, args.reference, args.bSamples)
-    build_consensus(base_input_vcf, args.reference, buff_region, args.bSamples, sequences)
+    build_consensus(base_input_vcf, args.reference, buff_region, sequences, args.bSamples)
 
     # if add-to, we put this elsewhere and revisit for now I'll disable that feature
     # because it assumes we already have an MSA
     if args.comp is not None:
         comp_input_vcf = os.path.join(args.output, "comp.vcf.gz")
         pull_variants(args.comp, args.region, comp_input_vcf, args.reference, args.cSamples)
-        build_consensus(args.comp, args.reference, buff_region, args.cSamples, sequences)
+        build_consensus(args.comp, args.reference, buff_region, sequences, args.cSamples)
 
     msa_output = os.path.join(args.output, "msa.fa")
     run_mafft(sequences, msa_output)
@@ -166,6 +174,7 @@ def phab_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
+    truvari.setup_logging(True)
     if check_requirements():
         sys.exit(1)
     #if check_params(args):

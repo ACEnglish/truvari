@@ -15,9 +15,9 @@ def build_header(chrom=None):
     """
     Bare minimum vcf header
     """
-    ret = '##fileformat=VCFv4.1\t##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
+    ret = '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
     if chrom is not None:
-        ret += "\n##contig=<ID={chrom}>"
+        ret += f"\n##contig=<ID={chrom}>\n"
     return ret
 
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
@@ -32,8 +32,9 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
     for alt_key in msa.references:
         if alt_key.startswith("ref_"):
             continue
-        cur_samp = alt_key.split('_')[0]
-        sample_names.update(cur_samp)
+        # gross
+        cur_samp_hap = "_".join(alt_key.split('_')[:2])
+        sample_names.add(alt_key.split('_')[0])
         alt_seq = msa[alt_key].upper()
         # Gotta assume the first base is a match (little unsafe)
         anchor_base = ref_seq[0]
@@ -43,6 +44,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
 
         cur_variant = []
         cur_pos = start_pos
+        # This is too long. need to have a separate zip method
         for ref_base, alt_base in zip(ref_seq, alt_seq):
             is_ref = ref_base != '-'
             if ref_base == '-':
@@ -65,10 +67,10 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
                     # this is a weird edge check
                     # sometimes reference bases aren't aligned
                     if cur_variant[REFIDX] != cur_variant[ALTIDX]:
-                        final_vars[key].append(cur_samp)
+                        final_vars[key].append(cur_samp_hap)
                     cur_variant = []
             else:
-                if cur_variant:
+                if not cur_variant:
                     # -1 for the anchor base we're forcing on
                     cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base, anchor_base + alt_base, '.', '.', '.', 'GT']
                 else:
@@ -77,7 +79,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
             if is_ref:
                 cur_pos += 1
                 anchor_base = ref_base
-
+        # End Zipping
         if cur_variant:
             # Anchor base correction
             if len(cur_variant[REFIDX]) == len(cur_variant[ALTIDX]):
@@ -88,10 +90,10 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
             # this is a weird edge check
             # sometimes reference bases aren't aligned
             if cur_variant[REFIDX] != cur_variant[ALTIDX]:
-                final_vars[key].append(cur_samp)
-
-        sample_names = sorted(list(sample_names))
-        return sample_names, final_vars
+                final_vars[key].append(cur_samp_hap)
+        # End alignment
+    sample_names = sorted(list(sample_names))
+    return sample_names, final_vars
 
 def make_vcf(variants, sample_names, header):
     """
