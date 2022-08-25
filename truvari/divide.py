@@ -34,7 +34,6 @@ def parse_args(args):
     truvari.setup_logging(False)
     return args
 
-
 def flush_stack(in_vcf, stack, out_name, compress=True):
     """
     write the stack to out_name
@@ -44,18 +43,8 @@ def flush_stack(in_vcf, stack, out_name, compress=True):
     for i in stack:
         cur_out.write(i)
     cur_out.close()
-    if not compress:
-        return
-    logging.debug("compress/index")
-    ret = truvari.cmd_exe(f"bgzip -f {out_name}")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
-    ret = truvari.cmd_exe(f"tabix -f {out_name}.gz")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
-
+    if compress:
+        truvari.compress_index(out_name)
 
 def divide_main(args):
     """

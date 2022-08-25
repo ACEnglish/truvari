@@ -43,6 +43,7 @@ Extra methods:
 Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
+:meth:`compress_index_vcf`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
@@ -127,6 +128,7 @@ from truvari.utils import (
     LogFileStderr,
     bed_ranges,
     cmd_exe,
+    compress_index_vcf,
     help_unknown_cmd,
     make_temp_filename,
     opt_gz_open,

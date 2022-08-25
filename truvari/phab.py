@@ -60,11 +60,10 @@ def pull_variants(vcf, region, output, ref, samples=None):
         samples = "-s " + ",".join(samples)
     else:
         samples = ""
-    cmd = f"""\
-bcftools view -c 1 {samples} -r {region} {vcf} \
+    cmd = f"""bcftools view -c 1 {samples} -r {region} {vcf} \
 | bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
 | bgzip > {output} && tabix {output}"""
-    
+
     ret = truvari.cmd_exe(cmd, pipefail=True)
     if ret.ret_code != 0:
         logging.error("Unable to pull variants from %s", vcf)
@@ -75,8 +74,7 @@ def build_consensus(vcf, ref, region, output, samples=None):
     """
     Make the consensus sequence - appends to output
     """
-    cmd = """\
-samtools faidx {ref} {region} | \
+    cmd = """samtools faidx {ref} {region} | \
 bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {output}
 """
     for samp in samples:
@@ -144,19 +142,16 @@ def run_phab(args):
     run_mafft(sequences, msa_output)
 
     output_vcf = os.path.join(args.output, "output.vcf")
-    # isn't exactly safe.. what if it doesn't have GT?
-    #n_header = str(pysam.VariantFile(args.base).header)
+    vcf = pysam.VariantFile(args.base)
+    n_header = '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
+    n_header += str(vcf.header.contigs[chrom].header_record)
 
     with open(output_vcf, 'w') as fout:
-        fout.write(truvari.msa2vcf(msa_output))
+        fout.write(truvari.msa2vcf(msa_output, n_header))
 
-    # optionally sort/compress/index?
-    # And I would do the reports here
-    # How many input variants / bases
-    # How many output variants / bases
-    # How many variants match (by presence and by matching GT)
-    # Eventually I can do advanced features by reusing Truvari Matcher to allow 'almost' variants
-    # This joins right into Matcher api, really. Just chunk the whole VCF and compare bSample to cSample
+    truvari.compress_index_vcf(output_vcf)
+
+    # I could do reports here...
 
 def check_requirements():
     """
