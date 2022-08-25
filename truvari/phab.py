@@ -166,7 +166,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
 
     if bSamples is None:
         bSamples = list(pysam.VariantFile(base_vcf).header.samples)
-    if cSamples is None:
+    if comp_vcf and cSamples is None:
         cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
 
     sequences = os.path.join(output_dir, "haps.fa")
@@ -239,7 +239,7 @@ def phab_main(cmdargs):
         m_output = args.output if len(all_regions) == 1 \
                                else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
         try:
-            os.mkdir(m_output)
+            os.makedirs(m_output)
         except FileExistsError:
             logging.error("Output directory %s exists.", args.output)
             sys.exit(1)
