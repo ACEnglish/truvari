@@ -1,5 +1,5 @@
-2022-07-14 01:29:11,468 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input2.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench12/
-2022-07-14 01:29:11,470 [INFO] Params:
+2022-08-25 00:31:07,328 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input2.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench12/
+2022-08-25 00:31:07,329 [INFO] Params:
 {
     "base": "repo_utils/test_files/input1.vcf.gz",
     "comp": "repo_utils/test_files/input2.vcf.gz",
@@ -9,6 +9,7 @@
     "debug": false,
     "prog": false,
     "refdist": 500,
+    "unroll": false,
     "pctsim": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
@@ -29,10 +30,10 @@
     "extend": 0,
     "multimatch": false
 }
-2022-07-14 01:29:11,472 [INFO] Truvari version: 3.5.0-dev
-2022-07-14 01:29:11,716 [INFO] Zipped 3934 variants. Counter({'base': 2151, 'comp': 1783})
-2022-07-14 01:29:11,718 [INFO] 13 chunks of 3934 variants. Counter({'__filtered': 3904, 'base': 16, 'comp': 14})
-2022-07-14 01:29:11,727 [INFO] Stats: {
+2022-08-25 00:31:07,329 [INFO] Truvari version: 3.5.0-dev
+2022-08-25 00:31:07,442 [INFO] Zipped 3934 variants Counter({'base': 2151, 'comp': 1783})
+2022-08-25 00:31:07,443 [INFO] 13 chunks of 3934 variants Counter({'__filtered': 3904, 'base': 16, 'comp': 14})
+2022-08-25 00:31:07,446 [INFO] Stats: {
     "TP-base": 8,
     "TP-call": 8,
     "FP": 3,
@@ -42,11 +43,11 @@
     "f1": 0.5925925925925926,
     "base cnt": 16,
     "call cnt": 11,
-    "TP-call_TP-gt": 3,
-    "TP-call_FP-gt": 5,
-    "TP-base_TP-gt": 3,
-    "TP-base_FP-gt": 5,
-    "gt_concordance": 0.375,
+    "TP-call_TP-gt": 4,
+    "TP-call_FP-gt": 4,
+    "TP-base_TP-gt": 4,
+    "TP-base_FP-gt": 4,
+    "gt_concordance": 0.5,
     "gt_matrix": {
         "(1, 1)": {
             "(1, 1)": 2,
@@ -63,4 +64,4 @@
         }
     }
 }
-2022-07-14 01:29:11,740 [INFO] Finished bench
+2022-08-25 00:31:07,449 [INFO] Finished bench
