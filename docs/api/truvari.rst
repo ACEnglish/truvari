@@ -140,6 +140,10 @@ get_svtype
 ^^^^^^^^^^
 .. autofunction:: get_svtype
 
+msa2vcf
+^^^^^^^
+.. autofunction:: msa2vcf
+
 overlap_percent
 ^^^^^^^^^^^^^^^
 .. autofunction:: overlap_percent
@@ -147,6 +151,10 @@ overlap_percent
 overlaps
 ^^^^^^^^
 .. autofunction:: overlaps
+
+phab
+^^^^
+.. autofunction:: phab
 
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^

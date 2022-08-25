@@ -354,7 +354,7 @@ def parse_args(args):
                               "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
-    # When sizefilt is not provided and sizemin has been lowered below the default, 
+    # When sizefilt is not provided and sizemin has been lowered below the default,
     # set sizefilt to sizemin. Otherwise, if sizefilt not provided, set to default
     # This just makes it easier to specify e.g. `-s 1` instead of `-s 1 -S 1`
     if args.sizefilt is None:

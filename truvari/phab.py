@@ -18,7 +18,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="phab", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-r", "--region", type=str, required=True,
-                        help="chrom:start-end of region to process")
+                        help="Bed filename or comma-separated list of chrom:start-end regions to process")
     # could maybe allow this to be an existing MSA and then we just use comp and add-to
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline vcf to MSA")
@@ -43,9 +43,32 @@ def parse_args(args):
     args = parser.parse_args(args)
     return args
 
-def get_reference(fn, chrom, start, end, output):
+def parse_regions(argument):
     """
-    Pull a subset of the reference - name it so we can tie back later
+    Parse the --region rgument
+    returns list of regions
+    """
+    ret = []
+    if not argument:
+        return ret
+    if os.path.exists(argument):
+        with open(argument, 'r') as fh:
+            for i in fh:
+                chrom, start, end = i.strip().split('\t')[:3]
+                start = int(start)
+                end = int(end)
+                ret.append((chrom, start, end))
+    else:
+        for i in argument.split(','):
+            chrom, start, end = re.split(':|-', i)
+            start = int(start)
+            end = int(end)
+            ret.append((chrom, start, end))
+    return ret
+
+def get_reference(fn, output, chrom, start, end):
+    """
+    Pull a subset of the reference and put into a file
     """
     fasta = pysam.FastaFile(fn)
     oseq = fasta.fetch(chrom, start - 1, end)
@@ -59,11 +82,12 @@ def pull_variants(vcf, region, output, ref, samples=None):
     Given vcf and a region, grab the relevant variants
     Maybe can make fill-from fasta optional.. but it isn't huge overhead (for now)
     """
+    chrom, start, end = region
     if samples is not None:
         samples = "-s " + ",".join(samples)
     else:
         samples = ""
-    cmd = f"""bcftools view -c 1 {samples} -r {region} {vcf} \
+    cmd = f"""bcftools view -c 1 {samples} -r {chrom}:{start}-{end} {vcf} \
 | bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
 | bgzip > {output} && tabix {output}"""
 
@@ -77,13 +101,16 @@ def build_consensus(vcf, ref, region, output, samples=None):
     """
     Make the consensus sequence - appends to output
     """
-    cmd = """samtools faidx {ref} {region} | \
+    chrom, start, end = region
+    cmd = """samtools faidx {ref} {chrom}:{start}-{end} | \
 bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {output}
 """
     for samp in samples:
         for hap in [1, 2]:
             m_cmd = cmd.format(ref=ref,
-                               region=region,
+                               chrom=chrom,
+                               start=start,
+                               end=end,
                                hap=hap,
                                sample=samp,
                                vcf=vcf,
@@ -105,61 +132,69 @@ def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
         logging.error(ret.stderr)
         sys.exit(1)
 
-def run_phab(args):
+def phab(base_vcf, reference, output_dir, var_region, buffer=100,
+        comp_vcf=None, bSamples=None, cSamples=None,
+        mafft_params="--retree 2 --maxiterate 0"):
     """
-    Regularize variants with MSA
+    Harmonize variants with MSA.
+
+    :param `base_vcf`: VCF file name
+    :type `base_vcf`: :class:`str`
+    :param `reference`: Reference file name
+    :type `reference`: :class:`str`
+    :param `output_dir`: Destination for results
+    :type `output_dir`: :class:`str`
+    :param `var_region`: Tuple of region's (chrom, start, end)
+    :type `var_region`: :class:`tuple`
+    :param `buffer`: Flanking reference bases to add to haplotypes
+    :type `buffer`: :class:`int`
+    :param `comp_vcf`: VCF file name
+    :type `comp_vcf`: :class:`str`
+    :param `bSamples`: Samples from `base_vcf` to create haplotypes
+    :type `bSamples`: :class:`list`
+    :param `cSamples`: Samples from `comp_vcf` to create haplotypes
+    :type `cSamples`: :class:`list`
+    :param `mafft_params`: Parameters for mafft
+    :type `mafft_params`: :class:`str`
+
+    Raises IOError if `output_dir` does not exist
     """
-    # make buffered region coordinates
-    chrom, start, end = re.split(':|-', args.region)
-    start = int(start) - args.buffer
-    end = int(end) + args.buffer
-    buff_region = f"{chrom}:{start}-{end}" # anywhere I use this, I assume its 0 based
+    if not os.path.exists(output_dir):
+        raise IOError(f"Directory {output_dir} does not exist")
 
-    try:
-        os.mkdir(args.output)
-    except FileExistsError:
-        # Remove this agression
-        pass
-    # if samples is none, we're building consensus for all the samples
-    if args.bSamples is None:
-        args.bSamples = list(pysam.VariantFile(args.base).header.samples)
-    else:
-        args.bSamples = args.bSamples.split(',')
+    buff_region = (var_region[0], var_region[1] - buffer, var_region[2] + buffer)
 
-    if args.comp:
-        if args.cSamples is None:
-            args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
-        else:
-            args.cSamples = args.cSamples.split(',')
+    if bSamples is None:
+        bSamples = list(pysam.VariantFile(base_vcf).header.samples)
+    if cSamples is None:
+        cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
 
-    sequences = os.path.join(args.output, "haps.fa")
-    get_reference(args.reference, chrom, start, end, sequences)
+    sequences = os.path.join(output_dir, "haps.fa")
+    get_reference(reference, sequences, *buff_region)
 
-    base_input_vcf = os.path.join(args.output, "base.vcf.gz")
-    pull_variants(args.base, args.region, base_input_vcf, args.reference, args.bSamples)
-    build_consensus(base_input_vcf, args.reference, buff_region, sequences, args.bSamples)
+    subset_base_vcf = os.path.join(output_dir, "base.vcf.gz")
+    pull_variants(base_vcf, var_region, subset_base_vcf, reference, bSamples)
+    build_consensus(subset_base_vcf, reference, buff_region, sequences, bSamples)
 
     # if add-to, we put this elsewhere and revisit for now I'll disable that feature
     # because it assumes we already have an MSA
-    if args.comp is not None:
-        comp_input_vcf = os.path.join(args.output, "comp.vcf.gz")
-        pull_variants(args.comp, args.region, comp_input_vcf, args.reference, args.cSamples)
-        build_consensus(comp_input_vcf, args.reference, buff_region, sequences, args.cSamples)
+    if comp_vcf is not None:
+        subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
+        pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
+        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples)
 
-    msa_output = os.path.join(args.output, "msa.fa")
-    run_mafft(sequences, msa_output, args.mafft_params)
+    msa_output = os.path.join(output_dir, "msa.fa")
+    run_mafft(sequences, msa_output, mafft_params)
 
-    output_vcf = os.path.join(args.output, "output.vcf")
-    vcf = pysam.VariantFile(args.base)
+    output_vcf = os.path.join(output_dir, "output.vcf")
+    vcf = pysam.VariantFile(base_vcf)
     n_header = '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
-    n_header += str(vcf.header.contigs[chrom].header_record)
+    n_header += str(vcf.header.contigs[var_region[0]].header_record)
 
     with open(output_vcf, 'w') as fout:
         fout.write(truvari.msa2vcf(msa_output, n_header))
 
     truvari.compress_index_vcf(output_vcf)
-
-    # I could do reports here...
 
 def check_requirements():
     """
@@ -183,6 +218,32 @@ def phab_main(cmdargs):
     #if check_params(args):
         # mainly just if files exist
         #pass
-    # need to be api-ize
-    run_phab(args)
+
+    if args.bSamples is None:
+        args.bSamples = list(pysam.VariantFile(args.base).header.samples)
+    else:
+        args.bSamples = args.bSamples.split(',')
+
+    if args.comp:
+        if args.cSamples is None:
+            args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
+        else:
+            args.cSamples = args.cSamples.split(',')
+
+
+
+    # Now I can multiprocess this
+    all_regions = parse_regions(args.region)
+    for region in all_regions:
+        # Make sub-directory if there are multiple regions
+        m_output = args.output if len(all_regions) == 1 \
+                               else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
+        try:
+            os.mkdir(m_output)
+        except FileExistsError:
+            logging.error("Output directory %s exists.", args.output)
+            sys.exit(1)
+        phab(args.base, args.reference, m_output, region, args.buffer,
+            args.comp, args.bSamples, args.cSamples, args.mafft_params)
+
     logging.info("Finished phab")

@@ -121,7 +121,7 @@ def make_vcf(variants, sample_names, header):
 def msa2vcf(fn, header=None):
     """
     Parses an MSA and returns its VCF as a string
-    Assumes one entry in the MSA is the reference with name ref_${chrom}:${start}-${end}
+    Assumes one entry in the MSA has the name ref_${chrom}:${start}-${end}
     """
     msa = pysam.FastaFile(fn)
 

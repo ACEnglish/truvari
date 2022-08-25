@@ -25,13 +25,16 @@ Extra methods:
 :meth:`build_anno_tree`
 :meth:`calc_af`
 :meth:`calc_hwe`
+:meth:`compress_index_vcf`
 :meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
 :meth:`get_sizebin`
 :meth:`get_svtype`
+:meth:`msa2vcf`
 :meth:`overlap_percent`
 :meth:`overlaps`
+:meth:`phab`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
@@ -43,11 +46,9 @@ Extra methods:
 Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
-:meth:`compress_index_vcf`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
-:meth:`msa2vcf`
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
@@ -116,6 +117,10 @@ from truvari.matching import (
 
 from truvari.msa2vcf import (
     msa2vcf
+)
+
+from truvari.phab import (
+    phab
 )
 
 from truvari.region_vcf_iter import (
