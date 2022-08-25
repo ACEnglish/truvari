@@ -1,5 +1,5 @@
-2022-07-14 01:29:24,275 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/include.bed
-2022-07-14 01:29:24,277 [INFO] Params:
+2022-08-25 00:31:14,425 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/include.bed
+2022-08-25 00:31:14,426 [INFO] Params:
 {
     "base": "repo_utils/test_files/input1.vcf.gz",
     "comp": "repo_utils/test_files/input3.vcf.gz",
@@ -9,6 +9,7 @@
     "debug": false,
     "prog": false,
     "refdist": 500,
+    "unroll": false,
     "pctsim": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
@@ -29,12 +30,12 @@
     "extend": 0,
     "multimatch": false
 }
-2022-07-14 01:29:24,278 [INFO] Truvari version: 3.5.0-dev
-2022-07-14 01:29:24,347 [INFO] Including 11 bed regions
-2022-07-14 01:29:24,351 [INFO] Found 1 chromosomes with overlapping regions
-2022-07-14 01:29:24,619 [INFO] Zipped 2030 variants. Counter({'base': 1130, 'comp': 900})
-2022-07-14 01:29:24,621 [INFO] 10 chunks of 2030 variants. Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
-2022-07-14 01:29:24,627 [INFO] Stats: {
+2022-08-25 00:31:14,426 [INFO] Truvari version: 3.5.0-dev
+2022-08-25 00:31:14,449 [INFO] Including 11 bed regions
+2022-08-25 00:31:14,450 [INFO] Found 1 chromosomes with overlapping regions
+2022-08-25 00:31:14,576 [INFO] Zipped 2030 variants Counter({'base': 1130, 'comp': 900})
+2022-08-25 00:31:14,577 [INFO] 10 chunks of 2030 variants Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
+2022-08-25 00:31:14,580 [INFO] Stats: {
     "TP-base": 5,
     "TP-call": 5,
     "FP": 4,
@@ -44,11 +45,11 @@
     "f1": 0.5263157894736842,
     "base cnt": 10,
     "call cnt": 9,
-    "TP-call_TP-gt": 2,
-    "TP-call_FP-gt": 3,
-    "TP-base_TP-gt": 2,
-    "TP-base_FP-gt": 3,
-    "gt_concordance": 0.4,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 2,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 2,
+    "gt_concordance": 0.6,
     "gt_matrix": {
         "(1, 1)": {
             "(1, 0)": 1,
@@ -60,4 +61,4 @@
         }
     }
 }
-2022-07-14 01:29:24,636 [INFO] Finished bench
+2022-08-25 00:31:14,583 [INFO] Finished bench

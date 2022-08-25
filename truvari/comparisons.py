@@ -141,7 +141,7 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
         sampleA = entryA.samples.keys()[0]
     if not sampleB:
         sampleB = entryB.samples.keys()[0]
-    return entryA.samples[sampleA]["GT"] == entryB.samples[sampleB]["GT"]
+    return truvari.get_gt(entryA.samples[sampleA]["GT"]) == truvari.get_gt(entryB.samples[sampleB]["GT"])
 
 
 def create_pos_haplotype(a1, a2, ref, min_len=0):

@@ -200,7 +200,7 @@ class Matcher():
                 ret.base_gt = base.samples[self.params.bSample]["GT"]
             if "GT" in comp.samples[self.params.cSample]:
                 ret.comp_gt = comp.samples[self.params.cSample]["GT"]
-            ret.gt_match = ret.base_gt == ret.comp_gt
+            ret.gt_match = truvari.get_gt(ret.base_gt) == truvari.get_gt(ret.comp_gt)
             if self.params.gtcomp and not ret.gt_match:
                 logging.debug("%s and %s are not the same genotype",
                               str(base), str(comp))

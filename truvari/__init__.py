@@ -43,9 +43,11 @@ Extra methods:
 Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
+:meth:`compress_index_vcf`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
+:meth:`msa2vcf`
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
@@ -112,6 +114,10 @@ from truvari.matching import (
     file_zipper
 )
 
+from truvari.msa2vcf import (
+    msa2vcf
+)
+
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
     build_anno_tree
@@ -122,6 +128,7 @@ from truvari.utils import (
     LogFileStderr,
     bed_ranges,
     cmd_exe,
+    compress_index_vcf,
     help_unknown_cmd,
     make_temp_filename,
     opt_gz_open,
