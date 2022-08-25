@@ -95,7 +95,7 @@ def run_mafft(seq_fn, output):
     """
     Run mafft
     """
-    cmd = f"mafft.bat --retree 2 --maxiterate 0 {seq_fn} > {output}"
+    cmd = f"mafft --retree 2 --maxiterate 0 {seq_fn} > {output}"
     ret = truvari.cmd_exe(cmd)
     if ret.ret_code != 0: # this doesn't (ever?) exit non-zero
         logging.error("Unable to run MAFFT on %s", seq_fn)
@@ -158,7 +158,7 @@ def check_requirements():
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft.bat"]:
+    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft"]:
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
