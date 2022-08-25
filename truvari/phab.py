@@ -19,9 +19,9 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-r", "--region", type=str, required=True,
                         help="chrom:start-end of region to process")
+    # could maybe allow this to be an existing MSA and then we just use comp and add-to
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline vcf to MSA")
-    # could maybe allow this to be an existing MSA and then we just use comp and add-to
     parser.add_argument("-c", "--comp", type=str, default=None,
                         help="Comparison vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
@@ -46,7 +46,6 @@ def get_reference(fn, chrom, start, end, output):
     Pull a subset of the reference - name it so we can tie back later
     """
     fasta = pysam.FastaFile(fn)
-    # Ugh.. not sure about this -1 anymore
     oseq = fasta.fetch(chrom, start - 1, end)
     # no need to make it pretty?
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
@@ -112,7 +111,7 @@ def run_phab(args):
     chrom, start, end = re.split(':|-', args.region)
     start = int(start) - args.buffer
     end = int(end) + args.buffer
-    buff_region = f"{chrom}:{start}-{end}"
+    buff_region = f"{chrom}:{start}-{end}" # anywhere I use this, I assume its 0 based
 
     try:
         os.mkdir(args.output)
