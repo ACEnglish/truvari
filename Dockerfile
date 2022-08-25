@@ -1,13 +1,14 @@
 FROM ubuntu:20.04
 
-RUN apt-get -qq update && apt-get install -yq \
+RUN apt-get -qq update \
+  && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
   bcftools \
-  bgzip \
   curl \
   python3-dev \
   python3-pip \
   samtools \
   tabix \
+  vcftools \
   wget \
   && \
   rm -rf /var/lib/apt/lists/*

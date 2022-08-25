@@ -36,6 +36,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from base-VCF")
     parser.add_argument("--cSamples", type=str, default=None,
                         help="Subset of samples to MSA from comp-VCF")
+    parser.add_argument("--debug", action="store_true",
+                        help="Verbose logging")
     args = parser.parse_args(args)
     return args
 
@@ -158,7 +160,7 @@ def check_requirements():
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft"]:
+    for prog in ["bcftools", "vcf-sort", "bgzip", "tabix", "samtools", "mafft"]:
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
@@ -169,7 +171,7 @@ def phab_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-    truvari.setup_logging(True)
+    truvari.setup_logging(args.debug)
     if check_requirements():
         sys.exit(1)
     #if check_params(args):
