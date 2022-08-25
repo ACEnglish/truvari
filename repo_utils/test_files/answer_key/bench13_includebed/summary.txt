@@ -8,11 +8,11 @@
     "f1": 0.5263157894736842,
     "base cnt": 10,
     "call cnt": 9,
-    "TP-call_TP-gt": 2,
-    "TP-call_FP-gt": 3,
-    "TP-base_TP-gt": 2,
-    "TP-base_FP-gt": 3,
-    "gt_concordance": 0.4,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 2,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 2,
+    "gt_concordance": 0.6,
     "gt_matrix": {
         "(1, 1)": {
             "(1, 0)": 1,
