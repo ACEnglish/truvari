@@ -144,7 +144,7 @@ def run_phab(args):
     if args.comp is not None:
         comp_input_vcf = os.path.join(args.output, "comp.vcf.gz")
         pull_variants(args.comp, args.region, comp_input_vcf, args.reference, args.cSamples)
-        build_consensus(args.comp, args.reference, buff_region, sequences, args.cSamples)
+        build_consensus(comp_input_vcf, args.reference, buff_region, sequences, args.cSamples)
 
     msa_output = os.path.join(args.output, "msa.fa")
     run_mafft(sequences, msa_output, args.mafft_params)
