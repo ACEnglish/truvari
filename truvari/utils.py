@@ -415,4 +415,3 @@ def compress_index_vcf(fn, remove=True):
         sys.exit(ret.ret_code)
     if remove:
         os.remove(fn)
-

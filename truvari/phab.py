@@ -36,6 +36,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from base-VCF")
     parser.add_argument("--cSamples", type=str, default=None,
                         help="Subset of samples to MSA from comp-VCF")
+    parser.add_argument("-m", "--mafft-params", type=str, default="--retree 2 --maxiterate 0",
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -92,11 +94,11 @@ bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {
                 logging.error(ret.stderr)
                 sys.exit(1)
 
-def run_mafft(seq_fn, output):
+def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
     """
     Run mafft
     """
-    cmd = f"mafft --retree 2 --maxiterate 0 {seq_fn} > {output}"
+    cmd = f"mafft {params} {seq_fn} > {output}"
     ret = truvari.cmd_exe(cmd)
     if ret.ret_code != 0: # this doesn't (ever?) exit non-zero
         logging.error("Unable to run MAFFT on %s", seq_fn)
@@ -121,9 +123,14 @@ def run_phab(args):
     # if samples is none, we're building consensus for all the samples
     if args.bSamples is None:
         args.bSamples = list(pysam.VariantFile(args.base).header.samples)
-    if args.comp and args.cSamples is None:
-        args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
-    # need to parse them out here
+    else:
+        args.bSamples = args.bSamples.split(',')
+
+    if args.comp:
+        if args.cSamples is None:
+            args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
+        else:
+            args.cSamples = args.cSamples.split(',')
 
     sequences = os.path.join(args.output, "haps.fa")
     get_reference(args.reference, chrom, start, end, sequences)
@@ -140,7 +147,7 @@ def run_phab(args):
         build_consensus(args.comp, args.reference, buff_region, sequences, args.cSamples)
 
     msa_output = os.path.join(args.output, "msa.fa")
-    run_mafft(sequences, msa_output)
+    run_mafft(sequences, msa_output, args.mafft_params)
 
     output_vcf = os.path.join(args.output, "output.vcf")
     vcf = pysam.VariantFile(args.base)
