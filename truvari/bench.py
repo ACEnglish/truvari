@@ -336,9 +336,9 @@ def parse_args(args):
 
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=defaults.sizemin,
-                        help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=defaults.sizefilt,
-                        help="Minimum variant size to load into IntervalTree (%(default)s)")
+                        help="Minimum variant size to consider from --comp (%(default)s)")
+    filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=None,
+                        help="Minimum variant size to consider from --base (30)")
     filteg.add_argument("--sizemax", type=truvari.restricted_int, default=defaults.sizemax,
                         help="Maximum variant size to consider for comparison (%(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
@@ -354,6 +354,14 @@ def parse_args(args):
                               "Output vcfs will have redundant entries. (%(default)s)"))
 
     args = parser.parse_args(args)
+    # When sizefilt is not provided and sizemin has been lowered below the default,
+    # set sizefilt to sizemin. Otherwise, if sizefilt not provided, set to default
+    # This just makes it easier to specify e.g. `-s 1` instead of `-s 1 -S 1`
+    if args.sizefilt is None:
+        if args.sizemin < defaults.sizefilt:
+            args.sizefilt = args.sizemin
+        else:
+            args.sizefilt = defaults.sizefilt
     return args
 
 

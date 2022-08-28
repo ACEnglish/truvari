@@ -202,8 +202,8 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
                             stdin=sys.stdin, stderr=stderr, close_fds=True,
                             start_new_session=True, executable="/bin/bash")
-    signal.signal(signal.SIGALRM, alarm_handler)
     if timeout > 0:
+        signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(int(timeout * 60))
     try:
         stdoutVal, stderrVal = proc.communicate()
@@ -213,7 +213,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
                        "Automatic Timeout Initiated after %d"), timeout)
         os.killpg(proc.pid, signal.SIGTERM)
         proc.kill()
-        return cmd_result(214, None, None, timedelta(seconds=time.time() - t_start))
+        return cmd_result(214, "", "", timedelta(seconds=time.time() - t_start))
     except KeyboardInterrupt:
         logging.error("KeyboardInterrupt on cmd %s", cmd)
         os.killpg(proc.pid, signal.SIGKILL)
@@ -225,7 +225,7 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
 
     stdoutVal = bytes.decode(stdoutVal)
     retCode = proc.returncode
-    ret = cmd_result(retCode, stdoutVal, stderrVal,
+    ret = cmd_result(retCode, stdoutVal, stderrVal.decode(),
                      timedelta(seconds=time.time() - t_start))
     return ret
 
@@ -396,3 +396,22 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     if not guesses:
         return None
     return guesses[0][1]
+
+def compress_index_vcf(fn, remove=True):
+    """
+    compress/index a VCF file in place using bgzip and tabix
+    if remove: take out the old one
+    Should maybe shutil.which the tools. Probably should raise an exception instead of exiting
+    """
+    logging.debug("compress/index")
+    ret = cmd_exe(f"vcf-sort {fn} | bgzip > {fn}_tmp", pipefail=True)
+    os.rename(f"{fn}_tmp", f"{fn}.gz")
+    if ret.ret_code != 0:
+        logging.error(ret)
+        sys.exit(ret.ret_code)
+    ret = cmd_exe(f"tabix -f {fn}.gz")
+    if ret.ret_code != 0:
+        logging.error(ret)
+        sys.exit(ret.ret_code)
+    if remove:
+        os.remove(fn)

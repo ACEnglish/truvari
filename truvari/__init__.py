@@ -25,13 +25,16 @@ Extra methods:
 :meth:`build_anno_tree`
 :meth:`calc_af`
 :meth:`calc_hwe`
+:meth:`compress_index_vcf`
 :meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
 :meth:`get_sizebin`
 :meth:`get_svtype`
+:meth:`msa2vcf`
 :meth:`overlap_percent`
 :meth:`overlaps`
+:meth:`phab`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
@@ -71,7 +74,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '3.5.0-dev'
+__version__ = '3.5.0'
 
 
 from truvari.annotations.af_calc import (
@@ -112,6 +115,14 @@ from truvari.matching import (
     file_zipper
 )
 
+from truvari.msa2vcf import (
+    msa2vcf
+)
+
+from truvari.phab import (
+    phab
+)
+
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
     build_anno_tree
@@ -122,6 +133,7 @@ from truvari.utils import (
     LogFileStderr,
     bed_ranges,
     cmd_exe,
+    compress_index_vcf,
     help_unknown_cmd,
     make_temp_filename,
     opt_gz_open,

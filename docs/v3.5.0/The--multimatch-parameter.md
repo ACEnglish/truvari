@@ -1,0 +1,3 @@
+By default, Truvari bench will only allow a one-to-one match between a base call and comparison call. The motivation for this is be more strict when trying identify FPs in comparison calls. For example, if you have a redundant variant reported in the comparison calls, only the single best representation will become a TP, where the rest will be FPs.
+
+With the `--multimatch` parameter, we can get around this by allowing all of the redundant matches of base and comparison calls. This should have the effect of increasing the reported recall and specificity as redundantly used calls are only counted once for the final summary metrics.
