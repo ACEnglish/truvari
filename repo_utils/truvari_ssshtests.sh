@@ -157,7 +157,6 @@ bench 1 3 13_extend "--includebed $INDIR/include.bed --extend 500"
 rm -rf $OD/bench_unroll
 run test_bench_unroll $truv bench -b $INDIR/real_small_base.vcf.gz \
                                   -c $INDIR/real_small_comp.vcf.gz \
-                                  --unroll \
                                   -o $OD/bench_unroll/
 assert_exit_code 0
 for i in $ANSDIR/bench_unroll/*.vcf

@@ -90,7 +90,6 @@ class Matcher():
         ret = types.SimpleNamespace()
         ret.reference = None
         ret.refdist = 500
-        ret.unroll = False
         ret.pctsim = 0.70
         ret.minhaplen = 50
         ret.pctsize = 0.70
@@ -119,7 +118,6 @@ class Matcher():
         ret = types.SimpleNamespace()
         ret.reference = pysam.FastaFile(
             args.reference) if args.reference else None
-        ret.unroll = args.unroll
         ret.refdist = args.refdist
         ret.pctsim = args.pctsim
         ret.minhaplen = args.minhaplen
@@ -213,23 +211,18 @@ class Matcher():
             ret.state = False
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
-        # TODO - clean this up
         if self.params.pctsim > 0:
-            if self.params.unroll:
-                b_seq, c_seq = (base.ref, comp.ref) \
-                               if truvari.entry_variant_type(base) == truvari.SV.DEL else \
-                               (base.alts[0], comp.alts[0])
-                ret.seqsim = truvari.unroll_compare(c_seq, b_seq, ret.st_dist % len(c_seq))
-            else: # reference context comparison
-                # No need to create a haplotype for variants that already line up
-                if ret.st_dist == 0 or ret.ed_dist == 0:
-                    b_seq, c_seq = (base.ref, comp.ref) \
-                                   if truvari.entry_variant_type(base) == truvari.SV.DEL else \
-                                   (base.alts[0], comp.alts[0])
-                    ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
-                else:
-                    ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
+            b_seq, c_seq = (base.ref, comp.ref) \
+                            if truvari.entry_variant_type(base) == truvari.SV.DEL else \
+                            (base.alts[0], comp.alts[0])
+            if ret.st_dist == 0 or ret.ed_dist == 0:
+                ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
+            elif self.params.reference is not None:
+                ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
                                                   self.params.minhaplen, self.params.use_lev)
+            else:
+                ret.seqsim = truvari.unroll_compare(c_seq, b_seq, ret.st_dist % len(c_seq))
+
             if ret.seqsim < self.params.pctsim:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)

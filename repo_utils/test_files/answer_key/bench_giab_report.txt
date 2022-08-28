@@ -75,5 +75,4 @@ sizefilt	30
 sizemax	50000
 sizemin	50
 typeignore	False
-unroll	False
 use_lev	False
