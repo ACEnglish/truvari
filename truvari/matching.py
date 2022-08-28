@@ -217,14 +217,14 @@ class Matcher():
         if self.params.pctsim > 0:
             if self.params.unroll:
                 b_seq, c_seq = (base.ref, comp.ref) \
-                               if truvari.entry_variant_type(base) == 'DEL' else \
+                               if truvari.entry_variant_type(base) == truvari.SV.DEL else \
                                (base.alts[0], comp.alts[0])
                 ret.seqsim = truvari.unroll_compare(c_seq, b_seq, ret.st_dist % len(c_seq))
             else: # reference context comparison
                 # No need to create a haplotype for variants that already line up
                 if ret.st_dist == 0 or ret.ed_dist == 0:
                     b_seq, c_seq = (base.ref, comp.ref) \
-                                   if truvari.entry_variant_type(base) == 'DEL' else \
+                                   if truvari.entry_variant_type(base) == truvari.SV.DEL else \
                                    (base.alts[0], comp.alts[0])
                     ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
                 else:

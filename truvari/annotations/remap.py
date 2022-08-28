@@ -75,7 +75,7 @@ class Remap():
         """
         Map a sequence and return the information from it
         """
-        is_del = truvari.entry_variant_type(entry) == "DEL"
+        is_del = truvari.entry_variant_type(entry) == truvari.SV.DEL
         if is_del:
             seq = str(entry.ref)
         else:

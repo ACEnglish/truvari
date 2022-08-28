@@ -34,25 +34,28 @@ class GT(Enum):
 class SV(Enum):
     """SVtypes
 
-    - DEL = <SV.DEL: 0>
-    - INS = <SV.INS: 1>
-    - DUP = <SV.DUP: 2>
-    - INV = <SV.INV: 3>
-    - NON = <SV.NON: 4> - Not an SV, SVTYPE
-    - UNK = <SV.UNK: 5> - Unknown SVTYPE
+    - SNP = <SV.SNP: 0>
+    - DEL = <SV.DEL: 1>
+    - INS = <SV.INS: 2>
+    - DUP = <SV.DUP: 3>
+    - INV = <SV.INV: 4>
+    - NON = <SV.NON: 5> - Not a variant (monomorphic ref?)
+    - UNK = <SV.UNK: 6> - Unknown type
     """
-    DEL = 0
-    INS = 1
-    DUP = 2
-    INV = 3
-    NON = 4  # Not an SV, SVTYPE
-    UNK = 5  # Unknown SVTYPE
+    SNP = 0
+    DEL = 1
+    INS = 2
+    DUP = 3
+    INV = 4
+    NON = 5  # Not a variant (monomorphic ref?)
+    UNK = 6  # Unknown type
 
 
-SZBINS = ["[0,50)", "[50,100)", "[100,200)", "[200,300)", "[300,400)",
-          "[400,600)", "[600,800)", "[800,1k)", "[1k,2.5k)",
-          "[2.5k,5k)", ">=5k"]
-SZBINMAX = [50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
+
+SZBINS = ['SNP', '[1,5)', '[5,10)', '[10,15)', '[15,20)', '[20,30)', '[30,40)',
+          '[40,50)', '[50,100)', '[100,200)', '[200,300)', '[300,400)',
+          '[400,600)', '[600,800)', '[800,1k)', '[1k,2.5k)', '[2.5k,5k)', '>=5k']
+SZBINMAX = [1, 5, 10, 15, 20, 30, 40, 50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
 QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
 SZBINTYPE = pd.CategoricalDtype(categories=SZBINS, ordered=True)
 SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
@@ -71,9 +74,9 @@ def get_svtype(svtype):
     Example
         >>> import truvari
         >>> truvari.get_svtype("INS")
-        <SV.INS: 1>
+        <SV.INS: 2>
         >>> truvari.get_svtype("foo")
-        <SV.UNK: 5>
+        <SV.UNK: 6>
     """
     try:
         return SV.__members__[svtype]
@@ -299,7 +302,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         filt = list(entry.filter)
         cur_row = [truvari.entry_to_key(entry),
                    entry.id,
-                   truvari.entry_variant_type(entry),
+                   truvari.entry_variant_type(entry).name,
                    varsize,
                    truvari.get_sizebin(varsize),
                    entry.qual,

@@ -263,13 +263,13 @@ def process_entries(ref_section):
 
         result = ["%s:%d-%d.%s" %  # pylint: disable=consider-using-f-string
                   (entry.chrom, entry.start, entry.stop, entry.alts[0])]
-        if ty == "INS":
+        if ty == truvari.SV.INS:
             # Only want a single reference kmer
             ref_stats = map_stats(aligner, ref_up, entry.chrom, entry.start)
             result.extend(ref_stats + ref_stats)
             result.extend(map_stats(aligner, alt_up))
             result.extend(map_stats(aligner, alt_dn))
-        elif ty == "DEL":
+        elif ty == truvari.SV.DEL:
             result.extend(map_stats(aligner, ref_up, entry.chrom, entry.start))
             result.extend(map_stats(aligner, ref_dn, entry.chrom, entry.stop))
             # Only want a single alternate kmer
