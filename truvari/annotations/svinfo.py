@@ -49,7 +49,7 @@ def svinfo_main(cmdargs):
             if sz >= args.minsize:
                 entry.translate(n_header)
                 svtype = truvari.entry_variant_type(entry)
-                entry.info["SVTYPE"] = svtype
+                entry.info["SVTYPE"] = svtype.name
                 entry.info["SVLEN"] = sz
             out.write(entry)
     logging.info("Finished svinfo")

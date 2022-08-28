@@ -105,7 +105,7 @@ def entry_size_similarity(entryA, entryB):
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_size_similarity(a, b)
-        (0.07142857142857142, 13)
+        (0.0, 14)
     """
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)
@@ -254,7 +254,7 @@ def entry_pctsim(entryA, entryB, ref, min_len=0, use_lev=True):
     if entryA.ref == entryB.ref and entryA.alts[0] == entryB.alts[0]:
         return 1.0
 
-    if entry_variant_type(entryA) == 'INV' and entry_variant_type(entryB) == 'INV':
+    if entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV:
         allele1 = entryA.alts[0]
         allele2 = entryB.alts[0]
         return seqsim(allele1, allele2, use_lev)
@@ -325,8 +325,8 @@ def entry_variant_type(entry):
     :param `entry`:
     :type `entry`: :class:`pysam.VariantRecord`
 
-    :return: the determined svtype
-    :rtype: string
+    :return: SV type
+    :rtype: :class:`truvari.SV`
     """
     sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
@@ -335,24 +335,23 @@ def entry_variant_type(entry):
         ret_type = entry.info["SVTYPE"]
         if isinstance(ret_type, (list, tuple)):
             ret_type = ret_type[0]
-        return ret_type
+        return truvari.get_svtype(ret_type)
 
     if not (entry.alts[0].count("<") or entry.alts[0].count(":")):
         # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
-        if len(entry.ref) <= len(entry.alts[0]):
+        if len(entry.ref) < len(entry.alts[0]):
             ret_type = "INS"
-        elif len(entry.ref) >= len(entry.alts[0]):
+        elif len(entry.ref) > len(entry.alts[0]):
             ret_type = "DEL"
         elif len(entry.ref) == len(entry.alts[0]):
-            # Is it really?
-            ret_type = "COMPLEX"
-        return ret_type
+            ret_type = "SNP" if len(entry.ref) == 1 else "UNK"
+        return truvari.get_svtype(ret_type)
     mat = sv_alt_match.match(entry.alts[0])
     if mat is not None:
-        return mat.groupdict()["SVTYPE"]
+        return truvari.get_svtype(mat.groupdict()["SVTYPE"])
     logging.warning(
         "SVTYPE is undetermined for entry, using 'UNK' - %s", str(entry))
-    return "UNK"
+    return truvari.get_svtype("UNK")
 
 
 def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
@@ -371,10 +370,10 @@ def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
     """
     a_type = entry_variant_type(entryA)
     b_type = entry_variant_type(entryB)
-    if dup_to_ins and a_type == 'DUP':
-        a_type = 'INS'
-    if dup_to_ins and b_type == 'DUP':
-        b_type = 'INS'
+    if dup_to_ins and a_type == truvari.SV.DUP:
+        a_type = truvari.SV.INS
+    if dup_to_ins and b_type == truvari.SV.DUP:
+        b_type = truvari.SV.INS
     return a_type == b_type
 
 
@@ -392,7 +391,7 @@ def entry_boundaries(entry, ins_inflate=False):
     """
     start = entry.start
     end = entry.stop
-    if ins_inflate and entry_variant_type(entry) == 'INS':
+    if ins_inflate and entry_variant_type(entry) == truvari.SV.INS:
         size = entry_size(entry)
         start -= size // 2
         end += size // 2
@@ -431,7 +430,10 @@ def entry_size(entry):
         r_len = len(entry.ref)
         a_len = len(entry.alts[0])
         if r_len == a_len:
-            size = r_len
+            if r_len == 1:
+                size = 0 # SNPs are special
+            else:
+                size = r_len
         else:
             size = abs(r_len - a_len)
     return size
