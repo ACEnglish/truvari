@@ -72,7 +72,8 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
             else:
                 if not cur_variant:
                     # -1 for the anchor base we're forcing on
-                    cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base, anchor_base + alt_base, '.', '.', '.', 'GT']
+                    cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base, \
+                                   anchor_base + alt_base, '.', '.', '.', 'GT']
                 else:
                     cur_variant[REFIDX] += ref_base
                     cur_variant[ALTIDX] += alt_base
