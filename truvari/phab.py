@@ -139,7 +139,7 @@ def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
 
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
-        mafft_params="--retree 2 --maxiterate 0"):
+        mafft_params="--retree 2 --maxiterate 0", prefix_comp=False):
     """
     Harmonize variants with MSA.
 
@@ -161,6 +161,8 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     :type `cSamples`: :class:`list`
     :param `mafft_params`: Parameters for mafft
     :type `mafft_params`: :class:`str`
+    :param `prefix_comp`: Ensure unique sample names by prefixing comp samples
+    :type `prefix_comp`: :class:`bool`
 
     Raises IOError if `output_dir` does not exist
     """
@@ -186,7 +188,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     if comp_vcf is not None:
         subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
         pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
-        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, True)
+        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
 
     msa_output = os.path.join(output_dir, "msa.fa")
     run_mafft(sequences, msa_output, mafft_params)
@@ -240,6 +242,10 @@ def phab_main(cmdargs):
             args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
         else:
             args.cSamples = args.cSamples.split(',')
+    prefix_comp = False
+    if args.cSamples and set(args.cSamples) & set(args.bSamples):
+        logging.warning("--cSamples intersect with --bSamples. Output vcf --comp SAMPLE names will have prefix 'p:'")
+        prefix_comp = True
 
     all_regions = parse_regions(args.region)
     with multiprocessing.Pool(args.threads) as pool:
@@ -255,7 +261,7 @@ def phab_main(cmdargs):
                 sys.exit(1)
 
             jobs.append((args.base, args.reference, m_output, region, args.buffer,
-                      args.comp, args.bSamples, args.cSamples, args.mafft_params))
+                      args.comp, args.bSamples, args.cSamples, args.mafft_params, prefix_comp))
         logging.info("%d regions to process", len(jobs))
         pool.imap_unordered(t_phab, jobs)
         pool.close()
