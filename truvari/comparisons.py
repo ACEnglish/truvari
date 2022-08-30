@@ -110,7 +110,7 @@ def entry_size_similarity(entryA, entryB):
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_size_similarity(a, b)
-        (0.0, 14)
+        (0.07142857142857142, 13)
     """
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)
