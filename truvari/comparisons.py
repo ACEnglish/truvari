@@ -74,6 +74,11 @@ def sizesim(sizeA, sizeB):
     :return: size similarity percent and size diff (A - B)
     :rtype: (float, int)
     """
+    if sizeA == 0 or sizeB == 0:
+        if sizeA == sizeB:
+            return 1, 0
+        sizeA = max(sizeA, 1)
+        sizeB = max(sizeB, 1)
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 

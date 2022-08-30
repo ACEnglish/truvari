@@ -7,6 +7,7 @@ import sys
 import shutil
 import logging
 import argparse
+import multiprocessing
 
 import pysam
 import truvari
@@ -38,6 +39,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-m", "--mafft-params", type=str, default="--retree 2 --maxiterate 0",
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("-t", "--threads", type=int, default=1,
+                        help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -97,13 +100,14 @@ def pull_variants(vcf, region, output, ref, samples=None):
         logging.error(ret.stderr)
         sys.exit(1)
 
-def build_consensus(vcf, ref, region, output, samples=None):
+def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):
     """
     Make the consensus sequence - appends to output
     """
     chrom, start, end = region
+    prefix = 'p' if prefix_name else ''
     cmd = """samtools faidx {ref} {chrom}:{start}-{end} | \
-bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {output}
+bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {vcf} >> {output}
 """
     for samp in samples:
         for hap in [1, 2]:
@@ -113,6 +117,7 @@ bcftools consensus -H{hap} --sample {sample} --prefix {sample}_{hap}_ {vcf} >> {
                                end=end,
                                hap=hap,
                                sample=samp,
+                               prefix=prefix,
                                vcf=vcf,
                                output=output)
             ret = truvari.cmd_exe(m_cmd, pipefail=True)
@@ -134,7 +139,7 @@ def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
 
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
-        mafft_params="--retree 2 --maxiterate 0"):
+        mafft_params="--retree 2 --maxiterate 0", prefix_comp=False):
     """
     Harmonize variants with MSA.
 
@@ -156,6 +161,8 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     :type `cSamples`: :class:`list`
     :param `mafft_params`: Parameters for mafft
     :type `mafft_params`: :class:`str`
+    :param `prefix_comp`: Ensure unique sample names by prefixing comp samples
+    :type `prefix_comp`: :class:`bool`
 
     Raises IOError if `output_dir` does not exist
     """
@@ -181,7 +188,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     if comp_vcf is not None:
         subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
         pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
-        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples)
+        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
 
     msa_output = os.path.join(output_dir, "msa.fa")
     run_mafft(sequences, msa_output, mafft_params)
@@ -207,6 +214,12 @@ def check_requirements():
             check_fail = True
     return check_fail
 
+def t_phab(job):
+    """
+    Hack to mimmic starmap since I can't find a Pool.starmap_unordered
+    """
+    phab(*job)
+
 def phab_main(cmdargs):
     """
     Main
@@ -229,21 +242,29 @@ def phab_main(cmdargs):
             args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
         else:
             args.cSamples = args.cSamples.split(',')
+    prefix_comp = False
+    if args.cSamples and set(args.cSamples) & set(args.bSamples):
+        logging.warning("--cSamples intersect with --bSamples. Output vcf --comp SAMPLE names will have prefix 'p:'")
+        prefix_comp = True
 
-
-
-    # Now I can multiprocess this
     all_regions = parse_regions(args.region)
-    for region in all_regions:
-        # Make sub-directory if there are multiple regions
-        m_output = args.output if len(all_regions) == 1 \
-                               else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
-        try:
-            os.makedirs(m_output)
-        except FileExistsError:
-            logging.error("Output directory %s exists.", args.output)
-            sys.exit(1)
-        phab(args.base, args.reference, m_output, region, args.buffer,
-            args.comp, args.bSamples, args.cSamples, args.mafft_params)
+    with multiprocessing.Pool(args.threads) as pool:
+        # build jobs
+        jobs = []
+        for region in all_regions:
+            m_output = args.output if len(all_regions) == 1 \
+                        else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
+            try:
+                os.makedirs(m_output)
+            except FileExistsError:
+                logging.error("Output directory %s exists.", args.output)
+                sys.exit(1)
+
+            jobs.append((args.base, args.reference, m_output, region, args.buffer,
+                      args.comp, args.bSamples, args.cSamples, args.mafft_params, prefix_comp))
+        logging.info("%d regions to process", len(jobs))
+        pool.imap_unordered(t_phab, jobs)
+        pool.close()
+        pool.join()
 
     logging.info("Finished phab")
