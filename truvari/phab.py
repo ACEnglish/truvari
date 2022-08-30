@@ -105,7 +105,7 @@ def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):
     Make the consensus sequence - appends to output
     """
     chrom, start, end = region
-    prefix = 'p' if prefix_name else ''
+    prefix = 'p:' if prefix_name else ''
     cmd = """samtools faidx {ref} {chrom}:{start}-{end} | \
 bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {vcf} >> {output}
 """
