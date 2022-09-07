@@ -179,9 +179,9 @@ class TRFAnno():
         svtype = truvari.entry_variant_type(entry)
         sz = truvari.entry_size(entry)
         repeat = []
-        if svtype == "DEL":
+        if svtype == truvari.SV.DEL:
             repeat = self.del_annotate(entry, sz, score_filter)
-        elif svtype == "INS":
+        elif svtype == truvari.SV.INS:
             repeat = self.ins_annotate(entry, score_filter=score_filter)
         return repeat
 
@@ -376,14 +376,14 @@ def process_ref_region(region):
 
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in ["DEL", "INS"]:
+            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
-            if svtype == "DEL":
+            if svtype == truvari.SV.DEL:
                 m_anno = m_stack.tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
-            elif svtype == "INS":
+            elif svtype == truvari.SV.INS:
                 m_anno = m_stack.tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
@@ -435,14 +435,14 @@ def process_tr_region(region):
                 continue
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in ["DEL", "INS"]:
+            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
-            if svtype == "DEL":
+            if svtype == truvari.SV.DEL:
                 m_anno = tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
-            elif svtype == "INS":
+            elif svtype == truvari.SV.INS:
                 m_anno = tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
