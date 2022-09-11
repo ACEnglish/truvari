@@ -43,6 +43,7 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [consistency](https://github.com/acenglish/truvari/wiki/consistency) - Consistency report between multiple VCFs
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent parts
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
+ - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
 
 ## More Information
 
