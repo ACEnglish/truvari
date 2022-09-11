@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN apt-get -qq update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
