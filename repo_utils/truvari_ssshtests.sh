@@ -5,7 +5,7 @@ source ssshtest
 # Run from truvari's base directory
 cd "$( dirname "${BASH_SOURCE[0]}" )"/../
 
-TESTSRC=restr/
+TESTSRC=repo_utils/
 source $TESTSRC/setup_test.sh
 
 # Reset test results
