@@ -26,7 +26,7 @@ jobs:
           pip install pylint
           pip install anybadge
           pip install coverage
-          python setup.py install
+          python -m pip install .
       - name: Running ssshtest
         run: |
           bash repo_utils/truvari_ssshtests.sh
