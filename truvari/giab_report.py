@@ -6,6 +6,7 @@ import os
 import joblib
 import pandas as pd
 import truvari
+from truvari.vcf2df import bench_dir_to_df
 
 
 def make_tech(data):
@@ -33,8 +34,8 @@ def make_giabreport(args, stats_box):
     Create summaries of the TPs/FNs
     """
     out_df = os.path.join(args.output, "giab.jl")
-    truvari.vcf2df.vcf2df_main(["-i", "-f", "-b", args.output, out_df])
-    data = joblib.load(out_df)
+    data = bench_dir_to_df(args.output, with_info=True, with_fmt=True, no_prefix=True)
+    joblib.dump(data, out_df)
     sz_type = pd.CategoricalDtype(
         categories=["50to99", "100to299", "300to999", "gt1000"], ordered=True)
     data["sizecat"] = data["sizecat"].astype(sz_type)
@@ -72,7 +73,7 @@ def make_giabreport(args, stats_box):
         sum_out.write("\n")
 
         sum_out.write("# State by Genotype\n")
-        data["HG002_GT"] = data["GT"].apply(lambda x: truvari.get_gt(x).name)
+        data["HG002_GT"] = data["GT"].apply(lambda x: truvari.get_gt(x).name if x else None)
         view = data.groupby(["state", "HG002_GT"]).size().unstack(fill_value=0)
         view.loc["total"] = view.sum(axis=0)
         view["TOT"] = view.sum(axis=1)
