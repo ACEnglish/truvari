@@ -15,7 +15,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="dpcnt", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+    parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="VCF to annotate (stdin)")
     parser.add_argument("-b", "--bins", type=str, default="0,5,10,15",
                         help="Coverage bins to bisect left the counts (%(default)s)")

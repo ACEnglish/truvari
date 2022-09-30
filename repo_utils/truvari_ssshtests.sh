@@ -25,9 +25,12 @@ source $TESTSRC/sub_tests/vcf2df.sh
 source $TESTSRC/sub_tests/version.sh
 
 
-printf "\n${BOLD}generating test coverage reports${NC}\n"
-coverage combine
-coverage report --include=truvari/*
-coverage html --include=truvari/* -d $OD/htmlcov/
-coverage json --include=truvari/* -o $OD/coverage.json
-python3 repo_utils/coverage_maker.py $OD/coverage.json
+# Don't generate coverage when doing subset of tests
+if [ -z "$1" ]; then
+    printf "\n${BOLD}generating test coverage reports${NC}\n"
+    coverage combine
+    coverage report --include=truvari/*
+    coverage html --include=truvari/* -d $OD/htmlcov/
+    coverage json --include=truvari/* -o $OD/coverage.json
+    python3 repo_utils/coverage_maker.py $OD/coverage.json
+fi
