@@ -1,4 +1,4 @@
-name: FuncTests
+name: pylint
 
 on: [push]
 
