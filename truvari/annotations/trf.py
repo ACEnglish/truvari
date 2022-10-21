@@ -582,7 +582,7 @@ def parse_args(args):
                         help="Verbose logging")
 
     args = parser.parse_args(args)
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     return args
 
 def check_params(args):

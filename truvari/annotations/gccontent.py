@@ -21,7 +21,7 @@ def parse_args(args):
                         help="Output filename (stdout)")
     parser.add_argument("-r", "--reference", type=str, required=True,
                         help="Reference fasta")
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return parser.parse_args(args)
 
 

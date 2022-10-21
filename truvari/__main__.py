@@ -23,7 +23,8 @@ from truvari.consistency_report import consistency_main
 
 def version(args):
     """Print the version"""
-    print(f"Truvari v{__version__}")
+    from importlib.metadata import version
+    print(f"Truvari v{version('truvari')}")
 
 
 TOOLS = {'bench': bench_main,

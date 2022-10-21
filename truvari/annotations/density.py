@@ -30,7 +30,7 @@ def parse_args(args):
     parser.add_argument("-t", "--threshold", type=float, default=3,
                         help="std for identifying 'dense' regions (%(default)s)")
     args = parser.parse_args(args)
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return args
 
 def density_main(args):

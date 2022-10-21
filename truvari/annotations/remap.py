@@ -162,7 +162,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     return args
 
 

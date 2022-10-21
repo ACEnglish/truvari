@@ -403,7 +403,7 @@ def parse_args(args):
     if args.sample:
         args.sample = args.sample.split(',')
 
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     if args.compress not in range(10):
         logging.warning('--compress must be between 0-9. Setting to 3')
         args.compress = 3

@@ -20,7 +20,7 @@ def parse_args(args):
                         help="Output filename (stdout)")
     parser.add_argument("-m", "--minsize", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return parser.parse_args(args)
 
 

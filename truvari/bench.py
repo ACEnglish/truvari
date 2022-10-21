@@ -438,9 +438,8 @@ def setup_outputs(args):
     """
     os.mkdir(args.output)
     truvari.setup_logging(args.debug, truvari.LogFileStderr(
-        os.path.join(args.output, "log.txt")))
+        os.path.join(args.output, "log.txt")), show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
-    logging.info(f"Truvari version: {truvari.__version__}")
 
     outputs = {}
     outputs["vcf_base"] = pysam.VariantFile(args.base)

@@ -53,7 +53,7 @@ def parse_args(args):
     else:
         args.anno_psets = [args.sequence, args.begin, args.end,
                            args.one_based, args.comment]
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return args
 
 

@@ -25,7 +25,7 @@ def parse_args(args):
                         help="Only count sites with present (non ./.) genotypes")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return parser.parse_args(args)
 
 
