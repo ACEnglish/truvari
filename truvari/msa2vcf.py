@@ -33,13 +33,14 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
         if alt_key.startswith("ref_"):
             continue
         # gross
-        cur_samp_hap = "_".join(alt_key.split('_')[:2])
-        sample_names.add(alt_key.split('_')[0])
+        cur_samp_hap = "_".join(alt_key.split('_')[:-1])
+        sample_names.add("_".join(alt_key.split('_')[:-2]))
         alt_seq = msa[alt_key].upper()
         # Gotta assume the first base is a match (little unsafe)
         anchor_base = ref_seq[0]
         if anchor_base == '-':
             logging.error("MSA starts with an indel in %s. Can't make VCF", alt_key)
+            # raise RuntimeWarning TODO - fix this, it breaks threads and makes phab hang
             sys.exit(1)
 
         cur_variant = []
