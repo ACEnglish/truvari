@@ -28,7 +28,7 @@ def parse_args(args):
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
     parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA")
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
     #parser.add_argument("--add-to", action='store_true',
     #                    help="Build the baseMSA independentally of the compMSA, then add the comp")
     parser.add_argument("-o", "--output", default="phab_out",
