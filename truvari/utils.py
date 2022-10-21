@@ -14,6 +14,7 @@ import warnings
 import subprocess
 from datetime import timedelta
 from collections import namedtuple
+from importlib.metadata import version
 
 import Levenshtein
 import pysam
@@ -142,7 +143,6 @@ def setup_logging(debug=False, stream=sys.stderr,
     logLevel = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(stream=stream, level=logLevel, format=log_format)
     if show_version:
-        from importlib.metadata import version
         logging.info(f"Truvari v{version('truvari')}")
         logging.info("Command %s", " ".join(sys.argv))
 
