@@ -225,7 +225,7 @@ def phab_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     if check_requirements():
         sys.exit(1)
     #if check_params(args):

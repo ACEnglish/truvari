@@ -20,7 +20,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="bpovl", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+    parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="VCF to annotate (stdin)")
     parser.add_argument("-a", "--anno", type=str, required=True,
                         help="Tab-delimited annotation file")
@@ -53,7 +53,7 @@ def parse_args(args):
     else:
         args.anno_psets = [args.sequence, args.begin, args.end,
                            args.one_based, args.comment]
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return args
 
 

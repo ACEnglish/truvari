@@ -349,7 +349,7 @@ def setup_outputs(args):
     Makes all of the output files
     return a ... to get to each of the
     """
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
     outputs = {}

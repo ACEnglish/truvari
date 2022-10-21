@@ -240,7 +240,7 @@ def tags_to_ops(items):
     return columns, ops
 
 
-def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
+def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
@@ -255,6 +255,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     :type `with_info`: boolean, optional
     :param `sample`: Sample from the VCF to parse. Only used when with_fmt==True
     :type `sample`: int/string, optional
+    :param `no_prefix`: Don't prefix FORMAT fields with sample name
+    :type `no_prefix`: boolean, optional
 
     :return: Converted VCF
     :rtype: pandas.DataFrame
@@ -264,11 +266,16 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
         >>> df = truvari.vcf_to_df("repo_utils/test_files/input2.vcf.gz", True, True)
         >>> df.columns
         Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'QNAME',
-               'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'GT', 'PL_ref', 'PL_het',
-               'PL_hom', 'AD_ref', 'AD_alt'],
+               'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'NA12878_GT', 'NA12878_PL_ref',
+               'NA12878_PL_het', 'NA12878_PL_hom', 'NA12878_AD_ref', 'NA12878_AD_alt'],
               dtype='object')
     """
     v = pysam.VariantFile(fn)
+    if with_fmt and not sample:
+        sample = pull_samples(fn)
+    if sample and len(sample) > 1 and no_prefix:
+        raise TypeError("Multiple samples being pulled, must use prefix")
+
     header = ["key", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
 
@@ -282,7 +289,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None):
     if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
         logging.debug(fmt_header)
-        if isinstance(sample, list):
+        if isinstance(sample, list) and not no_prefix:
             header.extend(
                 [f'{s}_{f}' for s, f in itertools.product(sample, fmt_header)])
         else:
@@ -350,6 +357,21 @@ def optimize_df_memory(df):
     post_size = df.memory_usage().sum()
     return pre_size, post_size
 
+def bench_dir_to_df(dir_name, *args, **kwargs):
+    """
+    Parse a bench directory - same interface as vcf_to_df, except for first argument
+    """
+    vcfs = get_files_from_truvdir(dir_name)
+    all_dfs = []
+    for key, val in vcfs.items():
+        df = vcf_to_df(val[0], *args, **kwargs)
+        df["state"] = key
+        all_dfs.append(df)
+    out = pd.concat(all_dfs)
+    state_type = pd.CategoricalDtype(
+        categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
+    out["state"] = out["state"].astype(state_type)
+    return out
 
 def parse_args(args):
     """
@@ -369,9 +391,8 @@ def parse_args(args):
                         help="Attempt to put the FORMAT fileds into the dataframe")
     parser.add_argument("-s", "--sample", default=None,
                         help="SAMPLE name to parse when building columns for --format")
-    parser.add_argument("-m", "--multisample", action="store_true",
-                        help=("Parse multiple samples. Splits -s by comma. Sample "
-                              "column names will be flattened"))
+    parser.add_argument("-n", "--no-prefix", action="store_true",
+                        help="Don't prepend sample name to format columns")
     parser.add_argument("-S", "--skip-compression", action="store_true",
                         help="Skip the attempt to optimize the dataframe's size")
     parser.add_argument("-c", "--compress", metavar="LVL", type=int, default=3,
@@ -380,11 +401,9 @@ def parse_args(args):
                         help="Verbose logging")
     args = parser.parse_args(args)
     if args.sample:
-        if args.multisample:
-            args.sample = args.sample.split(',')
-        else:
-            args.sample = [args.sample]
-    truvari.setup_logging(args.debug)
+        args.sample = args.sample.split(',')
+
+    truvari.setup_logging(args.debug, show_version=True)
     if args.compress not in range(10):
         logging.warning('--compress must be between 0-9. Setting to 3')
         args.compress = 3
@@ -404,26 +423,12 @@ def vcf2df_main(args):
     args = parse_args(args)
 
     out = None
-    if not args.bench_dir:
-        if args.multisample and not args.sample:
-            args.sample = pull_samples(args.vcf)
-        out = vcf_to_df(args.vcf, args.info, args.format, args.sample)
+    if args.bench_dir:
+        out = bench_dir_to_df(args.vcf, args.info, args.format, args.sample, args.no_prefix)
     else:
-        vcfs = get_files_from_truvdir(args.vcf)
-        all_dfs = []
-        for key, val in vcfs.items():
-            if args.multisample and not args.sample:
-                args.sample = pull_samples(val[0])
-            df = vcf_to_df(val[0], args.info, args.format, args.sample)
-            df["state"] = key
-            all_dfs.append(df)
-        out = pd.concat(all_dfs)
-        state_type = pd.CategoricalDtype(
-            categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
-        out["state"] = out["state"].astype(state_type)
+        out = vcf_to_df(args.vcf, args.info, args.format, args.sample, args.no_prefix)
 
     # compression -- this is not super important for most VCFs
-    # Especially since nulls are highly likely
     logging.info("Optimizing DataFrame memory")
     pre_size, post_size = optimize_df_memory(out)
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)

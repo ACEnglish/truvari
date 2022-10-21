@@ -19,7 +19,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-g", "--genome", type=str, required=True,
                         help="Genome bed file")
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+    parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="Input VCF (%(default)s)")
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output joblib DataFrame")
@@ -30,7 +30,7 @@ def parse_args(args):
     parser.add_argument("-t", "--threshold", type=float, default=3,
                         help="std for identifying 'dense' regions (%(default)s)")
     args = parser.parse_args(args)
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return args
 
 def density_main(args):

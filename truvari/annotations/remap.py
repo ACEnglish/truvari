@@ -144,7 +144,7 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="remap", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", default="/dev/stdin",
+    parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="Input VCF (%(default)s)")
     parser.add_argument("-r", "--reference", required=True,
                         help="BWA indexed reference")
@@ -162,7 +162,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     return args
 
 

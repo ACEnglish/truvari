@@ -14,6 +14,7 @@ import warnings
 import subprocess
 from datetime import timedelta
 from collections import namedtuple
+from importlib.metadata import version
 
 import Levenshtein
 import pysam
@@ -124,7 +125,9 @@ class LogFileStderr():
         self.file_handler.flush()
 
 
-def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(levelname)s] %(message)s"):
+def setup_logging(debug=False, stream=sys.stderr,
+                  log_format="%(asctime)s [%(levelname)s] %(message)s",
+                  show_version=False):
     """
     Create default logger
 
@@ -134,10 +137,14 @@ def setup_logging(debug=False, stream=sys.stderr, log_format="%(asctime)s [%(lev
     :type `stream`: file handler, optional
     :param `log_format`: Format of log lines
     :type `log_format`: string, optional
+    :param `show_version`: Start log with truvari version and command line args
+    :type `show_version`: bool, optional
     """
     logLevel = logging.DEBUG if debug else logging.INFO
     logging.basicConfig(stream=stream, level=logLevel, format=log_format)
-    logging.info("Running %s", " ".join(sys.argv))
+    if show_version:
+        logging.info(f"Truvari v{version('truvari')}")
+        logging.info("Command %s", " ".join(sys.argv))
 
     def sendWarningsToLog(message, category, filename, lineno, *args, **kwargs):  # pylint: disable=unused-argument
         """

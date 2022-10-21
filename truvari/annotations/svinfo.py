@@ -14,13 +14,13 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="svinfo", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-i", "--input", type=str, default="/dev/stdin",
+    parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="VCF to annotate (stdin)")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output filename (stdout)")
     parser.add_argument("-m", "--minsize", type=truvari.restricted_int, default=50,
                         help="Minimum size of entry to annotate (%(default)s)")
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return parser.parse_args(args)
 
 

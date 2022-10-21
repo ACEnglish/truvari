@@ -1,6 +1,7 @@
 import codecs
 import os.path
 from setuptools import setup
+import subprocess
 
 def read(rel_path):
     here = os.path.abspath(os.path.dirname(__file__))
@@ -11,9 +12,36 @@ def get_version(rel_path):
     for line in read(rel_path).splitlines():
         if line.startswith('__version__'):
             delim = '"' if '"' in line else "'"
-            return line.split(delim)[1]
+            vers = line.split(delim)[1]
+            if vers.endswith('-dev'):
+                vers += '0+' + _get_repo_hash()
+            return vers
     else:
         raise RuntimeError("Unable to find version string.")
+
+def _get_repo_hash():
+    """
+    Talk to git and find out the tag/hash of our latest commit
+    Add '_uc' to the end if the repo has uncommited changes
+    """
+    try:
+        p = subprocess.Popen("git rev-parse --short HEAD".split(' '),
+                            stdout=subprocess.PIPE)
+    except EnvironmentError:
+        print("Couldn't run git to get a version number for setup.py")
+        return "detached"
+
+    ver = p.communicate()[0].decode().strip()
+    try:
+        p = subprocess.Popen("git diff --exit-code".split(' '),
+                            stdout=subprocess.PIPE)
+        p.communicate()
+        if p.returncode:
+            ver += '_uc'
+    except EnvironmentError:
+        pass
+
+    return ver
 
 
 setup(
@@ -21,7 +49,7 @@ setup(
     version=get_version('truvari/__init__.py'),
     author="ACEnglish",
     author_email="acenglish@gmail.com",
-    url="https://github.com/spiralgenetics/truvari",
+    url="https://github.com/ACEnglish/truvari",
     packages=['truvari', 'truvari/annotations'],
     license='MIT',
     description="Structural variant comparison tool for VCFs",
@@ -35,14 +63,14 @@ setup(
     install_requires=[
         "rich==12.5.1",
         "python-Levenshtein==0.12.2",
-        "edlib>=1.3.8.post2",
-        "progressbar2>=3.41.0",
+        "edlib>=1.3.9",
+        "progressbar2>=4.0.0",
         "pysam>=0.15.2",
         "intervaltree>=3.0.2",
         "joblib>=1.0.1",
-        "numpy>=1.21.2",
+        "numpy>=1.23.3",
         "pytabix>=0.1",
         "bwapy>=0.1.4",
-        "pandas>=1.3.3"
+        "pandas>=1.4.4"
     ],
 )

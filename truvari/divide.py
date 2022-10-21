@@ -31,7 +31,7 @@ def parse_args(args):
     parser.add_argument("-T", "--threads", type=int, default=1,
                         help="Number of threads for compressing/indexing sub-VCFs (%(default)s)")
     args = parser.parse_args(args)
-    truvari.setup_logging(False)
+    truvari.setup_logging(show_version=True)
     return args
 
 def flush_stack(in_vcf, stack, out_name, compress=True):

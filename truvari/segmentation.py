@@ -28,7 +28,7 @@ def parse_args(args):
     # parser.add_argument("--alter", action="store_true",
     # help="Add SEG Format field to all variants (false)")
     args = parser.parse_args(args)
-    truvari.setup_logging()
+    truvari.setup_logging(show_version=True)
     return args
 
 
