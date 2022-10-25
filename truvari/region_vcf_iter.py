@@ -51,7 +51,7 @@ class RegionVCFIterator():
             if not length:
                 logging.error("Contig %s has no length definition. Fix header.", name)
                 sys.exit(10)
-            all_regions[name].addi(0, length)
+            all_regions[name].addi(0, length + 1)
         return all_regions
 
     def merge_overlaps(self):
@@ -93,11 +93,9 @@ class RegionVCFIterator():
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is None or aend - astart > self.max_span:
             return False
-        overlaps = self.tree[entry.chrom].overlaps(astart) \
-            and self.tree[entry.chrom].overlaps(aend)
-        if astart == aend:
-            return overlaps
-        return overlaps and len(self.tree[entry.chrom].overlap(astart, aend)) == 1
+        if astart == aend - 1:
+            return self.tree[entry.chrom].overlaps(astart)
+        return len(self.tree[entry.chrom].overlap(astart, aend)) == 1
 
     def extend(self, pad):
         """
@@ -131,6 +129,6 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
             m_idx = idxfmt.format(idx)
         else:
             m_idx = idx
-        tree[chrom].addi(start, end, data=m_idx)
+        tree[chrom].addi(start, end + 1, data=m_idx)
         idx += 1
     return tree, idx
