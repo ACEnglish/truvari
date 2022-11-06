@@ -237,46 +237,46 @@ def annotate_entry(entry, match, header):
     entry.info["Multi"] = match.multi
 
 
-def output_writer(call, outs, sizemin):
+def output_writer(match, outs, sizemin):
     """
     Annotate a MatchResults' entries, write to the apppropriate file in outs
     and do the stats counting.
     Writer is responsible for handling FPs between sizefilt-sizemin
     """
     box = outs["stats_box"]
-    if call.base:
+    if match.base:
         box["base cnt"] += 1
-        annotate_entry(call.base, call, outs['n_base_header'])
-        if call.state:
-            gtBase = str(call.base_gt)
-            gtComp = str(call.comp_gt)
+        annotate_entry(match.base, match, outs['n_base_header'])
+        if match.state:
+            gtBase = str(match.base_gt)
+            gtComp = str(match.comp_gt)
             box["gt_matrix"][gtBase][gtComp] += 1
 
             box["TP-base"] += 1
-            outs["tpb_out"].write(call.base)
-            if call.gt_match:
+            outs["tpb_out"].write(match.base)
+            if match.gt_match:
                 box["TP-base_TP-gt"] += 1
             else:
                 box["TP-base_FP-gt"] += 1
         else:
             box["FN"] += 1
-            outs["fn_out"].write(call.base)
+            outs["fn_out"].write(match.base)
 
-    if call.comp:
-        annotate_entry(call.comp, call, outs['n_comp_header'])
-        if call.state:
+    if match.comp:
+        annotate_entry(match.comp, match, outs['n_comp_header'])
+        if match.state:
             box["call cnt"] += 1
             box["TP-call"] += 1
-            outs["tpc_out"].write(call.comp)
-            if call.gt_match:
+            outs["tpc_out"].write(match.comp)
+            if match.gt_match:
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
-        elif truvari.entry_size(call.comp) >= sizemin:
+        elif truvari.entry_size(match.comp) >= sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
             box["call cnt"] += 1
             box["FP"] += 1
-            outs["fp_out"].write(call.comp)
+            outs["fp_out"].write(match.comp)
 
 
 ##########################
@@ -499,12 +499,12 @@ def bench_main(cmdargs):
     comp_i = regions_extended.iterate(comp)
 
     chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for call in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        # setting non-matched call variants that are not fully contained in the original regions to None
+    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        # setting non-matched comp variants that are not fully contained in the original regions to None
         # These don't count as FP or TP and don't appear in the output vcf files
-        if args.extend and call.comp is not None and not call.state and not regions.include(call.comp):
-            call.comp = None
-        output_writer(call, outputs, args.sizemin)
+        if args.extend and match.comp is not None and not match.state and not regions.include(match.comp):
+            match.comp = None
+        output_writer(match, outputs, args.sizemin)
 
     with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
         box = outputs["stats_box"]
