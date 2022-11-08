@@ -78,6 +78,11 @@ TP/FN/FP counts. That simple tsv can easily be processed by other tools/scripts/
 
 Need to builds
 --------------
+- I think I want to remove `--giabreport` and move it to another tool `truvari giabreport`.
+    This will allow more flexability with which giab file we're working with and all the stratifications stuff we're
+    talking about above could maybe be moved into it?
+    IDK. I'll think about it
+Done:
 - truvari bench --no-compress to optionally skip compression/indexing of the output VCFs. Will help with fetching in
   rebench
 - save a config.json in truvari bench output (helps usability/reproducibility)

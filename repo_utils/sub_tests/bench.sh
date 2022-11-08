@@ -7,7 +7,8 @@ bench() {
     f2=$2
     k=$3
     rm -rf $OD/bench${k}
-    $truv bench -b $INDIR/input${f1}.vcf.gz \
+    $truv bench --no-compress \
+                -b $INDIR/input${f1}.vcf.gz \
                 -c $INDIR/input${f2}.vcf.gz \
                 -f $INDIR/reference.fa \
                 -o $OD/bench${k}/ ${4}
@@ -57,8 +58,8 @@ fi
 
 
 # --unroll
-rm -rf $OD/bench_unroll
-run test_bench_unroll $truv bench -b $INDIR/real_small_base.vcf.gz \
+run test_bench_unroll $truv bench --no-compress \
+                                  -b $INDIR/real_small_base.vcf.gz \
                                   -c $INDIR/real_small_comp.vcf.gz \
                                   -o $OD/bench_unroll/
 if [ $test_bench_unroll ]; then
@@ -72,6 +73,23 @@ if [ $test_bench_unroll ]; then
         assert_equal $(fn_md5 $i) $(fn_md5 $result)
     done
 fi
+
+# with compression
+run test_bench_unroll_gz $truv bench -b $INDIR/real_small_base.vcf.gz \
+                                  -c $INDIR/real_small_comp.vcf.gz \
+                                  -o $OD/bench_unroll_gz/
+if [ $test_bench_unroll ]; then
+    assert_exit_code 0
+    for i in $ANSDIR/bench_unroll_gz/*.vcf.gz
+    do
+        bname=$(basename $i | sed 's/[\.|\-]/_/g')
+        result=$OD/bench_unroll_gz/$(basename $i)
+        run test_bench_unroll_${bname}
+        assert_equal $(fn_md5 $i) $(fn_md5 $result)
+    done
+fi
+
+
 
 # --giabreport
 rm -rf $OD/bench_giab
