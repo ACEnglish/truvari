@@ -39,12 +39,12 @@ This identification of discrepancies is currently magic. As a start, rebench wil
 FP > 0 in a region. I think this can be refined improved, but this first conditional should be a strong enough start.
 
 As for performing the variant harmonization, we have two options. The first will just be to feed the region into truvari
-phab. The second will be to recreate the haplotype construction/comparison of hap-eval. 
+phab. The second will be to recreate the haplotype construction/comparison of hap-eval.
 
 Each of these methods has limitations. First, phab is slow and it assumes that variants are phased. This isn't always
 true.
 
-Second, hap-eval *may* have two different problems. 
+Second, hap-eval *may* have two different problems.
 The first is that it may over simplify regions in that all variants in a region become True/False together. Imagine
 there are two distinct SVs in a region produced by a caller and one SV inside the truth-set. And let's say one of the
 caller's SV is an exact match to the truth-set SV and that this variant is large. The second SV from the caller is small
@@ -104,7 +104,7 @@ didn't even try to discover variants.
 
 Remaing questions:
 ------------------
-- Percent of variant bases over the regions post-phab over threshold - If that's 
+- Percent of variant bases over the regions post-phab over threshold - If that's
 - Do we want an 'unresolved' mode - Like, we should end up with copy numbers so we can just compare the copy numbers
   directly? But that's pretty much the same as the lengths and stuff... Ugh. This would just be a different tool
   entirely
@@ -149,5 +149,5 @@ Operations:
 Random ideas:
     - So, MSA is slow. But I think you can get more similar results if you just align haplotypes with consistent
       alignment parameters... So maybe I should build a phab mode that just runs edlib on the haplotypes and makes new
-      VCFs. 
+      VCFs.
 """
