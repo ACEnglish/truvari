@@ -18,6 +18,7 @@ from importlib.metadata import version
 
 import Levenshtein
 import pysam
+from pysam import bcftools
 import progressbar
 
 HEADERMAT = re.compile(
@@ -404,21 +405,17 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
         return None
     return guesses[0][1]
 
-def compress_index_vcf(fn, remove=True):
+def compress_index_vcf(fn, fout=None, remove=True):
     """
-    compress/index a VCF file in place using bgzip and tabix
-    if remove: take out the old one
-    Should maybe shutil.which the tools. Probably should raise an exception instead of exiting
+    In order to reduce the number of external tools, I can use pysam to do this work
+    Need to check exit codes.. somehow...
     """
-    logging.debug("compress/index")
-    ret = cmd_exe(f"vcf-sort {fn} | bgzip > {fn}_tmp", pipefail=True)
-    os.rename(f"{fn}_tmp", f"{fn}.gz")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
-    ret = cmd_exe(f"tabix -f {fn}.gz")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
+    if fout is None:
+        fout = fn + '.gz'
+    o = bcftools.sort(fn)
+    with pysam.BGZFile(fout, 'w') as out:
+        out.write(o.encode())
+    bcftools.index(fout)
+    os.rename(fout + '.csi', fout + '.tbi')
     if remove:
         os.remove(fn)

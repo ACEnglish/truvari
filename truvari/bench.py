@@ -301,6 +301,8 @@ def parse_args(args):
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("--no-compress", action="store_true", default=False,
+                        help="Skip compression/indexing of output VCFs")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")
 
@@ -441,6 +443,9 @@ def setup_outputs(args):
         os.path.join(args.output, "log.txt")), show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
+    with open(os.path.join(args.output, 'params.json'), 'w') as fout:
+        json.dump(vars(args), fout)
+
     outputs = {}
     outputs["vcf_base"] = pysam.VariantFile(args.base)
     outputs["n_base_header"] = edit_header(outputs["vcf_base"])
@@ -462,7 +467,7 @@ def setup_outputs(args):
     return outputs
 
 
-def close_outputs(outputs):
+def close_outputs(outputs, skip_compress=False):
     """
     Close all the files
     """
@@ -470,7 +475,11 @@ def close_outputs(outputs):
     outputs["tpc_out"].close()
     outputs["fn_out"].close()
     outputs["fp_out"].close()
-
+    if not skip_compress:
+        truvari.compress_index_vcf(outputs['tpb_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['tpc_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
 
 def bench_main(cmdargs):
     """
@@ -512,7 +521,7 @@ def bench_main(cmdargs):
         fout.write(json.dumps(box, indent=4))
         logging.info("Stats: %s", json.dumps(box, indent=4))
 
-    close_outputs(outputs)
+    close_outputs(outputs, args.no_compress)
 
     if args.giabreport:
         make_giabreport(args, outputs["stats_box"])
