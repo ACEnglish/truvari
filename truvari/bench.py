@@ -515,7 +515,7 @@ def bench_main(cmdargs):
             match.comp = None
         output_writer(match, outputs, args.sizemin)
 
-    with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
+    with open(os.path.join(args.output, "summary.json"), 'w') as fout:
         box = outputs["stats_box"]
         box.calc_performance()
         fout.write(json.dumps(box, indent=4))
