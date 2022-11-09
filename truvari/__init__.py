@@ -46,6 +46,7 @@ Extra methods:
 Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
+:meth:`fchain`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
@@ -117,6 +118,10 @@ from truvari.matching import (
 
 from truvari.msa2vcf import (
     msa2vcf
+)
+
+from truvari.pipeline import (
+    fchain
 )
 
 from truvari.phab import (
