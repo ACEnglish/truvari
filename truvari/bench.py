@@ -362,6 +362,13 @@ def parse_args(args):
             args.sizefilt = args.sizemin
         else:
             args.sizefilt = defaults.sizefilt
+
+    # Setup abspaths
+    args.base = os.path.abspath(args.base)
+    args.comp = os.path.abspath(args.comp)
+    args.includebed = os.path.abspath(args.includebed) if args.includebed else args.includebed
+    args.reference = os.path.abspath(args.reference) if args.reference else args.reference
+
     return args
 
 

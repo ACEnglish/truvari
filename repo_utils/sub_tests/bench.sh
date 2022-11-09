@@ -103,7 +103,7 @@ run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
                                 --prog
 if [ $test_bench_giab ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/bench_giab_report.txt) $(fn_md5 $OD/bench_giab/giab_report.txt)
+    assert_equal $(fn_md5 <(head -n50 $ANSDIR/bench_giab_report.txt)) $(fn_md5 <(head -n50 $OD/bench_giab/giab_report.txt))
 fi
 
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
