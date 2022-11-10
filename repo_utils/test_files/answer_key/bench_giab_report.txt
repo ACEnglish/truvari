@@ -62,6 +62,7 @@ gtcomp	False
 includebed	repo_utils/test_files/giab.bed
 minhaplen	50
 multimatch	True
+no_compress	False
 no_ref	False
 output	test_results/bench_giab/
 passonly	False

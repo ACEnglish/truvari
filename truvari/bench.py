@@ -301,6 +301,8 @@ def parse_args(args):
                         help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
+    parser.add_argument("--no-compress", action="store_true", default=False,
+                        help="Skip compression/indexing of output VCFs")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")
 
@@ -360,6 +362,13 @@ def parse_args(args):
             args.sizefilt = args.sizemin
         else:
             args.sizefilt = defaults.sizefilt
+
+    # Setup abspaths
+    args.base = os.path.abspath(args.base)
+    args.comp = os.path.abspath(args.comp)
+    args.includebed = os.path.abspath(args.includebed) if args.includebed else args.includebed
+    args.reference = os.path.abspath(args.reference) if args.reference else args.reference
+
     return args
 
 
@@ -403,24 +412,28 @@ def check_params(args):
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
         check_fail = True
-
+    if args.reference and not os.path.exists(args.reference):
+        logging.error("Reference %s does not exist", args.reference)
+        check_fail = True
     return check_fail
 
 
-def check_sample(vcf_fn, sampleId=None):
+def check_sample(vcf_fn, sample_id=None):
     """
     Checks that a sample is inside a vcf
     Returns True if check failed
     """
     vcf_file = pysam.VariantFile(vcf_fn)
     check_fail = False
-    if sampleId is not None and sampleId not in vcf_file.header.samples:
-        logging.error("Sample %s not found in vcf (%s)", sampleId, vcf_fn)
+    if sample_id is not None and sample_id not in vcf_file.header.samples:
+        logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
         check_fail = True
     if len(vcf_file.header.samples) == 0:
         logging.error("No SAMPLE columns found in vcf (%s)", vcf_fn)
         check_fail = True
-    return check_fail
+    if sample_id is None:
+        sample_id = vcf_file.header.samples[0]
+    return check_fail, sample_id
 
 
 def check_inputs(args):
@@ -428,18 +441,27 @@ def check_inputs(args):
     Checks the inputs to ensure expected values are found inside of files
     Returns True if check failed
     """
-    return check_sample(args.base, args.bSample) or check_sample(args.comp, args.cSample)
+    b_check, args.bSample = check_sample(args.base, args.bSample)
+    c_check, args.cSample = check_sample(args.comp, args.cSample)
+    return b_check or c_check
 
 
 def setup_outputs(args):
     """
     Makes all of the output files
     Places the data into the shared space
+
+    ToDo: separate the command-line outputs' setup (e.g. logging, making a dir) to clean up
+    when truvari.rebench.run_bench is called
+    ToDo: turn the outputs into a dataclass
     """
     os.mkdir(args.output)
     truvari.setup_logging(args.debug, truvari.LogFileStderr(
         os.path.join(args.output, "log.txt")), show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+
+    with open(os.path.join(args.output, 'params.json'), 'w') as fout:
+        json.dump(vars(args), fout)
 
     outputs = {}
     outputs["vcf_base"] = pysam.VariantFile(args.base)
@@ -462,7 +484,7 @@ def setup_outputs(args):
     return outputs
 
 
-def close_outputs(outputs):
+def close_outputs(outputs, skip_compress=False):
     """
     Close all the files
     """
@@ -470,7 +492,11 @@ def close_outputs(outputs):
     outputs["tpc_out"].close()
     outputs["fn_out"].close()
     outputs["fp_out"].close()
-
+    if not skip_compress:
+        truvari.compress_index_vcf(outputs['tpb_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['tpc_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
+        truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
 
 def bench_main(cmdargs):
     """
@@ -506,13 +532,13 @@ def bench_main(cmdargs):
             match.comp = None
         output_writer(match, outputs, args.sizemin)
 
-    with open(os.path.join(args.output, "summary.txt"), 'w') as fout:
+    with open(os.path.join(args.output, "summary.json"), 'w') as fout:
         box = outputs["stats_box"]
         box.calc_performance()
         fout.write(json.dumps(box, indent=4))
         logging.info("Stats: %s", json.dumps(box, indent=4))
 
-    close_outputs(outputs)
+    close_outputs(outputs, args.no_compress)
 
     if args.giabreport:
         make_giabreport(args, outputs["stats_box"])
