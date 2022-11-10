@@ -412,24 +412,28 @@ def check_params(args):
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
         check_fail = True
-
+    if args.reference and not os.path.exists(args.reference):
+        logging.error("Reference %s does not exist", args.reference)
+        check_fail = True
     return check_fail
 
 
-def check_sample(vcf_fn, sampleId=None):
+def check_sample(vcf_fn, sample_id=None):
     """
     Checks that a sample is inside a vcf
     Returns True if check failed
     """
     vcf_file = pysam.VariantFile(vcf_fn)
     check_fail = False
-    if sampleId is not None and sampleId not in vcf_file.header.samples:
-        logging.error("Sample %s not found in vcf (%s)", sampleId, vcf_fn)
+    if sample_id is not None and sample_id not in vcf_file.header.samples:
+        logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
         check_fail = True
     if len(vcf_file.header.samples) == 0:
         logging.error("No SAMPLE columns found in vcf (%s)", vcf_fn)
         check_fail = True
-    return check_fail
+    if sample_id is None:
+        sample_id = vcf_file.header.samples[0]
+    return check_fail, sample_id
 
 
 def check_inputs(args):
@@ -437,7 +441,9 @@ def check_inputs(args):
     Checks the inputs to ensure expected values are found inside of files
     Returns True if check failed
     """
-    return check_sample(args.base, args.bSample) or check_sample(args.comp, args.cSample)
+    b_check, args.bSample = check_sample(args.base, args.bSample)
+    c_check, args.cSample = check_sample(args.comp, args.cSample)
+    return b_check or c_check
 
 
 def setup_outputs(args):

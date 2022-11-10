@@ -7,13 +7,16 @@ import json
 import logging
 import argparse
 from typing import List
+from argparse import Namespace
+import itertools
 from dataclasses import dataclass, field
 
 import pysam
 from intervaltree import IntervalTree, Interval
 
 import truvari
-from truvari.bench import StatsBox
+from truvari.bench import StatsBox, compare_chunk, setup_outputs, output_writer, close_outputs
+
 
 def read_json(fn):
     """
@@ -65,10 +68,13 @@ class ReevalRegion:
     chrom: str
     start: int
     end: int
+    eval_method: str = "phab"
     needs_reeval: bool = True
     # These may need to become a temporary file's name
     base_calls: List = field(default_factory=lambda: [])
+    base_count: int = 0
     comp_calls: List = field(default_factory=lambda: [])
+    call_count: int = 0
     in_tp_base_count: int = 0
     in_tp_call_count: int = 0
     in_fp_count: int = 0
@@ -78,30 +84,32 @@ class ReevalRegion:
     out_fp_count: int = 0
     out_fn_count: int = 0
     
+    def set_out_to_in(self):
+        """
+        For regions with no changes
+        """
+        self.out_tp_base_count = self.in_tp_base_count
+        self.out_tp_call_count = self.in_tp_call_count
+        self.out_fp_count = self.in_fp_count
+        self.out_fn_count = self.in_fn_count
+
     def update_summary(self, summary):
         """
         Given a StatsBox (dict), update the counts based on what we've observed
 
-        This is currently done stupidly. I'm sure there's a cleaner logic for updating the counts, 
+        This is currently done stupidly. I'm sure there's a cleaner logic for updating the counts,
         but I'll refactor it later
         """
-        summary["TP-base"] -= self.in_tp_base_count
-        summary["TP-call"] -= self.in_tp_call_count
-        summary["FN"] -= self.in_fn_count
-        summary["FP"] -= self.in_fp_count
-        summary["base cnt"] -= self.in_tp_base_count + self.in_fn_count
-        summary["call cnt"] -= self.in_tp_call_count + self.in_fp_count
-
         summary["TP-base"] += self.out_tp_base_count
         summary["TP-call"] += self.out_tp_call_count
         summary["FN"] += self.out_fn_count
         summary["FP"] += self.out_fp_count
         summary["base cnt"] += self.out_tp_base_count + self.out_fn_count
         summary["call cnt"] += self.out_tp_call_count + self.out_fp_count
-    
+
     def __str__(self):
         return (f"{self.chrom}\t{self.start}\t{self.end}\t{self.needs_reeval}\t"
-                f"{len(self.base_calls)}\t{len(self.comp_calls)}\t{self.in_tp_base_count}\t"
+                f"{self.base_count}\t{self.call_count}\t{self.in_tp_base_count}\t"
                 f"{self.in_tp_call_count}\t{self.in_fp_count}\t{self.in_fn_count}\t"
                 f"{self.out_tp_base_count}\t{self.out_tp_call_count}\t{self.out_fp_count}\t{self.out_fn_count}")
 
@@ -114,7 +122,26 @@ def region_needs_reeval(region):
     design this in now...
     """
     region.needs_reeval = region.in_fn_count > 0 and region.in_fp_count > 0
+    if not region.needs_reeval:
+        region.set_out_to_in()
+        
     return region
+
+def pull_variants(in_vcf_fn, out_vcf_fn, chrom, start, end):
+    """
+    Move variants contained entirely inside region from in_vcf to out_vcf
+    """
+    in_vcf = pysam.VariantFile(in_vcf_fn)
+    out_vcf = pysam.VariantFile(out_vcf_fn, 'w', header=in_vcf.header)
+    cnt = 0
+    for entry in in_vcf.fetch(chrom, start, end):
+        ent_start, ent_end = truvari.entry_boundaries(entry)
+        if start <= ent_start and ent_end <= end:
+            cnt += 1
+            out_vcf.write(entry)
+    out_vcf.close()
+    truvari.compress_index_vcf(out_vcf_fn)
+    return cnt
 
 def fetch_originals(region):
     """
@@ -123,9 +150,18 @@ def fetch_originals(region):
     Populates the RevalRegion's `base_calls` and `comp_calls`
     """
     fetch_bench_vcfs(region, populate_calls=False)
-    region.base_calls = [_ for _ in pysam.VariantFile(region.params["base"]).fetch(region.chrom, region.start, region.end)]
-    region.comp_calls = [_ for _ in pysam.VariantFile(region.params["comp"]).fetch(region.chrom, region.start, region.end)]
-    return region   
+    if region.eval_method == 'phab':
+        bout_name = truvari.make_temp_filename(suffix=".vcf")
+        region.base_count = pull_variants(region.params["base"], bout_name, region.chrom, region.start, region.end)
+        region.base_calls = bout_name + '.gz'
+        
+        cout_name = truvari.make_temp_filename(suffix=".vcf")
+        region.call_count = pull_variants(region.params["comp"], cout_name, region.chrom, region.start, region.end)
+        region.comp_calls = cout_name + '.gz'
+    else:
+        region.base_calls = [_ for _ in pysam.VariantFile(region.params["base"]).fetch(region.chrom, region.start, region.end)]
+        region.comp_calls = [_ for _ in pysam.VariantFile(region.params["comp"]).fetch(region.chrom, region.start, region.end)]
+    return region
 
 def fetch_bench_vcfs(region, populate_calls=True):
     """
@@ -167,14 +203,48 @@ def phab_eval(region):
     # Short circuit
     if not region.needs_reeval:
         return region
+    
+    phab_dir = os.path.join(region.benchdir, "phab", region.name)
+    os.makedirs(phab_dir)
+    m_reg = (region.chrom, region.start, region.end)
+    truvari.phab(region.base_calls, region.params["reference"], phab_dir, m_reg,
+                 comp_vcf=region.comp_calls, prefix_comp=True)
+    
+    # This is a straight copy of truvari.bench_main -- Awful
+    vcf_fn = os.path.join(phab_dir, "output.vcf.gz")
+    # I don't know if this is safe..
+    m_args = Namespace(**region.params)
+    m_args.no_ref = 'a'
+    matcher = truvari.Matcher(args=m_args)
+    m_args.output = os.path.join(phab_dir, "bench")
+    m_args.base = vcf_fn
+    m_args.comp = vcf_fn
+    outputs = setup_outputs(m_args)
+    base = pysam.VariantFile(vcf_fn)
+    comp = pysam.VariantFile(vcf_fn)
+    regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
+    base_i = regions.iterate(base)
+    comp_i = regions.iterate(comp)
+    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
+    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        output_writer(match, outputs, m_args.sizemin)
+    box = outputs["stats_box"]
+    with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
+        box.calc_performance()
+        fout.write(json.dumps(box, indent=4))
+        logging.info("Stats: %s", json.dumps(box, indent=4))
+
+    close_outputs(outputs, True)
+
+    # might want refinment counts?
+
     # Just move one over for fun
-    region.out_fn_count = region.in_fn_count - 1
-    region.out_fp_count = region.in_fp_count - 1
-    region.out_tp_base_count = region.in_tp_base_count + 1
-    region.out_tp_call_count = region.in_tp_call_count + 1
+    region.out_fn_count = box["FN"]
+    region.out_fp_count = box["FP"]
+    region.out_tp_base_count = box["TP-base"]
+    region.out_tp_call_count = box["TP-call"]
 
     return region
-    #raise NotImplementedError("In progress")
 
 def hap_eval(region):
     """
@@ -208,14 +278,14 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
     """
     # This will process multiple regions, so think about how to separate region parsing from eval
     # If I keep it clean we'll have an opportunity to parallelize. Can maybe make use of callbacks, also
-    
+
     # Build a Region datastructure. These are what we use to pass inputs/output
     data = []
     for chrom in reeval_trees:
         for intv in reeval_trees[chrom]:
             name = f"{chrom}:{intv.begin}-{intv.end}"
-            data.append(ReevalRegion(name, benchdir, params, chrom, intv.begin, intv.end))
-    
+            data.append(ReevalRegion(name, benchdir, params, chrom, intv.begin, intv.end, eval_method))
+
     # Build the pipeline
     pipeline = []
 
@@ -236,7 +306,7 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
         for result in truvari.fchain(pipeline, data, workers=workers):
             result.update_summary(summary)
             fout.write(str(result) + '\n')
-    
+
     # Doesn't need to return anything since summary is updated in-place
     return
 
@@ -248,7 +318,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
-    parser.add_argument("-f", "--reference", type=str, required=True,
+    parser.add_argument("-f", "--reference", type=str,
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to process")
@@ -274,18 +344,33 @@ def rebench_main(cmdargs):
         logging.error("Bench directory %s doesn't have params.json", param_path)
         sys.exit(1)
     params = read_json(param_path)
+    
+    if params["reference"] is None and args.reference is None:
+        logging.error("Reference not in params.json or specified to rebench")
+        sys.exit(1)
+    if params["reference"] is None:
+        params["reference"] = args.reference
+
+    # Setup prefix... 
+    params["cSample"] = "p:" + params["cSample"]
 
     summary_path = os.path.join(args.benchdir, "summary.json")
     if not os.path.exists(summary_path):
         logging.error("Bench directory %s doesn't have summary.json", param_path)
         sys.exit(1)
     summary = StatsBox()
-    summary.update(read_json(summary_path))
+    #summary.update(read_json(summary_path))
 
     if params["includebed"] is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run rebench")
         sys.exit(1)
+    
+    if args.eval == 'phab':
+        # Might exist.. so another thing we gotta check
+        os.makedirs(os.path.join(args.benchdir, 'phab'))
+
+
 
     if params["includebed"] is None:
         btree, _ = truvari.build_anno_tree(args.regions, idxfmt="")
@@ -302,11 +387,11 @@ def rebench_main(cmdargs):
         reeval_trees = btree
 
     # Should check that bench dir has compressed/indexed vcfs for fetching
-    update_fns(args.benchdir, fn_trees, summary)
+    #update_fns(args.benchdir, fn_trees, summary)
 
     # Will eventually need to pass args for phab and|or hap-eval
     rebench(args.benchdir, params, summary, reeval_trees, args.use_original, args.eval, args.threads)
-    
+
     summary.calc_performance()
     with open(os.path.join(args.benchdir, 'rebench.summary.json'), 'w') as fout:
         json.dump(summary, fout, indent=4)

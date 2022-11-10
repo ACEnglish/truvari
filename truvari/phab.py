@@ -167,7 +167,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     Raises IOError if `output_dir` does not exist
     """
     if not os.path.exists(output_dir):
-        raise IOError(f"Directory {output_dir} does not exist")
+        os.makedirs(output_dir)
 
     buff_region = (var_region[0], var_region[1] - buffer, var_region[2] + buffer)
 
@@ -217,6 +217,41 @@ def check_requirements():
             check_fail = True
     return check_fail
 
+def check_params(args):
+    """
+    Ensure files are okay to use
+    """
+    check_fail = False
+    if os.path.isdir(args.output):
+        logging.error("Output directory '%s' already exists", args.output)
+        check_fail = True
+    if not os.path.exists(args.comp):
+        logging.error("File %s does not exist", args.comp)
+        check_fail = True
+    if not os.path.exists(args.base):
+        logging.error("File %s does not exist", args.base)
+        check_fail = True
+    if not args.comp.endswith(".gz"):
+        logging.error(
+            "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
+        check_fail = True
+    if not os.path.exists(args.comp + '.tbi'):
+        logging.error(
+            "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+        check_fail = True
+    if not args.base.endswith(".gz"):
+        logging.error(
+            "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
+        check_fail = True
+    if not os.path.exists(args.base + '.tbi'):
+        logging.error(
+            "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+        check_fail = True
+    if not os.path.exists(args.reference):
+        logging.error("Reference %s does not exist", args.reference)
+        check_fail = True
+    return check_fail
+
 def t_phab(job):
     """
     Hack to mimmic starmap since I can't find a Pool.starmap_unordered
@@ -229,11 +264,11 @@ def phab_main(cmdargs):
     """
     args = parse_args(cmdargs)
     truvari.setup_logging(args.debug, show_version=True)
-    if check_requirements():
+    if check_requirements() or check_params(args):
+        logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(1)
-    #if check_params(args):
-        # mainly just if files exist
-        #pass
+    
+    os.makedirs(args.output)
 
     if args.bSamples is None:
         args.bSamples = list(pysam.VariantFile(args.base).header.samples)
@@ -245,6 +280,7 @@ def phab_main(cmdargs):
             args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
         else:
             args.cSamples = args.cSamples.split(',')
+
     prefix_comp = False
     if args.cSamples and set(args.cSamples) & set(args.bSamples):
         logging.warning("--cSamples intersect with --bSamples. Output vcf --comp SAMPLE names will have prefix 'p:'")
@@ -257,12 +293,6 @@ def phab_main(cmdargs):
         for region in all_regions:
             m_output = args.output if len(all_regions) == 1 \
                         else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
-            try:
-                os.makedirs(m_output)
-            except FileExistsError:
-                logging.error("Output directory %s exists.", args.output)
-                sys.exit(1)
-
             jobs.append((args.base, args.reference, m_output, region, args.buffer,
                       args.comp, args.bSamples, args.cSamples, args.mafft_params, prefix_comp))
         logging.info("%d regions to process", len(jobs))
