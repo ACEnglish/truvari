@@ -59,6 +59,7 @@ class ReevalRegion: # pylint: disable=too-many-instance-attributes
     name: str
     benchdir: str
     params: dict
+    reference: str
     chrom: str
     start: int
     end: int
@@ -102,6 +103,15 @@ class ReevalRegion: # pylint: disable=too-many-instance-attributes
         summary["FP"] += self.out_fp_count
         summary["base cnt"] += self.out_tp_base_count + self.out_fn_count
         summary["call cnt"] += self.out_tp_call_count + self.out_fp_count
+
+    @staticmethod
+    def get_header():
+        """
+        Get the header of the columns this makes when you output a string
+        """
+        return "\t".join(["chrom", "start", "end", "reevaled", "base_count", "call_count",
+                          "in_tp_base_count", "in_tp_call_count", "in_fp_count", "in_fn_count",
+                          "out_tp_base_count", "out_tp_call_count", "out_fp_count", "out_fn_count"])
 
     def __str__(self):
         return (f"{self.chrom}\t{self.start}\t{self.end}\t{self.needs_reeval}\t"
@@ -239,7 +249,7 @@ def phab_eval(region):
     phab_dir = os.path.join(region.benchdir, "phab", region.name)
     os.makedirs(phab_dir)
     m_reg = (region.chrom, region.start, region.end)
-    truvari.phab(region.base_calls, region.params["reference"], phab_dir, m_reg,
+    truvari.phab(region.base_calls, region.reference, phab_dir, m_reg,
                  comp_vcf=region.comp_calls, prefix_comp=True)
 
     # Setup/run truvari bench
@@ -316,7 +326,7 @@ def run_bench(m_args):
 
 EVALS = {'phab':phab_eval, 'hap':hap_eval}
 
-def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_method='phab', workers=1):
+def rebench(benchdir, params, summary, reeval_trees, reference, use_original=False, eval_method='phab', workers=1):
     """
     Sets up inputs before calling specified EVAL method
     Will take the output from the EVAL method to then update summary
@@ -329,26 +339,26 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
     :type `bench`: :class:`dict`
     :param `reeval_trees`: dict of IntervalTrees of regions to be re-evaluated
     :type `reeval_trees`: `dict`
+    :param `reference`: Reference to use for the eval method
+    :type `reference`: str
     :param `use_original`: true if use original VCFs, else parse calls in benchdir VCFs
     :type `use_original`: `bool`
     :param `eval_method`:
     :param `workers`: number of workers to use
     :type `workers`: `int`
     """
-    # This will process multiple regions, so think about how to separate region parsing from eval
-    # If I keep it clean we'll have an opportunity to parallelize. Can maybe make use of callbacks, also
-
-    # Build a Region datastructure. These are what we use to pass inputs/output
+    # Build a Region datastructure.
+    # These are what we use to pass inputs/output
     data = []
     for chrom in reeval_trees:
         for intv in reeval_trees[chrom]:
             name = f"{chrom}:{intv.begin}-{intv.end}"
-            data.append(ReevalRegion(name, benchdir, params, chrom, intv.begin, intv.end, eval_method))
+            data.append(ReevalRegion(name, benchdir, params, reference, chrom, intv.begin, intv.end, eval_method))
 
     # Build the pipeline
     pipeline = []
 
-    # Setup variants
+    # Get/count input variants
     if use_original:
         pipeline.append((fetch_originals))
     else:
@@ -360,8 +370,9 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
     # Call the eval_method
     pipeline.append((EVALS[eval_method]))
 
-    # Collect eval_method's results
-    with open(os.path.join(benchdir, 'rebench.counts.bed'), 'w') as fout:
+    # Collect results
+    with open(os.path.join(benchdir, 'rebench.counts.txt'), 'w') as fout:
+        fout.write(ReevalRegion.get_header() + '\n')
         for result in truvari.fchain(pipeline, data, workers=workers):
             result.update_summary(summary)
             fout.write(str(result) + '\n')
@@ -402,10 +413,10 @@ def rebench_main(cmdargs):
     params = read_json(param_path)
 
     if params["reference"] is None and args.reference is None:
-        logging.error("Reference not in params.json or specified to rebench")
+        logging.error("Reference not in params.json or given as a parameter to rebench")
         sys.exit(1)
-    if params["reference"] is None:
-        params["reference"] = args.reference
+    elif args.reference is None:
+        args.reference = params["reference"]
 
     # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
@@ -414,8 +425,8 @@ def rebench_main(cmdargs):
     if not os.path.exists(summary_path):
         logging.error("Bench directory %s doesn't have summary.json", param_path)
         sys.exit(1)
-    summary = StatsBox()
-    #summary.update(read_json(summary_path))
+
+    # Should check that bench dir has compressed/indexed vcfs for fetching
 
     if params["includebed"] is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
@@ -426,15 +437,11 @@ def rebench_main(cmdargs):
         # Might exist.. so another thing we gotta check
         os.makedirs(os.path.join(args.benchdir, 'phab'))
 
-
-
     if params["includebed"] is None:
         btree, _ = truvari.build_anno_tree(args.regions, idxfmt="")
     else:
         btree, _ = truvari.build_anno_tree(params["includebed"], idxfmt="")
 
-    # Logic gap here. If there is no includebed, we don't build fn_trees
-    # I think that's okay?...
     if args.regions:
         stree, _ = truvari.build_anno_tree(args.regions)
         reeval_trees = intersect_beds(btree, stree)
@@ -442,13 +449,14 @@ def rebench_main(cmdargs):
         #fn_trees = {}
         reeval_trees = btree
 
-    # Should check that bench dir has compressed/indexed vcfs for fetching
-    #update_fns(args.benchdir, fn_trees, summary)
+    #update_fns(args.benchdir, fn_trees, summary) - no longer do this
 
     # Will eventually need to pass args for phab and|or hap-eval
-    rebench(args.benchdir, params, summary, reeval_trees, args.use_original, args.eval, args.threads)
-
+    summary = StatsBox()
+    rebench(args.benchdir, params, summary, reeval_trees,
+            args.reference, args.use_original, args.eval, args.threads)
     summary.calc_performance()
+
     with open(os.path.join(args.benchdir, 'rebench.summary.json'), 'w') as fout:
         json.dump(summary, fout, indent=4)
     logging.info(json.dumps(summary, indent=4))
