@@ -56,6 +56,8 @@ def fchain(pipe, data, workers=1):
             except Exception as exc:  # pylint: disable=broad-except
                 logging.critical('%r generated an exception: %s', my_name, exc)
                 exc_type, exc_value, exc_traceback = sys.exc_info()
+                for fut in future_results:
+                    _ = fut.cancel()
                 #logging.debug("Dumping Traceback:")
                 #traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
                 raise exc

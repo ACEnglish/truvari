@@ -199,7 +199,10 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     n_header += str(vcf.header.contigs[var_region[0]].header_record)
 
     with open(output_vcf, 'w') as fout:
-        fout.write(truvari.msa2vcf(msa_output, n_header))
+        try:
+            fout.write(truvari.msa2vcf(msa_output, n_header))
+        except RuntimeWarning:
+            return
 
     truvari.compress_index_vcf(output_vcf)
 

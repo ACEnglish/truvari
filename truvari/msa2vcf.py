@@ -40,8 +40,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
         anchor_base = ref_seq[0]
         if anchor_base == '-':
             logging.error("MSA starts with an indel in %s. Can't make VCF", alt_key)
-            # raise RuntimeWarning TODO - fix this, it breaks threads and makes phab hang
-            sys.exit(1)
+            raise RuntimeWarning()
 
         cur_variant = []
         cur_pos = start_pos

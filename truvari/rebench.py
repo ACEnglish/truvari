@@ -74,7 +74,7 @@ class ReevalRegion:
     in_fp_count: int = 0
     in_fn_count: int = 0
     out_tp_base_count: int = 0
-    out_tp_comp_count: int = 0
+    out_tp_call_count: int = 0
     out_fp_count: int = 0
     out_fn_count: int = 0
     
@@ -93,11 +93,17 @@ class ReevalRegion:
         summary["call cnt"] -= self.in_tp_call_count + self.in_fp_count
 
         summary["TP-base"] += self.out_tp_base_count
-        summary["TP-call"] += self.out_tp_comp_count
+        summary["TP-call"] += self.out_tp_call_count
         summary["FN"] += self.out_fn_count
         summary["FP"] += self.out_fp_count
         summary["base cnt"] += self.out_tp_base_count + self.out_fn_count
-        summary["call cnt"] += self.out_tp_comp_count + self.out_fp_count
+        summary["call cnt"] += self.out_tp_call_count + self.out_fp_count
+    
+    def __str__(self):
+        return (f"{self.chrom}\t{self.start}\t{self.end}\t{self.needs_reeval}\t"
+                f"{len(self.base_calls)}\t{len(self.comp_calls)}\t{self.in_tp_base_count}\t"
+                f"{self.in_tp_call_count}\t{self.in_fp_count}\t{self.in_fn_count}\t"
+                f"{self.out_tp_base_count}\t{self.out_tp_call_count}\t{self.out_fp_count}\t{self.out_fn_count}")
 
 def region_needs_reeval(region):
     """
@@ -108,7 +114,6 @@ def region_needs_reeval(region):
     design this in now...
     """
     region.needs_reeval = region.in_fn_count > 0 and region.in_fp_count > 0
-    logging.debug("region %s needs reeval? %s", region.name, region.needs_reeval)
     return region
 
 def fetch_originals(region):
@@ -166,7 +171,7 @@ def phab_eval(region):
     region.out_fn_count = region.in_fn_count - 1
     region.out_fp_count = region.in_fp_count - 1
     region.out_tp_base_count = region.in_tp_base_count + 1
-    region.out_tp_comp_count = region.in_tp_comp-count + 1
+    region.out_tp_call_count = region.in_tp_call_count + 1
 
     return region
     #raise NotImplementedError("In progress")
@@ -227,9 +232,11 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
     pipeline.append((EVALS[eval_method]))
 
     # Collect eval_method's results
-    for result in truvari.fchain(pipeline, data, workers=workers):
-        result.update_summary(summary)
-
+    with open(os.path.join(benchdir, 'rebench.counts.bed'), 'w') as fout:
+        for result in truvari.fchain(pipeline, data, workers=workers):
+            result.update_summary(summary)
+            fout.write(str(result) + '\n')
+    
     # Doesn't need to return anything since summary is updated in-place
     return
 
@@ -254,7 +261,7 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    truvari.setup_logging(args.debug)
+    truvari.setup_logging(args.debug, show_version=True)
     return args
 
 def rebench_main(cmdargs):
@@ -299,6 +306,9 @@ def rebench_main(cmdargs):
 
     # Will eventually need to pass args for phab and|or hap-eval
     rebench(args.benchdir, params, summary, reeval_trees, args.use_original, args.eval, args.threads)
-    # Are we going to annotate the regions with the tp/fp counts and changes.. maybe eventually
+    
     summary.calc_performance()
-    print(json.dumps(summary, indent=4))
+    with open(os.path.join(args.benchdir, 'rebench.summary.json'), 'w') as fout:
+        json.dump(summary, fout, indent=4)
+    logging.info(json.dumps(summary, indent=4))
+    logging.info("Finished rebench")
