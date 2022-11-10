@@ -450,6 +450,10 @@ def setup_outputs(args):
     """
     Makes all of the output files
     Places the data into the shared space
+
+    ToDo: separate the command-line outputs' setup (e.g. logging, making a dir) to clean up
+    when truvari.rebench.run_bench is called
+    ToDo: turn the outputs into a dataclass
     """
     os.mkdir(args.output)
     truvari.setup_logging(args.debug, truvari.LogFileStderr(

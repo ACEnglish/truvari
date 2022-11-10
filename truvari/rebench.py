@@ -70,10 +70,12 @@ class ReevalRegion:
     end: int
     eval_method: str = "phab"
     needs_reeval: bool = True
-    # These may need to become a temporary file's name
-    base_calls: List = field(default_factory=lambda: [])
+    # These may need to become a list
+    #base_calls: List = field(default_factory=lambda: [])
+    base_calls: str = None
     base_count: int = 0
-    comp_calls: List = field(default_factory=lambda: [])
+    #comp_calls: List = field(default_factory=lambda: [])
+    comp_calls: str = None
     call_count: int = 0
     in_tp_base_count: int = 0
     in_tp_call_count: int = 0
@@ -86,7 +88,7 @@ class ReevalRegion:
     
     def set_out_to_in(self):
         """
-        For regions with no changes
+        For regions with no changes, the output counts are identical to input counts
         """
         self.out_tp_base_count = self.in_tp_base_count
         self.out_tp_call_count = self.in_tp_call_count
@@ -130,9 +132,11 @@ def region_needs_reeval(region):
 def pull_variants(in_vcf_fn, out_vcf_fn, chrom, start, end):
     """
     Move variants contained entirely inside region from in_vcf to out_vcf
+
+    Returns how many variants were pulled
     """
     in_vcf = pysam.VariantFile(in_vcf_fn)
-    out_vcf = pysam.VariantFile(out_vcf_fn, 'w', header=in_vcf.header)
+    out_vcf = pysam.VariantFile(out_vcf_fn, mode, header=in_vcf.header)
     cnt = 0
     for entry in in_vcf.fetch(chrom, start, end):
         ent_start, ent_end = truvari.entry_boundaries(entry)
@@ -148,6 +152,8 @@ def fetch_originals(region):
     Grabs the variants that are needed for processing
 
     Populates the RevalRegion's `base_calls` and `comp_calls`
+
+    ToDo: This should also check that the calls are inside the boundary
     """
     fetch_bench_vcfs(region, populate_calls=False)
     if region.eval_method == 'phab':
@@ -169,30 +175,61 @@ def fetch_bench_vcfs(region, populate_calls=True):
     Populate the input state counts from truvari vcfs
 
     Populates the RevalRegion's `base_calls` and `comp_calls`
+
+    ToDo: Clean this up.. it's gotta be simpler than this. I already tried to make pull_variants work for me, but it
+    doesn't exactly work. So refactor that
     """
-    vcf = pysam.VariantFile(os.path.join(region.benchdir, "tp-base.vcf.gz"))
-    for entry in vcf.fetch(region.chrom, region.start, region.end):
+    tp_vcf = pysam.VariantFile(os.path.join(region.benchdir, "tp-base.vcf.gz"))
+    bout_name, bout, cout_name, cout = None, None, None, None
+    b_count, c_count = 0, 0
+    if populate_calls:
+        bout_name = truvari.make_temp_filename(suffix=".vcf")
+        bout = pysam.VariantFile(bout_name, 'w', header=tp_vcf.header)
+
+    for entry in tp_vcf.fetch(region.chrom, region.start, region.end):
         region.in_tp_base_count += 1
+        b_count += 1
         if populate_calls:
-            region.base_calls.append(entry)
+            bout.write(entry)
+            #region.base_calls.append(entry)
 
-    vcf = pysam.VariantFile(os.path.join(region.benchdir, "fn.vcf.gz"))
-    for entry in vcf.fetch(region.chrom, region.start, region.end):
+    fn_vcf = pysam.VariantFile(os.path.join(region.benchdir, "fn.vcf.gz"))
+    for entry in fn_vcf.fetch(region.chrom, region.start, region.end):
         region.in_fn_count += 1
+        b_count += 1
         if populate_calls:
-            region.base_calls.append(entry)
+            bout.write(entry)
+            #region.base_calls.append(entry)
 
-    vcf = pysam.VariantFile(os.path.join(region.benchdir, "tp-call.vcf.gz"))
-    for entry in vcf.fetch(region.chrom, region.start, region.end):
+    tpc_vcf = pysam.VariantFile(os.path.join(region.benchdir, "tp-call.vcf.gz"))
+    if populate_calls:
+        cout_name = truvari.make_temp_filename(suffix=".vcf")
+        cout = pysam.VariantFile(cout_name, 'w', header=tpc_vcf.header)
+
+    for entry in tpc_vcf.fetch(region.chrom, region.start, region.end):
         region.in_tp_call_count += 1
+        c_count += 1
         if populate_calls:
-            region.comp_calls.append(entry)
+            cout.write(entry)
+            #region.comp_calls.append(entry)
 
-    vcf = pysam.VariantFile(os.path.join(region.benchdir, "fp.vcf.gz"))
-    for entry in vcf.fetch(region.chrom, region.start, region.end):
+    fp_vcf = pysam.VariantFile(os.path.join(region.benchdir, "fp.vcf.gz"))
+    for entry in fp_vcf.fetch(region.chrom, region.start, region.end):
         region.in_fp_count += 1
+        c_count += 1
         if populate_calls:
-            region.comp_calls.append(entry)
+            cout.write(entry)
+            #region.comp_calls.append(entry)
+
+    if populate_calls:
+        bout.close()
+        cout.close()
+        truvari.compress_index_vcf(bout_name)
+        truvari.compress_index_vcf(cout_name)
+        region.base_calls = bout_name + '.gz'
+        region.base_count = b_count
+        region.comp_calls = cout_name + '.gz'
+        region.call_count = c_count
 
     return region
 
@@ -200,7 +237,6 @@ def phab_eval(region):
     """
     Analyze a ReevalRegion with phab
     """
-    # Short circuit
     if not region.needs_reeval:
         return region
     
@@ -210,35 +246,17 @@ def phab_eval(region):
     truvari.phab(region.base_calls, region.params["reference"], phab_dir, m_reg,
                  comp_vcf=region.comp_calls, prefix_comp=True)
     
-    # This is a straight copy of truvari.bench_main -- Awful
+    # Setup/run truvari bench
     vcf_fn = os.path.join(phab_dir, "output.vcf.gz")
-    # I don't know if this is safe..
     m_args = Namespace(**region.params)
     m_args.no_ref = 'a'
-    matcher = truvari.Matcher(args=m_args)
     m_args.output = os.path.join(phab_dir, "bench")
     m_args.base = vcf_fn
     m_args.comp = vcf_fn
-    outputs = setup_outputs(m_args)
-    base = pysam.VariantFile(vcf_fn)
-    comp = pysam.VariantFile(vcf_fn)
-    regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
-    base_i = regions.iterate(base)
-    comp_i = regions.iterate(comp)
-    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        output_writer(match, outputs, m_args.sizemin)
+    outputs = run_bench(m_args)
+
+    # Refine counts
     box = outputs["stats_box"]
-    with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
-        box.calc_performance()
-        fout.write(json.dumps(box, indent=4))
-        logging.info("Stats: %s", json.dumps(box, indent=4))
-
-    close_outputs(outputs, True)
-
-    # might want refinment counts?
-
-    # Just move one over for fun
     region.out_fn_count = box["FN"]
     region.out_fp_count = box["FP"]
     region.out_tp_base_count = box["TP-base"]
@@ -254,6 +272,51 @@ def hap_eval(region):
     # Short circuit
     if not region.needs_reeval:
         return region
+
+def run_bench(m_args):
+    """
+    Run truvari bench.
+    
+    Returns the bench outputs dict built by truvari.setup_outputs
+
+    For now takes a single parameter `m_args` - a Namespace of all the command line arguments
+    used by bench. 
+
+    This puts the burden on the user to 
+        1. build that namespace correctly (there's no checks on it)
+        2. know how to use that namespace to get their pre-saved vcf(s) through
+        3. read/process the output vcfs
+        4. understand the `setup_outputs` structure even though that isn't an object
+
+    Future versions I'll clean this up to not rely on files. Would be nice to have a way to just provide
+    lists of base/comp calls and to return the e.g. output vcf entries with an in-memory object(s)
+
+    This current version is just a quick convience thing
+
+    Even with this quick thing which is almost essentially a command line wrapper, I could make it better
+    with:
+        make a bench params dataclass - helps document/standardize m_args
+        make a `setup_outputs` dataclass - helps document/standardize outputs
+    """
+    matcher = truvari.Matcher(args=m_args)
+    outputs = setup_outputs(m_args)
+    base = pysam.VariantFile(m_args.base)
+    comp = pysam.VariantFile(m_args.comp)
+    regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
+    base_i = regions.iterate(base)
+    comp_i = regions.iterate(comp)
+    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
+    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        output_writer(match, outputs, m_args.sizemin)
+    box = outputs["stats_box"]
+    with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
+        box.calc_performance()
+        fout.write(json.dumps(box, indent=4))
+        logging.info("Stats: %s", json.dumps(box, indent=4))
+
+    close_outputs(outputs, True)
+    return outputs
+
 
 EVALS = {'phab':phab_eval, 'hap':hap_eval}
 
