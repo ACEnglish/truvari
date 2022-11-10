@@ -6,13 +6,12 @@ import sys
 import json
 import logging
 import argparse
-from typing import List
 from argparse import Namespace
 import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import pysam
-from intervaltree import IntervalTree, Interval
+from intervaltree import IntervalTree
 
 import truvari
 from truvari.bench import StatsBox, compare_chunk, setup_outputs, output_writer, close_outputs
@@ -30,21 +29,16 @@ def read_json(fn):
 def intersect_beds(includebed, regions):
     """
     Remove includebed regions that do not intersect subset regions
-    Return the unique and shared regions as dict of IntervalTrees
+    Return the shared regions as dict of IntervalTrees
     """
-    unique_include = {}
     shared_include = {}
     for chrom in includebed:
-        u_inc = []
         s_inc = []
         for i in includebed[chrom]:
-            if not regions[chrom].overlaps(i):
-                u_inc.append(i)
-            else:
+            if regions[chrom].overlaps(i):
                 s_inc.append(i)
-        unique_include[chrom] = IntervalTree(u_inc)
         shared_include[chrom] = IntervalTree(s_inc)
-    return unique_include, shared_include
+    return shared_include
 
 def update_fns(benchdir, fn_trees, summary):
     """
@@ -58,7 +52,7 @@ def update_fns(benchdir, fn_trees, summary):
                 summary["FN"] -= 1
                 summary["base cnt"] -= 1
 @dataclass
-class ReevalRegion:
+class ReevalRegion: # pylint: disable=too-many-instance-attributes
     """
     Class for keeping track of a region for processing.
     """
@@ -85,7 +79,7 @@ class ReevalRegion:
     out_tp_call_count: int = 0
     out_fp_count: int = 0
     out_fn_count: int = 0
-    
+
     def set_out_to_in(self):
         """
         For regions with no changes, the output counts are identical to input counts
@@ -126,7 +120,7 @@ def region_needs_reeval(region):
     region.needs_reeval = region.in_fn_count > 0 and region.in_fp_count > 0
     if not region.needs_reeval:
         region.set_out_to_in()
-        
+
     return region
 
 def pull_variants(in_vcf_fn, out_vcf_fn, chrom, start, end):
@@ -136,7 +130,7 @@ def pull_variants(in_vcf_fn, out_vcf_fn, chrom, start, end):
     Returns how many variants were pulled
     """
     in_vcf = pysam.VariantFile(in_vcf_fn)
-    out_vcf = pysam.VariantFile(out_vcf_fn, mode, header=in_vcf.header)
+    out_vcf = pysam.VariantFile(out_vcf_fn, mode='w', header=in_vcf.header)
     cnt = 0
     for entry in in_vcf.fetch(chrom, start, end):
         ent_start, ent_end = truvari.entry_boundaries(entry)
@@ -156,17 +150,19 @@ def fetch_originals(region):
     ToDo: This should also check that the calls are inside the boundary
     """
     fetch_bench_vcfs(region, populate_calls=False)
-    if region.eval_method == 'phab':
-        bout_name = truvari.make_temp_filename(suffix=".vcf")
-        region.base_count = pull_variants(region.params["base"], bout_name, region.chrom, region.start, region.end)
-        region.base_calls = bout_name + '.gz'
-        
-        cout_name = truvari.make_temp_filename(suffix=".vcf")
-        region.call_count = pull_variants(region.params["comp"], cout_name, region.chrom, region.start, region.end)
-        region.comp_calls = cout_name + '.gz'
-    else:
-        region.base_calls = [_ for _ in pysam.VariantFile(region.params["base"]).fetch(region.chrom, region.start, region.end)]
-        region.comp_calls = [_ for _ in pysam.VariantFile(region.params["comp"]).fetch(region.chrom, region.start, region.end)]
+    bout_name = truvari.make_temp_filename(suffix=".vcf")
+    region.base_count = pull_variants(region.params["base"], bout_name, region.chrom, region.start, region.end)
+    region.base_calls = bout_name + '.gz'
+
+    cout_name = truvari.make_temp_filename(suffix=".vcf")
+    region.call_count = pull_variants(region.params["comp"], cout_name, region.chrom, region.start, region.end)
+    region.comp_calls = cout_name + '.gz'
+
+    # if/when we do in-memory parsing of calls
+    #if region.eval_method == 'phab':
+    #else:
+    # region.base_calls = [_ for _ in pysam.VariantFile(region.params["base"]).fetch(region.chrom, region.start, region.end)]
+    # region.comp_calls = [_ for _ in pysam.VariantFile(region.params["comp"]).fetch(region.chrom, region.start, region.end)]
     return region
 
 def fetch_bench_vcfs(region, populate_calls=True):
@@ -239,13 +235,13 @@ def phab_eval(region):
     """
     if not region.needs_reeval:
         return region
-    
+
     phab_dir = os.path.join(region.benchdir, "phab", region.name)
     os.makedirs(phab_dir)
     m_reg = (region.chrom, region.start, region.end)
     truvari.phab(region.base_calls, region.params["reference"], phab_dir, m_reg,
                  comp_vcf=region.comp_calls, prefix_comp=True)
-    
+
     # Setup/run truvari bench
     vcf_fn = os.path.join(phab_dir, "output.vcf.gz")
     m_args = Namespace(**region.params)
@@ -268,21 +264,21 @@ def hap_eval(region):
     """
     Analyze a ReevalRegion with hap_eval
     """
-    raise NotImplementedError("In progress")
     # Short circuit
     if not region.needs_reeval:
         return region
+    raise NotImplementedError("In progress")
 
 def run_bench(m_args):
     """
     Run truvari bench.
-    
+
     Returns the bench outputs dict built by truvari.setup_outputs
 
     For now takes a single parameter `m_args` - a Namespace of all the command line arguments
-    used by bench. 
+    used by bench.
 
-    This puts the burden on the user to 
+    This puts the burden on the user to
         1. build that namespace correctly (there's no checks on it)
         2. know how to use that namespace to get their pre-saved vcf(s) through
         3. read/process the output vcfs
@@ -370,9 +366,6 @@ def rebench(benchdir, params, summary, reeval_trees, use_original=False, eval_me
             result.update_summary(summary)
             fout.write(str(result) + '\n')
 
-    # Doesn't need to return anything since summary is updated in-place
-    return
-
 def parse_args(args):
     """
     Pull the command line parameters
@@ -407,14 +400,14 @@ def rebench_main(cmdargs):
         logging.error("Bench directory %s doesn't have params.json", param_path)
         sys.exit(1)
     params = read_json(param_path)
-    
+
     if params["reference"] is None and args.reference is None:
         logging.error("Reference not in params.json or specified to rebench")
         sys.exit(1)
     if params["reference"] is None:
         params["reference"] = args.reference
 
-    # Setup prefix... 
+    # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
 
     summary_path = os.path.join(args.benchdir, "summary.json")
@@ -428,7 +421,7 @@ def rebench_main(cmdargs):
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run rebench")
         sys.exit(1)
-    
+
     if args.eval == 'phab':
         # Might exist.. so another thing we gotta check
         os.makedirs(os.path.join(args.benchdir, 'phab'))
@@ -444,9 +437,9 @@ def rebench_main(cmdargs):
     # I think that's okay?...
     if args.regions:
         stree, _ = truvari.build_anno_tree(args.regions)
-        fn_trees, reeval_trees = intersect_beds(btree, stree)
+        reeval_trees = intersect_beds(btree, stree)
     else:
-        fn_trees = {}
+        #fn_trees = {}
         reeval_trees = btree
 
     # Should check that bench dir has compressed/indexed vcfs for fetching

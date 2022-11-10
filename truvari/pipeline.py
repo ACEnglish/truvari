@@ -1,9 +1,7 @@
 """
 pipeline - Easy function chaining with futures parallelization
 """
-import sys
 import logging
-import traceback
 
 import concurrent.futures as cfuts
 from functools import partial, reduce
@@ -53,12 +51,12 @@ def fchain(pipe, data, workers=1):
             my_name = future_results[future]
             try:
                 cur_result = future.result()
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 logging.critical('%r generated an exception: %s', my_name, exc)
-                exc_type, exc_value, exc_traceback = sys.exc_info()
                 for fut in future_results:
                     _ = fut.cancel()
                 #logging.debug("Dumping Traceback:")
+                #exc_type, exc_value, exc_traceback = sys.exc_info()
                 #traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
                 raise exc
             yield cur_result

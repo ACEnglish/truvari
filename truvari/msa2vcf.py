@@ -1,7 +1,6 @@
 """
 Turn an MSA fasta into VCF. Assumes one entry is reference with name >ref_chrom:start-end
 """
-import sys
 import logging
 from io import StringIO
 from collections import defaultdict

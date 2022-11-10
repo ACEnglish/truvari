@@ -267,7 +267,7 @@ def phab_main(cmdargs):
     if check_requirements() or check_params(args):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(1)
-    
+
     os.makedirs(args.output)
 
     if args.bSamples is None:
