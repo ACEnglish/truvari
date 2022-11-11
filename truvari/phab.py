@@ -211,7 +211,7 @@ def check_requirements():
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["bcftools", "vcf-sort", "bgzip", "tabix", "samtools", "mafft"]:
+    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft"]:
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
