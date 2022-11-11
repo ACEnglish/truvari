@@ -19,7 +19,8 @@ source $TESTSRC/sub_tests/consistency.sh
 source $TESTSRC/sub_tests/divide.sh
 source $TESTSRC/sub_tests/doctests.sh
 source $TESTSRC/sub_tests/entry_main.sh
-#source $TESTSRC/sub_tests/phab.sh
+source $TESTSRC/sub_tests/phab.sh
+source $TESTSRC/sub_tests/rebench.sh
 source $TESTSRC/sub_tests/segment.sh
 source $TESTSRC/sub_tests/vcf2df.sh
 source $TESTSRC/sub_tests/version.sh

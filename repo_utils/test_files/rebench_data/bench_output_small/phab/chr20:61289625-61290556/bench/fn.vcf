@@ -1,0 +1,18 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr20,length=64444167>
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	p:HG002	syndip
+chr20	61290440	.	A	ATCCAATGAGACTTGCTGGATTTATCCCCGTATCCAATGAGACTTGCTGGGTTTATCCCCGTATCCAATGAGACTTGCTGGGTTTATCCCGATA	.	.	PctSeqSimilarity=0.5027;PctSizeSimilarity=0.3333;PctRecOverlap=0.3333;SizeDiff=-186;StartDistance=67;EndDistance=67;GTMatch;TruScore=38;MatchId=1.8.6	GT	0/0	1/0
+chr20	61289888	.	C	CGAGACTTGCTGGGTTTATCCCCGTATCCAATGAGACTTGCTGGGTTTATCCCCCTATCCAAT	.	.	PctSeqSimilarity=0.0312;PctSizeSimilarity=0.5;PctRecOverlap=0.5079;SizeDiff=31;StartDistance=0;EndDistance=-31;GTMatch;TruScore=34;MatchId=1.2.2	GT	0/0	0/1
+chr20	61290326	.	A	ACTTGCTGGGTTTATCCCCGTATCCAATGAGACTTGCTGGGTTTATCCCCGTATCCAATGAGACTTGCTGGGTTTATCCCGATATCCAATGAGA	.	.	PctSeqSimilarity=0.0211;PctSizeSimilarity=1;PctRecOverlap=0;SizeDiff=0;StartDistance=246;EndDistance=153;TruScore=34;MatchId=1.5.4;Multi	GT	0/0	0/1

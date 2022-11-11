@@ -418,6 +418,10 @@ def rebench_main(cmdargs):
     elif args.reference is None:
         args.reference = params["reference"]
 
+    if not os.path.exists(args.reference):
+        logging.error("Reference %s does not exist", args.reference)
+        sys.exit(1)
+
     # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
 
