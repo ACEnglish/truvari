@@ -44,7 +44,7 @@ def flush_stack(in_vcf, stack, out_name, compress=True):
         cur_out.write(i)
     cur_out.close()
     if compress:
-        truvari.compress_index(out_name)
+        truvari.compress_index_vcf(out_name)
 
 def divide_main(args):
     """
