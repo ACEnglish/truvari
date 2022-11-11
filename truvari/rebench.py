@@ -16,7 +16,6 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.bench import StatsBox, compare_chunk, setup_outputs, output_writer, close_outputs
 
-
 def read_json(fn):
     """
     Parse json and return dict
@@ -26,19 +25,20 @@ def read_json(fn):
         ret = json.load(fh)
     return ret
 
-def intersect_beds(includebed, regions):
+def intersect_beds(bed_a, bed_b):
     """
-    Remove includebed regions that do not intersect subset regions
-    Return the shared regions as dict of IntervalTrees
+    Return bed_a regions that intersect bed_b regions
     """
-    shared_include = {}
-    for chrom in includebed:
+    shared = {}
+    count = 0
+    for chrom in bed_a:
         s_inc = []
-        for i in includebed[chrom]:
-            if regions[chrom].overlaps(i):
+        for i in bed_a[chrom]:
+            if bed_b[chrom].overlaps(i):
+                count += 1
                 s_inc.append(i)
-        shared_include[chrom] = IntervalTree(s_inc)
-    return shared_include
+        shared[chrom] = IntervalTree(s_inc)
+    return shared
 
 def update_fns(benchdir, fn_trees, summary):
     """
@@ -389,8 +389,9 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to process")
-    parser.add_argument("-e", "--eval", default='phab', choices=EVALS.keys(),
-                        help="Evaluation procedure (%(default)s)")
+    # commenting out until we actually have other eval methods
+    #parser.add_argument("-e", "--eval", default='phab', choices=EVALS.keys(),
+    #                    help="Evaluation procedure (%(default)s)")
     parser.add_argument("-u", "--use-original", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
     parser.add_argument("-t", "--threads", default=1, type=int,
@@ -432,33 +433,35 @@ def rebench_main(cmdargs):
 
     # Should check that bench dir has compressed/indexed vcfs for fetching
 
+    #if args.eval == 'phab':
+    #    # Might exist.. so another thing we gotta check
+    phdir = os.path.join(args.benchdir, 'phab')
+    if os.path.exists(phdir):
+        logging.error("Directory %s exists. Cannot run phab", phdir)
+        sys.exit(1)
+    os.makedirs(phdir)
+
     if params["includebed"] is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run rebench")
         sys.exit(1)
-
-    if args.eval == 'phab':
-        # Might exist.. so another thing we gotta check
-        os.makedirs(os.path.join(args.benchdir, 'phab'))
-
-    if params["includebed"] is None:
-        btree, _ = truvari.build_anno_tree(args.regions, idxfmt="")
-    else:
-        btree, _ = truvari.build_anno_tree(params["includebed"], idxfmt="")
-
-    if args.regions:
-        stree, _ = truvari.build_anno_tree(args.regions)
-        reeval_trees = intersect_beds(btree, stree)
-    else:
-        #fn_trees = {}
-        reeval_trees = btree
+    elif args.regions is None:
+        reeval_trees, new_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
+        logging.info("rebench-ing %d regions", new_count)
+    elif args.regions is not None and params["includebed"] is not None:
+        a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
+        b_trees, orig_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
+        reeval_trees, new_count  = intersect_beds(a_trees, b_trees)
+        logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
+                     regi_count, new_count, orig_count)
+        # might need to merge overlaps.
 
     #update_fns(args.benchdir, fn_trees, summary) - no longer do this
 
     # Will eventually need to pass args for phab and|or hap-eval
     summary = StatsBox()
     rebench(args.benchdir, params, summary, reeval_trees,
-            args.reference, args.use_original, args.eval, args.threads)
+            args.reference, args.use_original, 'phab', args.threads)
     summary.calc_performance()
 
     with open(os.path.join(args.benchdir, 'rebench.summary.json'), 'w') as fout:
