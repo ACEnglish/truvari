@@ -391,11 +391,12 @@ def parse_args(args):
     truvari.setup_logging(args.debug, show_version=True)
     return args
 
-def rebench_main(cmdargs):
+def check_params(args):
     """
-    Main
+    Sets up all the parameters
+
+    Returns params dict
     """
-    args = parse_args(cmdargs)
     param_path = os.path.join(args.benchdir, "params.json")
     if not os.path.exists(param_path):
         logging.error("Bench directory %s doesn't have params.json", param_path)
@@ -415,21 +416,28 @@ def rebench_main(cmdargs):
     # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
 
-    summary_path = os.path.join(args.benchdir, "summary.json")
-    if not os.path.exists(summary_path):
-        logging.error("Bench directory %s doesn't have summary.json", param_path)
-        sys.exit(1)
-
-    # Should check that bench dir has compressed/indexed vcfs for fetching
-
     #if args.eval == 'phab':
-    #    # Might exist.. so another thing we gotta check
     phdir = os.path.join(args.benchdir, 'phab')
     if os.path.exists(phdir):
         logging.error("Directory %s exists. Cannot run phab", phdir)
         sys.exit(1)
-    os.makedirs(phdir)
 
+    # Should check that bench dir has compressed/indexed vcfs for fetching
+    check_fail = False
+    for i in ["tp-base.vcf.gz", "tp-call.vcf.gz", "fn.vcf.gz", "fp.vcf.gz"]:
+        if not os.path.exists(os.path.join(args.benchdir, i)):
+            logging.error("Benchdir doesn't have compressed/indexed %s", i)
+            check_fail = True
+    if check_fail:
+        sys.exit(1)
+
+    os.makedirs(phdir)
+    return params
+
+def resolve_regions(params, args):
+    """
+    Figures out or creates the regions we'll be analyzing
+    """
     if params["includebed"] is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run rebench")
@@ -444,9 +452,20 @@ def rebench_main(cmdargs):
         logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                      regi_count, new_count, orig_count)
         # might need to merge overlaps.
+    return reeval_trees
 
-    # Will eventually need to pass args for phab and|or hap-eval
+def rebench_main(cmdargs):
+    """
+    Main
+    """
+    args = parse_args(cmdargs)
+
+    params = check_params(args)
+
+    reeval_trees = resolve_regions(params, args)
+
     summary = StatsBox()
+    # Will eventually need to pass args for phab and|or hap-eval
     rebench(args.benchdir, params, summary, reeval_trees,
             args.reference, args.use_original, 'phab', args.threads)
     summary.calc_performance()
