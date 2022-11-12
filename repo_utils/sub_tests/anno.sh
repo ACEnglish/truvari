@@ -57,7 +57,7 @@ run test_anno_grm \
     $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl
 if [ $test_anno_grm ]; then
     assert_exit_code 0
-    df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
+    df_check test_grm_result $ANSDIR/anno/grm.jl $OD/grm.jl
 fi
 
 #                                 trf
@@ -102,7 +102,7 @@ run test_anno_repmask \
     $truv anno repmask -i $INDIR/variants/multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 if [ $test_anno_repmask ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
+    assert_equal $(fn_md5 $ANSDIR/anno/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 fi
 
 run test_anno_repmask_err \
@@ -118,7 +118,7 @@ run test_anno_bpovl \
                      -a $INDIR/misc/anno.gtf.gz -p gff --sizemin 2
 if [ $test_anno_bpovl ]; then
     assert_exit_code 0
-    df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
+    df_check test_anno_bpovl_result $ANSDIR/anno/anno_bpovl.jl $OD/anno_bpovl.jl
 fi
 
 #                                 density
@@ -128,7 +128,7 @@ run truvari_anno_density \
                        -g $INDIR/beds/genome.bed -m $INDIR/beds/mask.bed
 if [ $truvari_anno_density ]; then
     assert_exit_code 0
-    df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
+    df_check test_anno_density_result $ANSDIR/anno/anno_density.jl $OD/anno_density.jl
 fi
 
 #                                 dpcnt
@@ -152,7 +152,7 @@ run test_anno_grpaf \
     $truv anno grpaf $INDIR/variants/grpaf.vcf.gz -l $INDIR/misc/grpaf.labels.txt -o $OD/anno_grpaf.vcf
 if [ $test_anno_grpaf ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/anno_grpaf.vcf) $(fn_md5 $OD/anno_grpaf.vcf)
+    assert_equal $(fn_md5 $ANSDIR/anno/anno_grpaf.vcf) $(fn_md5 $OD/anno_grpaf.vcf)
 fi
 
 run test_anno_grpaf_strict \
@@ -168,5 +168,5 @@ run test_anno_grpaf_subset \
                      -o $OD/anno_grpaf.subtags.vcf
 if [ $test_anno_grpaf_subset ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/anno_grpaf.subtags.vcf) $(fn_md5 $OD/anno_grpaf.subtags.vcf)
+    assert_equal $(fn_md5 $ANSDIR/anno/anno_grpaf.subtags.vcf) $(fn_md5 $OD/anno_grpaf.subtags.vcf)
 fi

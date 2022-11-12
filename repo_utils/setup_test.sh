@@ -1,5 +1,5 @@
 INDIR=repo_utils/test_files
-ANSDIR=$INDIR/answer_key
+ANSDIR=repo_utils/answer_key
 OD=test_results
 COVERAGE_RCFILE=.coveragerc
 

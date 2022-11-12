@@ -18,7 +18,7 @@ bench_assert() {
     k=$1
     if [ $name ]; then
         assert_exit_code 0
-        for i in $ANSDIR/bench${k}/*.vcf
+        for i in $ANSDIR/bench/bench${k}/*.vcf
         do
             bname=$(basename $i | sed 's/[\.|\-]/_/g')
             result=$OD/bench${k}/$(basename $i)
@@ -64,7 +64,7 @@ run test_bench_unroll $truv bench --no-compress \
                                   -o $OD/bench_unroll/
 if [ $test_bench_unroll ]; then
     assert_exit_code 0
-    for i in $ANSDIR/bench_unroll/*.vcf
+    for i in $ANSDIR/bench/bench_unroll/*.vcf
     do
         bname=$(basename $i | sed 's/[\.|\-]/_/g')
         result=$OD/bench_unroll/$(basename $i)
@@ -80,7 +80,7 @@ run test_bench_unroll_gz $truv bench -b $INDIR/variants/real_small_base.vcf.gz \
                                   -o $OD/bench_unroll_gz/
 if [ $test_bench_unroll ]; then
     assert_exit_code 0
-    for i in $ANSDIR/bench_unroll_gz/*.vcf.gz
+    for i in $ANSDIR/bench/bench_unroll_gz/*.vcf.gz
     do
         bname=$(basename $i | sed 's/[\.|\-]/_/g')
         result=$OD/bench_unroll_gz/$(basename $i)
@@ -101,7 +101,7 @@ run test_bench_giab $truv bench -b $INDIR/variants/giab.vcf.gz \
                                 --prog
 if [ $test_bench_giab ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 <(head -n50 $ANSDIR/bench_giab_report.txt)) $(fn_md5 <(head -n50 $OD/bench_giab/giab_report.txt))
+    assert_equal $(fn_md5 <(head -n50 $ANSDIR/bench/bench_giab_report.txt)) $(fn_md5 <(head -n50 $OD/bench_giab/giab_report.txt))
 fi
 
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
