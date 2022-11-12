@@ -40,17 +40,6 @@ def intersect_beds(bed_a, bed_b):
         shared[chrom] = IntervalTree(s_inc)
     return shared
 
-def update_fns(benchdir, fn_trees, summary):
-    """
-    For all FP calls in the fn_trees regions, update the FN counts
-    summary is updated in-place
-    """
-    vcf = pysam.VariantFile(os.path.join(benchdir, "fn.vcf.gz"))
-    for chrom in fn_trees:
-        for intv in fn_trees[chrom]:
-            for _ in vcf.fetch(chrom, intv.begin, intv.end):
-                summary["FN"] -= 1
-                summary["base cnt"] -= 1
 @dataclass
 class ReevalRegion: # pylint: disable=too-many-instance-attributes
     """
@@ -455,8 +444,6 @@ def rebench_main(cmdargs):
         logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                      regi_count, new_count, orig_count)
         # might need to merge overlaps.
-
-    #update_fns(args.benchdir, fn_trees, summary) - no longer do this
 
     # Will eventually need to pass args for phab and|or hap-eval
     summary = StatsBox()
