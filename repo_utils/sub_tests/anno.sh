@@ -1,8 +1,8 @@
 # ------------------------------------------------------------
 #                                 anno
 # ------------------------------------------------------------
-VCF=$INDIR/multi.vcf.gz
-REF=$INDIR/reference.fa
+VCF=$INDIR/variants/multi.vcf.gz
+REF=$INDIR/references/reference.fa
 
 #                                 hompct
 run test_anno_hompct \
@@ -54,7 +54,7 @@ fi
 
 #                                 grm
 run test_anno_grm \
-    $truv anno grm -i $INDIR/input2.vcf.gz -r $REF -o $OD/grm.jl
+    $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl
 if [ $test_anno_grm ]; then
     assert_exit_code 0
     df_check test_grm_result $ANSDIR/grm.jl $OD/grm.jl
@@ -62,9 +62,9 @@ fi
 
 #                                 trf
 run test_anno_trf \
-    $truv anno trf -i $INDIR/multi.vcf.gz \
-                   -r $INDIR/repeats.adotto.bed.gz \
-                   -f $INDIR/reference.fa \
+    $truv anno trf -i $INDIR/variants/multi.vcf.gz \
+                   -r $INDIR/beds/repeats.adotto.bed.gz \
+                   -f $INDIR/references/reference.fa \
                    -e $INDIR/external/trf  \
                    -m 5 \
                    -o $OD/trf.vcf
@@ -73,9 +73,9 @@ if [ $test_anno_trf ]; then
 fi
 
 run test_anno_trf_reg \
-    $truv anno trf -i $INDIR/multi.vcf.gz \
-                   -r $INDIR/repeats.adotto.bed.gz \
-                   -f $INDIR/reference.fa \
+    $truv anno trf -i $INDIR/variants/multi.vcf.gz \
+                   -r $INDIR/beds/repeats.adotto.bed.gz \
+                   -f $INDIR/references/reference.fa \
                    -e $INDIR/external/trf  \
                    -m 5 -R \
                    -o $OD/trf.reg.vcf
@@ -93,30 +93,29 @@ if [ $test_anno_badparam ]; then
     assert_exit_code 1
 fi
 
-
-# TRF isn't deterministic for some reason, so it gives a different answer in  action
+# TRF isn't deterministic for some reason, so it gives a different answer in action
 # run test_anno_trf_result
 # assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.vcf)
 
 #                                 repmask
 run test_anno_repmask \
-    $truv anno repmask -i $INDIR/multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
+    $truv anno repmask -i $INDIR/variants/multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 if [ $test_anno_repmask ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
 fi
 
 run test_anno_repmask_err \
-    $truv anno repmask -i $INDIR/input1.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
+    $truv anno repmask -i $INDIR/variants/input1.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
 if [ $test_anno_repmask_err ]; then
     assert_exit_code 1
 fi
 
 #                                 bpovl
 run test_anno_bpovl \
-    $truv anno bpovl $INDIR/input1.vcf.gz \
+    $truv anno bpovl $INDIR/variants/input1.vcf.gz \
                      -o $OD/anno_bpovl.jl \
-                     -a $INDIR/anno.gtf.gz -p gff --sizemin 2
+                     -a $INDIR/misc/anno.gtf.gz -p gff --sizemin 2
 if [ $test_anno_bpovl ]; then
     assert_exit_code 0
     df_check test_anno_bpovl_result $ANSDIR/anno_bpovl.jl $OD/anno_bpovl.jl
@@ -124,9 +123,9 @@ fi
 
 #                                 density
 run truvari_anno_density \
-    $truv anno density $INDIR/input3.vcf.gz \
+    $truv anno density $INDIR/variants/input3.vcf.gz \
                        -o $OD/anno_density.jl \
-                       -g $INDIR/genome.bed -m $INDIR/mask.bed
+                       -g $INDIR/beds/genome.bed -m $INDIR/beds/mask.bed
 if [ $truvari_anno_density ]; then
     assert_exit_code 0
     df_check test_anno_density_result $ANSDIR/anno_density.jl $OD/anno_density.jl
@@ -150,22 +149,22 @@ fi
 
 #                                 grpaf
 run test_anno_grpaf \
-    $truv anno grpaf $INDIR/grpaf.vcf.gz -l $INDIR/grpaf.labels.txt -o $OD/anno_grpaf.vcf
+    $truv anno grpaf $INDIR/variants/grpaf.vcf.gz -l $INDIR/misc/grpaf.labels.txt -o $OD/anno_grpaf.vcf
 if [ $test_anno_grpaf ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/anno_grpaf.vcf) $(fn_md5 $OD/anno_grpaf.vcf)
 fi
 
 run test_anno_grpaf_strict \
-    $truv anno grpaf --strict $INDIR/grpaf.vcf.gz -l $INDIR/grpaf.labels.txt -o $OD/anno_grpaf.vcf
+    $truv anno grpaf --strict $INDIR/variants/grpaf.vcf.gz -l $INDIR/misc/grpaf.labels.txt -o $OD/anno_grpaf.vcf
 if [ $test_anno_grpaf_strict ]; then
     assert_exit_code 1
 fi
 
 run test_anno_grpaf_subset \
     $truv anno grpaf --tags AF,HWE,ExcHet \
-                     $INDIR/grpaf.vcf.gz \
-                     -l $INDIR/grpaf.labels.txt \
+                     $INDIR/variants/grpaf.vcf.gz \
+                     -l $INDIR/misc/grpaf.labels.txt \
                      -o $OD/anno_grpaf.subtags.vcf
 if [ $test_anno_grpaf_subset ]; then
     assert_exit_code 0

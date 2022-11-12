@@ -3,9 +3,9 @@
 # ------------------------------------------------------------
 export PATH=$INDIR/external/fake_mafft/:$PATH 
 run test_phab $truv phab -o $OD/phab_result \
-        -b $INDIR/phab_base.vcf.gz \
-        -c $INDIR/phab_comp.vcf.gz \
-        -f $INDIR/phab_ref.fa \
+        -b $INDIR/variants/phab_base.vcf.gz \
+        -c $INDIR/variants/phab_comp.vcf.gz \
+        -f $INDIR/references/phab_ref.fa \
         -r chr1:700-900
 assert_exit_code 0
 

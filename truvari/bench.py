@@ -446,7 +446,7 @@ def check_inputs(args):
     return b_check or c_check
 
 
-def setup_outputs(args):
+def setup_outputs(args, do_logging=True):
     """
     Makes all of the output files
     Places the data into the shared space
@@ -456,9 +456,10 @@ def setup_outputs(args):
     ToDo: turn the outputs into a dataclass
     """
     os.mkdir(args.output)
-    truvari.setup_logging(args.debug, truvari.LogFileStderr(
-        os.path.join(args.output, "log.txt")), show_version=True)
-    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+    if do_logging:
+        truvari.setup_logging(args.debug, truvari.LogFileStderr(
+            os.path.join(args.output, "log.txt")), show_version=True)
+        logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
     with open(os.path.join(args.output, 'params.json'), 'w') as fout:
         json.dump(vars(args), fout)

@@ -1,15 +1,15 @@
 {
     "vcfs": [
-        "repo_utils/test_files/input1.vcf.gz",
-        "repo_utils/test_files/input2.vcf.gz",
-        "repo_utils/test_files/input3.vcf.gz"
+        "repo_utils/test_files/variants/input1.vcf.gz",
+        "repo_utils/test_files/variants/input2.vcf.gz",
+        "repo_utils/test_files/variants/input3.vcf.gz"
     ],
     "total_calls": 3513,
     "num_vcfs": 3,
     "vcf_counts": {
-        "repo_utils/test_files/input1.vcf.gz": 2151,
-        "repo_utils/test_files/input2.vcf.gz": 1783,
-        "repo_utils/test_files/input3.vcf.gz": 2065
+        "repo_utils/test_files/variants/input1.vcf.gz": 2151,
+        "repo_utils/test_files/variants/input2.vcf.gz": 1783,
+        "repo_utils/test_files/variants/input3.vcf.gz": 2065
     },
     "shared": [
         {

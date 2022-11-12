@@ -263,7 +263,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
 
     Example
         >>> import truvari
-        >>> df = truvari.vcf_to_df("repo_utils/test_files/input2.vcf.gz", True, True)
+        >>> df = truvari.vcf_to_df("repo_utils/test_files/variants/input2.vcf.gz", True, True)
         >>> df.columns
         Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'QNAME',
                'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'NA12878_GT', 'NA12878_PL_ref',

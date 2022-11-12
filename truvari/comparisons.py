@@ -26,7 +26,7 @@ def entry_is_present(entry, sample=None):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> truvari.entry_is_present(next(v))
         True
     """
@@ -106,7 +106,7 @@ def entry_size_similarity(entryA, entryB):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_size_similarity(a, b)
@@ -136,7 +136,7 @@ def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_gt_comp(a, b)
@@ -531,7 +531,7 @@ def entry_reciprocal_overlap(entry1, entry2):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> a = next(v)
         >>> b = next(v)
         >>> truvari.entry_reciprocal_overlap(a, b)
@@ -558,7 +558,7 @@ def entry_is_filtered(entry, values=None):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> truvari.entry_is_filtered(next(v)) # PASS shouldn't be filtered
         False
         >>> truvari.entry_is_filtered(next(v), set(["lowQ"])) # Call isn't lowQ, so filter

@@ -252,7 +252,7 @@ def ref_ranges(reference, chunk_size=10000000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.ref_ranges("repo_utils/test_files/reference.fa", 1000)
+        >>> gen = truvari.ref_ranges("repo_utils/test_files/references/reference.fa", 1000)
         >>> print(len([_ for _ in gen]))
         1000
     """
@@ -282,7 +282,7 @@ def bed_ranges(bed, chunk_size=10000000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.bed_ranges("repo_utils/test_files/giab.bed", 1000)
+        >>> gen = truvari.bed_ranges("repo_utils/test_files/beds/giab.bed", 1000)
         >>> print(len([_ for _ in gen]))
         992
     """
@@ -312,7 +312,7 @@ def vcf_ranges(vcf, min_dist=1000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.vcf_ranges("repo_utils/test_files/input1.vcf.gz")
+        >>> gen = truvari.vcf_ranges("repo_utils/test_files/variants/input1.vcf.gz")
         >>> print(len([_ for _ in gen]))
         228
     """

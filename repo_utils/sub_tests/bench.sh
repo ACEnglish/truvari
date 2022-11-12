@@ -8,9 +8,9 @@ bench() {
     k=$3
     rm -rf $OD/bench${k}
     $truv bench --no-compress \
-                -b $INDIR/input${f1}.vcf.gz \
-                -c $INDIR/input${f2}.vcf.gz \
-                -f $INDIR/reference.fa \
+                -b $INDIR/variants/input${f1}.vcf.gz \
+                -c $INDIR/variants/input${f2}.vcf.gz \
+                -f $INDIR/references/reference.fa \
                 -o $OD/bench${k}/ ${4}
 }
 
@@ -45,13 +45,13 @@ if [ $test_bench_23 ]; then
 fi
 
 # Testing --includebed
-run test_bench_13_includebed bench 1 3 13_includebed "--includebed $INDIR/include.bed"
+run test_bench_13_includebed bench 1 3 13_includebed "--includebed $INDIR/beds/include.bed"
 if [ $test_bench_13_includebed ]; then
     bench_assert 13_includebed
 fi
 
 # Testing --extend
-run test_bench_13_extend bench 1 3 13_extend "--includebed $INDIR/include.bed --extend 500"
+run test_bench_13_extend bench 1 3 13_extend "--includebed $INDIR/beds/include.bed --extend 500"
 if [ $test_bench_13_extend ]; then
     bench_assert 13_extend
 fi
@@ -59,8 +59,8 @@ fi
 
 # --unroll
 run test_bench_unroll $truv bench --no-compress \
-                                  -b $INDIR/real_small_base.vcf.gz \
-                                  -c $INDIR/real_small_comp.vcf.gz \
+                                  -b $INDIR/variants/real_small_base.vcf.gz \
+                                  -c $INDIR/variants/real_small_comp.vcf.gz \
                                   -o $OD/bench_unroll/
 if [ $test_bench_unroll ]; then
     assert_exit_code 0
@@ -75,8 +75,8 @@ if [ $test_bench_unroll ]; then
 fi
 
 # with compression
-run test_bench_unroll_gz $truv bench -b $INDIR/real_small_base.vcf.gz \
-                                  -c $INDIR/real_small_comp.vcf.gz \
+run test_bench_unroll_gz $truv bench -b $INDIR/variants/real_small_base.vcf.gz \
+                                  -c $INDIR/variants/real_small_comp.vcf.gz \
                                   -o $OD/bench_unroll_gz/
 if [ $test_bench_unroll ]; then
     assert_exit_code 0
@@ -89,15 +89,13 @@ if [ $test_bench_unroll ]; then
     done
 fi
 
-
-
 # --giabreport
 rm -rf $OD/bench_giab
-run test_bench_giab $truv bench -b $INDIR/giab.vcf.gz \
-                                -c $INDIR/input1.vcf.gz \
-                                -f $INDIR/reference.fa \
+run test_bench_giab $truv bench -b $INDIR/variants/giab.vcf.gz \
+                                -c $INDIR/variants/input1.vcf.gz \
+                                -f $INDIR/references/reference.fa \
                                 -o $OD/bench_giab/ \
-                                --includebed $INDIR/giab.bed \
+                                --includebed $INDIR/beds/giab.bed \
                                 --multimatch \
                                 --giabreport \
                                 --prog

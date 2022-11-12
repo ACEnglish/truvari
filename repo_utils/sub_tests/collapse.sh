@@ -2,8 +2,8 @@
 #                                 collapse
 # ------------------------------------------------------------
 collapse() {
-    $truv collapse -f $INDIR/reference.fa \
-                   -i $INDIR/input${1}.vcf.gz \
+    $truv collapse -f $INDIR/references/reference.fa \
+                   -i $INDIR/variants/input${1}.vcf.gz \
                    -o $OD/input${1}_collapsed.vcf \
                    -c $OD/input${1}_removed.vcf \
                    ${2}
@@ -25,8 +25,8 @@ collapse_assert() {
 collapse_multi() {
     # tests multi sample collapse with provided keep method
     keep=$1
-    run test_collapse_multi_$keep $truv collapse -f $INDIR/reference.fa \
-                                             -i $INDIR/multi.vcf.gz \
+    run test_collapse_multi_$keep $truv collapse -f $INDIR/references/reference.fa \
+                                             -i $INDIR/variants/multi.vcf.gz \
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
                                              --keep $keep

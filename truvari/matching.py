@@ -68,7 +68,7 @@ class Matcher():
         >>> import truvari
         >>> mat = truvari.Matcher()
         >>> mat.params.pctsim = 0
-        >>> v = pysam.VariantFile('repo_utils/test_files/input1.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
         <truvari.bench.MatchResult (False 2.381)>

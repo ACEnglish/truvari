@@ -305,7 +305,7 @@ def run_bench(m_args):
         make a `setup_outputs` dataclass - helps document/standardize outputs
     """
     matcher = truvari.Matcher(args=m_args)
-    outputs = setup_outputs(m_args)
+    outputs = setup_outputs(m_args, do_logging=False)
     base = pysam.VariantFile(m_args.base)
     comp = pysam.VariantFile(m_args.comp)
     regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
@@ -318,7 +318,7 @@ def run_bench(m_args):
     with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
         box.calc_performance()
         fout.write(json.dumps(box, indent=4))
-        logging.info("Stats: %s", json.dumps(box, indent=4))
+        logging.debug("%s Stats: %s", m_args.output, json.dumps(box, indent=4))
 
     close_outputs(outputs, True)
     return outputs
