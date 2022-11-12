@@ -9,7 +9,7 @@ run test_phab $truv phab -o $OD/phab_result \
         -r chr1:700-900
 assert_exit_code 0
 
-if [ $test_rebench ]; then
+if [ $test_phab ]; then
     assert_exit code 0
     run test_phab_result
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result/output.vcf.gz) $(fn_md5 $OD/phab_result/output.vcf.gz)
