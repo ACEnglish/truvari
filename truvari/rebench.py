@@ -38,7 +38,7 @@ def intersect_beds(bed_a, bed_b):
                 count += 1
                 s_inc.append(i)
         shared[chrom] = IntervalTree(s_inc)
-    return shared
+    return shared, count
 
 @dataclass
 class ReevalRegion: # pylint: disable=too-many-instance-attributes
@@ -448,10 +448,13 @@ def resolve_regions(params, args):
     elif args.regions is not None and params["includebed"] is not None:
         a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
         b_trees, orig_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
-        reeval_trees, new_count  = intersect_beds(a_trees, b_trees)
+        reeval_trees, new_count = intersect_beds(a_trees, b_trees)
         logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                      regi_count, new_count, orig_count)
-        # might need to merge overlaps.
+    else:
+        reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
+        logging.info("%d --regions loaded", count)
+    # might need to merge overlaps.
     return reeval_trees
 
 def rebench_main(cmdargs):

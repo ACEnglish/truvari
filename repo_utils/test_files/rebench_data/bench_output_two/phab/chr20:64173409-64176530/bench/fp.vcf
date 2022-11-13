@@ -1,0 +1,20 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr20,length=64444167>
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=0,Type=Flag,Description="Base/Comparison Genotypes match">
+##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	p:HG002	syndip
+chr20	64174382	.	AGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCCTGTAGTTGTGTCCATTCCCCCTCCCTGACTTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCGTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTCCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGCA	A	.	.	PctSeqSimilarity=0.4997;PctSizeSimilarity=0.3326;PctRecOverlap=0.3331;SizeDiff=903;StartDistance=-37;EndDistance=866;TruScore=38;MatchId=1.6.6	GT	1/1	0/0
+chr20	64174130	.	C	CCTGTAGCATCTTTCCCTGTAGTTGTGTCCATTCCCCCTCCCTGACTTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCGTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCTAGTTGTGTCCATTCCCCCTCCCTGGCTTCTCCTGTAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGG	.	.	PctSeqSimilarity=0.4987;PctSizeSimilarity=0.3299;PctRecOverlap=0.3288;SizeDiff=-197;StartDistance=0;EndDistance=0;GTMatch;TruScore=38;MatchId=1.4.5	GT	0/1	0/0
+chr20	64175430	.	GTAGCATCTTTCCCTGTAGTTGTGTCCATTCCCCCTCCCTGACTTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCGTCTCCTCCTGCAGCATCTTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTTCTCCTGT	GC	.	.	PctSeqSimilarity=0.0357;PctSizeSimilarity=0.6987;PctRecOverlap=0;SizeDiff=-47;StartDistance=-1835;EndDistance=-1992;GTMatch;TruScore=24;MatchId=1.1.7	GT	1/0	0/0
+chr20	64173439	.	GTAGTTGTGTCCATTTCCCCTCCCTGACTTCTCCTCCTGCAGCATCCTTCCCTT	G	.	.	PctSeqSimilarity=0.0185;PctSizeSimilarity=0.5;PctRecOverlap=0;SizeDiff=53;StartDistance=156;EndDistance=103;GTMatch;TruScore=17;MatchId=1.0.0	GT	1/0	0/0
+chr20	64173733	.	CCTCCTGCAGCATCCTTCCCTGTAGTTGTGTCCATTTCCCCTCCCTGGCTT	C	.	.	PctSeqSimilarity=0.0185;PctSizeSimilarity=0.4717;PctRecOverlap=0;SizeDiff=56;StartDistance=-138;EndDistance=-188;GTMatch;TruScore=16;MatchId=1.0.2;Multi	GT	1/0	0/0
