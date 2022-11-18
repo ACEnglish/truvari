@@ -55,12 +55,11 @@ def parse_regions(argument):
     if not argument:
         return ret
     if os.path.exists(argument):
-        with open(argument, 'r') as fh:
-            for i in fh:
-                chrom, start, end = i.strip().split('\t')[:3]
-                start = int(start)
-                end = int(end)
-                ret.append((chrom, start, end))
+        for i in truvari.opt_gz_open(argument):
+            chrom, start, end = i.strip().split('\t')[:3]
+            start = int(start)
+            end = int(end)
+            ret.append((chrom, start, end))
     else:
         for i in argument.split(','):
             chrom, start, end = re.split(':|-', i)
