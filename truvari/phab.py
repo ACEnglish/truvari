@@ -225,17 +225,17 @@ def check_params(args):
     if os.path.isdir(args.output):
         logging.error("Output directory '%s' already exists", args.output)
         check_fail = True
-    if not os.path.exists(args.comp):
+    if args.comp is not None and not os.path.exists(args.comp):
         logging.error("File %s does not exist", args.comp)
         check_fail = True
     if not os.path.exists(args.base):
         logging.error("File %s does not exist", args.base)
         check_fail = True
-    if not args.comp.endswith(".gz"):
+    if args.comp is not None and not args.comp.endswith(".gz"):
         logging.error(
             "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
         check_fail = True
-    if not os.path.exists(args.comp + '.tbi'):
+    if args.comp is not None and not os.path.exists(args.comp + '.tbi'):
         logging.error(
             "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
         check_fail = True

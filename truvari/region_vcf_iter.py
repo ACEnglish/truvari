@@ -114,6 +114,8 @@ class RegionVCFIterator():
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
+
+    Returns tuple of dictionary with chromosome keys: IntervalTree values and integer with number of spans loaded
     """
     idx = 0
     correction = 1 if one_based else 0
