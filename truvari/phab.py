@@ -174,19 +174,25 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         bSamples = list(pysam.VariantFile(base_vcf).header.samples)
     if comp_vcf and cSamples is None:
         cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
+    
+    # Make sure there are variants first
+    subset_base_vcf = os.path.join(output_dir, "base.vcf.gz")
+    num_vars = pull_variants(base_vcf, var_region, subset_base_vcf, reference, bSamples)
+    if comp_vcf is not None:
+        subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
+        num_vars += pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
+
+    if num_vars == 0:
+        return
 
     sequences = os.path.join(output_dir, "haps.fa")
     get_reference(reference, sequences, *buff_region)
 
-    subset_base_vcf = os.path.join(output_dir, "base.vcf.gz")
-    pull_variants(base_vcf, var_region, subset_base_vcf, reference, bSamples)
     build_consensus(subset_base_vcf, reference, buff_region, sequences, bSamples)
 
     # if add-to, we put this elsewhere and revisit for now I'll disable that feature
     # because it assumes we already have an MSA
     if comp_vcf is not None:
-        subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
-        pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
         build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
 
     msa_output = os.path.join(output_dir, "msa.fa")

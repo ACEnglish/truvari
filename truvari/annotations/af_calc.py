@@ -85,7 +85,7 @@ def calc_af(gts):
              | MAF - minor allele frequency
              | ExcHet - excess heterozygosity
              | HWE - hardy weinberg equilibrium
-             | AC - allele count
+             | AC - allele count for GT 0 and 1
              | MAC - minor allele count
              | AN - number of called alleles
     :rtype: dict

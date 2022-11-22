@@ -352,6 +352,8 @@ def process_ref_region(region):
         m_fetch = vcf.fetch(region["chrom"], region["start"], region["end"])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
+        return
+
 
     m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
                              (region["chrom"], region["start"], region["end"]))),
@@ -637,7 +639,8 @@ def trf_main(cmdargs):
         with open(args.output, 'w') as fout:
             fout.write(str(new_header))
             for i in chunks:
-                fout.write(i)
+                if i is not None:
+                    fout.write(i)
         pool.join()
 
     logging.info("Finished trf")
