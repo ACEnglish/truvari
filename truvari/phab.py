@@ -10,7 +10,6 @@ import argparse
 import multiprocessing
 
 import pysam
-from pysam import bcftools
 import truvari
 
 def parse_args(args):
@@ -84,25 +83,25 @@ def pull_variants(vcf, region, output, ref, samples=None):
     """
     Given vcf and a region, grab the relevant variants
     Maybe can make fill-from fasta optional.. but it isn't huge overhead (for now)
-
-    previously - we did extra work with fill-from-fasta
-    bcftools view -c 1 {samples} -r {chrom}:{start}-{end} {vcf} \
-        | bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
-        | bgzip > {output} && tabix {output}
     """
     chrom, start, end = region
     if samples is not None:
         samples = "-s " + ",".join(samples)
     else:
         samples = ""
-    cmd = f"-c 1 -s {samples} -r {chrom}:{start}-{end} -O z -o {output} {vcf}"
-    bcftools.view(*cmd.split(' '), catch_stdout=False)
+    cmd = f"""bcftools view -c 1 {samples} -r {chrom}:{start}-{end} {vcf} \
+| bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
+| bgzip > {output} && tabix {output}"""
+
+    ret = truvari.cmd_exe(cmd, pipefail=True)
+    if ret.ret_code != 0:
+        logging.error("Unable to pull variants from %s", vcf)
+        logging.error(ret.stderr)
+        sys.exit(1)
     cnt = 0
     with pysam.VariantFile(output) as fh:
         for _ in fh:
             cnt += 1
-    bcftools.index(output)
-    os.rename(output + '.csi', output + '.tbi')
     return cnt
 
 def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):

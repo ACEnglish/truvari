@@ -352,7 +352,7 @@ def process_ref_region(region):
         m_fetch = vcf.fetch(region["chrom"], region["start"], region["end"])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
-        return
+        return None
 
 
     m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
