@@ -3,7 +3,8 @@ pipeline - Easy function chaining with futures parallelization
 """
 import logging
 
-import concurrent.futures as cfuts
+#import concurrent.futures as cfuts
+import multiprocessing
 from functools import partial, reduce
 
 
@@ -44,21 +45,26 @@ def fchain(pipe, data, workers=1):
         )
     """
     m_reduce = __partial_wrapper([partial(_[0], **_[1]) if isinstance(_, tuple) else _ for _ in pipe])
-    with cfuts.ProcessPoolExecutor(max_workers=workers) as executor:
+    #with cfuts.ProcessPoolExecutor(max_workers=workers) as executor:
+    with multiprocessing.Pool(workers) as pool:
+        for i in pool.imap_unordered(m_reduce, data):
+            yield i
+        pool.close()
+        pool.join()
         # Start the load operations and mark each future with its arg
-        future_results = {executor.submit(m_reduce, _): _ for _ in data}
-        for future in cfuts.as_completed(future_results):
-            my_name = future_results[future]
-            try:
-                cur_result = future.result()
-            except Exception as exc:
-                logging.critical('%r generated an exception: %s', my_name, exc)
-                for fut in future_results:
-                    _ = fut.cancel()
-                #logging.debug("Dumping Traceback:")
-                #exc_type, exc_value, exc_traceback = sys.exc_info()
-                #traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
-                raise exc
-            yield cur_result
-            # Can't keep all of these around. Manually remove as you go.
-            del future_results[future]
+        #future_results = {executor.submit(m_reduce, _): _ for _ in data}
+        #for future in cfuts.as_completed(future_results):
+        #    my_name = future_results[future]
+        #    try:
+        #        cur_result = future.result()
+        #    except Exception as exc:
+        #        logging.critical('%r generated an exception: %s', my_name, exc)
+        #        for fut in future_results:
+        #            _ = fut.cancel()
+        #        #logging.debug("Dumping Traceback:")
+        #        #exc_type, exc_value, exc_traceback = sys.exc_info()
+        #        #traceback.print_exception(exc_type, exc_value, exc_traceback, file=sys.stderr)
+        #        raise exc
+        #    yield cur_result
+        #    # Can't keep all of these around. Manually remove as you go.
+        #    del future_results[future]

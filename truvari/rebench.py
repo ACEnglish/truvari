@@ -364,6 +364,7 @@ def rebench(benchdir, params, summary, reeval_trees, reference, use_original=Fal
     # Collect results
     #gil_load.init()
     #gil_load.start()
+    #logging.info('starting')
     with open(os.path.join(benchdir, 'rebench.counts.txt'), 'w') as fout:
         fout.write(ReevalRegion.get_header() + '\n')
         for result in truvari.fchain(pipeline, data, workers=workers):
@@ -372,7 +373,7 @@ def rebench(benchdir, params, summary, reeval_trees, reference, use_original=Fal
     #gil_load.stop()
     #stats = gil_load.get()
     #with open('gstats.txt', 'w') as fout:
-        #fout.write(gil_load.format(stats))
+    #    fout.write(gil_load.format(stats))
 
 def parse_args(args):
     """
