@@ -34,7 +34,7 @@ def fchain(pipe, data, workers=1):
         - if no parameters are needed, an item in the list can just be a function
     data: list data to process
         - data must be hashable
-    workers: maximum number of ThreadPoolExecutor workers to create
+    workers: maximum number of ProcessPoolExecutor workers to create
 
     For example, the first yield of a 2 step pipe on the first piece of data is
     equivalent to:
@@ -44,7 +44,7 @@ def fchain(pipe, data, workers=1):
         )
     """
     m_reduce = __partial_wrapper([partial(_[0], **_[1]) if isinstance(_, tuple) else _ for _ in pipe])
-    with cfuts.ThreadPoolExecutor(max_workers=workers) as executor:
+    with cfuts.ProcessPoolExecutor(max_workers=workers) as executor:
         # Start the load operations and mark each future with its arg
         future_results = {executor.submit(m_reduce, _): _ for _ in data}
         for future in cfuts.as_completed(future_results):

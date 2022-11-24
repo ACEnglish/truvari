@@ -16,6 +16,8 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.bench import StatsBox, compare_chunk, setup_outputs, output_writer, close_outputs
 
+#import gil_load
+
 def read_json(fn):
     """
     Parse json and return dict
@@ -360,11 +362,17 @@ def rebench(benchdir, params, summary, reeval_trees, reference, use_original=Fal
     pipeline.append((EVALS[eval_method]))
 
     # Collect results
+    #gil_load.init()
+    #gil_load.start()
     with open(os.path.join(benchdir, 'rebench.counts.txt'), 'w') as fout:
         fout.write(ReevalRegion.get_header() + '\n')
         for result in truvari.fchain(pipeline, data, workers=workers):
             result.update_summary(summary)
             fout.write(str(result) + '\n')
+    #gil_load.stop()
+    #stats = gil_load.get()
+    #with open('gstats.txt', 'w') as fout:
+        #fout.write(gil_load.format(stats))
 
 def parse_args(args):
     """
@@ -477,3 +485,6 @@ def rebench_main(cmdargs):
         json.dump(summary, fout, indent=4)
     logging.info(json.dumps(summary, indent=4))
     logging.info("Finished rebench")
+
+if __name__ == '__main__':
+    rebench_main(sys.argv[1:])
