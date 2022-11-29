@@ -46,7 +46,7 @@ def fchain(pipe, data, workers=1):
     """
     m_reduce = __partial_wrapper([partial(_[0], **_[1]) if isinstance(_, tuple) else _ for _ in pipe])
     #with cfuts.ProcessPoolExecutor(max_workers=workers) as executor:
-    with multiprocessing.Pool(workers) as pool:
+    with multiprocessing.Pool(workers, maxtasksperchild=1) as pool:
         for i in pool.imap_unordered(m_reduce, data):
             yield i
         pool.close()

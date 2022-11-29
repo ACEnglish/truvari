@@ -387,6 +387,8 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to process")
+    parser.add_argument("-I", "--use-includebed", action="store_true",
+                        help="When intersecting includebed with regions, use includebed coordinates")
     # commenting out until we actually have other eval methods
     #parser.add_argument("-e", "--eval", default='phab', choices=EVALS.keys(),
     #                    help="Evaluation procedure (%(default)s)")
@@ -457,9 +459,16 @@ def resolve_regions(params, args):
     elif args.regions is not None and params["includebed"] is not None:
         a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
         b_trees, orig_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
-        reeval_trees, new_count = intersect_beds(a_trees, b_trees)
-        logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
+        if args.use_includebed:
+            reeval_trees, new_count = intersect_beds(b_trees, a_trees)
+            logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
+                     orig_count, new_count, regi_count)
+
+        else:
+            reeval_trees, new_count = intersect_beds(a_trees, b_trees)
+            logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                      regi_count, new_count, orig_count)
+
     else:
         reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)

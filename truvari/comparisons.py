@@ -55,11 +55,11 @@ def entry_to_key(entry, prefix="", bounds=False):
     """
     if prefix:
         prefix += '.'
+    alt = entry.alts[0] if entry.alts is not None else "."
     if bounds:
         start, end = entry_boundaries(entry)
-        return f"{prefix}{entry.chrom}:{start}-{end}({entry.ref}|{entry.alts[0]})"
-
-    return f"{prefix}{entry.chrom}:{entry.start}-{entry.stop}.{entry.alts[0]}"
+        return f"{prefix}{entry.chrom}:{start}-{end}({entry.ref}|{alt})"
+    return f"{prefix}{entry.chrom}:{entry.start}-{entry.stop}.{alt}"
 
 
 def sizesim(sizeA, sizeB):
@@ -342,7 +342,7 @@ def entry_variant_type(entry):
             ret_type = ret_type[0]
         return truvari.get_svtype(ret_type)
 
-    if not (entry.alts[0].count("<") or entry.alts[0].count(":")):
+    if entry.alts is not None and not (entry.alts[0].count("<") or entry.alts[0].count(":")):
         # Doesn't have <INS> or BNDs as the alt seq, then we can assume it's sequence resolved..?
         if len(entry.ref) < len(entry.alts[0]):
             ret_type = "INS"
@@ -351,7 +351,7 @@ def entry_variant_type(entry):
         elif len(entry.ref) == len(entry.alts[0]):
             ret_type = "SNP" if len(entry.ref) == 1 else "UNK"
         return truvari.get_svtype(ret_type)
-    mat = sv_alt_match.match(entry.alts[0])
+    mat = sv_alt_match.match(entry.alts[0]) if entry.alts is not None else None
     if mat is not None:
         return truvari.get_svtype(mat.groupdict()["SVTYPE"])
     logging.warning(
@@ -428,12 +428,12 @@ def entry_size(entry):
             size = abs(entry.info["SVLEN"][0])
         else:
             size = abs(entry.info["SVLEN"])
-    elif entry.alts[0].count("<"):
+    elif entry.alts is not None and entry.alts[0].count("<"):
         start, end = entry_boundaries(entry)
         size = end - start
     else:
         r_len = len(entry.ref)
-        a_len = len(entry.alts[0])
+        a_len = len(entry.alts[0]) if entry.alts is not None else 0
         if r_len == a_len:
             if r_len == 1:
                 size = 0 # SNPs are special
