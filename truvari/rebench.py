@@ -1,5 +1,18 @@
 """
 Automated Truvari bench result refinement
+
+This needs a major refactor.
+I think putting all the IO on these sub-processes is dog water.
+We're going to build a stratify module into Truvari just to give counts.
+Then we're going to have rebench read in that rebench.counts.txt
+
+And a single call to phab should be enough.
+
+Then I want to make phab output a single VCF
+
+And that single VCF is sent to run_bench
+
+Then I can put the log lines back in place
 """
 import os
 import sys
@@ -492,6 +505,11 @@ def rebench_main(cmdargs):
     reeval_trees = resolve_regions(params, args)
 
     summary = StatsBox()
+    # Stratify.
+    # Figure out which are True
+    # Send them to phab
+    # Consolidate phab
+    # Bench - Add new summary
     # Will eventually need to pass args for phab and|or hap-eval
     rebench(args.benchdir, params, summary, reeval_trees,
             args.reference, args.use_original, 'phab', args.threads)
