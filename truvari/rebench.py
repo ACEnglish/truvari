@@ -250,6 +250,13 @@ def phab_eval(region):
     m_args.output = os.path.join(phab_dir, "bench")
     m_args.base = vcf_fn
     m_args.comp = vcf_fn
+
+    if not os.path.exists(vcf_fn):
+        logging.warning("Problem running phab for region {region.chrom}:{region.start}-{region.end}")
+        logging.warning("Original comparison results will be kept")
+        region.set_out_to_in()
+        return region
+
     outputs = run_bench(m_args)
 
     # Refine counts
