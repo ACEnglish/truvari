@@ -11,6 +11,7 @@ import itertools
 from dataclasses import dataclass
 
 import pysam
+from pysam import bcftools
 from intervaltree import IntervalTree
 
 import truvari
@@ -166,7 +167,26 @@ def fetch_originals(region):
     # region.comp_calls = [_ for _ in pysam.VariantFile(region.params["comp"]).fetch(region.chrom, region.start, region.end)]
     return region
 
-def fetch_bench_vcfs(region, populate_calls=True):
+def consolidate_bench_vcfs(benchdir, regions):
+    """
+    Pull and consolidate base/comp variants from their regions
+    """
+    bout_name = truvari.make_temp_filename(suffix=".vcf")
+    output = bcftools.concat(os.path.join(benchdir, "tp-base.vcf.gz"),
+                            os.path.join(benchdir, "fn.vcf.gz"))
+    with open(bout_name, 'w') as fout:
+        fout.write(output)
+    truvari.compress_index_vcf(bout_name)
+
+    cout_name = truvari.make_temp_filename(suffix=".vcf")
+    output = bcftools.concat(os.path.join(benchdir, "tp-call.vcf.gz"),
+                            os.path.join(benchdir, "fp.vcf.gz"))
+    with open(cout_name, 'w') as fout:
+        fout.write(output)
+    truvari.compress_index_vcf(cout_name)
+    return bout_name, cout_name
+
+def fetch_bench_vcfs(region):
     """
     Grabs the variants that are needed for processing
     Populate the input state counts from truvari vcfs
@@ -410,7 +430,7 @@ def parse_args(args):
 
 def check_params(args):
     """
-    Sets up all the parameters
+    Sets up all the parameters from the bench/params.json
 
     Returns params dict
     """
@@ -501,42 +521,52 @@ def refine_main(cmdargs):
 
     reeval_trees = resolve_regions(params, args)
     regions = tree_to_regions(reeval_trees)
+
     # Stratify.
     counts = truvari.benchdir_count_entries(args.benchdir, regions)[["tpbase", "tp", "fn", "fp"]]
-
-    # Combine
     regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
     counts.index = regions.index
     counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
     regions = regions.join(counts)
 
     # Figure out which to reevaluate
-    regions["reevaled"] = regions["in_fn"] > 0 and regions["in_fp"] > 0
-    logging.info("%d regions to be refined", regions["reevaled"].sum())
+    regions["refined"] = regions["in_fn"] > 0 and regions["in_fp"] > 0
+    logging.info("%d regions to be refined", regions["refined"].sum())
+    to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
 
-    # if not use_original, I need to consolidate t/f base/comp beforehand,
-    # Otherwise I'm just pointing to the params' vcfs
-    # For those that are false, put into summary
+    # Set the input VCFs for phab
+    if not use_original:
+        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir, to_eval_coords)
+    else:
+        # Think this is right?
+        base_vcf, comp_vcf = params.base, params.comp
 
-    # Nope, this is just a call to phab here. So multiprocessing it, I reckon. And I'm not using the pipeline anymore,
-    # but whatever, I guess, though I could just to use it, whatever
-    refine(args.benchdir, params, regions[regions["reevaled"]], args.reference, args.use_original, args.threads)
+    # This runs phab on a single region. Need to make phab_main callable...
+    # Send the vcfs to phab (need the multi-threaded phab caller)
 
-    # Consolidate phab so we only have one file to process
-    # Make this into truvari/phab.py (maybe add a phab cli parameter to do this for us auto)
-    #truvari.consolidate_phab_vcfs(wherever this exists, phab.outputs.vcf.gz)
+    phab_dir = os.path.join(region.benchdir, "phab")
+    os.makedirs(phab_dir)
+    with multiprocessing.Pool(args.threads) as pool:
+        # build jobs
+        jobs = []
+        for region in to_eval_coords:
+            m_output = os.path.join(phab_dir, f"{region[0]}:{region[1]}-{region[2]}")
+            jobs.append((base_vcf, args.reference, m_output, region, args.buffer,
+                      args.comp, args.bSamples, args.cSamples, args.mafft_params, prefix_comp))
+        pool.imap_unordered(t_phab, jobs)
+        pool.close()
+        pool.join()
 
-    # Bench - I think I can pull this from current refine, right?
-    # Then I'll need to update the regions
-    # Will eventually need to pass args for phab and|or hap-eval
-    # And I'll need to update the counts, so stratify again but also just copy over the non-reevaled one
-    #refine(args.benchdir, params, summary, reeval_trees,
-    #        args.reference, args.use_original, 'phab', args.threads)
-    
-    
-    # out_counts = pd.DataFrame(np.zeros(4, len(regions)), columns=["out_tpbase", "out_tp", "in_fn
-    # pd.to_csv the regions which should be finished
-    
+    truvari.phab_multi(base_vcf, args.reference, phab_dir, to_eval_coords,
+                       comp_vcf=comp_calls, prefix_comp=True, threads=args.threads)
+
+    truvari.consolidate_phab_vcfs(phab_dir, os.path.join(args.benchdir, "phab.output.vcf.gz"))
+
+    # Now run bench again.. need to figure out how to expose it
+    # I have run_bench here, so that's probably how I'll expose it?
+
+    # Then I need to update the counts with stratify as well as the output summary
+
     summary = StatsBox()
     #summary['tpbase'] = regions['out_tpbase'].sum() etc
     summary.calc_performance()
@@ -544,6 +574,8 @@ def refine_main(cmdargs):
     with open(os.path.join(args.benchdir, 'refine.summary.json'), 'w') as fout:
         json.dump(summary, fout, indent=4)
     logging.info(json.dumps(summary, indent=4))
+
+    # pd.to_csv the regions which should be finished refine.counts.txt
     logging.info("Finished refine")
 
 if __name__ == '__main__':

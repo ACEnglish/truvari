@@ -4,12 +4,14 @@ Wrapper around MAFFT and other tools to perform an MSA comparison of phased vari
 import os
 import re
 import sys
+import glob
 import shutil
 import logging
 import argparse
 import multiprocessing
 
 import pysam
+from pysam import bcftools
 import truvari
 
 def parse_args(args):
@@ -216,6 +218,17 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
 
     truvari.compress_index_vcf(output_vcf)
 
+def consolidate_phab_vcfs(phab_dir, outname):
+    """
+    Consolidate all the phab output VCFs
+    """
+    in_files = glob.glob(os.path.join(phab_dir, "*", "output.vcf.gz"))
+    tmp_name = truvari.make_temp_filename(suffix=".vcf")
+    output = bcftools.concat(*in_files)
+    with open(tmp_name, 'w') as fout:
+        fout.write(output)
+    truvari.compress_index_vcf(tmp_name, outname)
+
 def check_requirements():
     """
     ensure external programs are in PATH
@@ -262,11 +275,41 @@ def check_params(args):
         check_fail = True
     return check_fail
 
-def t_phab(job):
+def phab_wrapper(job):
     """
-    Hack to mimmic starmap since I can't find a Pool.starmap_unordered
+    Convience function to call phab (which works no a single region)
+    job is a tuple of region, output_dir, and kwargs dict
     """
-    phab(*job)
+    phab(region=job[0], output_dir=job[1], **job[2])
+
+
+def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vcf=None,
+               bSamples=None, cSamples=None, mafft_params="--retree2 --maxiterate 0",
+               prefix_comp=False, threads=1): #pylint:ignore=too-many-arguments
+    """
+    Run phab on multiple regions
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    params = {"base_vcf": base_vcf,
+              "reference": reference,
+              "buffer": buffer,
+              "comp_vcf": comp_vcf,
+              "bSamples": bSamples,
+              "cSamples": cSamples,
+              "mafft_params": mafft_params,
+              "prefix_comp": prefix_comp}
+    with multiprocessing.Pool(threads) as pool:
+        # build jobs
+        jobs = []
+        for region in var_regions:
+            m_output = os.path.join(phab_dir, f"{region[0]}:{region[1]}-{region[2]}")
+            jobs.append(region, m_output, params)
+
+        pool.imap_unordered(phab_wrapper, jobs)
+        pool.close()
+        pool.join()
 
 def phab_main(cmdargs):
     """
@@ -278,8 +321,7 @@ def phab_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    os.makedirs(args.output)
-
+    # Setting up the samples is tricky
     if args.bSamples is None:
         args.bSamples = list(pysam.VariantFile(args.base).header.samples)
     else:
@@ -297,17 +339,8 @@ def phab_main(cmdargs):
         prefix_comp = True
 
     all_regions = parse_regions(args.region)
-    with multiprocessing.Pool(args.threads) as pool:
-        # build jobs
-        jobs = []
-        for region in all_regions:
-            m_output = args.output if len(all_regions) == 1 \
-                        else os.path.join(args.output, f"{region[0]}:{region[1]}-{region[2]}")
-            jobs.append((args.base, args.reference, m_output, region, args.buffer,
-                      args.comp, args.bSamples, args.cSamples, args.mafft_params, prefix_comp))
-        logging.info("%d regions to process", len(jobs))
-        pool.imap_unordered(t_phab, jobs)
-        pool.close()
-        pool.join()
+
+    phab_multi(args.base, args.reference, args.output, all_regions, args.buffer, args.comp,
+               args.bSamples, args.cSamples, args.mafft_params, prefix_comp, args.threads)
 
     logging.info("Finished phab")

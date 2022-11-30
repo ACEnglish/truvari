@@ -1,4 +1,5 @@
 """
+
 Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
@@ -35,6 +36,7 @@ Extra methods:
 :meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`phab`
+:meth:`phab_multi`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
@@ -46,6 +48,7 @@ Extra methods:
 Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
+:meth:`consolidate_phab_vcfs`
 :meth:`fchain`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
@@ -125,7 +128,9 @@ from truvari.pipeline import (
 )
 
 from truvari.phab import (
-    phab
+    phab,
+    phab_multi,
+    consolidate_phab_vcfs
 )
 
 from truvari.region_vcf_iter import (
