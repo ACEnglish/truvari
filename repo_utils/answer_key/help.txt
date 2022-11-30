@@ -11,7 +11,7 @@ Available commands:
     segment       Normalization of SVs into disjointed genomic regions
     divide        Divide a VCF into multiple parts
     phab          Variant harmonization using MSA
-    rebench       Automated bench result refinement
+    refine        Automated bench result refinement with phab
     version       Print the Truvari version and exit
 
 positional arguments:

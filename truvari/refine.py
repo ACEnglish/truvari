@@ -524,7 +524,7 @@ def refine_main(cmdargs):
 
     # Consolidate phab so we only have one file to process
     # Make this into truvari/phab.py (maybe add a phab cli parameter to do this for us auto)
-    truvari.consolidate_phab_vcfs(wherever this exists, phab.outputs.vcf.gz)
+    #truvari.consolidate_phab_vcfs(wherever this exists, phab.outputs.vcf.gz)
 
     # Bench - I think I can pull this from current refine, right?
     # Then I'll need to update the regions

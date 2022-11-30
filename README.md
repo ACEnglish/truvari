@@ -44,7 +44,7 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent parts
  - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
- - [rebench](https://github.com/ACEnglish/truvari/wiki/rebench) - Automated bench result refinement
+ - [refine](https://github.com/ACEnglish/truvari/wiki/refine) - Automated bench result refinement with phab
 
 ## More Information
 

@@ -89,21 +89,6 @@ if [ $test_bench_unroll ]; then
     done
 fi
 
-# --giabreport
-rm -rf $OD/bench_giab
-run test_bench_giab $truv bench -b $INDIR/variants/giab.vcf.gz \
-                                -c $INDIR/variants/input1.vcf.gz \
-                                -f $INDIR/references/reference.fa \
-                                -o $OD/bench_giab/ \
-                                --includebed $INDIR/beds/giab.bed \
-                                --multimatch \
-                                --giabreport \
-                                --prog
-if [ $test_bench_giab ]; then
-    assert_exit_code 0
-    assert_equal $(fn_md5 <(head -n50 $ANSDIR/bench/bench_giab_report.txt)) $(fn_md5 <(head -n50 $OD/bench_giab/giab_report.txt))
-fi
-
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
 if [ $test_bench_badparams ]; then
     assert_exit_code 100

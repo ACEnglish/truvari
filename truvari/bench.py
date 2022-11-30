@@ -16,7 +16,6 @@ import pysam
 import numpy as np
 
 import truvari
-from truvari.giab_report import make_giabreport
 
 class StatsBox(OrderedDict):
     """
@@ -297,8 +296,6 @@ def parse_args(args):
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants")
-    parser.add_argument("--giabreport", action="store_true",
-                        help="Parse output TPs/FNs for GIAB annotations and create a report")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
     parser.add_argument("--no-compress", action="store_true", default=False,
@@ -540,8 +537,5 @@ def bench_main(cmdargs):
         logging.info("Stats: %s", json.dumps(box, indent=4))
 
     close_outputs(outputs, args.no_compress)
-
-    if args.giabreport:
-        make_giabreport(args, outputs["stats_box"])
 
     logging.info("Finished bench")
