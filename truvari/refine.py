@@ -1,18 +1,5 @@
 """
-Automated Truvari bench result refinement
-
-This needs a major refactor.
-I think putting all the IO on these sub-processes is dog water.
-We're going to build a stratify module into Truvari just to give counts.
-Then we're going to have rebench read in that rebench.counts.txt
-
-And a single call to phab should be enough.
-
-Then I want to make phab output a single VCF
-
-And that single VCF is sent to run_bench
-
-Then I can put the log lines back in place
+Automated Truvari bench result refinement with phab
 """
 import os
 import sys
@@ -336,7 +323,7 @@ def run_bench(m_args):
 
 EVALS = {'phab':phab_eval, 'hap':hap_eval}
 
-def rebench(benchdir, params, summary, reeval_trees, reference, use_original=False, eval_method='phab', workers=1):
+def refine(benchdir, params, summary, reeval_trees, reference, use_original=False, eval_method='phab', workers=1):
     """
     Sets up inputs before calling specified EVAL method
     Will take the output from the EVAL method to then update summary
@@ -384,7 +371,7 @@ def rebench(benchdir, params, summary, reeval_trees, reference, use_original=Fal
     #gil_load.init()
     #gil_load.start()
     #logging.info('starting')
-    with open(os.path.join(benchdir, 'rebench.counts.txt'), 'w') as fout:
+    with open(os.path.join(benchdir, 'refine.counts.txt'), 'w') as fout:
         fout.write(ReevalRegion.get_header() + '\n')
         for result in truvari.fchain(pipeline, data, workers=workers):
             result.update_summary(summary)
@@ -398,7 +385,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    parser = argparse.ArgumentParser(prog="rebench", description=__doc__,
+    parser = argparse.ArgumentParser(prog="refine", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
@@ -434,7 +421,7 @@ def check_params(args):
     params = read_json(param_path)
 
     if params["reference"] is None and args.reference is None:
-        logging.error("Reference not in params.json or given as a parameter to rebench")
+        logging.error("Reference not in params.json or given as a parameter to refine")
         sys.exit(1)
     elif args.reference is None:
         args.reference = params["reference"]
@@ -470,11 +457,11 @@ def resolve_regions(params, args):
     """
     if params["includebed"] is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
-        logging.error("Unable to run rebench")
+        logging.error("Unable to run refine")
         sys.exit(1)
     elif args.regions is None:
         reeval_trees, new_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
-        logging.info("rebench-ing %d regions", new_count)
+        logging.info("Evaluating %d regions", new_count)
     elif args.regions is not None and params["includebed"] is not None:
         a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
         b_trees, orig_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
@@ -494,7 +481,17 @@ def resolve_regions(params, args):
     # might need to merge overlaps.
     return reeval_trees
 
-def rebench_main(cmdargs):
+def tree_to_regions(trees):
+    """
+    turn an anno tree into a list of lists of chrom start end
+    """
+    ret = []
+    for chrom in trees:
+        for intv in trees[chrom]:
+            ret.append([chrom, intv.begin, intv.end])
+    return ret
+
+def refine_main(cmdargs):
     """
     Main
     """
@@ -503,22 +500,51 @@ def rebench_main(cmdargs):
     params = check_params(args)
 
     reeval_trees = resolve_regions(params, args)
-
-    summary = StatsBox()
+    regions = tree_to_regions(reeval_trees)
     # Stratify.
-    # Figure out which are True
-    # Send them to phab
-    # Consolidate phab
-    # Bench - Add new summary
+    counts = truvari.benchdir_count_entries(args.benchdir, regions)[["tpbase", "tp", "fn", "fp"]]
+
+    # Combine
+    regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
+    counts.index = regions.index
+    counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
+    regions = regions.join(counts)
+
+    # Figure out which to reevaluate
+    regions["reevaled"] = regions["in_fn"] > 0 and regions["in_fp"] > 0
+    logging.info("%d regions to be refined", regions["reevaled"].sum())
+
+    # if not use_original, I need to consolidate t/f base/comp beforehand,
+    # Otherwise I'm just pointing to the params' vcfs
+    # For those that are false, put into summary
+
+    # Nope, this is just a call to phab here. So multiprocessing it, I reckon. And I'm not using the pipeline anymore,
+    # but whatever, I guess, though I could just to use it, whatever
+    refine(args.benchdir, params, regions[regions["reevaled"]], args.reference, args.use_original, args.threads)
+
+    # Consolidate phab so we only have one file to process
+    # Make this into truvari/phab.py (maybe add a phab cli parameter to do this for us auto)
+    truvari.consolidate_phab_vcfs(wherever this exists, phab.outputs.vcf.gz)
+
+    # Bench - I think I can pull this from current refine, right?
+    # Then I'll need to update the regions
     # Will eventually need to pass args for phab and|or hap-eval
-    rebench(args.benchdir, params, summary, reeval_trees,
-            args.reference, args.use_original, 'phab', args.threads)
+    # And I'll need to update the counts, so stratify again but also just copy over the non-reevaled one
+    #refine(args.benchdir, params, summary, reeval_trees,
+    #        args.reference, args.use_original, 'phab', args.threads)
+    
+    
+    # out_counts = pd.DataFrame(np.zeros(4, len(regions)), columns=["out_tpbase", "out_tp", "in_fn
+    # pd.to_csv the regions which should be finished
+    
+    summary = StatsBox()
+    #summary['tpbase'] = regions['out_tpbase'].sum() etc
     summary.calc_performance()
 
-    with open(os.path.join(args.benchdir, 'rebench.summary.json'), 'w') as fout:
+    with open(os.path.join(args.benchdir, 'refine.summary.json'), 'w') as fout:
         json.dump(summary, fout, indent=4)
     logging.info(json.dumps(summary, indent=4))
-    logging.info("Finished rebench")
+    logging.info("Finished refine")
 
 if __name__ == '__main__':
-    rebench_main(sys.argv[1:])
+    refine_main(sys.argv[1:])
