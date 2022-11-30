@@ -277,7 +277,7 @@ def file_zipper(*start_files):
             names.pop(sidx)
             next_markers.pop(sidx)
         yield key, entry
-    logging.info("Zipped %d variants %s", sum(file_counts.values()), file_counts)
+    logging.debug("Zipped %d variants %s", sum(file_counts.values()), file_counts)
 
 def chunker(matcher, *files):
     """
@@ -313,5 +313,5 @@ def chunker(matcher, *files):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
     chunk_count += 1
-    logging.info("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
+    logging.debug("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
     yield matcher, cur_chunk, chunk_count
