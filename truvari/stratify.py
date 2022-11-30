@@ -1,6 +1,5 @@
 """
-Count truvari bench variants per-region
-Output bed file with new columns of the variant counts (tpbase, tp, fn, fp)
+Count variants per-region in vcf
 """
 import os
 import sys
@@ -17,40 +16,54 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="stratify", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("benchdir", metavar="DIR",
-                        help="Truvari bench directory")
-    parser.add_argument("bedfile", metavar="BED",
+    parser.add_argument("in_vcf", metavar="VCF",
+                        help="Compressed Index VCF")
+    parser.add_argument("regions", metavar="BED",
                         help="Regions to process")
-    parser.add_argument("-o", "--output", metavar="OUT", default="stratifications.bed",
+    parser.add_argument("-o", "--output", metavar="OUT", default="/dev/stdout",
                         help="Output bed-like file")
+    parser.add_argument("-w", "--within", action="store_true",
+                        help="Only count variants contained completely within region boundaries")
+    parser.add_argument("-b", "--bench-dir", action="store_true",
+                        help="in_vcf is a bench output directory. Parse each VCF")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug, show_version=True)
     return args
 
-def stratify(benchdir, bedfile):
+def count_entries(vcf, regions, within):
+    """
+    Count the number of variants per bed region a VCF
+    regions is a list of lists with sub-lists having 0:3 of chrom, start, end
+    Returns a list of the counts in the same order as the regions
+    """
+    counts = []
+    for row in regions:
+        m_cnt = 0
+        for entry in vcf.fetch(row[0], row[1], row[2]):
+            if within:
+                ent_start, ent_end = truvari.entry_boundaries(entry)
+                if not row[1] <= ent_start and ent_end <= row[2]:
+                    continue
+            m_cnt += 1
+        counts.append(m_cnt)
+    return counts
+
+def benchdir_count_entries(benchdir, regions, within=False):
     """
     Count the number of variants per bed region in Truvari bench directory by state
-    Returns a pandas dataframe of the bedfile with extra columns of the counts
+    Returns a pandas dataframe of the counts
     """
-    regions = pd.read_csv(bedfile, sep='\t', header=None)
     vcfs = {'tpbase': pysam.VariantFile(os.path.join(benchdir, 'tp-base.vcf.gz')),
             'tp': pysam.VariantFile(os.path.join(benchdir, 'tp-call.vcf.gz')),
             'fn': pysam.VariantFile(os.path.join(benchdir, 'fn.vcf.gz')),
             'fp': pysam.VariantFile(os.path.join(benchdir, 'fp.vcf.gz'))
             }
-    new_columns = []
-    for _, row in regions.iterrows():
-        counts = {"tpbase":0, "tp":0, "fn":0, "fp":0}
-        for name, fh in vcfs.items():
-            m_count = 0
-            for entry in fh.fetch(row[0], row[1], row[2]):
-                counts[name] += 1
-        new_columns.append(counts)
-    new_columns = pd.DataFrame(new_columns, index=regions.index)[["tpbase", "tp", "fn", "fp"]]
-    regions = regions.join(new_columns)
-    return regions
+    data = {}
+    for name, vcf in vcfs.items():
+        data[name] = count_entries(vcf, regions, within)
+    return pd.DataFrame(data)
 
 def stratify_main(cmdargs):
     """
@@ -58,7 +71,15 @@ def stratify_main(cmdargs):
     """
     args = parse_args(cmdargs)
 
-    regions = stratify(args.benchdir, args.bedfile)
+    regions = pd.read_csv(args.regions, sep='\t', header=None)
+    r_list = regions.to_numpy().tolist() # the methods expect lists
+    if args.bench_dir:
+        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[["tpbase", "tp", "fn", "fp"]]
+    else:
+        counts = count_entries(pysam.VariantFile(args.in_vcf), r_list, args.within)
+        counts = pd.Series(counts).to_frame()
+    counts.index = regions.index
+    regions = regions.join(counts)
     regions.to_csv(args.output, header=False, index=False, sep='\t')
 
 if __name__ == '__main__':

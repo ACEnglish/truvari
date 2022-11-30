@@ -39,7 +39,6 @@ Extra methods:
 :meth:`ref_ranges`
 :meth:`seqsim`
 :meth:`sizesim`
-:meth:`stratify`
 :meth:`unroll_compare`
 :meth:`vcf_ranges`
 :meth:`weighted_score`
@@ -135,7 +134,8 @@ from truvari.region_vcf_iter import (
 )
 
 from truvari.stratify import (
-    stratify
+    count_entries,
+    benchdir_count_entries,
 )
 
 from truvari.utils import (

@@ -1,8 +1,6 @@
 """
 pipeline - Easy function chaining with futures parallelization
 """
-import logging
-
 #import concurrent.futures as cfuts
 import multiprocessing
 from functools import partial, reduce
