@@ -252,8 +252,7 @@ def phab_eval(region):
     m_args.comp = vcf_fn
 
     if not os.path.exists(vcf_fn):
-        logging.warning("Problem running phab for region {region.chrom}:{region.start}-{region.end}")
-        logging.warning("Original comparison results will be kept")
+        logging.warning("Skipping phab for region %s:%d-%d due to an error", region.chrom, region.start, region.end)
         region.set_out_to_in()
         return region
 
