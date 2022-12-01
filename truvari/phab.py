@@ -33,8 +33,10 @@ def parse_args(args):
                         help="Number of reference bases before/after region to add to MSA (%(default)s)")
     #parser.add_argument("--add-to", action='store_true',
     #                    help="Build the baseMSA independentally of the compMSA, then add the comp")
-    parser.add_argument("-o", "--output", default="phab_out",
-                        help="Output directory")
+    parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
+                        help="Output VCF")
+    parser.add_argument("-k", "--keep-parts", type=str, default=None,
+                        help="Directory to save intermediate region results")
     parser.add_argument("--bSamples", type=str, default=None,
                         help="Subset of samples to MSA from base-VCF")
     parser.add_argument("--cSamples", type=str, default=None,
@@ -245,8 +247,11 @@ def check_params(args):
     Ensure files are okay to use
     """
     check_fail = False
-    if os.path.isdir(args.output):
-        logging.error("Output directory '%s' already exists", args.output)
+    if not args.output.endswith(".vcf.gz"):
+        logging.error("Output file must be a '.vcf.gz', got %s" args.output)
+        check_fail = True
+    if args.keep_parts and os.path.isdir(args.keep_parts):
+        logging.error("Output directory '%s' already exists", args.keep_parts)
         check_fail = True
     if args.comp is not None and not os.path.exists(args.comp):
         logging.error("File %s does not exist", args.comp)
@@ -344,9 +349,19 @@ def phab_main(cmdargs):
         prefix_comp = True
 
     all_regions = parse_regions(args.region)
-
-    phab_multi(args.base, args.reference, args.output, all_regions, args.buffer, args.comp,
+    if args.keep_parts is None:
+        remove = True # remove at the end
+        args.keep_parts = truvari.make_temp_filename()
+    else:
+        remove = False
+    phab_multi(args.base, args.reference, args.keep_parts, all_regions, args.buffer, args.comp,
                args.bSamples, args.cSamples, args.mafft_params, prefix_comp, args.threads)
+    
+    consolidate_phab_vcfs(args.keep_parts, args.output)
+
+    if remove:
+        logging.info("Cleaning")
+        shutil.rmtree(args.keep_parts)
 
     logging.info("Finished phab")
 

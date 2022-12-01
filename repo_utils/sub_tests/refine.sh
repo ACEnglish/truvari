@@ -12,7 +12,7 @@ run test_refine_one $truv refine -u -f $INDIR/refine_data/chr20.fa.gz $OD/refine
 
 if [ $test_refine_one ]; then
     assert_exit_code 0
-    run test_refine_result
+    run test_refine_one_result
     assert_equal $(fn_md5 $ANSDIR/refine/refine_output_one/refine.counts.txt) \
                  $(fn_md5 $OD/refine_output_one/refine.counts.txt)
     assert_equal $(fn_md5 $ANSDIR/refine/refine_output_one/refine.summary.json) \
@@ -30,7 +30,7 @@ run test_refine_two $truv refine -I -r $INDIR/refine_data/h2_hc_tr_hg002.bed \
 
 if [ $test_refine_two ]; then
     assert_exit_code 0
-    run test_refine_result
+    run test_refine_two_result
     assert_equal $(fn_md5 $ANSDIR/refine/refine_output_two/refine.counts.txt) \
                  $(fn_md5 $OD/refine_output_two/refine.counts.txt)
     assert_equal $(fn_md5 $ANSDIR/refine/refine_output_two/refine.summary.json) \

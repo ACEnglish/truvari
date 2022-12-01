@@ -4,6 +4,7 @@ Automated Truvari bench result refinement with phab
 import os
 import sys
 import json
+import shutil
 import logging
 import argparse
 from argparse import Namespace
@@ -118,6 +119,8 @@ def parse_args(args):
                         help="Use original input VCFs instead of filtered tp/fn/fps")
     parser.add_argument("-t", "--threads", default=1, type=int,
                         help="Number of threads to use (%(default)s)")
+    parser.add_argument("-k", "--keep-phab", action="store_true",
+                        help="Keep the phab intermediate files")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -243,7 +246,9 @@ def refine_main(cmdargs):
     logging.info(json.dumps(summary, indent=4))
 
     regions.to_csv(os.path.join(args.benchdir, 'refine.counts.txt'), sep='\t', index=False)
-
+    
+    if not args.keep_phab:
+        shutil.rmtree(phab_dir)
     logging.info("Finished refine")
 
 if __name__ == '__main__':
