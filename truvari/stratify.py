@@ -15,16 +15,16 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="stratify", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("in_vcf", metavar="VCF",
-                        help="Compressed Index VCF")
     parser.add_argument("regions", metavar="BED",
                         help="Regions to process")
+    parser.add_argument("in_vcf", metavar="VCF",
+                        help="Truvari bench result directory or a single VCF")
     parser.add_argument("-o", "--output", metavar="OUT", default="/dev/stdout",
                         help="Output bed-like file")
+    parser.add_argument("--header", action="store_true", 
+                        help="Input regions have header to preserve in output")
     parser.add_argument("-w", "--within", action="store_true",
                         help="Only count variants contained completely within region boundaries")
-    parser.add_argument("-b", "--bench-dir", action="store_true",
-                        help="in_vcf is a bench output directory. Parse each VCF")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -69,14 +69,14 @@ def stratify_main(cmdargs):
     stratify
     """
     args = parse_args(cmdargs)
-
-    regions = pd.read_csv(args.regions, sep='\t', header=None)
+    read_header = 0 if args.header else None
+    regions = pd.read_csv(args.regions, sep='\t', header=read_header)
     r_list = regions.to_numpy().tolist() # the methods expect lists
-    if args.bench_dir:
+    if os.path.isdir(args.in_vcf):
         counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[["tpbase", "tp", "fn", "fp"]]
     else:
         counts = count_entries(pysam.VariantFile(args.in_vcf), r_list, args.within)
         counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)
-    regions.to_csv(args.output, header=False, index=False, sep='\t')
+    regions.to_csv(args.output, header=args.header, index=False, sep='\t')
