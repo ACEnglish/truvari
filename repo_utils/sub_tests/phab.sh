@@ -14,7 +14,6 @@ if [ $test_phab ]; then
     assert_exit_code 0
     run test_phab_result
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result/output.vcf.gz) $(fn_md5 $OD/phab_result/chr1:700-900/output.vcf.gz)
-    assert_equal $(fn_md5 $ANSDIR/phab/phab_result.vcf.gz) $(fn_md5 $OD/phab_result/chr1:700-900/output.vcf.gz)
 fi
 
 run test_phab_badparams $truv phab -o $OD/phab_result\
