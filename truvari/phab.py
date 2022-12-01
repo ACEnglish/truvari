@@ -248,7 +248,7 @@ def check_params(args):
     """
     check_fail = False
     if not args.output.endswith(".vcf.gz"):
-        logging.error("Output file must be a '.vcf.gz', got %s" args.output)
+        logging.error("Output file must be a '.vcf.gz', got %s", args.output)
         check_fail = True
     if args.keep_parts and os.path.isdir(args.keep_parts):
         logging.error("Output directory '%s' already exists", args.keep_parts)
@@ -356,7 +356,7 @@ def phab_main(cmdargs):
         remove = False
     phab_multi(args.base, args.reference, args.keep_parts, all_regions, args.buffer, args.comp,
                args.bSamples, args.cSamples, args.mafft_params, prefix_comp, args.threads)
-    
+
     consolidate_phab_vcfs(args.keep_parts, args.output)
 
     if remove:

@@ -246,7 +246,7 @@ def refine_main(cmdargs):
     logging.info(json.dumps(summary, indent=4))
 
     regions.to_csv(os.path.join(args.benchdir, 'refine.counts.txt'), sep='\t', index=False)
-    
+
     if not args.keep_phab:
         shutil.rmtree(phab_dir)
     logging.info("Finished refine")
