@@ -224,7 +224,7 @@ def consolidate_phab_vcfs(phab_dir, outname):
     """
     in_files = glob.glob(os.path.join(phab_dir, "*", "output.vcf.gz"))
     tmp_name = truvari.make_temp_filename(suffix=".vcf")
-    output = bcftools.concat(*in_files)
+    output = bcftools.concat("--no-version", *in_files)
     with open(tmp_name, 'w') as fout:
         fout.write(output)
     truvari.compress_index_vcf(tmp_name, outname)

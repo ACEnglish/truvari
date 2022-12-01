@@ -85,14 +85,14 @@ def consolidate_bench_vcfs(benchdir):
     Pull and consolidate base/comp variants from their regions
     """
     bout_name = truvari.make_temp_filename(suffix=".vcf")
-    output = bcftools.concat(*[os.path.join(benchdir, "tp-base.vcf.gz"),
+    output = bcftools.concat("--no-version", *[os.path.join(benchdir, "tp-base.vcf.gz"),
                             os.path.join(benchdir, "fn.vcf.gz")])
     with open(bout_name, 'w') as fout:
         fout.write(output)
     truvari.compress_index_vcf(bout_name)
 
     cout_name = truvari.make_temp_filename(suffix=".vcf")
-    output = bcftools.concat(*[os.path.join(benchdir, "tp-call.vcf.gz"),
+    output = bcftools.concat("--no-version", *[os.path.join(benchdir, "tp-call.vcf.gz"),
                             os.path.join(benchdir, "fp.vcf.gz")])
     with open(cout_name, 'w') as fout:
         fout.write(output)
