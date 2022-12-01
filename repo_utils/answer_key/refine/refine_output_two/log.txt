@@ -1,0 +1,67 @@
+2022-12-01 01:13:39,197 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 01:13:39,199 [INFO] Command /usr/local/bin/truvari bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_two
+2022-12-01 01:13:39,202 [INFO] Params:
+{
+    "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
+    "output": "test_results/refine_output_two",
+    "reference": null,
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "minhaplen": 50,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "dup_to_ins": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": "syndip",
+    "cSample": "HG002",
+    "sizemin": 5,
+    "sizefilt": 5,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": "/data/repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed",
+    "extend": 0,
+    "multimatch": false
+}
+2022-12-01 01:13:39,317 [INFO] Including 228 bed regions
+2022-12-01 01:13:40,242 [INFO] Zipped 7259 variants Counter({'comp': 5363, 'base': 1896})
+2022-12-01 01:13:40,243 [INFO] 220 chunks of 7259 variants Counter({'__filtered': 6209, 'base': 591, 'comp': 459})
+2022-12-01 01:13:40,250 [INFO] Stats: {
+    "TP-base": 390,
+    "TP-call": 390,
+    "FP": 69,
+    "FN": 201,
+    "precision": 0.8496732026143791,
+    "recall": 0.6598984771573604,
+    "f1": 0.7428571428571428,
+    "base cnt": 591,
+    "call cnt": 459,
+    "TP-call_TP-gt": 385,
+    "TP-call_FP-gt": 5,
+    "TP-base_TP-gt": 385,
+    "TP-base_FP-gt": 5,
+    "gt_concordance": 0.9871794871794872,
+    "gt_matrix": {
+        "(1, 0)": {
+            "(0, 1)": 205,
+            "(1, 0)": 14,
+            "(1, 1)": 1
+        },
+        "(0, 1)": {
+            "(1, 0)": 145,
+            "(0, 1)": 12
+        },
+        "(1, 1)": {
+            "(1, 1)": 9,
+            "(1, 0)": 2,
+            "(0, 1)": 2
+        }
+    }
+}
+2022-12-01 01:13:40,420 [INFO] Finished bench

@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 #                                 phab
 # ------------------------------------------------------------
-#export PATH=$INDIR/external/fake_mafft/:$PATH 
+export PATH=$INDIR/external/fake_mafft/:$PATH 
 
 run test_phab $truv phab -o $OD/phab_result \
                          -b $INDIR/variants/phab_base.vcf.gz \

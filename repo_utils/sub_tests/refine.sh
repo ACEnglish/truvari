@@ -1,42 +1,35 @@
-# ------------------------------------------------------------
-#                                 refine
-# ------------------------------------------------------------
+run test_refine_one $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
+                                -c $INDIR/refine_data/hg002_comp.vcf.gz \
+                                --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
+                                -s 5 -o $OD/refine_output_one
 
+run test_refine_one $truv refine -u -f $INDIR/refine_data/chr20.fa.gz $OD/refine_output_one
 
-#export PATH=$INDIR/external/fake_mafft/:$PATH 
-
-run test_refine $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
-                 -c $INDIR/rebench_data/hg002_comp.vcf.gz \
-                 --includebed $INDIR/rebench_data/h1_hc_tr_hg002.bed \
-                 -s 5 \
-                 -o $OD/rebench_output
-
-run test_refine $truv refine -u -f $INDIR/rebench_data/chr20.fa.gz $OD/rebench_output
-if [ $test_refine ]; then
+if [ $test_refine_one ]; then
     assert_exit_code 0
-    run test_rebench_result
-    assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_small/rebench.counts.txt) \
-                 $(fn_md5 $OD/rebench_output/rebench.counts.txt)
-    assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_small/rebench.summary.json) \
-                 $(fn_md5 $OD/rebench_output/rebench.summary.json)
+    run test_refine_result
+    assert_equal $(fn_md5 $ANSDIR/refine/refine_output_one/refine.counts.txt) \
+                 $(fn_md5 $OD/refine_output_one/refine.counts.txt)
+    assert_equal $(fn_md5 $ANSDIR/refine/refine_output_one/refine.summary.json) \
+                 $(fn_md5 $OD/refine_output_one/refine.summary.json)
 fi
 
-run test_refine_two $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
-                 -c $INDIR/rebench_data/hg002_comp.vcf.gz \
-                 --includebed $INDIR/rebench_data/h1_hc_tr_hg002.bed \
-                 -o $OD/rebench_output_two
+run test_refine_two $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
+              -c $INDIR/refine_data/hg002_comp.vcf.gz \
+              --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
+              -s 5 -o $OD/refine_output_two
 
-
-run test_refine_two $truv refine -r $INDIR/rebench_data/h2_hc_tr_hg002.bed \
-                -f $INDIR/rebench_data/chr20.fa.gz $OD/rebench_output_two
+run test_refine_two $truv refine -I -r $INDIR/refine_data/h2_hc_tr_hg002.bed \
+               -f $INDIR/refine_data/chr20.fa.gz \
+               $OD/refine_output_two
 
 if [ $test_refine_two ]; then
     assert_exit_code 0
-    run test_refine_result_two
-    assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_two/rebench.counts.txt) \
-                 $(fn_md5 $OD/rebench_output_two/rebench.counts.txt)
-    assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_two/rebench.summary.json) \
-                 $(fn_md5 $OD/rebench_output_two/rebench.summary.json)
+    run test_refine_result
+    assert_equal $(fn_md5 $ANSDIR/refine/refine_output_two/refine.counts.txt) \
+                 $(fn_md5 $OD/refine_output_two/refine.counts.txt)
+    assert_equal $(fn_md5 $ANSDIR/refine/refine_output_two/refine.summary.json) \
+                 $(fn_md5 $OD/refine_output_two/refine.summary.json)
 fi
 
 
