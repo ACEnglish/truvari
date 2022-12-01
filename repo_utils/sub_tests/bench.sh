@@ -7,8 +7,7 @@ bench() {
     f2=$2
     k=$3
     rm -rf $OD/bench${k}
-    $truv bench --no-compress \
-                -b $INDIR/variants/input${f1}.vcf.gz \
+    $truv bench -b $INDIR/variants/input${f1}.vcf.gz \
                 -c $INDIR/variants/input${f2}.vcf.gz \
                 -f $INDIR/references/reference.fa \
                 -o $OD/bench${k}/ ${4}
@@ -18,11 +17,10 @@ bench_assert() {
     k=$1
     if [ $name ]; then
         assert_exit_code 0
-        for i in $ANSDIR/bench/bench${k}/*.vcf
+        for i in $ANSDIR/bench/bench${k}/*.vcf.gz
         do
             bname=$(basename $i | sed 's/[\.|\-]/_/g')
             result=$OD/bench${k}/$(basename $i)
-            sort_vcf $result
             run test_bench${k}_${bname}
             assert_equal $(fn_md5 $i) $(fn_md5 $result)
         done
@@ -58,17 +56,15 @@ fi
 
 
 # --unroll
-run test_bench_unroll $truv bench --no-compress \
-                                  -b $INDIR/variants/real_small_base.vcf.gz \
+run test_bench_unroll $truv bench -b $INDIR/variants/real_small_base.vcf.gz \
                                   -c $INDIR/variants/real_small_comp.vcf.gz \
                                   -o $OD/bench_unroll/
 if [ $test_bench_unroll ]; then
     assert_exit_code 0
-    for i in $ANSDIR/bench/bench_unroll/*.vcf
+    for i in $ANSDIR/bench/bench_unroll/*.vcf.gz
     do
         bname=$(basename $i | sed 's/[\.|\-]/_/g')
         result=$OD/bench_unroll/$(basename $i)
-        sort_vcf $result
         run test_bench_unroll_${bname}
         assert_equal $(fn_md5 $i) $(fn_md5 $result)
     done

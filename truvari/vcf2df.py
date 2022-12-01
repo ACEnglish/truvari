@@ -174,16 +174,15 @@ def get_files_from_truvdir(directory):
     return dictionary of file identifier and path (e.g. "tp-base": "dir/tp-base.vcf.gz")
     """
     ret = {}
-    pats = [("tpbase", "tp-base.vcf"), ("tp", "tp-call.vcf"),
-            ("fp", "fp.vcf"), ("fn", "fn.vcf")]
+    pats = [("tpbase", "tp-base.vcf.gz"), ("tp", "tp-call.vcf.gz"),
+            ("fp", "fp.vcf.gz"), ("fn", "fn.vcf.gz")]
     has_error = False
     for key, name in pats:
         fname = os.path.join(directory, name)
         ret[key] = glob.glob(fname)
-        ret[key].extend(glob.glob(fname + '.gz'))
         if len(ret[key]) != 1:
             logging.error(
-                "Expected 1 file for %s[.gz] found %d", fname, len(ret[key]))
+                "Expected 1 file for %s found %d", fname, len(ret[key]))
             has_error = True
     if has_error:
         raise FileNotFoundError((f"Couldn't parse truvari directory {directory}. "

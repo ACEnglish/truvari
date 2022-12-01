@@ -280,12 +280,16 @@ def phab_wrapper(job):
     Convience function to call phab (which works no a single region)
     job is a tuple of region, output_dir, and kwargs dict
     """
-    phab(region=job[0], output_dir=job[1], **job[2])
+    try:
+        phab(var_region=job[0], output_dir=job[1], **job[2])
+    except Exception as e: #pylint: disable=broad-except
+        logging.critical("phab failed on %s\n%s", str(job[0]), e)
 
-
+#pylint: disable=too-many-arguments
+# This is just how many arguments it takes
 def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vcf=None,
-               bSamples=None, cSamples=None, mafft_params="--retree2 --maxiterate 0",
-               prefix_comp=False, threads=1): #pylint:ignore=too-many-arguments
+               bSamples=None, cSamples=None, mafft_params="--retree 2 --maxiterate 0",
+               prefix_comp=False, threads=1):
     """
     Run phab on multiple regions
     """
@@ -304,12 +308,13 @@ def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vc
         # build jobs
         jobs = []
         for region in var_regions:
-            m_output = os.path.join(phab_dir, f"{region[0]}:{region[1]}-{region[2]}")
-            jobs.append(region, m_output, params)
+            m_output = os.path.join(output_dir, f"{region[0]}:{region[1]}-{region[2]}")
+            jobs.append((region, m_output, params))
 
         pool.imap_unordered(phab_wrapper, jobs)
         pool.close()
         pool.join()
+#pylint: enable=too-many-arguments
 
 def phab_main(cmdargs):
     """
@@ -344,3 +349,6 @@ def phab_main(cmdargs):
                args.bSamples, args.cSamples, args.mafft_params, prefix_comp, args.threads)
 
     logging.info("Finished phab")
+
+if __name__ == '__main__':
+    phab_main(sys.argv[1:])

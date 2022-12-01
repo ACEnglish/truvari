@@ -413,9 +413,15 @@ def compress_index_vcf(fn, fout=None, remove=True):
     if fout is None:
         fout = fn + '.gz'
     o = bcftools.sort(fn)
-    with pysam.BGZFile(fout, 'w') as out:
-        out.write(o.encode())
-    bcftools.index(fout)
-    os.rename(fout + '.csi', fout + '.tbi')
+    m_tmp = make_temp_filename(suffix='.vcf')
+    with open(m_tmp, 'w') as out_hdlr:
+        out_hdlr.write(o)
+    pysam.tabix_compress(m_tmp, fout)
+    pysam.tabix_index(fout, preset="vcf")
+    #with pysam.BGZFile(fout, 'wb') as out:
+        #out.write(o.encode())
+    #bcftools.index(fout)
+    #os.rename(fout + '.csi', fout + '.tbi')
     if remove:
         os.remove(fn)
+    os.remove(m_tmp)

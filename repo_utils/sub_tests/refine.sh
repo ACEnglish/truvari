@@ -1,18 +1,18 @@
 # ------------------------------------------------------------
-#                                 rebench
+#                                 refine
 # ------------------------------------------------------------
 
 
-export PATH=$INDIR/external/fake_mafft/:$PATH 
+#export PATH=$INDIR/external/fake_mafft/:$PATH 
 
-run test_rebench $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
+run test_refine $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
                  -c $INDIR/rebench_data/hg002_comp.vcf.gz \
                  --includebed $INDIR/rebench_data/h1_hc_tr_hg002.bed \
                  -s 5 \
                  -o $OD/rebench_output
 
-run test_rebench $truv rebench -u -f $INDIR/rebench_data/chr20.fa.gz $OD/rebench_output
-if [ $test_rebench ]; then
+run test_refine $truv refine -u -f $INDIR/rebench_data/chr20.fa.gz $OD/rebench_output
+if [ $test_refine ]; then
     assert_exit_code 0
     run test_rebench_result
     assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_small/rebench.counts.txt) \
@@ -21,18 +21,18 @@ if [ $test_rebench ]; then
                  $(fn_md5 $OD/rebench_output/rebench.summary.json)
 fi
 
-run test_rebench_two $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
+run test_refine_two $truv bench -b $INDIR/rebench_data/hg002_base.vcf.gz \
                  -c $INDIR/rebench_data/hg002_comp.vcf.gz \
                  --includebed $INDIR/rebench_data/h1_hc_tr_hg002.bed \
                  -o $OD/rebench_output_two
 
 
-run test_rebench_two $truv rebench -r $INDIR/rebench_data/h2_hc_tr_hg002.bed \
+run test_refine_two $truv refine -r $INDIR/rebench_data/h2_hc_tr_hg002.bed \
                 -f $INDIR/rebench_data/chr20.fa.gz $OD/rebench_output_two
 
-if [ $test_rebench_two ]; then
+if [ $test_refine_two ]; then
     assert_exit_code 0
-    run test_rebench_result_two
+    run test_refine_result_two
     assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_two/rebench.counts.txt) \
                  $(fn_md5 $OD/rebench_output_two/rebench.counts.txt)
     assert_equal $(fn_md5 $INDIR/rebench_data/bench_output_two/rebench.summary.json) \

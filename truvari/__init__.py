@@ -57,6 +57,7 @@ Dev methods:
 :meth:`optimize_df_memory`
 :meth:`restricted_float`
 :meth:`restricted_int`
+:meth:`run_bench`
 :meth:`setup_logging`
 :meth:`setup_progressbar`
 :meth:`vcf_to_df`
@@ -67,6 +68,7 @@ Objects:
 :class:`LogFileStderr`
 :class:`MatchResult`
 :class:`Matcher`
+:class:`StatsBox`
 :class:`SV`
 
 Data:
@@ -85,6 +87,11 @@ from truvari.annotations.af_calc import (
     allele_freq_annos,
     calc_af,
     calc_hwe
+)
+
+from truvari.bench import (
+    StatsBox,
+    run_bench,
 )
 
 from truvari.comparisons import (

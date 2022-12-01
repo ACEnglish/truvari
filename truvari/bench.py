@@ -298,8 +298,6 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
-    parser.add_argument("--no-compress", action="store_true", default=False,
-                        help="Skip compression/indexing of output VCFs")
     parser.add_argument("--prog", action="store_true",
                         help="Turn on progress monitoring")
 
@@ -482,7 +480,7 @@ def setup_outputs(args, do_logging=True):
     return outputs
 
 
-def close_outputs(outputs, skip_compress=False):
+def close_outputs(outputs):
     """
     Close all the files
     """
@@ -490,11 +488,54 @@ def close_outputs(outputs, skip_compress=False):
     outputs["tpc_out"].close()
     outputs["fn_out"].close()
     outputs["fp_out"].close()
-    if not skip_compress:
-        truvari.compress_index_vcf(outputs['tpb_out'].filename.decode())
-        truvari.compress_index_vcf(outputs['tpc_out'].filename.decode())
-        truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
-        truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
+    truvari.compress_index_vcf(outputs['tpb_out'].filename.decode())
+    truvari.compress_index_vcf(outputs['tpc_out'].filename.decode())
+    truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
+    truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
+
+def run_bench(m_args):
+    """
+    Run truvari bench given a Namespace of all the needed parameters.
+
+    Returns the bench outputs dict built by truvari.setup_outputs
+
+    For now takes a single parameter `m_args` - a Namespace of all the command line arguments
+    used by bench.
+
+    This puts the burden on the user to
+        1. build that namespace correctly (there's no checks on it)
+        2. know how to use that namespace to get their pre-saved vcf(s) through
+        3. read/process the output vcfs
+        4. understand the `setup_outputs` structure even though that isn't an object
+
+    Future versions I'll clean this up to not rely on files. Would be nice to have a way to just provide
+    lists of base/comp calls and to return the e.g. output vcf entries with an in-memory object(s)
+
+    This current version is just a quick convience thing
+
+    Even with this quick thing which is almost essentially a command line wrapper, I could make it better
+    with:
+        make a bench params dataclass - helps document/standardize m_args
+        make a `setup_outputs` dataclass - helps document/standardize outputs
+    """
+    matcher = truvari.Matcher(args=m_args)
+    outputs = setup_outputs(m_args, do_logging=False)
+    base = pysam.VariantFile(m_args.base)
+    comp = pysam.VariantFile(m_args.comp)
+    regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
+    base_i = regions.iterate(base)
+    comp_i = regions.iterate(comp)
+    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
+    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        output_writer(match, outputs, m_args.sizemin)
+    box = outputs["stats_box"]
+    with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
+        box.calc_performance()
+        fout.write(json.dumps(box, indent=4))
+        logging.debug("%s Stats: %s", m_args.output, json.dumps(box, indent=4))
+
+    close_outputs(outputs)
+    return outputs
 
 def bench_main(cmdargs):
     """
@@ -536,6 +577,6 @@ def bench_main(cmdargs):
         fout.write(json.dumps(box, indent=4))
         logging.info("Stats: %s", json.dumps(box, indent=4))
 
-    close_outputs(outputs, args.no_compress)
+    close_outputs(outputs)
 
     logging.info("Finished bench")
