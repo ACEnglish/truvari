@@ -29,7 +29,6 @@ info_tests() {
     infos=$3
     python3 repo_utils/info_puller.py $base_vcf ${infos} | sort > $OD/answer.txt
     python3 repo_utils/info_puller.py $comp_vcf ${infos} | sort > $OD/result.txt
-    run test_infos_${name}
     assert_equal $(fn_md5 $OD/answer.txt) $(fn_md5 $OD/result.txt)
 }
 

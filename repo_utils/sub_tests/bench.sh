@@ -15,16 +15,13 @@ bench() {
 
 bench_assert() {
     k=$1
-    if [ $name ]; then
-        assert_exit_code 0
-        for i in $ANSDIR/bench/bench${k}/*.vcf.gz
-        do
-            bname=$(basename $i | sed 's/[\.|\-]/_/g')
-            result=$OD/bench${k}/$(basename $i)
-            run test_bench${k}_${bname}
-            assert_equal $(fn_md5 $i) $(fn_md5 $result)
-        done
-    fi
+    assert_exit_code 0
+    for i in $ANSDIR/bench/bench${k}/*.vcf.gz
+    do
+        bname=$(basename $i | sed 's/[\.|\-]/_/g')
+        result=$OD/bench${k}/$(basename $i)
+        assert_equal $(fn_md5 $i) $(fn_md5 $result)
+    done
 }
 
 run test_bench_12 bench 1 2 12
@@ -60,29 +57,13 @@ run test_bench_unroll $truv bench -b $INDIR/variants/real_small_base.vcf.gz \
                                   -c $INDIR/variants/real_small_comp.vcf.gz \
                                   -o $OD/bench_unroll/
 if [ $test_bench_unroll ]; then
-    assert_exit_code 0
-    for i in $ANSDIR/bench/bench_unroll/*.vcf.gz
-    do
-        bname=$(basename $i | sed 's/[\.|\-]/_/g')
-        result=$OD/bench_unroll/$(basename $i)
-        run test_bench_unroll_${bname}
-        assert_equal $(fn_md5 $i) $(fn_md5 $result)
-    done
+    bench_assert _unroll
 fi
 
-# with compression
-run test_bench_unroll_gz $truv bench -b $INDIR/variants/real_small_base.vcf.gz \
-                                  -c $INDIR/variants/real_small_comp.vcf.gz \
-                                  -o $OD/bench_unroll_gz/
-if [ $test_bench_unroll ]; then
-    assert_exit_code 0
-    for i in $ANSDIR/bench/bench_unroll_gz/*.vcf.gz
-    do
-        bname=$(basename $i | sed 's/[\.|\-]/_/g')
-        result=$OD/bench_unroll_gz/$(basename $i)
-        run test_bench_unroll_${bname}
-        assert_equal $(fn_md5 $i) $(fn_md5 $result)
-    done
+# --gtcomp
+run test_bench_12_gtcomp bench 1 2 12_gtcomp "--gtcomp"
+if [ $test_bench_12_gtcomp ]; then
+    bench_assert 12_gtcomp
 fi
 
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD

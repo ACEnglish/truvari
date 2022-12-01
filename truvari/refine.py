@@ -250,6 +250,3 @@ def refine_main(cmdargs):
     if not args.keep_phab:
         shutil.rmtree(phab_dir)
     logging.info("Finished refine")
-
-if __name__ == '__main__':
-    refine_main(sys.argv[1:])

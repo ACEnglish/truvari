@@ -2,7 +2,6 @@
 Count variants per-region in vcf
 """
 import os
-import sys
 import argparse
 
 import pysam
@@ -81,6 +80,3 @@ def stratify_main(cmdargs):
     counts.index = regions.index
     regions = regions.join(counts)
     regions.to_csv(args.output, header=False, index=False, sep='\t')
-
-if __name__ == '__main__':
-    stratify_main(sys.argv[1:])

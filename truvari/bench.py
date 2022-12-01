@@ -73,7 +73,7 @@ def compare_chunk(chunk):
     Given a filtered chunk, (from chunker) compare all of the calls
     """
     matcher, chunk_dict, chunk_id = chunk
-    logging.debug(f"Comparing chunk {chunk_dict}")
+    logging.debug("Comparing chunk %s", chunk_id)
 
     # All FPs
     if len(chunk_dict['base']) == 0:
@@ -83,7 +83,7 @@ def compare_chunk(chunk):
             ret.comp = c
             ret.matid = f"{chunk_id}._.{cid}"
             fps.append(ret)
-            logging.debug("All FP chunk -> {ret}")
+            logging.debug("All FP chunk -> %s", ret)
         return fps
 
     # All FNs
@@ -93,7 +93,7 @@ def compare_chunk(chunk):
             ret = truvari.MatchResult()
             ret.base = b
             ret.matid = f"{chunk_id}.{bid}._"
-            logging.debug(f"All FN chunk -> {ret}")
+            logging.debug("All FN chunk -> %s", ret)
             fns.append(ret)
         return fns
 
@@ -105,7 +105,7 @@ def compare_chunk(chunk):
         base_matches = []
         for cid, c in enumerate(chunk_dict['comp']):
             mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
-            logging.debug(f"Made mat -> {mat}")
+            logging.debug("Made mat -> %s", mat)
             base_matches.append(mat)
         match_matrix.append(base_matches)
 
@@ -118,7 +118,7 @@ def compare_chunk(chunk):
     if matcher.params.multimatch:
         ret = pick_multi_matches(match_matrix)
     else:
-        ret = pick_single_matches(match_matrix)
+        ret = pick_single_matches(match_matrix, matcher.params.gtcomp)
     return ret
 
 
@@ -140,7 +140,7 @@ def pick_multi_matches(match_matrix):
     return ret
 
 
-def pick_single_matches(match_matrix):
+def pick_single_matches(match_matrix, gtcomp=False):
     """
     Given a numpy array of MatchResults
     for each base, get its best match and record that the comp call can't be used anymore
@@ -150,41 +150,64 @@ def pick_single_matches(match_matrix):
     base_cnt, comp_cnt = match_matrix.shape
     match_matrix = np.ravel(match_matrix)
     match_matrix.sort()
-    used_comp = set()
-    used_base = set()
+    used_comp = Counter()
+    used_base = Counter()
     for match in match_matrix[::-1]:
         # No more matches to find
         if base_cnt == 0 and comp_cnt == 0:
             break
-
-        base_is_used = str(match.base) in used_base
-        comp_is_used = str(match.comp) in used_comp
-        # Only write the comp
+        b_key = str(match.base)
+        c_key = str(match.comp)
+        # This is a trick
+        # for not --gtcomp runs on reference homozygous (0/0 or ./.) variants,
+        # let them get their one match with the int(not gtcomp)
+        base_is_used = used_base[b_key] >= max(match.base_gt_count, int(not gtcomp))
+        comp_is_used = used_comp[c_key] >= max(match.comp_gt_count, int(not gtcomp))
+        # Only write the comp (FN)
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
             to_process.state = False
             to_process.multi = True
             comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
+            used_comp[c_key] = 9
             ret.append(to_process)
-        # Only write the base
+        # Only write the base (FP)
         elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
             to_process.state = False
             to_process.multi = True
             base_cnt -= 1
-            used_base.add(str(to_process.base))
+            used_base[b_key] = 9
             ret.append(to_process)
-        # Write both
+        # Write both (any state)
         elif not base_is_used and not comp_is_used:
             to_process = copy.copy(match)
-            base_cnt -= 1
-            used_base.add(str(to_process.base))
-            comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
-            ret.append(to_process)
+            if gtcomp:
+                # Don't write twice
+                if used_base[b_key] != 0:
+                    to_process.base = None
+                if used_comp[c_key] != 0:
+                    to_process.comp = None
+
+                used_base[b_key] += match.comp_gt_count
+                used_comp[c_key] += match.base_gt_count
+                # All used up
+                if used_base[b_key] >= match.base_gt_count:
+                    base_cnt -= 1
+                if used_comp[c_key] >= match.comp_gt_count:
+                    comp_cnt -= 1
+
+                # Safety edge case check
+                if to_process.base is not None or to_process.comp is not None:
+                    ret.append(to_process)
+            else:
+                base_cnt -= 1
+                comp_cnt -= 1
+                used_base[b_key] = 9 # Should always be greater than sum(GT)
+                used_comp[c_key] = 9 # until we use multi-allelics, maybe
+                ret.append(to_process)
     return ret
 
 
@@ -210,8 +233,8 @@ def edit_header(my_vcf):
                      'Description="Distance of the base call\'s end from comparison call\'s end">'))
     header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
                      'Description="Difference in size of base and comp calls">'))
-    header.add_line(('##INFO=<ID=GTMatch,Number=0,Type=Flag,'
-                     'Description="Base/Comparison Genotypes match">'))
+    header.add_line(('##INFO=<ID=GTMatch,Number=1,Type=Integer,'
+                     'Description="Base/Comparison genotypes AC difference">'))
     header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
                      'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
     header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
@@ -253,7 +276,7 @@ def output_writer(match, outs, sizemin):
 
             box["TP-base"] += 1
             outs["tpb_out"].write(match.base)
-            if match.gt_match:
+            if match.gt_match == 0:
                 box["TP-base_TP-gt"] += 1
             else:
                 box["TP-base_FP-gt"] += 1
@@ -267,7 +290,7 @@ def output_writer(match, outs, sizemin):
             box["call cnt"] += 1
             box["TP-call"] += 1
             outs["tpc_out"].write(match.comp)
-            if match.gt_match:
+            if match.gt_match == 0:
                 box["TP-call_TP-gt"] += 1
             else:
                 box["TP-call_FP-gt"] += 1
@@ -322,8 +345,8 @@ def parse_args(args):
                         help="Max reference distance to compare calls (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
-    genoty.add_argument("--gtcomp", action="store_true", default=defaults.gtcomp,
-                        help="Compare GenoTypes of matching calls")
+    genoty.add_argument("-g", "--gtcomp", action="store_true", default=defaults.gtcomp,
+                        help="Compare genotypes and allow homozygous variants to be matched twice")
     genoty.add_argument("--bSample", type=str, default=None,
                         help="Baseline calls sample to use (first)")
     genoty.add_argument("--cSample", type=str, default=None,

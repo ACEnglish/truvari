@@ -1,15 +1,14 @@
-2022-08-25 00:31:14,425 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/include.bed
-2022-08-25 00:31:14,426 [INFO] Params:
+2022-12-01 18:26:01,597 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 18:26:01,598 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/beds/include.bed
+2022-12-01 18:26:01,600 [INFO] Params:
 {
-    "base": "repo_utils/test_files/input1.vcf.gz",
-    "comp": "repo_utils/test_files/input3.vcf.gz",
+    "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
     "output": "test_results/bench13_includebed/",
-    "reference": "repo_utils/test_files/reference.fa",
-    "giabreport": false,
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
     "debug": false,
     "prog": false,
     "refdist": 500,
-    "unroll": false,
     "pctsim": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
@@ -19,23 +18,22 @@
     "use_lev": false,
     "chunksize": 1000,
     "gtcomp": false,
-    "bSample": null,
-    "cSample": null,
+    "bSample": "NA24385",
+    "cSample": "HG00733",
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
     "passonly": false,
     "no_ref": false,
-    "includebed": "repo_utils/test_files/include.bed",
+    "includebed": "/data/repo_utils/test_files/beds/include.bed",
     "extend": 0,
     "multimatch": false
 }
-2022-08-25 00:31:14,426 [INFO] Truvari version: 3.5.0-dev
-2022-08-25 00:31:14,449 [INFO] Including 11 bed regions
-2022-08-25 00:31:14,450 [INFO] Found 1 chromosomes with overlapping regions
-2022-08-25 00:31:14,576 [INFO] Zipped 2030 variants Counter({'base': 1130, 'comp': 900})
-2022-08-25 00:31:14,577 [INFO] 10 chunks of 2030 variants Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
-2022-08-25 00:31:14,580 [INFO] Stats: {
+2022-12-01 18:26:01,638 [INFO] Including 11 bed regions
+2022-12-01 18:26:01,640 [INFO] Found 1 chromosomes with overlapping regions
+2022-12-01 18:26:01,759 [INFO] Zipped 2030 variants Counter({'base': 1130, 'comp': 900})
+2022-12-01 18:26:01,760 [INFO] 10 chunks of 2030 variants Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
+2022-12-01 18:26:01,764 [INFO] Stats: {
     "TP-base": 5,
     "TP-call": 5,
     "FP": 4,
@@ -61,4 +59,4 @@
         }
     }
 }
-2022-08-25 00:31:14,583 [INFO] Finished bench
+2022-12-01 18:26:01,878 [INFO] Finished bench

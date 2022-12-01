@@ -435,7 +435,3 @@ def collapse_main(args):
                  outputs["stats_box"]["kept_cnt"])
     logging.info("%d samples' FORMAT fields consolidated", outputs["stats_box"]["consol_cnt"])
     logging.info("Finished collapse")
-
-
-if __name__ == '__main__':
-    collapse_main(sys.argv[1:])

@@ -13,15 +13,17 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
     A base/comp match holder
     """
-    __slots__ = ["base", "comp", "base_gt", "comp_gt", "state", "seqsim", "sizesim",
-                 "ovlpct", "sizediff", "st_dist", "ed_dist", "gt_match", "multi",
-                 "score", "matid"]
+    __slots__ = ["base", "comp", "base_gt", "base_gt_count", "comp_gt", "comp_gt_count",
+                 "state", "seqsim", "sizesim", "ovlpct", "sizediff", "st_dist", "ed_dist",
+                 "gt_match", "multi", "score", "matid"]
 
     def __init__(self):
         self.base = None
         self.comp = None
         self.base_gt = None
+        self.base_gt_count = 0
         self.comp_gt = None
+        self.comp_gt_count = 0
         self.matid = None
         self.seqsim = None
         self.sizesim = None
@@ -156,7 +158,7 @@ class Matcher():
 
         samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if self.params.no_ref in ["a", prefix] and not truvari.entry_is_present(entry, samp):
+        if (self.params.no_ref in ["a", prefix] or self.params.gtcomp) and not truvari.entry_is_present(entry, samp):
             return True
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
@@ -196,13 +198,15 @@ class Matcher():
         if not skip_gt:
             if "GT" in base.samples[self.params.bSample]:
                 ret.base_gt = base.samples[self.params.bSample]["GT"]
+                ret.base_gt_count = sum(1 for _ in ret.base_gt if _ == 1)
             if "GT" in comp.samples[self.params.cSample]:
                 ret.comp_gt = comp.samples[self.params.cSample]["GT"]
-            ret.gt_match = truvari.get_gt(ret.base_gt) == truvari.get_gt(ret.comp_gt)
-            if self.params.gtcomp and not ret.gt_match:
-                logging.debug("%s and %s are not the same genotype",
-                              str(base), str(comp))
-                ret.state = False
+                ret.comp_gt_count = sum(1 for _ in ret.comp_gt if _ == 1)
+            ret.gt_match = abs(ret.base_gt_count - ret.comp_gt_count)
+            #if self.params.gtcomp and not ret.gt_match:
+            #    logging.debug("%s and %s are not the same genotype",
+            #                  str(base), str(comp))
+            #    ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
         if ret.ovlpct < self.params.pctovl:

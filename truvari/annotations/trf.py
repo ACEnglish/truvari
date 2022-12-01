@@ -644,7 +644,3 @@ def trf_main(cmdargs):
         pool.join()
 
     logging.info("Finished trf")
-
-
-if __name__ == '__main__':
-    trf_main(sys.argv[1:])

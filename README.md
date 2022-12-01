@@ -42,6 +42,7 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [consistency](https://github.com/acenglish/truvari/wiki/consistency) - Consistency report between multiple VCFs
  - [vcf2df](https://github.com/acenglish/truvari/wiki/vcf2df) - Turn a VCF into a pandas DataFrame
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
+ - [stratify](https://github.com/acenglish/truvari/wiki/stratify) - Count variants per-region in vcf
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent parts
  - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
  - [refine](https://github.com/ACEnglish/truvari/wiki/refine) - Automated bench result refinement with phab

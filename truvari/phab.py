@@ -364,6 +364,3 @@ def phab_main(cmdargs):
         shutil.rmtree(args.keep_parts)
 
     logging.info("Finished phab")
-
-if __name__ == '__main__':
-    phab_main(sys.argv[1:])

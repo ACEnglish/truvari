@@ -32,5 +32,21 @@ The hardest part of maintaining functional tests is creating/maintaining the inp
 
 - `test_files/make_anno.sh` makes a VCF with all INFO fields of the multiple `truvari anno` fields.
 - `test_files/add_dp.py` was used to add fake depth information in VCFs.
+- `repo_utils/test_files/external/` hold fake external programs so that CI/CD doesn't have to download/run them every time
 
 When functional tests fail because of files not matching up (e.g. md5sum aren't equal), I usually manually inspect with something like `vimdiff` on the `test_results/` and the `repo_utils/test_files/answer_key/`. If I'm CERTAIN that the `test_results/` is correct, then I copy that into `repo_utils/test_files/answer_key/`.
+
+Running Individual Tests
+========================
+
+At the time of writing this, there are ~148 functional tests run by `ssshtest.sh` which take a couple of minutes to run.
+Fortunately, we can focus which tests are run by adding parameters to `truvari_ssshtest.sh`.
+
+We can run an individual test with e.g.
+```bash
+bash repo_utils/truvari_sshtests.sh test_bench_unroll
+```
+
+Multiple individual test names can be passed to the script and all will be run. Unfortunately, there's no easy way to
+group tests so that they're easy to run (e.g. `bash repo_utils/truvari_sshtests.sh test_bench` can't run all
+`repo_utils/sub_tests/bench.sh` tests)

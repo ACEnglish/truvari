@@ -1,15 +1,14 @@
-2022-08-25 00:31:09,784 [INFO] Running /data/truvari/__main__.py bench -b repo_utils/test_files/input1.vcf.gz -c repo_utils/test_files/input3.vcf.gz -f repo_utils/test_files/reference.fa -o test_results/bench13/
-2022-08-25 00:31:09,786 [INFO] Params:
+2022-12-01 18:25:56,985 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 18:25:56,987 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13/
+2022-12-01 18:25:56,989 [INFO] Params:
 {
-    "base": "repo_utils/test_files/input1.vcf.gz",
-    "comp": "repo_utils/test_files/input3.vcf.gz",
+    "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
     "output": "test_results/bench13/",
-    "reference": "repo_utils/test_files/reference.fa",
-    "giabreport": false,
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
     "debug": false,
     "prog": false,
     "refdist": 500,
-    "unroll": false,
     "pctsim": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
@@ -19,8 +18,8 @@
     "use_lev": false,
     "chunksize": 1000,
     "gtcomp": false,
-    "bSample": null,
-    "cSample": null,
+    "bSample": "NA24385",
+    "cSample": "HG00733",
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
@@ -30,10 +29,9 @@
     "extend": 0,
     "multimatch": false
 }
-2022-08-25 00:31:09,786 [INFO] Truvari version: 3.5.0-dev
-2022-08-25 00:31:09,899 [INFO] Zipped 4216 variants Counter({'base': 2151, 'comp': 2065})
-2022-08-25 00:31:09,900 [INFO] 15 chunks of 4216 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 16})
-2022-08-25 00:31:09,904 [INFO] Stats: {
+2022-12-01 18:25:57,189 [INFO] Zipped 4216 variants Counter({'base': 2151, 'comp': 2065})
+2022-12-01 18:25:57,191 [INFO] 15 chunks of 4216 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 16})
+2022-12-01 18:25:57,194 [INFO] Stats: {
     "TP-base": 10,
     "TP-call": 10,
     "FP": 7,
@@ -63,4 +61,4 @@
         }
     }
 }
-2022-08-25 00:31:09,907 [INFO] Finished bench
+2022-12-01 18:25:57,291 [INFO] Finished bench
