@@ -9,6 +9,7 @@ Available commands:
     consistency   Consistency report between multiple VCFs
     vcf2df        Turn a VCF into a pandas DataFrame
     segment       Normalization of SVs into disjointed genomic regions
+    stratify      Count variants per-region in vcf
     divide        Divide a VCF into multiple parts
     phab          Variant harmonization using MSA
     refine        Automated bench result refinement with phab

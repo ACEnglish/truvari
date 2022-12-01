@@ -16,6 +16,7 @@ from truvari.divide import divide_main
 from truvari.vcf2df import vcf2df_main
 from truvari.refine import refine_main
 from truvari.collapse import collapse_main
+from truvari.stratify import stratify_main
 from truvari.segmentation import segment_main
 from truvari.consistency_report import consistency_main
 
@@ -33,6 +34,7 @@ TOOLS = {"bench": bench_main,
          "collapse": collapse_main,
          "vcf2df": vcf2df_main,
          "segment": segment_main,
+         "stratify": stratify_main,
          "divide": divide_main,
          "phab": phab_main,
          "refine": refine_main,
@@ -48,6 +50,7 @@ Available commands:
     [bold][cyan]consistency[/][/]   Consistency report between multiple VCFs
     [bold][cyan]vcf2df[/][/]        Turn a VCF into a pandas DataFrame
     [bold][cyan]segment[/][/]       Normalization of SVs into disjointed genomic regions
+    [bold][cyan]stratify[/][/]      Count variants per-region in vcf
     [bold][cyan]divide[/][/]        Divide a VCF into multiple parts
     [bold][cyan]phab[/][/]          Variant harmonization using MSA
     [bold][cyan]refine[/][/]        Automated bench result refinement with phab

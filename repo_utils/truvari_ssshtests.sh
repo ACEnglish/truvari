@@ -22,6 +22,7 @@ source $TESTSRC/sub_tests/entry_main.sh
 source $TESTSRC/sub_tests/phab.sh
 source $TESTSRC/sub_tests/refine.sh
 source $TESTSRC/sub_tests/segment.sh
+source $TESTSRC/sub_tests/stratify.sh
 source $TESTSRC/sub_tests/vcf2df.sh
 source $TESTSRC/sub_tests/version.sh
 

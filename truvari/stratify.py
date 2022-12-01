@@ -77,7 +77,7 @@ def stratify_main(cmdargs):
         counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[["tpbase", "tp", "fn", "fp"]]
     else:
         counts = count_entries(pysam.VariantFile(args.in_vcf), r_list, args.within)
-        counts = pd.Series(counts).to_frame()
+        counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)
     regions.to_csv(args.output, header=False, index=False, sep='\t')
