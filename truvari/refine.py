@@ -80,7 +80,7 @@ def resolve_regions(params, args):
     return reeval_trees
 
 
-def consolidate_bench_vcfs(benchdir, regions_fn=None):
+def consolidate_bench_vcfs(benchdir):
     """
     Pull and consolidate base/comp variants from their regions
     """
@@ -237,7 +237,7 @@ def refine_main(cmdargs):
     summary["call cnt"] = summary["TP-call"] + summary["FP"]
     # Still don't have genotype checks
     summary.calc_performance()
-    
+
     with open(os.path.join(args.benchdir, 'refine.summary.json'), 'w') as fout:
         json.dump(summary, fout, indent=4)
     logging.info(json.dumps(summary, indent=4))

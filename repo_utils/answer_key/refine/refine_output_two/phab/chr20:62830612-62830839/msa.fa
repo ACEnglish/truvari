@@ -21,7 +21,7 @@ ccaccacagtccgccaacccccatgacagtccctca------------------------
 -------------------------------------------------------acccc
 caccacagtcccccaacccccatgacagtcccccaacccccaccacagtcccccaacccc
 caccacagtccccaccccctaccacagtcccccaacccccaccacagtcccccaccccct
-accacaatccccca-cccccaccacagtcccctgggacgcagacagggagaggcccttgc
+accacaatcccccaccccccaccacagtcccctgggacgcagacagggagaggcccttgc
 agctcccagtgggaaatctggccatgggcagtgtctccctgcgtggcggaggcagtggca
 tcagggccccgactgtggcgcctttggcccctctgaccttcca
 >syndip_2_chr20:62830512-62830939
@@ -56,10 +56,10 @@ gtgacgtgggcgaccgggtaagtggccctctcagcaggaagctcccctgcaccccctcta
 cccatgtaccacagtcccccaccccccaccgtgctccaccccccaccacagtcccccacc
 ccccaccccagtccccaaacccctaccacagtcccccaaccccaccacagtcccccaccc
 cctaccacagtcccccaccccctaccacagtcccccaacccccaccacagtcccccaccc
-ccaccacagtccgccaacccccatgacagtccctca------------------------
+ccaccacagtccgccaacccccatgacagtccccca------------------------
 -------------------------------------------------------acccc
-caccacagtcccccaacccccatgacagtcccccaacccccaccacagtcccccaacccc
+caccacagtcccccaacccccatgacagtcccccaacccctaccacagtcccccaacccc
 caccacagtccccaccccctaccacagtcccccaacccccaccacagtcccccaccccct
-accacaatccccca-cccccaccacagtcccctgggacgcagacagggagaggcccttgc
+accacaatcccccaccccccaccacagtcccctgggacgcagacagggagaggcccttgc
 agctcccagtgggaaatctggccatgggcagtgtctccctgcgtggcggaggcagtggca
 tcagggccccgactgtggcgcctttggcccctctgaccttcca

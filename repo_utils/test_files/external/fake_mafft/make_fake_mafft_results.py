@@ -18,7 +18,7 @@ for haps in all_haps:
         data = fh.read()
         m_key = hashlib.md5(data.encode('utf-8')).hexdigest()
         if m_key in lookup:
-            sys.stderr.write("!!WARN!! Conflicting key %s with %s\n" % (haps, lookup[m_key]))
+            sys.stderr.write("!!WARN!! Conflicting key %s on %s with %s\n" % (m_key, haps, lookup[m_key]))
         lookup[m_key] = os.path.join(os.path.dirname(haps), 'msa.fa')
 
 print(json.dumps(lookup, indent=4))
