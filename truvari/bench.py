@@ -163,24 +163,26 @@ def pick_single_matches(match_matrix, gtcomp=False):
         # let them get their one match with the int(not gtcomp)
         base_is_used = used_base[b_key] >= max(match.base_gt_count, int(not gtcomp))
         comp_is_used = used_comp[c_key] >= max(match.comp_gt_count, int(not gtcomp))
-        # Only write the comp (FN)
+        # Only write the comp (FP)
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
             to_process.state = False
             to_process.multi = True
             comp_cnt -= 1
+            if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
+                ret.append(to_process)
             used_comp[c_key] = 9
-            ret.append(to_process)
-        # Only write the base (FP)
+        # Only write the base (FN)
         elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
             to_process.state = False
             to_process.multi = True
             base_cnt -= 1
+            if used_base[b_key] == 0: # Only write as F if it hasn't been a T
+                ret.append(to_process)
             used_base[b_key] = 9
-            ret.append(to_process)
         # Write both (any state)
         elif not base_is_used and not comp_is_used:
             to_process = copy.copy(match)

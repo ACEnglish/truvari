@@ -66,6 +66,14 @@ if [ $test_bench_12_gtcomp ]; then
     bench_assert 12_gtcomp
 fi
 
+# --gtcomp edgecase
+run test_bench_gtcomp_edgecase1 $truv bench -b $INDIR/variants/gtcomp_problem1_base.vcf.gz \
+                                            -c $INDIR/variants/gtcomp_problem1_comp.vcf.gz \
+                                            --gtcomp \
+                                            -o $OD/bench_gtcomp_edgecase1/
+if [ $test_bench_gtcomp_edgecase1 ]; then
+    bench_assert _gtcomp_edgecase1
+fi
 run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
 if [ $test_bench_badparams ]; then
     assert_exit_code 100
