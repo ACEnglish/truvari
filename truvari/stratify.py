@@ -21,7 +21,7 @@ def parse_args(args):
                         help="Truvari bench result directory or a single VCF")
     parser.add_argument("-o", "--output", metavar="OUT", default="/dev/stdout",
                         help="Output bed-like file")
-    parser.add_argument("--header", action="store_true", 
+    parser.add_argument("--header", action="store_true",
                         help="Input regions have header to preserve in output")
     parser.add_argument("-w", "--within", action="store_true",
                         help="Only count variants contained completely within region boundaries")

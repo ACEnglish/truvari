@@ -117,8 +117,10 @@ def compare_chunk(chunk):
     ret = []
     if matcher.params.multimatch:
         ret = pick_multi_matches(match_matrix)
+    elif matcher.params.gtcomp:
+        ret = pick_gtcomp_matches(match_matrix)
     else:
-        ret = pick_single_matches(match_matrix, matcher.params.gtcomp)
+        ret = pick_single_matches(match_matrix)
     return ret
 
 
@@ -139,12 +141,10 @@ def pick_multi_matches(match_matrix):
         ret.append(c_max)
     return ret
 
-
-def pick_single_matches(match_matrix, gtcomp=False):
+def pick_gtcomp_matches(match_matrix):
     """
     Given a numpy array of MatchResults
-    for each base, get its best match and record that the comp call can't be used anymore
-    Once all best pairs are found, return the remaining
+    Find upto allele count mumber of matches
     """
     ret = []
     base_cnt, comp_cnt = match_matrix.shape
@@ -159,10 +159,8 @@ def pick_single_matches(match_matrix, gtcomp=False):
         b_key = str(match.base)
         c_key = str(match.comp)
         # This is a trick
-        # for not --gtcomp runs on reference homozygous (0/0 or ./.) variants,
-        # let them get their one match with the int(not gtcomp)
-        base_is_used = used_base[b_key] >= max(match.base_gt_count, int(not gtcomp))
-        comp_is_used = used_comp[c_key] >= max(match.comp_gt_count, int(not gtcomp))
+        base_is_used = used_base[b_key] >= match.base_gt_count
+        comp_is_used = used_comp[c_key] >= match.comp_gt_count
         # Only write the comp (FP)
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
@@ -186,32 +184,71 @@ def pick_single_matches(match_matrix, gtcomp=False):
         # Write both (any state)
         elif not base_is_used and not comp_is_used:
             to_process = copy.copy(match)
-            if gtcomp:
-                # Don't write twice
-                if used_base[b_key] != 0:
-                    to_process.base = None
-                if used_comp[c_key] != 0:
-                    to_process.comp = None
+            # Don't write twice
+            if used_base[b_key] != 0:
+                to_process.base = None
+            if used_comp[c_key] != 0:
+                to_process.comp = None
 
-                used_base[b_key] += match.comp_gt_count
-                used_comp[c_key] += match.base_gt_count
-                # All used up
-                if used_base[b_key] >= match.base_gt_count:
-                    base_cnt -= 1
-                if used_comp[c_key] >= match.comp_gt_count:
-                    comp_cnt -= 1
-
-                # Safety edge case check
-                if to_process.base is not None or to_process.comp is not None:
-                    ret.append(to_process)
-            else:
+            used_base[b_key] += match.comp_gt_count
+            used_comp[c_key] += match.base_gt_count
+            # All used up
+            if used_base[b_key] >= match.base_gt_count:
                 base_cnt -= 1
+            if used_comp[c_key] >= match.comp_gt_count:
                 comp_cnt -= 1
-                used_base[b_key] = 9 # Should always be greater than sum(GT)
-                used_comp[c_key] = 9 # until we use multi-allelics, maybe
+
+            # Safety edge case check
+            if to_process.base is not None or to_process.comp is not None:
                 ret.append(to_process)
     return ret
 
+def pick_single_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    for each base, get its best match and record that the comp call can't be used anymore
+    Once all best pairs are found, return the remaining
+    """
+    ret = []
+    base_cnt, comp_cnt = match_matrix.shape
+    match_matrix = np.ravel(match_matrix)
+    match_matrix.sort()
+    used_comp = set()
+    used_base = set()
+    for match in match_matrix[::-1]:
+        # No more matches to find
+        if base_cnt == 0 and comp_cnt == 0:
+            break
+
+        base_is_used = str(match.base) in used_base
+        comp_is_used = str(match.comp) in used_comp
+        # Only write the comp
+        if base_cnt == 0 and not comp_is_used:
+            to_process = copy.copy(match)
+            to_process.base = None
+            to_process.state = False
+            to_process.multi = True
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+        # Only write the base
+        elif comp_cnt == 0 and not base_is_used:
+            to_process = copy.copy(match)
+            to_process.comp = None
+            to_process.state = False
+            to_process.multi = True
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            ret.append(to_process)
+        # Write both
+        elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+    return ret
 
 ###############
 # VCF editing #
