@@ -444,28 +444,6 @@ def entry_size(entry):
     return size
 
 
-def weighted_score(sim, size, ovl):
-    """
-    Unite the similarity measures and make a score
-    `(2*sim + 1*size + 1*ovl) / 3.0` scaled to 0-100
-
-    :param `sim`:
-    :type `sim`: float
-        Sequence similarity
-    :param `size`:
-    :type `size`: float
-        Size similarity
-    :param `ovl`: Reciprocal overlap
-    :type `ovl`: float
-
-    :return: The score
-    :rtype: float
-    """
-    score = (sim + size + ovl) / 3.0 * 100
-    #new_score = score / 1.333333 * 100
-    return score
-
-
 def reciprocal_overlap(astart, aend, bstart, bend):
     """
     Calculates reciprocal overlap of two ranges

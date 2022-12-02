@@ -120,6 +120,10 @@ calc_hwe
 ^^^^^^^^
 .. autofunction:: calc_hwe
 
+compress_index_vcf
+^^^^^^^^^^^^^^^^^^
+.. autofunction:: compress_index_vcf
+
 create_pos_haplotype
 ^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: create_pos_haplotype
@@ -156,6 +160,10 @@ phab
 ^^^^
 .. autofunction:: phab
 
+phab_multi
+^^^^^^^^^^
+.. autofunction:: phab_multi
+
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: reciprocal_overlap
@@ -180,12 +188,12 @@ vcf_ranges
 ^^^^^^^^^^
 .. autofunction:: vcf_ranges
 
-weighted_score
-^^^^^^^^^^^^^^
-.. autofunction:: weighted_score
-
 Dev methods
 -----------
+benchdir_count_entries
+^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: benchdir_count_entries
+
 chunker
 ^^^^^^^
 .. autofunction:: chunker
@@ -193,6 +201,22 @@ chunker
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
+
+consolidate_phab_vcfs
+^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: consolidate_phab_vcfs
+
+count_entries
+^^^^^^^^^^^^^
+.. autofunction:: count_entries
+
+fchain
+^^^^^^
+.. autofunction:: fchain
+
+file_zipper
+^^^^^^^^^^^
+.. autofunction:: file_zipper
 
 file_zipper
 ^^^^^^^^^^^
@@ -221,6 +245,10 @@ restricted_float
 restricted_int
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_int
+
+run_bench
+^^^^^^^^^
+.. autofunction:: run_bench
 
 setup_logging
 ^^^^^^^^^^^^^

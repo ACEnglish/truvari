@@ -43,12 +43,14 @@ Extra methods:
 :meth:`sizesim`
 :meth:`unroll_compare`
 :meth:`vcf_ranges`
-:meth:`weighted_score`
 
 Dev methods:
+
+:meth:`benchdir_count_entries`
 :meth:`chunker`
 :meth:`cmd_exe`
 :meth:`consolidate_phab_vcfs`
+:meth:`count_entries`
 :meth:`fchain`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
@@ -116,7 +118,6 @@ from truvari.comparisons import (
     seqsim,
     sizesim,
     unroll_compare,
-    weighted_score,
 )
 
 from truvari.matching import (

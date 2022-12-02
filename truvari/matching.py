@@ -38,11 +38,10 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
 
     def calc_score(self):
         """
-        Set self.score to truvari.weighted_score
+        Unite the similarity measures and make a score
         """
         if None not in [self.seqsim, self.sizesim, self.ovlpct]:
-            self.score = truvari.weighted_score(
-                self.seqsim, self.sizesim, self.ovlpct)
+            self.score = score = (self.seqsim + self.sizesim + self.ovlpct) / 3.0 * 100
 
     def __lt__(self, other):
         # Trues are always worth more

@@ -1,6 +1,0 @@
-resources/grch37.simpleRepeat.truvari.bed.gz filter=lfs diff=lfs merge=lfs -text
-resources/grch37.simpleRepeat.truvari.bed.gz.tbi filter=lfs diff=lfs merge=lfs -text
-resources/grch38.simpleRepeat.truvari.bed.gz filter=lfs diff=lsf merge=lfs -text
-resources/grch38.simpleRepeat.truvari.bed.gz.tbi filter=lfs diff=lsf merge=lfs -text
-resources/chm13.simpleRepeat.truvari.bed.gz filter=lfs diff=lsf merge=lfs -text
-resources/chm13.simpleRepeat.truvari.bed.gz.tbi filter=lfs diff=lsf merge=lfs -text
