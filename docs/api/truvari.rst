@@ -238,6 +238,10 @@ optimize_df_memory
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: optimize_df_memory
 
+performance_metrics
+^^^^^^^^^^^^^^^^^^^
+.. autofunction:: performance_metrics
+
 restricted_float
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_float

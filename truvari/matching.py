@@ -41,7 +41,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         Unite the similarity measures and make a score
         """
         if None not in [self.seqsim, self.sizesim, self.ovlpct]:
-            self.score = score = (self.seqsim + self.sizesim + self.ovlpct) / 3.0 * 100
+            self.score = (self.seqsim + self.sizesim + self.ovlpct) / 3.0 * 100
 
     def __lt__(self, other):
         # Trues are always worth more

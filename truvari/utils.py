@@ -405,6 +405,22 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
         return None
     return guesses[0][1]
 
+def performance_metrics(tpbase, tp, fn, fp):
+    """
+    Calculates precision, recall, and f1 given counts by state
+    Can return None if values are zero
+    """
+    base_cnt = tpbase + fn
+    call_cnt = tp + fp
+    if base_cnt == 0 or call_cnt == 0:
+        return None, None, None
+    precision = tp / call_cnt
+    recall = tpbase / base_cnt
+    neum = recall * precision
+    denom = recall + precision
+    f1 = 2 * (neum / denom) if denom != 0 else None
+    return precision, recall, f1
+
 def compress_index_vcf(fn, fout=None, remove=True):
     """
     In order to reduce the number of external tools, I can use pysam to do this work

@@ -57,6 +57,7 @@ Dev methods:
 :meth:`make_temp_filename`
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
+:meth:`performance_metrics`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`run_bench`
@@ -160,6 +161,7 @@ from truvari.utils import (
     help_unknown_cmd,
     make_temp_filename,
     opt_gz_open,
+    performance_metrics,
     ref_ranges,
     restricted_float,
     restricted_int,

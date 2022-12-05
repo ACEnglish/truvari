@@ -44,29 +44,19 @@ class StatsBox(OrderedDict):
         """
         Calculate the precision/recall
         """
-        do_stats_math = True
         if self["TP-base"] == 0 and self["FN"] == 0:
             logging.warning("No TP or FN calls in base!")
-            do_stats_math = False
         elif self["TP-call"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
-            do_stats_math = False
 
-        # Final calculations
-        if do_stats_math:
-            self["precision"] = float(self["TP-call"]) / \
-                (self["TP-call"] + self["FP"])
-            self["recall"] = float(self["TP-base"]) / \
-                (self["TP-base"] + self["FN"])
-            if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
-                self["gt_concordance"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
-                                                                         self["TP-call_FP-gt"])
+        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-call"], self["FN"], self["FP"])
 
-        # f-measure
-        neum = self["recall"] * self["precision"]
-        denom = self["recall"] + self["precision"]
-        if denom != 0:
-            self["f1"] = 2 * (neum / denom)
+        self["precision"] = precision
+        self["recall"] = recall
+        self["f1"] = f1
+        if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
+            self["gt_concordance"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
+                                                                     self["TP-call_FP-gt"])
 
 def compare_chunk(chunk):
     """
