@@ -199,10 +199,10 @@ def refine_main(cmdargs):
     regions[regions["refined"]].to_csv(reeval_bed, sep='\t', header=False, index=False)
 
     # Set the input VCFs for phab
-    if not args.use_original:
-        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
-    else:
+    if args.use_original:
         base_vcf, comp_vcf = params["base"], params["comp"]
+    else:
+        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
 
     # Send the vcfs to phab
     to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
