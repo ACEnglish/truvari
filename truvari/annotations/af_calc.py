@@ -104,7 +104,7 @@ def calc_af(gts):
             n_het += 1 if g[0] != g[1] and None not in g else 0
 
     if an == 0:
-        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0, "AN": 0}
+        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": [0, 0], "AN": 0}
     af = cnt[1] / an
     srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     ac = [cnt[_] for _ in [0, 1]]
