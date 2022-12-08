@@ -228,7 +228,7 @@ def refine_main(cmdargs):
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
     for i in ["tpbase", "tp", "fn", "fp"]:
-        regions[f"out_{i}"] =  regions[f"in_{i}"].where(~regions['refined'], regions[f"out_{i}"])
+        regions[f"out_{i}"] = regions[f"in_{i}"].where(~regions['refined'], regions[f"out_{i}"])
 
     summary = truvari.StatsBox()
     summary["TP-base"] = int(regions["out_tpbase"].sum())

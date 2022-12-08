@@ -2,7 +2,6 @@
 Maps graph edge kmers with BWA to assess Graph Reference Mappability
 """
 # pylint: disable=too-many-locals
-import os
 import sys
 import re
 import types
@@ -171,7 +170,7 @@ def parse_args(args):
                         help="Size of kmer to map (%(default)s)")
     parser.add_argument("-m", "--min-size", default=25, type=truvari.restricted_int,
                         help="Minimum size of variants to map (%(default)s)")
-    parser.add_argument("-t", "--threads", default=os.cpu_count(), type=truvari.restricted_int,
+    parser.add_argument("-t", "--threads", default=1, type=truvari.restricted_int,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
