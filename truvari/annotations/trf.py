@@ -578,7 +578,7 @@ def parse_args(args):
                         help="Skip INS estimation procedure and run everything through TRF. (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=int, default=5,
                             help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
-    parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=multiprocessing.cpu_count(),
+    parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=1,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
@@ -626,6 +626,7 @@ def trf_main(cmdargs):
         m_regions = iter_tr_regions(args.repeats)
         m_process = process_tr_region
     else:
+        # refactor. need streaming mode
         m_regions = truvari.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
         m_process = process_ref_region
 
