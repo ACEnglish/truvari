@@ -275,7 +275,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     if sample and len(sample) > 1 and no_prefix:
         raise TypeError("Multiple samples being pulled, must use prefix")
 
-    header = ["key", "id", "svtype", "svlen",
+    header = ["chrom", "start", "end", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
 
     info_ops = []
@@ -306,7 +306,9 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     for entry in v:
         varsize = truvari.entry_size(entry)
         filt = list(entry.filter)
-        cur_row = [truvari.entry_to_key(entry),
+        cur_row = [entry.chrom,
+                   entry.start,
+                   entry.stop,
                    entry.id,
                    truvari.entry_variant_type(entry).name,
                    varsize,
@@ -327,7 +329,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     ret = pd.DataFrame(rows, columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
-    return ret.set_index("key")
+    return ret
 
 
 def optimize_df_memory(df):
