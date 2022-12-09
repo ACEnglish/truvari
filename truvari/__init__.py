@@ -17,6 +17,7 @@ VariantRecord methods:
 :meth:`entry_size`
 :meth:`entry_size_similarity`
 :meth:`entry_to_haplotype`
+:meth:`entry_to_hash`
 :meth:`entry_to_key`
 :meth:`entry_variant_type`
 
@@ -111,6 +112,7 @@ from truvari.comparisons import (
     entry_size,
     entry_size_similarity,
     entry_to_haplotype,
+    entry_to_hash,
     entry_to_key,
     entry_variant_type,
     overlap_percent,

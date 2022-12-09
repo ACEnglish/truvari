@@ -276,7 +276,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     if sample and len(sample) > 1 and no_prefix:
         raise TypeError("Multiple samples being pulled, must use prefix")
 
-    header = ["chrom", "start", "end", "id", "svtype", "svlen",
+    header = ["hash", "chrom", "start", "end", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
 
     info_ops = []
@@ -306,8 +306,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     rows = []
     for entry in v:
         varsize = truvari.entry_size(entry)
-        filt = list(entry.filter)
-        cur_row = [entry.chrom,
+        cur_row = [truvari.entry_to_hash(entry),
+                   entry.chrom,
                    entry.start,
                    entry.stop,
                    entry.id,
@@ -315,8 +315,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
                    varsize,
                    truvari.get_sizebin(varsize),
                    entry.qual,
-                   filt,
-                   not filt or filt[0] == 'PASS'
+                   list(entry.filter),
+                   not truvari.entry_is_filtered(entry)
                    ]
 
         for i, op in info_ops:  # Need to make OPs for INFOS..
@@ -330,7 +330,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     ret = pd.DataFrame(rows, columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
-    return ret
+    return ret.set_index("hash")
 
 
 def optimize_df_memory(df):

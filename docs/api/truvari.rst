@@ -90,6 +90,10 @@ entry_to_haplotype
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_to_haplotype
 
+entry_to_hash
+^^^^^^^^^^^^^
+.. autofunction:: entry_to_hash
+
 entry_to_key
 ^^^^^^^^^^^^
 .. autofunction:: entry_to_key

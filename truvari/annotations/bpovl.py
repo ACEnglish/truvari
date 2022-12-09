@@ -78,7 +78,7 @@ def bpovl_main(cmdargs):
         if svlen < args.sizemin:
             continue
 
-        key = truvari.entry_to_key(entry)
+        key = truvari.entry_to_hash(entry)
         for anno_idx in anno_tree[entry.chrom].at(start):
             has_hit = True
             out_rows.append([key, 'start_bnd', anno_idx.data])

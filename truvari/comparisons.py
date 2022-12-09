@@ -3,6 +3,7 @@ Collection of methods with event helpers
 that compare events, coordinates, or transform vcf entries
 """
 import re
+import hashlib
 import logging
 
 import edlib
@@ -61,6 +62,11 @@ def entry_to_key(entry, prefix="", bounds=False):
         return f"{prefix}{entry.chrom}:{start}-{end}({entry.ref}|{alt})"
     return f"{prefix}{entry.chrom}:{entry.start}-{entry.stop}.{alt}"
 
+def entry_to_hash(entry, hasher=hashlib.sha1):
+    """
+    Turn variant into a key and hash with provided hasher
+    """
+    return hasher(entry_to_key(entry).encode()).hexdigest()
 
 def sizesim(sizeA, sizeB):
     """
