@@ -78,7 +78,7 @@ class RepMask():
                 if self.min_length <= entry_size <= self.max_length:
                     cnt += 1
                     cntbp += entry_size
-                    if truvari.entry_variant_type(entry) == "INS":
+                    if truvari.entry_variant_type(entry) == truvari.SV.INS:
                         ret.write(f">{pos}\n{entry.alts[0]}\n")
                     else:
                         ret.write(f">{pos}\n{entry.ref}\n")
