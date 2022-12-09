@@ -4,6 +4,7 @@ Truvari main entrypoint
 """
 import sys
 import argparse
+from importlib.metadata import version
 
 from rich.console import Console
 
@@ -23,9 +24,12 @@ from truvari.consistency_report import consistency_main
 # pylint: disable=unused-argument
 
 
-def version(args):
+def flat_version(args):
     """Print the version"""
-    print(f"Truvari v{__version__}")
+    if len(args) and args[0].count("-v"):
+        print(f"Truvari {version('truvari')}")
+    else:
+        print(f"Truvari v{__version__}")
 
 
 TOOLS = {"bench": bench_main,
@@ -38,7 +42,7 @@ TOOLS = {"bench": bench_main,
          "divide": divide_main,
          "phab": phab_main,
          "refine": refine_main,
-         "version": version}
+         "version": flat_version}
 
 USAGE = f"""\
 [bold]Truvari v{__version__}[/] Structural Variant Benchmarking and Annotation
