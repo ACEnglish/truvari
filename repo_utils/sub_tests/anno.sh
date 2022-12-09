@@ -93,7 +93,7 @@ if [ $test_anno_badparam ]; then
     assert_exit_code 1
 fi
 
-# TRF isn't deterministic for some reason, so it gives a different answer in action
+# TRF isn't deterministic for some reason, so it can give a different answer in action?
 # run test_anno_trf_result
 # assert_equal $(fn_md5 $ANSDIR/trf.vcf) $(fn_md5 $OD/trf.vcf)
 
