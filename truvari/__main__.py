@@ -19,10 +19,7 @@ from truvari.refine import refine_main
 from truvari.collapse import collapse_main
 from truvari.stratify import stratify_main
 from truvari.segmentation import segment_main
-from truvari.consistency_report import consistency_main
-
-# pylint: disable=unused-argument
-
+from truvari.consistency import consistency_main
 
 def flat_version(args):
     """Print the version"""

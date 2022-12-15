@@ -36,3 +36,5 @@ if [ -z "$1" ]; then
     coverage json --include=truvari/* -o $OD/coverage.json
     python3 repo_utils/coverage_maker.py $OD/coverage.json
 fi
+# Clean if they're left
+rm -f .coverage.*

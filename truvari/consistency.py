@@ -4,7 +4,6 @@ Over multiple vcfs, calculate their intersection/consistency.
 Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
-# pylint: disable=consider-using-f-string
 import io
 import gzip
 import argparse
@@ -58,14 +57,6 @@ def read_files(allVCFs):
     return all_presence.values(), n_calls_per_vcf
 
 
-def get_shared_calls(all_presence, n):
-    """Get n shared calls from the all_presence dictionary"""
-    return sum(
-        1 for presence in all_presence
-        if bin(presence).count("1") == n
-    )
-
-
 def parse_args(args):
     """ parse args """
     parser = argparse.ArgumentParser(prog="consistency", description=__doc__,
@@ -91,15 +82,21 @@ def make_report(allVCFs, all_presence, n_calls_per_vcf):
     output['vcf_counts'] = {}
     for i, fn in enumerate(allVCFs):
         output['vcf_counts'][fn] = n_calls_per_vcf[i]
+
     output['shared'] = []
-    for i in reversed(range(n_vcfs)):
-        shared_calls = get_shared_calls(all_presence, i + 1)
-        call_pct = shared_calls / total_unique_calls
-        output['shared'].append({'vcf_count': i + 1, 'num_calls': shared_calls, 'call_pct': call_pct})
     output['detailed'] = []
+
+    # setup shared
+    for i in reversed(range(n_vcfs)):
+        output['shared'].append({'vcf_count': i + 1, 'num_calls': 0, 'call_pct': 0})
+
     all_overlap = Counter(all_presence)
     for group, ncalls in sorted(all_overlap.items(), key=lambda x: (-x[1], x[0])):
-        group = bin(group)[2:].rjust(n_vcfs, '0')
+        group = bin(group)
+        shared_calls_vcf_count = group.count("1")
+        output['shared'][-shared_calls_vcf_count]["num_calls"] += ncalls
+
+        group = group[2:].rjust(n_vcfs, '0')
         tot_pct = ncalls / total_unique_calls
         c = [(ncalls / n_calls_per_vcf[i])
              if group[i] == "1"
@@ -112,6 +109,10 @@ def make_report(allVCFs, all_presence, n_calls_per_vcf):
         for i, v in enumerate(c):
             row[i] = v
         output['detailed'].append(row)
+
+    # finish shared
+    for i in range(n_vcfs):
+        output['shared'][i]['call_pct'] = output['shared'][i]['num_calls'] / total_unique_calls
     return output
 
 
@@ -120,21 +121,16 @@ def write_report(output):
     """
     Write the report
     """
-    print("#\n# Total %d calls across %d VCFs\n#" %
-          (output['total_calls'], output['num_vcfs']))
+    print(f"#\n# Total {output['total_calls']} calls across {output['num_vcfs']} VCFs\n#")
 
     print("#File\tNumCalls")
     for name in output['vcfs']:
-        print("%s\t%d" % (name, output['vcf_counts'][name]))
+        print(f"{name}\t{output['vcf_counts'][name]}")
 
     print("#\n# Summary of consistency\n#")
     print("#VCFs\tCalls\tPct")
     for row in output['shared']:
-        print("%d\t%d\t%.2f%%" % (
-            row['vcf_count'],
-            row['num_calls'],
-            row['call_pct'] * 100
-        ))
+        print(f"{row['vcf_count']}\t{row['num_calls']}\t{row['call_pct'] * 100:.2f}%")
 
     print("#\n# Breakdown of VCFs' consistency\n#")
     print("#Group\tTotal\tTotalPct\tPctOfFileCalls")
@@ -142,13 +138,12 @@ def write_report(output):
         group = row['group']
         ncalls = row['total']
         tot_pct = row['total_pct'] * 100
-        c_text = " ".join(["%.2f%%" % (row[i] * 100)
+        c_text = " ".join([f"{row[i] * 100:.2f}%"
              if row['group'][i] == "1"
              else "0%"
              for i in range(output['num_vcfs'])
         ])
-        print("%s\t%d\t%.2f%%\t%s" %
-              (group, ncalls, tot_pct, c_text))
+        print(f"{group}\t{ncalls}\t{tot_pct:.2f}%\t{c_text}")
 
 def consistency_main(args):
     """
