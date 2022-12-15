@@ -154,6 +154,12 @@ def consistency_main(args):
     all_presence, n_calls_per_vcf = read_files(args.allVCFs)
     data = make_report(args.allVCFs, all_presence, n_calls_per_vcf)
     if args.json:
+        for grp in data['detailed']:
+            # rename to file
+            for idx, name in enumerate(args.allVCFs):
+                pct = grp[idx]
+                del grp[idx]
+                grp[name] = pct
         print(json.dumps(data, indent=4))
     else:
         write_report(data)

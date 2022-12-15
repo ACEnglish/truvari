@@ -33,57 +33,57 @@
             "group": "111",
             "total": 701,
             "total_pct": 0.1995445488186735,
-            "0": 0.32589493258949326,
-            "1": 0.393157599551318,
-            "2": 0.3394673123486683
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.32589493258949326,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.393157599551318,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.3394673123486683
         },
         {
             "group": "001",
             "total": 645,
             "total_pct": 0.18360375747224594,
-            "0": 0,
-            "1": 0,
-            "2": 0.31234866828087166
+            "repo_utils/test_files/variants/input1.vcf.gz": 0,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.31234866828087166
         },
         {
             "group": "100",
             "total": 598,
             "total_pct": 0.17022487902077996,
-            "0": 0.2780102278010228,
-            "1": 0,
-            "2": 0
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.2780102278010228,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0
         },
         {
             "group": "101",
             "total": 487,
             "total_pct": 0.1386279533162539,
-            "0": 0.22640632264063226,
-            "1": 0,
-            "2": 0.2358353510895884
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.22640632264063226,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.2358353510895884
         },
         {
             "group": "010",
             "total": 485,
             "total_pct": 0.13805863933959578,
-            "0": 0,
-            "1": 0.27201346045989905,
-            "2": 0
+            "repo_utils/test_files/variants/input1.vcf.gz": 0,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.27201346045989905,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0
         },
         {
             "group": "110",
             "total": 365,
             "total_pct": 0.10389980074010817,
-            "0": 0.1696885169688517,
-            "1": 0.2047111609646663,
-            "2": 0
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.1696885169688517,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.2047111609646663,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0
         },
         {
             "group": "011",
             "total": 232,
             "total_pct": 0.06604042129234272,
-            "0": 0,
-            "1": 0.13011777902411667,
-            "2": 0.11234866828087167
+            "repo_utils/test_files/variants/input1.vcf.gz": 0,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.13011777902411667,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.11234866828087167
         }
     ]
 }
