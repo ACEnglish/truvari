@@ -303,31 +303,33 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     else:
         sample = []
 
-    rows = []
-    for entry in v:
-        varsize = truvari.entry_size(entry)
-        cur_row = [truvari.entry_to_hash(entry),
-                   entry.chrom,
-                   entry.start,
-                   entry.stop,
-                   entry.id,
-                   truvari.entry_variant_type(entry).name,
-                   varsize,
-                   truvari.get_sizebin(varsize),
-                   entry.qual,
-                   list(entry.filter),
-                   not truvari.entry_is_filtered(entry)
-                   ]
+    def _transform():
+        """
+        Yields the rows
+        """
+        for entry in v:
+            varsize = truvari.entry_size(entry)
+            cur_row = [truvari.entry_to_hash(entry),
+                       entry.chrom,
+                       entry.start,
+                       entry.stop,
+                       entry.id,
+                       truvari.entry_variant_type(entry).name,
+                       varsize,
+                       truvari.get_sizebin(varsize),
+                       entry.qual,
+                       list(entry.filter),
+                       not truvari.entry_is_filtered(entry)
+                       ]
 
-        for i, op in info_ops:  # Need to make OPs for INFOS..
-            cur_row.extend(op(entry.info, i))
+            for i, op in info_ops:  # Need to make OPs for INFOS..
+                cur_row.extend(op(entry.info, i))
 
-        for samp in sample:
-            for i, op in fmt_ops:
-                cur_row.extend(op(entry.samples[samp], i))
-
-        rows.append(cur_row)
-    ret = pd.DataFrame(rows, columns=header)
+            for samp in sample:
+                for i, op in fmt_ops:
+                    cur_row.extend(op(entry.samples[samp], i))
+            yield cur_row
+    ret = pd.DataFrame(_transform(), columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
     return ret.set_index("hash")

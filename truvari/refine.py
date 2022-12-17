@@ -44,11 +44,7 @@ def tree_to_regions(trees):
     """
     turn an anno tree into a list of lists of chrom start end
     """
-    ret = []
-    for chrom in trees:
-        for intv in trees[chrom]:
-            ret.append([chrom, intv.begin, intv.end])
-    return ret
+    return [[chrom, intv.begin, intv.end] for chrom, all_intv in trees.items() for intv in all_intv]
 
 def resolve_regions(params, args):
     """

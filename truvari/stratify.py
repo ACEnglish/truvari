@@ -37,16 +37,14 @@ def count_entries(vcf, regions, within):
     regions is a list of lists with sub-lists having 0:3 of chrom, start, end
     Returns a list of the counts in the same order as the regions
     """
-    counts = []
-    for row in regions:
-        m_cnt = 0
+    counts = [0] * len(regions)
+    for idx, row in enumerate(regions):
         for entry in vcf.fetch(row[0], row[1], row[2]):
             if within:
                 ent_start, ent_end = truvari.entry_boundaries(entry)
                 if not row[1] <= ent_start and ent_end <= row[2]:
                     continue
-            m_cnt += 1
-        counts.append(m_cnt)
+            counts[idx] += 1
     return counts
 
 def benchdir_count_entries(benchdir, regions, within=False):

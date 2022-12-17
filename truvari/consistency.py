@@ -45,9 +45,8 @@ def read_files(allVCFs):
     n_vcfs = len(allVCFs)
     # Initialize the integer to 0
     all_presence = defaultdict(lambda: 0)
-    n_calls_per_vcf = []
+    n_calls_per_vcf = [0] * len(allVCFs)
     for i, vcf in enumerate(allVCFs):
-        n_calls_per_vcf.append(0)
         for key in parse_vcf(vcf):
             n_calls_per_vcf[i] += 1
             all_presence[key] |= (1 << (n_vcfs - i - 1))
