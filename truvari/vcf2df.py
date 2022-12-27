@@ -322,13 +322,14 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
                        not truvari.entry_is_filtered(entry)
                        ]
 
-            for i, op in info_ops:  # Need to make OPs for INFOS..
+            for i, op in info_ops:
                 cur_row.extend(op(entry.info, i))
 
             for samp in sample:
                 for i, op in fmt_ops:
                     cur_row.extend(op(entry.samples[samp], i))
             yield cur_row
+
     ret = pd.DataFrame(_transform(), columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)

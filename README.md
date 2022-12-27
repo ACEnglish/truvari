@@ -10,7 +10,7 @@ Toolkit for benchmarking, merging, and annotating Structrual Variants
 
 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
-Read our [Paper](https://doi.org/10.1101/2022.02.21.481353) for more details.
+Read our [Paper](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6) for more details.
 
 ## Installation
 Truvari uses Python 3.6+ and can be installed with pip:
