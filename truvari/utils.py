@@ -411,10 +411,10 @@ def performance_metrics(tpbase, tp, fn, fp):
     Can return None if values are zero
     """
     base_cnt = tpbase + fn
-    call_cnt = tp + fp
-    if base_cnt == 0 or call_cnt == 0:
+    comp_cnt = tp + fp
+    if base_cnt == 0 or comp_cnt == 0:
         return None, None, None
-    precision = tp / call_cnt
+    precision = tp / comp_cnt
     recall = tpbase / base_cnt
     neum = recall * precision
     denom = recall + precision

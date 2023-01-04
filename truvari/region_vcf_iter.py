@@ -43,7 +43,7 @@ class RegionVCFIterator():
         excluding = contigB_set - contigA_set
         if excluding:
             logging.warning(
-                "Excluding %d contigs present in comparison calls header but not base calls.", len(excluding))
+                "Excluding %d contigs present in comparison calls header but not baseline calls.", len(excluding))
 
         for contig in contigA_set:
             name = vcfA.header.contigs[contig].name

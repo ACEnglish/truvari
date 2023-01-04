@@ -88,7 +88,7 @@ def consolidate_bench_vcfs(benchdir):
     truvari.compress_index_vcf(bout_name)
 
     cout_name = truvari.make_temp_filename(suffix=".vcf")
-    output = bcftools.concat("--no-version", *[os.path.join(benchdir, "tp-call.vcf.gz"),
+    output = bcftools.concat("--no-version", *[os.path.join(benchdir, "tp-comp.vcf.gz"),
                             os.path.join(benchdir, "fp.vcf.gz")])
     with open(cout_name, 'w') as fout:
         fout.write(output)
@@ -159,7 +159,7 @@ def check_params(args):
 
     # Should check that bench dir has compressed/indexed vcfs for fetching
     check_fail = False
-    for i in ["tp-base.vcf.gz", "tp-call.vcf.gz", "fn.vcf.gz", "fp.vcf.gz"]:
+    for i in ["tp-base.vcf.gz", "tp-comp.vcf.gz", "fn.vcf.gz", "fp.vcf.gz"]:
         if not os.path.exists(os.path.join(args.benchdir, i)):
             logging.error("Benchdir doesn't have compressed/indexed %s", i)
             check_fail = True
@@ -228,11 +228,11 @@ def refine_main(cmdargs):
 
     summary = truvari.StatsBox()
     summary["TP-base"] = int(regions["out_tpbase"].sum())
-    summary["TP-call"] = int(regions["out_tp"].sum())
+    summary["TP-comp"] = int(regions["out_tp"].sum())
     summary["FP"] = int(regions["out_fp"].sum())
     summary["FN"] = int(regions["out_fn"].sum())
     summary["base cnt"] = summary["TP-base"] + summary["FN"]
-    summary["call cnt"] = summary["TP-call"] + summary["FP"]
+    summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
     # Still don't have genotype checks
     summary.calc_performance()
 

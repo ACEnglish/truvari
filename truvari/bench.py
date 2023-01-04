@@ -1,6 +1,6 @@
 """
-Structural variant caller comparison tool
-Given a benchmark and callset, calculate the recall/precision/f-measure
+Structural variant benchmarking tool
+Given baseline and comparison sets of variants, calculate the recall/precision/f-measure
 """
 import os
 import sys
@@ -25,16 +25,16 @@ class StatsBox(OrderedDict):
     def __init__(self):
         super().__init__()
         self["TP-base"] = 0
-        self["TP-call"] = 0
+        self["TP-comp"] = 0
         self["FP"] = 0
         self["FN"] = 0
         self["precision"] = 0
         self["recall"] = 0
         self["f1"] = 0
         self["base cnt"] = 0
-        self["call cnt"] = 0
-        self["TP-call_TP-gt"] = 0
-        self["TP-call_FP-gt"] = 0
+        self["comp cnt"] = 0
+        self["TP-comp_TP-gt"] = 0
+        self["TP-comp_FP-gt"] = 0
         self["TP-base_TP-gt"] = 0
         self["TP-base_FP-gt"] = 0
         self["gt_concordance"] = 0
@@ -46,17 +46,17 @@ class StatsBox(OrderedDict):
         """
         if self["TP-base"] == 0 and self["FN"] == 0:
             logging.warning("No TP or FN calls in base!")
-        elif self["TP-call"] == 0 and self["FP"] == 0:
+        elif self["TP-comp"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
 
-        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-call"], self["FN"], self["FP"])
+        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
 
         self["precision"] = precision
         self["recall"] = recall
         self["f1"] = f1
-        if self["TP-call_TP-gt"] + self["TP-call_FP-gt"] != 0:
-            self["gt_concordance"] = float(self["TP-call_TP-gt"]) / (self["TP-call_TP-gt"] +
-                                                                     self["TP-call_FP-gt"])
+        if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
+            self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
+                                                                     self["TP-comp_FP-gt"])
 
 def compare_chunk(chunk):
     """
@@ -316,16 +316,16 @@ def output_writer(match, outs, sizemin):
     if match.comp:
         annotate_entry(match.comp, match, outs['n_comp_header'])
         if match.state:
-            box["call cnt"] += 1
-            box["TP-call"] += 1
+            box["comp cnt"] += 1
+            box["TP-comp"] += 1
             outs["tpc_out"].write(match.comp)
             if match.gt_match == 0:
-                box["TP-call_TP-gt"] += 1
+                box["TP-comp_TP-gt"] += 1
             else:
-                box["TP-call_FP-gt"] += 1
+                box["TP-comp_FP-gt"] += 1
         elif truvari.entry_size(match.comp) >= sizemin:
             # The if is because we don't count FPs between sizefilt-sizemin
-            box["call cnt"] += 1
+            box["comp cnt"] += 1
             box["FP"] += 1
             outs["fp_out"].write(match.comp)
 
@@ -521,7 +521,7 @@ def setup_outputs(args, do_logging=True):
     outputs["tpb_out"] = pysam.VariantFile(os.path.join(
         args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
     outputs["tpc_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-call.vcf"), 'w', header=outputs["n_comp_header"])
+        args.output, "tp-comp.vcf"), 'w', header=outputs["n_comp_header"])
 
     outputs["fn_out"] = pysam.VariantFile(os.path.join(
         args.output, "fn.vcf"), 'w', header=outputs["n_base_header"])

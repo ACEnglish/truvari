@@ -53,7 +53,7 @@ def benchdir_count_entries(benchdir, regions, within=False):
     Returns a pandas dataframe of the counts
     """
     vcfs = {'tpbase': pysam.VariantFile(os.path.join(benchdir, 'tp-base.vcf.gz')),
-            'tp': pysam.VariantFile(os.path.join(benchdir, 'tp-call.vcf.gz')),
+            'tp': pysam.VariantFile(os.path.join(benchdir, 'tp-comp.vcf.gz')),
             'fn': pysam.VariantFile(os.path.join(benchdir, 'fn.vcf.gz')),
             'fp': pysam.VariantFile(os.path.join(benchdir, 'fp.vcf.gz'))
             }

@@ -174,7 +174,7 @@ def get_files_from_truvdir(directory):
     return dictionary of file identifier and path (e.g. "tp-base": "dir/tp-base.vcf.gz")
     """
     ret = {}
-    pats = [("tpbase", "tp-base.vcf.gz"), ("tp", "tp-call.vcf.gz"),
+    pats = [("tpbase", "tp-base.vcf.gz"), ("tp", "tp-comp.vcf.gz"),
             ("fp", "fp.vcf.gz"), ("fn", "fn.vcf.gz")]
     has_error = False
     for key, name in pats:

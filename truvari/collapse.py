@@ -242,7 +242,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="collapse", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Comparison set of calls")
+                        help="Input variants")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output vcf (stdout)")
     parser.add_argument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
