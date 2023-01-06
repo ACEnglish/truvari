@@ -555,10 +555,10 @@ def run_bench(m_args):
     used by bench.
 
     This puts the burden on the user to
-        1. build that namespace correctly (there's no checks on it)
-        2. know how to use that namespace to get their pre-saved vcf(s) through
-        3. read/process the output vcfs
-        4. understand the `setup_outputs` structure even though that isn't an object
+    1. build that namespace correctly (there's no checks on it)
+    2. know how to use that namespace to get their pre-saved vcf(s) through
+    3. read/process the output vcfs
+    4. understand the `setup_outputs` structure even though that isn't an object
 
     Future versions I'll clean this up to not rely on files. Would be nice to have a way to just provide
     lists of base/comp calls and to return the e.g. output vcf entries with an in-memory object(s)
@@ -567,8 +567,8 @@ def run_bench(m_args):
 
     Even with this quick thing which is almost essentially a command line wrapper, I could make it better
     with:
-        make a bench params dataclass - helps document/standardize m_args
-        make a `setup_outputs` dataclass - helps document/standardize outputs
+    make a bench params dataclass - helps document/standardize m_args
+    make a `setup_outputs` dataclass - helps document/standardize outputs
     """
     matcher = truvari.Matcher(args=m_args)
     outputs = setup_outputs(m_args, do_logging=False)
