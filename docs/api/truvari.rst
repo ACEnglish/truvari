@@ -10,6 +10,7 @@ Overview
 
 Objects
 -------
+
 GT
 ^^
 .. autoclass:: GT
@@ -103,7 +104,7 @@ entry_variant_type
 .. autofunction:: entry_variant_type
 
 Extra Methods
----------------------
+-------------
 allele_freq_annos
 ^^^^^^^^^^^^^^^^^
 .. autofunction:: allele_freq_annos  

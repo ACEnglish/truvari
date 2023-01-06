@@ -5,6 +5,7 @@ Truvari - SV comparison and annotation toolkit
 See `help()` of specific functions / objects for details
 
 VariantRecord methods:
+
 :meth:`entry_boundaries`
 :meth:`entry_create_haplotype`
 :meth:`entry_distance`
@@ -22,6 +23,7 @@ VariantRecord methods:
 :meth:`entry_variant_type`
 
 Extra methods:
+
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
 :meth:`build_anno_tree`
@@ -67,6 +69,7 @@ Dev methods:
 :meth:`vcf_to_df`
 
 Objects:
+
 :class:`GT`
 :class:`RegionVCFIterator`
 :class:`LogFileStderr`
@@ -76,6 +79,7 @@ Objects:
 :class:`SV`
 
 Data:
+
 :data:`truvari.HEADERMAT`
 :data:`truvari.QUALBINS`
 :data:`truvari.SVTYTYPE`
