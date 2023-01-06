@@ -545,7 +545,7 @@ def close_outputs(outputs):
     truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
     truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
 
-def run_bench(m_args):
+def run_bench(args, do_logging=False):
     """
     API for running `truvari bench` given a Namespace of all the needed parameters.
 
@@ -564,37 +564,8 @@ def run_bench(m_args):
     * make a bench params dataclass - helps document/standardize m_args
     * make a `setup_outputs` dataclass - helps document/standardize outputs
     """
-    matcher = truvari.Matcher(args=m_args)
-    outputs = setup_outputs(m_args, do_logging=False)
-    base = pysam.VariantFile(m_args.base)
-    comp = pysam.VariantFile(m_args.comp)
-    regions = truvari.RegionVCFIterator(base, comp, max_span=m_args.sizemax)
-    base_i = regions.iterate(base)
-    comp_i = regions.iterate(comp)
-    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        output_writer(match, outputs, m_args.sizemin)
-    box = outputs["stats_box"]
-    with open(os.path.join(m_args.output, "summary.json"), 'w') as fout:
-        box.calc_performance()
-        fout.write(json.dumps(box, indent=4))
-        logging.debug("%s Stats: %s", m_args.output, json.dumps(box, indent=4))
-
-    close_outputs(outputs)
-    return outputs
-
-def bench_main(cmdargs):
-    """
-    Main
-    """
-    args = parse_args(cmdargs)
-
-    if check_params(args) or check_inputs(args):
-        sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
-        sys.exit(100)
-
     matcher = truvari.Matcher(args=args)
-    outputs = setup_outputs(args)
+    output = setup_outputs(args, do_logging)
 
     base = pysam.VariantFile(args.base)
     comp = pysam.VariantFile(args.comp)
@@ -602,7 +573,6 @@ def bench_main(cmdargs):
     regions = truvari.RegionVCFIterator(base, comp,
                                         args.includebed,
                                         args.sizemax)
-
     regions.merge_overlaps()
     regions_extended = regions.extend(args.extend) if args.extend else regions
 
@@ -615,14 +585,27 @@ def bench_main(cmdargs):
         # These don't count as FP or TP and don't appear in the output vcf files
         if args.extend and match.comp is not None and not match.state and not regions.include(match.comp):
             match.comp = None
-        output_writer(match, outputs, args.sizemin)
+        output_writer(match, output, args.sizemin)
 
     with open(os.path.join(args.output, "summary.json"), 'w') as fout:
-        box = outputs["stats_box"]
-        box.calc_performance()
-        fout.write(json.dumps(box, indent=4))
-        logging.info("Stats: %s", json.dumps(box, indent=4))
+        output["stats_box"].calc_performance()
+        fout.write(json.dumps(output["stats_box"], indent=4))
 
-    close_outputs(outputs)
+    close_outputs(output)
 
+    return output
+
+def bench_main(cmdargs):
+    """
+    Main - entry point from command line
+    """
+    args = parse_args(cmdargs)
+
+    if check_params(args) or check_inputs(args):
+        sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
+        sys.exit(100)
+
+    output = run_bench(args, True)
+
+    logging.info("Stats: %s", json.dumps(output["stats_box"], indent=4))
     logging.info("Finished bench")
