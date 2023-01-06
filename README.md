@@ -42,4 +42,4 @@ The current most common Truvari use case is for structural variation benchmarkin
 
 ## More Information
 
-Find more details and discussions about Truvari on the [WIKI page](https://github.com/acenglish/truvari/wiki).
+Find more details and discussions about Truvari on the [WIKI page](https://github.com/acenglish/truvari/wiki)
