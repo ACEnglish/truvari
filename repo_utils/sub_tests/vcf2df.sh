@@ -13,7 +13,7 @@ if [ $test_vcf2df ]; then
     df_check test_vcf2df $ANSDIR/vcf2df/vcf2df.jl $OD/vcf2df.jl
 fi
 
-run test_vcf2df_dir $truv vcf2df -f -i -b -n $OD/bench23/ $OD/truv2df.jl
+run test_vcf2df_dir $truv vcf2df -f -i -b -n $ANSDIR/bench/bench23/ $OD/truv2df.jl
 if [ $test_vcf2df_dir ]; then
     assert_exit_code 0
     df_check test_vcf2df_dir $ANSDIR/vcf2df/truv2df.jl $OD/truv2df.jl

@@ -194,7 +194,7 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0, use_lev=True):
     # Shortcut to save compute - probably unneeded
     if entryA.ref == entryB.ref and entryA.alts[0] == entryB.alts[0]:
         return 1.0
-   
+
     # Inversions handled differently
     if entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV:
         allele1 = entryA.alts[0]

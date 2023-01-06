@@ -418,7 +418,7 @@ def performance_metrics(tpbase, tp, fn, fp):
     :type `fn`: int
     :param `fp`: missed comp count
     :type `fp`: int
-    
+
     :return: tuple of precision, recall, f1
     :rtype: tuple, float
     """
