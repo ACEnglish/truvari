@@ -114,8 +114,32 @@ class RegionVCFIterator():
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
+    
+    By default, the file is assumed to be a bed-format. If custom chrom/start/end are used, the columns can be
+    specified. 
+    
+    idxfmt is a string that will be formatted with the line number from the file (e.g. "num %d" will
+    make intervals with data="num 0", "num 1". By default the data will be interger line number.
+    If intervals will be compared between anno_trees, set idxfmt to ""
 
-    Returns tuple of dictionary with chromosome keys: IntervalTree values and integer with number of spans loaded
+
+    :param `filename`: Path to file to parse, can be compressed
+    :type `filename`: string
+    :param `chrom_col`: Index of column in file with chromosome
+    :type `chrom_col`: integer, optional
+    :param `start_col`: Index of column in file with start
+    :type `start_col`: integer, optional
+    :param `end_col`: Index of column in file with end
+    :type `end_col`: integer, optional
+    :param `one_based`: True if coordinates are one-based
+    :type `one_based`: bool, optional
+    :param `comment`: ignore lines if they start with this string
+    :type `comment`: string, optional
+    :param `idxfmt`: Index of column in file with chromosome
+    :type `idxfmt`: string, optional
+
+    :return: dictionary with chromosome keys and :class:`intervaltree.IntervalTree` values
+    :rtype: dict
     """
     idx = 0
     correction = 1 if one_based else 0

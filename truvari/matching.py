@@ -68,7 +68,7 @@ class Matcher():
         >>> import pysam
         >>> import truvari
         >>> mat = truvari.Matcher()
-        >>> mat.params.pctsim = 0
+        >>> mat.params.pctseq = 0
         >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
@@ -91,7 +91,7 @@ class Matcher():
         ret = types.SimpleNamespace()
         ret.reference = None
         ret.refdist = 500
-        ret.pctsim = 0.70
+        ret.pctseq = 0.70
         ret.minhaplen = 50
         ret.pctsize = 0.70
         ret.pctovl = 0.0
@@ -120,7 +120,7 @@ class Matcher():
         ret.reference = pysam.FastaFile(
             args.reference) if args.reference else None
         ret.refdist = args.refdist
-        ret.pctsim = args.pctsim
+        ret.pctseq = args.pctseq
         ret.minhaplen = args.minhaplen
         ret.pctsize = args.pctsize
         ret.pctovl = args.pctovl
@@ -214,19 +214,10 @@ class Matcher():
             ret.state = False
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
-        if self.params.pctsim > 0:
-            b_seq, c_seq = (base.ref, comp.ref) \
-                            if truvari.entry_variant_type(base) == truvari.SV.DEL else \
-                            (base.alts[0], comp.alts[0])
-            if ret.st_dist == 0 or ret.ed_dist == 0:
-                ret.seqsim = truvari.seqsim(b_seq, c_seq, self.params.use_lev)
-            elif self.params.reference is not None:
-                ret.seqsim = truvari.entry_pctsim(base, comp, self.params.reference,
-                                                  self.params.minhaplen, self.params.use_lev)
-            else:
-                ret.seqsim = truvari.unroll_compare(c_seq, b_seq, ret.st_dist % len(c_seq))
-
-            if ret.seqsim < self.params.pctsim:
+        if self.params.pctseq > 0:
+            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.params.reference,
+                                              self.params.minhaplen, self.params.use_lev)
+            if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
                 ret.state = False

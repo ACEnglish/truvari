@@ -257,8 +257,8 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")
-    thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
-                        help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
+    thresg.add_argument("-p", "--pctseq", type=truvari.restricted_float, default=0.95,
+                        help="Min percent sequence similarity. Set to 0 to ignore. (%(default)s)")
     thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,

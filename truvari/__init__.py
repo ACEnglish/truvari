@@ -12,12 +12,11 @@ VariantRecord methods:
 :meth:`entry_gt_comp`
 :meth:`entry_is_filtered`
 :meth:`entry_is_present`
-:meth:`entry_pctsim`
 :meth:`entry_reciprocal_overlap`
 :meth:`entry_same_variant_type`
+:meth:`entry_seq_similarity`
 :meth:`entry_size`
 :meth:`entry_size_similarity`
-:meth:`entry_to_haplotype`
 :meth:`entry_to_hash`
 :meth:`entry_to_key`
 :meth:`entry_variant_type`
@@ -105,17 +104,15 @@ from truvari.bench import (
 from truvari.comparisons import (
     create_pos_haplotype,
     entry_boundaries,
-    entry_create_haplotype,
     entry_distance,
     entry_gt_comp,
     entry_is_filtered,
     entry_is_present,
-    entry_pctsim,
     entry_reciprocal_overlap,
     entry_same_variant_type,
+    entry_seq_similarity,
     entry_size,
     entry_size_similarity,
-    entry_to_haplotype,
     entry_to_hash,
     entry_to_key,
     entry_variant_type,
@@ -123,6 +120,7 @@ from truvari.comparisons import (
     overlaps,
     reciprocal_overlap,
     seqsim,
+    shared_reference_context,
     sizesim,
     unroll_compare,
 )

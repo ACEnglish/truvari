@@ -409,6 +409,18 @@ def performance_metrics(tpbase, tp, fn, fp):
     """
     Calculates precision, recall, and f1 given counts by state
     Can return None if values are zero
+
+    :param `tpbase`: found base count
+    :type `tpbase`: int
+    :param `tp`: found comp count
+    :type `tp`: int
+    :param `fn`: missed base count
+    :type `fn`: int
+    :param `fp`: missed comp count
+    :type `fp`: int
+    
+    :return: tuple of precision, recall, f1
+    :rtype: tuple, float
     """
     base_cnt = tpbase + fn
     comp_cnt = tp + fp
@@ -423,8 +435,14 @@ def performance_metrics(tpbase, tp, fn, fp):
 
 def compress_index_vcf(fn, fout=None, remove=True):
     """
-    In order to reduce the number of external tools, I can use pysam to do this work
-    Need to check exit codes.. somehow...
+    Compress and index a vcf. If no fout is provided, write to fn + '.gz'
+
+    :param `fn`: filename of vcf to work on
+    :type `fn`: string
+    :param `fout`: output filename
+    :type `fout`: string, optional
+    :param `remove`: remove fn after fout is made
+    :type `remove`: bool
     """
     if fout is None:
         fout = fn + '.gz'
@@ -433,10 +451,6 @@ def compress_index_vcf(fn, fout=None, remove=True):
         out_hdlr.write(bcftools.sort(fn))
     pysam.tabix_compress(m_tmp, fout)
     pysam.tabix_index(fout, preset="vcf")
-    #with pysam.BGZFile(fout, 'wb') as out:
-        #out.write(o.encode())
-    #bcftools.index(fout)
-    #os.rename(fout + '.csi', fout + '.tbi')
     if remove:
         os.remove(fn)
     os.remove(m_tmp)
