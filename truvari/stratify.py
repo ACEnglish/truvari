@@ -50,6 +50,7 @@ def count_entries(vcf, regions, within):
 def benchdir_count_entries(benchdir, regions, within=False):
     """
     Count the number of variants per bed region in Truvari bench directory by state
+
     Returns a pandas dataframe of the counts
     """
     vcfs = {'tpbase': pysam.VariantFile(os.path.join(benchdir, 'tp-base.vcf.gz')),

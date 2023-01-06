@@ -452,6 +452,7 @@ def entry_variant_type(entry):
 def overlap_percent(astart, aend, bstart, bend):
     """
     Calculates the percent of range A which overlaps with range B
+
     :param `astart`: First range's start position
     :type `astart`: int
     :param `aend`: First range's end position

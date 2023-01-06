@@ -63,9 +63,9 @@ SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
 
 def get_svtype(svtype):
     """
-    Turn to an SV
+    Turn a SVTYPE string to a :class:`truvari.SV` object
 
-    :param `svtype`: SVTYPE string to turn into SV object
+    :param `svtype`:
     :type `svtype`: string
 
     :return: A :class:`SV` of the SVTYPE

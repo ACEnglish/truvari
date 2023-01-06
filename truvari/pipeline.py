@@ -24,23 +24,25 @@ def __partial_wrapper(funcs):
 
 def fchain(pipe, data, workers=1):
     """
-    Runs chained functions over every piece of data using a pool of futures.
-    Yields results of chained functions called per data.
+    Runs chained functions over every piece of data using a multiprocessing pool
 
-    pipe: list of [(function, kwargs), ...]
-        - each function must be defined with at least `def foobar(data)`.
-        - kwargs is a dictionary of other parameters the function may need.
-        - if no parameters are needed, an item in the list can just be a function
-    data: list data to process
-        - data must be hashable
-    workers: maximum number of ProcessPoolExecutor workers to create
+    * pipe: list of [(function, kwargs), ...]
+        * each function must be defined with at least `def foobar(data)`.
+        * kwargs is a dictionary of other parameters the function may need.
+        * if no parameters are needed, an item in the list can just be a function
+    * data: list data to process
+        * data must be hashable
+    * workers: maximum number of ProcessPoolExecutor workers to create
 
     For example, the first yield of a 2 step pipe on the first piece of data is
-    equivalent to:
+    equivalent to::
+
         pipe[1][0](
             pipe[0][0](data[0], **pipe[0][1]),
             **pipe[1][1]
         )
+
+    Yields results of chained functions called per data.
     """
     m_reduce = __partial_wrapper([partial(_[0], **_[1]) if isinstance(_, tuple) else _ for _ in pipe])
     #with cfuts.ProcessPoolExecutor(max_workers=workers) as executor:

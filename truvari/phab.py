@@ -220,16 +220,16 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
 
     truvari.compress_index_vcf(output_vcf)
 
-def consolidate_phab_vcfs(phab_dir, outname):
+def consolidate_phab_vcfs(phab_dir, out_vcf):
     """
-    Consolidate all the phab output VCFs
+    Consolidate all the phab output VCFs in a directory and write to compressed indexed vcf
     """
     in_files = glob.glob(os.path.join(phab_dir, "*", "output.vcf.gz"))
     tmp_name = truvari.make_temp_filename(suffix=".vcf")
     output = bcftools.concat("--no-version", *in_files)
     with open(tmp_name, 'w') as fout:
         fout.write(output)
-    truvari.compress_index_vcf(tmp_name, outname)
+    truvari.compress_index_vcf(tmp_name, out_vcf)
 
 def check_requirements():
     """

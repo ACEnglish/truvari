@@ -234,10 +234,11 @@ class Matcher():
 def file_zipper(*start_files):
     """
     Zip files to yield the entries in order.
-    Files must be sorted
-    Each parameter is a tuple of ('key', iterable)
+    Each file must be sorted in the same order.
+    start_files is a tuple of ('key', iterable)
     where key is the identifier (so we know which file the yielded entry came from)
-    iterable is usually a pysam.VariantFile
+    and iterable is usually a pysam.VariantFile
+
     yields key, pysam.VariantRecord
     """
     next_markers = []
@@ -276,6 +277,8 @@ def file_zipper(*start_files):
 def chunker(matcher, *files):
     """
     Given a Matcher and multiple files, zip them and create chunks
+
+    Yields tuple of the matcher, the chunk of calls, and how many unfiltered calls in chunk
     """
     call_counts = Counter()
     chunk_count = 0

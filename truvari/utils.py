@@ -344,6 +344,7 @@ def vcf_ranges(vcf, min_dist=1000):
 def opt_gz_open(in_fn):
     """
     Chooses file handler for plain-text files or `*.gz` files.
+
     returns a generator which yields lines of the file
     """
     def gz_hdlr(fn):

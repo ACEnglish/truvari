@@ -120,8 +120,13 @@ def make_vcf(variants, sample_names, header):
 
 def msa2vcf(fn, header=None):
     """
-    Parses an MSA and returns its VCF as a string
-    Assumes one entry in the MSA has the name ref_${chrom}:${start}-${end}
+    Parse an MSA file and returns its VCF as a string
+
+    Assumes one entry in the MSA has the name `ref_${chrom}:${start}-${end}` which gives VCF entries coordinates
+
+    VCF can be given a header or a minimal one is created with only file format and a single contig line
+
+    Returns a string
     """
     msa = pysam.FastaFile(fn)
 

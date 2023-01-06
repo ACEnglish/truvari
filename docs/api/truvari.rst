@@ -186,10 +186,6 @@ file_zipper
 ^^^^^^^^^^^
 .. autofunction:: file_zipper
 
-file_zipper
-^^^^^^^^^^^
-.. autofunction:: file_zipper
-
 help_unknown_cmd
 ^^^^^^^^^^^^^^^^
 .. autofunction:: help_unknown_cmd
