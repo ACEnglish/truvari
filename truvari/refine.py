@@ -213,8 +213,8 @@ def refine_main(cmdargs):
     matcher = truvari.Matcher(params)
     matcher.params.no_ref = 'a'
     outdir = os.path.join(args.benchdir, "phab_bench")
-    m_bench = truvari.Bench(phab_vcf, phab_vcf, outdir, reeval_bed)
-    m_bench.run(matcher)
+    m_bench = truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
+    m_bench.run()
 
     # update the output variant counts
     counts = truvari.benchdir_count_entries(outdir, to_eval_coords)[["tpbase", "tp", "fn", "fp"]]

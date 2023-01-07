@@ -437,7 +437,7 @@ class BenchOutput():
 
         self.stats_box = StatsBox()
 
-    def write_match(self, match, sizemin):
+    def write_match(self, match):
         """
         Annotate a MatchResults' entries then write to the apppropriate file
         and do the stats counting.
@@ -472,7 +472,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif truvari.entry_size(match.comp) >= sizemin:
+            elif truvari.entry_size(match.comp) >= self.m_matcher.params.sizemin:
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
@@ -495,10 +495,12 @@ class Bench():
     """
     Object to perform a run of truvari bench
     """
-    def __init__(self, base_vcf, comp_vcf, outdir, includebed=None, extend=0, debug=False , do_logging=False):
+    def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
+                 includebed=None, extend=0, debug=False , do_logging=False):
         """
         Initilize
         """
+        self.matcher = matcher if matcher is not None else truvari.Matcher()
         self.base_vcf = base_vcf
         self.comp_vcf = comp_vcf
         self.outdir = outdir
@@ -518,31 +520,34 @@ class Bench():
                 "extend": self.extend,
                 "debug": self.debug}
 
-    def run(self, matcher):
+    def run(self):
         """
         Runs bench and returns the resulting :class:`truvari.BenchOutput`
         """
-        output = BenchOutput(self, matcher)
+        if self.base_vcf is None or self.comp_vcf is None or self.outdir is None:
+            raise RuntimeError("Cannot call Bench.run without base/comp vcf filenames and outdir")
+
+        output = BenchOutput(self, self.matcher)
 
         base = pysam.VariantFile(self.base_vcf)
         comp = pysam.VariantFile(self.comp_vcf)
 
         regions = truvari.RegionVCFIterator(base, comp,
                                             self.includebed,
-                                            matcher.params.sizemax)
+                                            self.matcher.params.sizemax)
         regions.merge_overlaps()
         regions_extended = regions.extend(self.extend) if self.extend else regions
 
         base_i = regions.iterate(base)
         comp_i = regions_extended.iterate(comp)
 
-        chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
+        chunks = truvari.chunker(self.matcher, ('base', base_i), ('comp', comp_i))
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
             if self.extend and match.comp is not None and not match.state and not regions.include(match.comp):
                 match.comp = None
-            output.write_match(match, matcher.params.sizemin)
+            output.write_match(match)
 
         with open(os.path.join(self.outdir, "summary.json"), 'w') as fout:
             output.stats_box.calc_performance()
@@ -551,8 +556,19 @@ class Bench():
         output.close_outputs()
         return output
 
-    @staticmethod
-    def build_matrix(base_variants, comp_variants, matcher, chunk_id=0):
+    def compare_chunk(self, chunk):
+        """
+        Given a filtered chunk, (from chunker) compare all of the calls
+        """
+        _, chunk_dict, chunk_id = chunk
+        logging.debug("Comparing chunk %s", chunk_id)
+        match_matrix = self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        if isinstance(match_matrix, list):
+            return match_matrix
+
+        return self.pick_matches(match_matrix)
+
+    def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant
         otherwise, returns a list of the variants placed in MatchResuls
@@ -579,12 +595,18 @@ class Bench():
                 fns.append(ret)
             return fns
 
+        return self.build_matrix(base_variants, comp_variants, chunk_id)
+
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0):
+        """
+        Builds MatchResults, returns them as a numpy matrix
+        """
         # Build all v all matrix
         match_matrix = []
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
+                mat = self.matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
@@ -592,31 +614,18 @@ class Bench():
         # For building custom pickers
         return np.array(match_matrix)
 
-    @staticmethod
-    def pick_matches(match_matrix, matcher):
+    def pick_matches(self, match_matrix):
         """
         Sort and annotate matches, returns a list
         """
         ret = []
-        if matcher.params.multimatch:
+        if self.matcher.params.multimatch:
             ret = pick_multi_matches(match_matrix)
-        elif matcher.params.gtcomp:
+        elif self.matcher.params.gtcomp:
             ret = pick_gtcomp_matches(match_matrix)
         else:
             ret = pick_single_matches(match_matrix)
         return ret
-
-    def compare_chunk(self, chunk):
-        """
-        Given a filtered chunk, (from chunker) compare all of the calls
-        """
-        matcher, chunk_dict, chunk_id = chunk
-        logging.debug("Comparing chunk %s", chunk_id)
-        match_matrix = self.build_matrix(chunk_dict["base"], chunk_dict["comp"], matcher, chunk_id)
-        if isinstance(match_matrix, list):
-            return match_matrix
-
-        return self.pick_matches(match_matrix, matcher)
 
 
 def bench_main(cmdargs):
@@ -631,8 +640,8 @@ def bench_main(cmdargs):
 
     matcher = truvari.Matcher(args)
 
-    m_bench = Bench(args.base, args.comp, args.output, args.includebed, args.extend, args.debug, True)
-    output = m_bench.run(matcher)
+    m_bench = Bench(matcher, args.base, args.comp, args.output, args.includebed, args.extend, args.debug, True)
+    output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))
     logging.info("Finished bench")
