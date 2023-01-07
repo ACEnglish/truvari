@@ -62,9 +62,9 @@ entry_variant_type
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_variant_type
 
-shared_reference_context
+entry_shared_ref_context
 ^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: shared_reference_context
+.. autofunction:: entry_shared_ref_context
 
 Extra Methods
 -------------
@@ -236,8 +236,8 @@ Bench
 
 BenchOutput
 ^^^^^^^^^^^
-.. autoclass:: Bench
-   :members: BenchOutput
+.. autoclass:: BenchOutput
+   :members:
 
 GT
 ^^

@@ -209,7 +209,7 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0, use_lev=True):
         return seqsim(a_seq, b_seq, use_lev)
 
     if ref is not None:
-        allele1, allele2 = shared_reference_context(entryA, entryB, ref, min_len=min_len)
+        allele1, allele2 = entry_shared_ref_context(entryA, entryB, ref, min_len=min_len)
         return seqsim(allele1, allele2, use_lev)
 
     if st_dist > 0:
@@ -242,7 +242,7 @@ def entry_reciprocal_overlap(entry1, entry2):
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
-def shared_reference_context(entryA, entryB, ref, use_ref_seq=False, min_len=0):
+def entry_shared_ref_context(entryA, entryB, ref, use_ref_seq=False, min_len=0):
     """
     Get the shared reference context of two entries and create the haplotype
 

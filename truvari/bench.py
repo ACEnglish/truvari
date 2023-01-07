@@ -420,20 +420,20 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        in_vcf = pysam.VariantFile(self.m_bench.base_vcf)
-        self.n_base_header = edit_header(in_vcf)
-        in_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
-        self.n_comp_header = edit_header(in_vcf)
+        b_vcf = pysam.VariantFile(self.m_bench.base_vcf)
+        c_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
+        self.n_headers = {'b':edit_header(b_vcf),
+                          'c':edit_header(c_vcf)}
 
-        self.tpb_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "tp-base.vcf"),
-                                         mode='w', header=self.n_base_header)
-        self.tpc_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "tp-comp.vcf"),
-                                         mode='w', header=self.n_comp_header)
-
-        self.fn_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "fn.vcf"),
-                                        mode='w', header=self.n_base_header)
-        self.fp_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "fp.vcf"),
-                                        mode='w', header=self.n_comp_header)
+        self.vcf_filenames = {'tpb': os.path.join(self.m_bench.outdir, "tp-base.vcf"),
+                              'tpc': os.path.join(self.m_bench.outdir, "tp-comp.vcf"),
+                              'fn': os.path.join(self.m_bench.outdir, "fn.vcf"),
+                              'fp': os.path.join(self.m_bench.outdir, "fp.vcf")}
+        self.out_vcfs = {}
+        for key in ['tpb', 'fn']:
+            self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
+        for key in ['tpc', 'fp']:
+            self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
 
@@ -446,28 +446,28 @@ class BenchOutput():
         box = self.stats_box
         if match.base:
             box["base cnt"] += 1
-            annotate_entry(match.base, match, self.n_base_header)
+            annotate_entry(match.base, match, self.n_headers['b'])
             if match.state:
                 gtBase = str(match.base_gt)
                 gtComp = str(match.comp_gt)
                 box["gt_matrix"][gtBase][gtComp] += 1
 
                 box["TP-base"] += 1
-                self.tpb_out.write(match.base)
+                self.out_vcfs["tpb"].write(match.base)
                 if match.gt_match == 0:
                     box["TP-base_TP-gt"] += 1
                 else:
                     box["TP-base_FP-gt"] += 1
             else:
                 box["FN"] += 1
-                self.fn_out.write(match.base)
+                self.out_vcfs["fn"].write(match.base)
 
         if match.comp:
-            annotate_entry(match.comp, match, self.n_comp_header)
+            annotate_entry(match.comp, match, self.n_headers['c'])
             if match.state:
                 box["comp cnt"] += 1
                 box["TP-comp"] += 1
-                self.tpc_out.write(match.comp)
+                self.out_vcfs["tpc"].write(match.comp)
                 if match.gt_match == 0:
                     box["TP-comp_TP-gt"] += 1
                 else:
@@ -476,24 +476,65 @@ class BenchOutput():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
-                self.fp_out.write(match.comp)
+                self.out_vcfs["fp"].write(match.comp)
 
     def close_outputs(self):
         """
         Close all the files
         """
-        self.tpb_out.close()
-        self.tpc_out.close()
-        self.fn_out.close()
-        self.fp_out.close()
-        truvari.compress_index_vcf(self.tpb_out.filename.decode())
-        truvari.compress_index_vcf(self.tpc_out.filename.decode())
-        truvari.compress_index_vcf(self.fn_out.filename.decode())
-        truvari.compress_index_vcf(self.fp_out.filename.decode())
+        for i in self.out_vcfs.values():
+            i.close()
+
+        for i in self.vcf_filenames.values():
+            truvari.compress_index_vcf(i)
+
+        with open(os.path.join(self.m_bench.outdir, "summary.json"), 'w') as fout:
+            self.stats_box.calc_performance()
+            fout.write(json.dumps(self.stats_box, indent=4))
+
+
 
 class Bench():
     """
-    Object to perform a run of truvari bench
+    Object to perform operations of truvari bench
+
+    You can build a Bench worker with default matching parameters via:
+
+    .. code-block:: python
+
+       m_bench = truvari.Bench()
+
+    If you'd like to customize the parameters, build and edit a :class:`Matcher` and pass it to the Bench init
+
+    .. code-block:: python
+
+       matcher = truvari.Matcher()
+       matcher.params.pctseq = 0.50
+       m_bench = truvari.Bench(matcher)
+
+    To run on a chunk of :class:`pysam.VariantRecord` already loaded, pass them in as lists to:
+
+    .. code-block:: python
+
+       matches = m_bench.compare_calls(base_variants, comp_variants)
+
+    For advanced parsing, one can build the match matrix for a chunk of calls with:
+
+    .. code-block:: python
+
+       match_matrix = m_bench.build_matrix(base_variants, comp_variants)
+
+    This can then be used for things such as creating custom match pickers or adding new matching checks.
+
+    If you want to run on existing files, simply supply the arguments to init
+
+    .. code-block:: python
+
+        m_bench = truvari.Bench(matcher, base_vcf, comp_vcf, outdir)
+        output = m_bench.run()
+
+    Note that running on files must write to an output directory and is the only way to use things like 'includebed'.
+    However, the returned `BenchOutput` has attributes pointing to all the results.
     """
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
                  includebed=None, extend=0, debug=False , do_logging=False):
@@ -549,10 +590,6 @@ class Bench():
                 match.comp = None
             output.write_match(match)
 
-        with open(os.path.join(self.outdir, "summary.json"), 'w') as fout:
-            output.stats_box.calc_performance()
-            fout.write(json.dumps(output.stats_box, indent=4))
-
         output.close_outputs()
         return output
 
@@ -563,15 +600,12 @@ class Bench():
         _, chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
         match_matrix = self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
-        if isinstance(match_matrix, list):
-            return match_matrix
-
         return self.pick_matches(match_matrix)
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
-        Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant
-        otherwise, returns a list of the variants placed in MatchResuls
+        Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
+        Otherwise, returns a list of the variants placed in MatchResults
         """
         # All FPs
         if len(base_variants) == 0:
@@ -601,7 +635,8 @@ class Bench():
         """
         Builds MatchResults, returns them as a numpy matrix
         """
-        # Build all v all matrix
+        if not base_variants or not comp_variants:
+            raise RuntimeError("Expected at least one base and one comp variant")
         match_matrix = []
         for bid, b in enumerate(base_variants):
             base_matches = []
@@ -611,13 +646,16 @@ class Bench():
                 base_matches.append(mat)
             match_matrix.append(base_matches)
 
-        # For building custom pickers
         return np.array(match_matrix)
 
     def pick_matches(self, match_matrix):
         """
-        Sort and annotate matches, returns a list
+        Sort and annotate matches based on the choosing strategy.
+        Returns matches as a list
         """
+        if isinstance(match_matrix, list):
+            return match_matrix
+
         ret = []
         if self.matcher.params.multimatch:
             ret = pick_multi_matches(match_matrix)

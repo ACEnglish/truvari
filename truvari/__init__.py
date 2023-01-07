@@ -7,13 +7,13 @@ See `help()` of specific functions / objects for details
 VariantRecord methods:
 
 :meth:`entry_boundaries`
-:meth:`entry_create_haplotype`
 :meth:`entry_distance`
 :meth:`entry_gt_comp`
 :meth:`entry_is_filtered`
 :meth:`entry_is_present`
 :meth:`entry_reciprocal_overlap`
 :meth:`entry_same_variant_type`
+:meth:`entry_shared_ref_context`
 :meth:`entry_seq_similarity`
 :meth:`entry_size`
 :meth:`entry_size_similarity`
@@ -112,6 +112,7 @@ from truvari.comparisons import (
     entry_is_present,
     entry_reciprocal_overlap,
     entry_same_variant_type,
+    entry_shared_ref_context,
     entry_seq_similarity,
     entry_size,
     entry_size_similarity,
@@ -122,7 +123,6 @@ from truvari.comparisons import (
     overlaps,
     reciprocal_overlap,
     seqsim,
-    shared_reference_context,
     sizesim,
     unroll_compare,
 )
