@@ -62,13 +62,14 @@ Dev methods:
 :meth:`performance_metrics`
 :meth:`restricted_float`
 :meth:`restricted_int`
-:meth:`run_bench`
 :meth:`setup_logging`
 :meth:`setup_progressbar`
 :meth:`vcf_to_df`
 
 Objects:
 
+:class:`Bench`
+:class:`BenchOutput`
 :class:`GT`
 :class:`RegionVCFIterator`
 :class:`LogFileStderr`
@@ -97,8 +98,9 @@ from truvari.annotations.af_calc import (
 )
 
 from truvari.bench import (
+    Bench,
+    BenchOutput,
     StatsBox,
-    run_bench,
 )
 
 from truvari.comparisons import (

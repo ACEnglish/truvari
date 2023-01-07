@@ -343,11 +343,11 @@ def build_collapse_matcher(args):
 
     return matcher
 
-
 def setup_outputs(args):
     """
-    Makes all of the output files
-    return a ... to get to each of the
+    Makes all of the output files for collapse
+
+    returns a dictionary holding outputs
     """
     truvari.setup_logging(args.debug, show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
@@ -418,16 +418,6 @@ def collapse_main(args):
     chunks = truvari.chunker(matcher, ('base', base))
     for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
         output_writer(call, outputs)
-    #with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
-    #    future_chunks = {executor.submit(collapse_chunk, c): c for c in chunks}
-    #    for future in concurrent.futures.as_completed(future_chunks):
-    #        result = None
-    #        try:
-    #            result = future.result()
-    #        except Exception as exc:
-    #            logging.error('%r generated an exception: %s', result, exc)
-    #        else:
-    #            for call in result:
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])

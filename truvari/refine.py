@@ -50,16 +50,16 @@ def resolve_regions(params, args):
     """
     Figures out or creates the regions we'll be analyzing
     """
-    if params["includebed"] is None and args.regions is None:
+    if params.includebed is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run refine")
         sys.exit(1)
     elif args.regions is None:
-        reeval_trees, new_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
+        reeval_trees, new_count = truvari.build_anno_tree(params.includebed, idxfmt="")
         logging.info("Evaluating %d regions", new_count)
-    elif args.regions is not None and params["includebed"] is not None:
+    elif args.regions is not None and params.includebed is not None:
         a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
-        b_trees, orig_count = truvari.build_anno_tree(params["includebed"], idxfmt="")
+        b_trees, orig_count = truvari.build_anno_tree(params.includebed, idxfmt="")
         if args.use_includebed:
             reeval_trees, new_count = intersect_beds(b_trees, a_trees)
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
@@ -126,7 +126,7 @@ def check_params(args):
     """
     Sets up all the parameters from the bench/params.json
 
-    Returns params dict
+    Returns as a Namespace
     """
     param_path = os.path.join(args.benchdir, "params.json")
     if not os.path.exists(param_path):
@@ -167,7 +167,7 @@ def check_params(args):
         sys.exit(1)
 
     os.makedirs(phdir)
-    return params
+    return Namespace(**params)
 
 def refine_main(cmdargs):
     """
@@ -196,7 +196,7 @@ def refine_main(cmdargs):
 
     # Set the input VCFs for phab
     if args.use_original:
-        base_vcf, comp_vcf = params["base"], params["comp"]
+        base_vcf, comp_vcf = params.base, params.comp
     else:
         base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
 
@@ -210,16 +210,14 @@ def refine_main(cmdargs):
     truvari.consolidate_phab_vcfs(phab_dir, phab_vcf)
 
     # Now run bench on the phab harmonized variants
-    m_args = Namespace(**params)
-    m_args.no_ref = 'a'
-    m_args.output = os.path.join(args.benchdir, "phab_bench")
-    m_args.base = phab_vcf
-    m_args.comp = phab_vcf
-    m_args.includebed = reeval_bed
-    truvari.run_bench(m_args)
+    matcher = truvari.Matcher(params)
+    matcher.params.no_ref = 'a'
+    outdir = os.path.join(args.benchdir, "phab_bench")
+    m_bench = truvari.Bench(phab_vcf, phab_vcf, outdir, reeval_bed)
+    m_bench.run(matcher)
 
     # update the output variant counts
-    counts = truvari.benchdir_count_entries(m_args.output, to_eval_coords)[["tpbase", "tp", "fn", "fp"]]
+    counts = truvari.benchdir_count_entries(outdir, to_eval_coords)[["tpbase", "tp", "fn", "fp"]]
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)

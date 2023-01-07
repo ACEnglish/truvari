@@ -288,48 +288,6 @@ def annotate_entry(entry, match, header):
     entry.info["Multi"] = match.multi
 
 
-def output_writer(match, outs, sizemin):
-    """
-    Annotate a MatchResults' entries, write to the apppropriate file in outs
-    and do the stats counting.
-    Writer is responsible for handling FPs between sizefilt-sizemin
-    """
-    box = outs["stats_box"]
-    if match.base:
-        box["base cnt"] += 1
-        annotate_entry(match.base, match, outs['n_base_header'])
-        if match.state:
-            gtBase = str(match.base_gt)
-            gtComp = str(match.comp_gt)
-            box["gt_matrix"][gtBase][gtComp] += 1
-
-            box["TP-base"] += 1
-            outs["tpb_out"].write(match.base)
-            if match.gt_match == 0:
-                box["TP-base_TP-gt"] += 1
-            else:
-                box["TP-base_FP-gt"] += 1
-        else:
-            box["FN"] += 1
-            outs["fn_out"].write(match.base)
-
-    if match.comp:
-        annotate_entry(match.comp, match, outs['n_comp_header'])
-        if match.state:
-            box["comp cnt"] += 1
-            box["TP-comp"] += 1
-            outs["tpc_out"].write(match.comp)
-            if match.gt_match == 0:
-                box["TP-comp_TP-gt"] += 1
-            else:
-                box["TP-comp_FP-gt"] += 1
-        elif truvari.entry_size(match.comp) >= sizemin:
-            # The if is because we don't count FPs between sizefilt-sizemin
-            box["comp cnt"] += 1
-            box["FP"] += 1
-            outs["fp_out"].write(match.comp)
-
-
 ##########################
 # Parameters and outputs #
 ##########################
@@ -493,107 +451,159 @@ def check_inputs(args):
     return b_check or c_check
 
 
-def setup_outputs(args, do_logging=True):
+class BenchOutput():
     """
-    Makes all of the output files
-    Places the data into the shared space
-
-    ToDo: separate the command-line outputs' setup (e.g. logging, making a dir) to clean up
-    when truvari.rebench.run_bench is called
-    ToDo: turn the outputs into a dataclass
+    Makes all of the output files for a Bench.run
     """
-    os.mkdir(args.output)
-    if do_logging:
-        truvari.setup_logging(args.debug, truvari.LogFileStderr(
-            os.path.join(args.output, "log.txt")), show_version=True)
-        logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+    def __init__(self, bench, matcher):
+        """
+        initialize
+        """
+        self.m_bench = bench
+        self.m_matcher = matcher
 
-    with open(os.path.join(args.output, 'params.json'), 'w') as fout:
-        json.dump(vars(args), fout)
+        os.mkdir(self.m_bench.outdir)
+        param_dict = self.m_bench.param_dict()
+        param_dict.update(vars(self.m_matcher.params))
 
-    outputs = {}
-    outputs["vcf_base"] = pysam.VariantFile(args.base)
-    outputs["n_base_header"] = edit_header(outputs["vcf_base"])
+        if self.m_bench.do_logging:
+            truvari.setup_logging(self.m_bench.debug, truvari.LogFileStderr(
+                os.path.join(self.m_bench.outdir, "log.txt")), show_version=True)
+            logging.info("Params:\n%s", json.dumps(param_dict, indent=4))
 
-    outputs["vcf_comp"] = pysam.VariantFile(args.comp)
-    outputs["n_comp_header"] = edit_header(outputs["vcf_comp"])
+        with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
+            json.dump(param_dict, fout)
 
-    outputs["tpb_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-base.vcf"), 'w', header=outputs["n_base_header"])
-    outputs["tpc_out"] = pysam.VariantFile(os.path.join(
-        args.output, "tp-comp.vcf"), 'w', header=outputs["n_comp_header"])
+        in_vcf = pysam.VariantFile(self.m_bench.base_vcf)
+        self.n_base_header = edit_header(in_vcf)
+        in_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
+        self.n_comp_header = edit_header(in_vcf)
 
-    outputs["fn_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fn.vcf"), 'w', header=outputs["n_base_header"])
-    outputs["fp_out"] = pysam.VariantFile(os.path.join(
-        args.output, "fp.vcf"), 'w', header=outputs["n_comp_header"])
+        self.tpb_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "tp-base.vcf"),
+                                         mode='w', header=self.n_base_header)
+        self.tpc_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "tp-comp.vcf"),
+                                         mode='w', header=self.n_comp_header)
 
-    outputs["stats_box"] = StatsBox()
-    return outputs
+        self.fn_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "fn.vcf"),
+                                        mode='w', header=self.n_base_header)
+        self.fp_out = pysam.VariantFile(os.path.join(self.m_bench.outdir, "fp.vcf"),
+                                        mode='w', header=self.n_comp_header)
 
+        self.stats_box = StatsBox()
 
-def close_outputs(outputs):
+    def write_match(self, match, sizemin):
+        """
+        Annotate a MatchResults' entries then write to the apppropriate file
+        and do the stats counting.
+        Writer is responsible for handling FPs between sizefilt-sizemin
+        """
+        box = self.stats_box
+        if match.base:
+            box["base cnt"] += 1
+            annotate_entry(match.base, match, self.n_base_header)
+            if match.state:
+                gtBase = str(match.base_gt)
+                gtComp = str(match.comp_gt)
+                box["gt_matrix"][gtBase][gtComp] += 1
+
+                box["TP-base"] += 1
+                self.tpb_out.write(match.base)
+                if match.gt_match == 0:
+                    box["TP-base_TP-gt"] += 1
+                else:
+                    box["TP-base_FP-gt"] += 1
+            else:
+                box["FN"] += 1
+                self.fn_out.write(match.base)
+
+        if match.comp:
+            annotate_entry(match.comp, match, self.n_comp_header)
+            if match.state:
+                box["comp cnt"] += 1
+                box["TP-comp"] += 1
+                self.tpc_out.write(match.comp)
+                if match.gt_match == 0:
+                    box["TP-comp_TP-gt"] += 1
+                else:
+                    box["TP-comp_FP-gt"] += 1
+            elif truvari.entry_size(match.comp) >= sizemin:
+                # The if is because we don't count FPs between sizefilt-sizemin
+                box["comp cnt"] += 1
+                box["FP"] += 1
+                self.fp_out.write(match.comp)
+
+    def close_outputs(self):
+        """
+        Close all the files
+        """
+        self.tpb_out.close()
+        self.tpc_out.close()
+        self.fn_out.close()
+        self.fp_out.close()
+        truvari.compress_index_vcf(self.tpb_out.filename.decode())
+        truvari.compress_index_vcf(self.tpc_out.filename.decode())
+        truvari.compress_index_vcf(self.fn_out.filename.decode())
+        truvari.compress_index_vcf(self.fp_out.filename.decode())
+
+class Bench():
     """
-    Close all the files
+    Object to perform a run of truvari bench
     """
-    outputs["tpb_out"].close()
-    outputs["tpc_out"].close()
-    outputs["fn_out"].close()
-    outputs["fp_out"].close()
-    truvari.compress_index_vcf(outputs['tpb_out'].filename.decode())
-    truvari.compress_index_vcf(outputs['tpc_out'].filename.decode())
-    truvari.compress_index_vcf(outputs['fn_out'].filename.decode())
-    truvari.compress_index_vcf(outputs['fp_out'].filename.decode())
+    def __init__(self, base_vcf, comp_vcf, outdir, includebed=None, extend=0, debug=False , do_logging=False):
+        """
+        Initilize
+        """
+        self.base_vcf = base_vcf
+        self.comp_vcf = comp_vcf
+        self.outdir = outdir
+        self.includebed = includebed
+        self.extend = extend
+        self.debug = debug
+        self.do_logging = do_logging
 
-def run_bench(args, do_logging=False):
-    """
-    API for running `truvari bench` given a Namespace of all the needed parameters.
+    def param_dict(self):
+        """
+        Returns the parameters as a dict
+        """
+        return {'base': self.base_vcf,
+                "comp": self.comp_vcf,
+                "output": self.outdir,
+                "includebed": self.includebed,
+                "extend": self.extend,
+                "debug": self.debug}
 
-    Returns the bench outputs dict built by truvari.setup_outputs
+    def run(self, matcher):
+        """
+        Runs bench and returns the resulting :class:`truvari.BenchOutput`
+        """
+        output = BenchOutput(self, matcher)
 
-    For now takes a single parameter `m_args` - a Namespace of all the command line arguments
-    used by bench.
+        base = pysam.VariantFile(self.base_vcf)
+        comp = pysam.VariantFile(self.comp_vcf)
 
-    This puts the burden on the user to
-    #. build that namespace correctly (there's no checks on it)
-    #. know how to use that namespace to get their pre-saved vcf(s) through
-    #. read/process the output vcfs
-    #. understand the `setup_outputs` structure even though that isn't an object
+        regions = truvari.RegionVCFIterator(base, comp,
+                                            self.includebed,
+                                            matcher.params.sizemax)
+        regions.merge_overlaps()
+        regions_extended = regions.extend(self.extend) if self.extend else regions
 
-    This is almost essentially a command line wrapper, I could make it better with:
-    * make a bench params dataclass - helps document/standardize m_args
-    * make a `setup_outputs` dataclass - helps document/standardize outputs
-    """
-    matcher = truvari.Matcher(args=args)
-    output = setup_outputs(args, do_logging)
+        base_i = regions.iterate(base)
+        comp_i = regions_extended.iterate(comp)
 
-    base = pysam.VariantFile(args.base)
-    comp = pysam.VariantFile(args.comp)
+        chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
+        for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+            # setting non-matched comp variants that are not fully contained in the original regions to None
+            # These don't count as FP or TP and don't appear in the output vcf files
+            if self.extend and match.comp is not None and not match.state and not regions.include(match.comp):
+                match.comp = None
+            output.write_match(match, matcher.params.sizemin)
 
-    regions = truvari.RegionVCFIterator(base, comp,
-                                        args.includebed,
-                                        args.sizemax)
-    regions.merge_overlaps()
-    regions_extended = regions.extend(args.extend) if args.extend else regions
+        with open(os.path.join(self.outdir, "summary.json"), 'w') as fout:
+            output.stats_box.calc_performance()
+            fout.write(json.dumps(output.stats_box, indent=4))
 
-    base_i = regions.iterate(base)
-    comp_i = regions_extended.iterate(comp)
-
-    chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
-    for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
-        # setting non-matched comp variants that are not fully contained in the original regions to None
-        # These don't count as FP or TP and don't appear in the output vcf files
-        if args.extend and match.comp is not None and not match.state and not regions.include(match.comp):
-            match.comp = None
-        output_writer(match, output, args.sizemin)
-
-    with open(os.path.join(args.output, "summary.json"), 'w') as fout:
-        output["stats_box"].calc_performance()
-        fout.write(json.dumps(output["stats_box"], indent=4))
-
-    close_outputs(output)
-
-    return output
+        output.close_outputs()
+        return output
 
 def bench_main(cmdargs):
     """
@@ -605,7 +615,10 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    output = run_bench(args, True)
+    matcher = truvari.Matcher(args)
 
-    logging.info("Stats: %s", json.dumps(output["stats_box"], indent=4))
+    m_bench = Bench(args.base, args.comp, args.output, args.includebed, args.extend, args.debug, True)
+    output = m_bench.run(matcher)
+
+    logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))
     logging.info("Finished bench")

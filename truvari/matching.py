@@ -75,18 +75,23 @@ class Matcher():
         <truvari.bench.MatchResult (False 2.381)>
     """
 
-    def __init__(self, params=None, args=None):
+    def __init__(self, args=None):
+        """
+        Initalize. args is a Namespace from argparse
+        """
         if args is not None:
-            params = self.make_match_params_from_args(args)
-        elif params is None:
-            params = self.make_match_params()
+            self.params = self.make_match_params_from_args(args)
+        else:
+            self.params = self.make_match_params()
 
-        self.params = params
+        self.reference = None
+        if self.params.reference is not None:
+            self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod
     def make_match_params():
         """
-        Makes a simple namespace of matching parameters
+        Makes a simple namespace of matching parameters. Holds defaults
         """
         ret = types.SimpleNamespace()
         ret.reference = None
@@ -117,8 +122,7 @@ class Matcher():
         Makes a simple namespace of matching parameters
         """
         ret = types.SimpleNamespace()
-        ret.reference = pysam.FastaFile(
-            args.reference) if args.reference else None
+        ret.reference = args.reference
         ret.refdist = args.refdist
         ret.pctseq = args.pctseq
         ret.minhaplen = args.minhaplen
@@ -215,7 +219,7 @@ class Matcher():
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.params.reference,
+            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.reference,
                                               self.params.minhaplen, self.params.use_lev)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",

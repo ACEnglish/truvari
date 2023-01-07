@@ -214,10 +214,6 @@ restricted_int
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_int
 
-run_bench
-^^^^^^^^^
-.. autofunction:: run_bench
-
 setup_logging
 ^^^^^^^^^^^^^
 .. autofunction:: setup_logging
@@ -232,6 +228,16 @@ vcf_to_df
 
 Objects
 -------
+
+Bench
+^^^^^
+.. autoclass:: Bench
+   :members:
+
+BenchOutput
+^^^^^^^^^^^
+.. autoclass:: Bench
+   :members: BenchOutput
 
 GT
 ^^
