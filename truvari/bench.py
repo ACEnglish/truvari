@@ -58,60 +58,6 @@ class StatsBox(OrderedDict):
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
 
-def compare_chunk(chunk):
-    """
-    Given a filtered chunk, (from chunker) compare all of the calls
-    """
-    matcher, chunk_dict, chunk_id = chunk
-    logging.debug("Comparing chunk %s", chunk_id)
-
-    # All FPs
-    if len(chunk_dict['base']) == 0:
-        fps = []
-        for cid, c in enumerate(chunk_dict['comp']):
-            ret = truvari.MatchResult()
-            ret.comp = c
-            ret.matid = f"{chunk_id}._.{cid}"
-            fps.append(ret)
-            logging.debug("All FP chunk -> %s", ret)
-        return fps
-
-    # All FNs
-    if len(chunk_dict['comp']) == 0:
-        fns = []
-        for bid, b in enumerate(chunk_dict['base']):
-            ret = truvari.MatchResult()
-            ret.base = b
-            ret.matid = f"{chunk_id}.{bid}._"
-            logging.debug("All FN chunk -> %s", ret)
-            fns.append(ret)
-        return fns
-
-    # Build all v all matrix
-    # Should allow short-circuiting here.
-    # If we find a perfect match, don't need to keep comparing.
-    match_matrix = []
-    for bid, b in enumerate(chunk_dict['base']):
-        base_matches = []
-        for cid, c in enumerate(chunk_dict['comp']):
-            mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
-            logging.debug("Made mat -> %s", mat)
-            base_matches.append(mat)
-        match_matrix.append(base_matches)
-
-    # For building custom pickers
-    match_matrix = np.array(match_matrix)
-    if matcher.params.multimatch == 'KEEPALL':
-        return match_matrix
-    # Sort and annotate matches
-    ret = []
-    if matcher.params.multimatch:
-        ret = pick_multi_matches(match_matrix)
-    elif matcher.params.gtcomp:
-        ret = pick_gtcomp_matches(match_matrix)
-    else:
-        ret = pick_single_matches(match_matrix)
-    return ret
 
 
 def pick_multi_matches(match_matrix):
@@ -591,7 +537,7 @@ class Bench():
         comp_i = regions_extended.iterate(comp)
 
         chunks = truvari.chunker(matcher, ('base', base_i), ('comp', comp_i))
-        for match in itertools.chain.from_iterable(map(compare_chunk, chunks)):
+        for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
             if self.extend and match.comp is not None and not match.state and not regions.include(match.comp):
@@ -604,6 +550,74 @@ class Bench():
 
         output.close_outputs()
         return output
+
+    @staticmethod
+    def build_matrix(base_variants, comp_variants, matcher, chunk_id=0):
+        """
+        Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant
+        otherwise, returns a list of the variants placed in MatchResuls
+        """
+        # All FPs
+        if len(base_variants) == 0:
+            fps = []
+            for cid, c in enumerate(comp_variants):
+                ret = truvari.MatchResult()
+                ret.comp = c
+                ret.matid = f"{chunk_id}._.{cid}"
+                fps.append(ret)
+                logging.debug("All FP -> %s", ret)
+            return fps
+
+        # All FNs
+        if len(comp_variants) == 0:
+            fns = []
+            for bid, b in enumerate(base_variants):
+                ret = truvari.MatchResult()
+                ret.base = b
+                ret.matid = f"{chunk_id}.{bid}._"
+                logging.debug("All FN -> %s", ret)
+                fns.append(ret)
+            return fns
+
+        # Build all v all matrix
+        match_matrix = []
+        for bid, b in enumerate(base_variants):
+            base_matches = []
+            for cid, c in enumerate(comp_variants):
+                mat = matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
+                logging.debug("Made mat -> %s", mat)
+                base_matches.append(mat)
+            match_matrix.append(base_matches)
+
+        # For building custom pickers
+        return np.array(match_matrix)
+
+    @staticmethod
+    def pick_matches(match_matrix, matcher):
+        """
+        Sort and annotate matches, returns a list
+        """
+        ret = []
+        if matcher.params.multimatch:
+            ret = pick_multi_matches(match_matrix)
+        elif matcher.params.gtcomp:
+            ret = pick_gtcomp_matches(match_matrix)
+        else:
+            ret = pick_single_matches(match_matrix)
+        return ret
+
+    def compare_chunk(self, chunk):
+        """
+        Given a filtered chunk, (from chunker) compare all of the calls
+        """
+        matcher, chunk_dict, chunk_id = chunk
+        logging.debug("Comparing chunk %s", chunk_id)
+        match_matrix = self.build_matrix(chunk_dict["base"], chunk_dict["comp"], matcher, chunk_id)
+        if isinstance(match_matrix, list):
+            return match_matrix
+
+        return self.pick_matches(match_matrix, matcher)
+
 
 def bench_main(cmdargs):
     """
