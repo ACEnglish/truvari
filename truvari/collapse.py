@@ -17,7 +17,6 @@ import pysam
 import truvari
 import truvari.bench as trubench
 
-
 def collapse_chunk(chunk):
     """
     For calls in a chunk, separate which ones should be kept from collapsed
@@ -327,12 +326,10 @@ def build_collapse_matcher(args):
     So set it up for us here
     """
     args.chunksize = args.refdist
-    args.gtcomp = False
     args.bSample = None
     args.cSample = None
     args.sizefilt = args.sizemin
     args.no_ref = False
-    args.multimatch = False
     matcher = truvari.Matcher(args=args)
     matcher.params.includebed = None
     matcher.keep = args.keep
@@ -340,6 +337,7 @@ def build_collapse_matcher(args):
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
     matcher.no_consolidate = args.no_consolidate
+    matcher.picker = 'single'
 
     return matcher
 

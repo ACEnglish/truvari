@@ -59,7 +59,6 @@ class StatsBox(OrderedDict):
                                                                      self["TP-comp_FP-gt"])
 
 
-
 def pick_multi_matches(match_matrix):
     """
     Given a numpy array of MatchResults
@@ -77,7 +76,7 @@ def pick_multi_matches(match_matrix):
         ret.append(c_max)
     return ret
 
-def pick_gtcomp_matches(match_matrix):
+def pick_ac_matches(match_matrix):
     """
     Given a numpy array of MatchResults
     Find upto allele count mumber of matches
@@ -101,8 +100,8 @@ def pick_gtcomp_matches(match_matrix):
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
-            to_process.state = False
             to_process.multi = True
+            to_process.state = False
             comp_cnt -= 1
             if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
                 ret.append(to_process)
@@ -111,8 +110,8 @@ def pick_gtcomp_matches(match_matrix):
         elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
-            to_process.state = False
             to_process.multi = True
+            to_process.state = False
             base_cnt -= 1
             if used_base[b_key] == 0: # Only write as F if it hasn't been a T
                 ret.append(to_process)
@@ -162,8 +161,8 @@ def pick_single_matches(match_matrix):
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
-            to_process.state = False
             to_process.multi = True
+            to_process.state = False
             comp_cnt -= 1
             used_comp.add(str(to_process.comp))
             ret.append(to_process)
@@ -171,8 +170,8 @@ def pick_single_matches(match_matrix):
         elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
-            to_process.state = False
             to_process.multi = True
+            to_process.state = False
             base_cnt -= 1
             used_base.add(str(to_process.base))
             ret.append(to_process)
@@ -185,6 +184,11 @@ def pick_single_matches(match_matrix):
             used_comp.add(str(to_process.comp))
             ret.append(to_process)
     return ret
+
+PICKERS = {"single": pick_single_matches,
+           "ac": pick_ac_matches,
+           "multi": pick_multi_matches
+           }
 
 ###############
 # VCF editing #
@@ -278,8 +282,6 @@ def parse_args(args):
                         help="Max reference distance to compare calls (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
-    genoty.add_argument("-g", "--gtcomp", action="store_true", default=defaults.gtcomp,
-                        help="Compare genotypes and allow homozygous variants to be matched twice")
     genoty.add_argument("--bSample", type=str, default=None,
                         help="Baseline calls sample to use (first)")
     genoty.add_argument("--cSample", type=str, default=None,
@@ -300,9 +302,8 @@ def parse_args(args):
                         help="Bed file of regions in the genome to include only calls overlapping")
     filteg.add_argument("--extend", type=truvari.restricted_int, default=0,
                         help="Distance to allow comp entries outside of includebed regions (%(default)s)")
-    filteg.add_argument("--multimatch", action="store_true", default=defaults.multimatch,
-                        help=("Allow base calls to match multiple comparison calls, and vice versa. "
-                              "Output vcfs will have redundant entries. (%(default)s)"))
+    filteg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
+                        help="Behavior for picking variant matchers")
 
     args = parser.parse_args(args)
     # When sizefilt is not provided and sizemin has been lowered below the default,
@@ -631,7 +632,7 @@ class Bench():
 
         return self.build_matrix(base_variants, comp_variants, chunk_id)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
@@ -641,7 +642,7 @@ class Bench():
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = self.matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}")
+                mat = self.matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}", skip_gt)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
@@ -655,15 +656,7 @@ class Bench():
         """
         if isinstance(match_matrix, list):
             return match_matrix
-
-        ret = []
-        if self.matcher.params.multimatch:
-            ret = pick_multi_matches(match_matrix)
-        elif self.matcher.params.gtcomp:
-            ret = pick_gtcomp_matches(match_matrix)
-        else:
-            ret = pick_single_matches(match_matrix)
-        return ret
+        return PICKERS[self.matcher.params.pick](match_matrix)
 
 
 def bench_main(cmdargs):

@@ -34,7 +34,7 @@ if [ $test_bench_13 ]; then
     bench_assert 13
 fi
 
-run test_bench_23 bench 2 3 23 --multimatch
+run test_bench_23 bench 2 3 23 "--pick multi"
 if [ $test_bench_23 ]; then
     bench_assert 23
 fi
@@ -60,8 +60,8 @@ if [ $test_bench_unroll ]; then
     bench_assert _unroll
 fi
 
-# --gtcomp
-run test_bench_12_gtcomp bench 1 2 12_gtcomp "--gtcomp"
+# --pick allele count
+run test_bench_12_gtcomp bench 1 2 12_gtcomp "--pick ac"
 if [ $test_bench_12_gtcomp ]; then
     bench_assert 12_gtcomp
 fi
@@ -69,7 +69,7 @@ fi
 # --gtcomp edgecase
 run test_bench_gtcomp_edgecase1 $truv bench -b $INDIR/variants/gtcomp_problem1_base.vcf.gz \
                                             -c $INDIR/variants/gtcomp_problem1_comp.vcf.gz \
-                                            --gtcomp \
+                                            --pick ac \
                                             -o $OD/bench_gtcomp_edgecase1/
 if [ $test_bench_gtcomp_edgecase1 ]; then
     bench_assert _gtcomp_edgecase1

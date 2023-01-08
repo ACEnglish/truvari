@@ -32,9 +32,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.st_dist = None
         self.ed_dist = None
         self.gt_match = None
+        self.multi = None
         self.state = False
         self.score = None
-        self.multi = None
 
     def calc_score(self):
         """
@@ -103,7 +103,6 @@ class Matcher():
         ret.typeignore = False
         ret.use_lev = False
         ret.chunksize = 1000
-        ret.gtcomp = False
         ret.bSample = 0
         ret.cSample = 0
         ret.dup_to_ins = False
@@ -113,7 +112,7 @@ class Matcher():
         ret.sizemax = 50000
         ret.passonly = False
         ret.no_ref = False
-        ret.multimatch = False
+        ret.pick = 'single'
         return ret
 
     @staticmethod
@@ -131,7 +130,6 @@ class Matcher():
         ret.typeignore = args.typeignore
         ret.use_lev = args.use_lev
         ret.chunksize = args.chunksize
-        ret.gtcomp = args.gtcomp
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
         ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
@@ -141,7 +139,7 @@ class Matcher():
         ret.sizemax = args.sizemax
         ret.passonly = args.passonly
         ret.no_ref = args.no_ref
-        ret.multimatch = args.multimatch
+        ret.pick = args.pick if "pick" in args else "single"
         return ret
 
     def filter_call(self, entry, base=False):
@@ -161,7 +159,7 @@ class Matcher():
 
         samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if (self.params.no_ref in ["a", prefix] or self.params.gtcomp) and not truvari.entry_is_present(entry, samp):
+        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') and not truvari.entry_is_present(entry, samp):
             return True
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
@@ -206,10 +204,6 @@ class Matcher():
                 ret.comp_gt = comp.samples[self.params.cSample]["GT"]
                 ret.comp_gt_count = sum(1 for _ in ret.comp_gt if _ == 1)
             ret.gt_match = abs(ret.base_gt_count - ret.comp_gt_count)
-            #if self.params.gtcomp and not ret.gt_match:
-            #    logging.debug("%s and %s are not the same genotype",
-            #                  str(base), str(comp))
-            #    ret.state = False
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
         if ret.ovlpct < self.params.pctovl:
