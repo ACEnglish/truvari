@@ -231,11 +231,8 @@ def refine_main(cmdargs):
     summary["FN"] = int(regions["out_fn"].sum())
     summary["base cnt"] = summary["TP-base"] + summary["FN"]
     summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
-    # Still don't have genotype checks
     summary.calc_performance()
-
-    with open(os.path.join(args.benchdir, 'refine.summary.json'), 'w') as fout:
-        json.dump(summary, fout, indent=4)
+    summary.write_json(os.path.join(args.benchdir, 'refine.summary.json'))
     logging.info(json.dumps(summary, indent=4))
 
     regions.to_csv(os.path.join(args.benchdir, 'refine.counts.txt'), sep='\t', index=False)

@@ -12,7 +12,6 @@ run test_phab $truv phab -k $OD/phab_result \
 
 if [ $test_phab ]; then
     assert_exit_code 0
-    run test_phab_result
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result/output.vcf.gz) $(fn_md5 $OD/phab_result/chr1:700-900/output.vcf.gz)
 fi
 

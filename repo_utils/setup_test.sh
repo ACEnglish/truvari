@@ -34,10 +34,9 @@ info_tests() {
 
 df_check() {
     # check if joblib saved pandas dataframes are equivalent
-    test_name=$1
-    base_df=$2
-    comp_df=$3
-    run $test_name python3 -c """
+    base_df=$1
+    comp_df=$2
+    python3 -c """
 import joblib;
 a = joblib.load(\"$base_df\")
 b = joblib.load(\"$comp_df\")

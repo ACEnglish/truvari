@@ -34,5 +34,3 @@ if [ $test_refine_two ]; then
     assert_equal $(fn_md5 $ANSDIR/refine/refine_output_two/refine.summary.json) \
                  $(fn_md5 $OD/refine_output_two/refine.summary.json)
 fi
-
-

@@ -58,6 +58,12 @@ class StatsBox(OrderedDict):
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
 
+    def write_json(self, out_name):
+        """
+        Write stats as json to file
+        """
+        with open(os.path.join(out_name), 'w') as fout:
+            fout.write(json.dumps(self, indent=4))
 
 def pick_multi_matches(match_matrix):
     """
@@ -489,10 +495,8 @@ class BenchOutput():
         for i in self.vcf_filenames.values():
             truvari.compress_index_vcf(i)
 
-        with open(os.path.join(self.m_bench.outdir, "summary.json"), 'w') as fout:
-            self.stats_box.calc_performance()
-            fout.write(json.dumps(self.stats_box, indent=4))
-
+        self.stats_box.calc_performance()
+        self.stats_box.write_json(os.path.join(self.m_bench.outdir, "summary.json"))
 
 
 class Bench():
