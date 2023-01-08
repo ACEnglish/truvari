@@ -480,8 +480,7 @@ class Bench():
         """
         _, chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
-        match_matrix = self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
-        return self.pick_matches(match_matrix)
+        return self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
@@ -510,7 +509,8 @@ class Bench():
                 fns.append(ret)
             return fns
 
-        return self.build_matrix(base_variants, comp_variants, chunk_id)
+        match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id)
+        return self.pick_matches(match_matrix)
 
     def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
         """
