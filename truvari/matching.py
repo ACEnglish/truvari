@@ -168,9 +168,11 @@ class Matcher():
 
         return False
 
-    def build_match(self, base, comp, matid=None, skip_gt=False):
+    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
         Build a MatchResult
+        if skip_gt, don't do genotype comparison
+        if short_circuit, return after first failure
         """
         ret = MatchResult()
         ret.base = base
@@ -183,6 +185,8 @@ class Matcher():
             logging.debug("%s and %s are not the same SVTYPE",
                           str(base), str(comp))
             ret.state = False
+            if short_circuit:
+                return ret
 
         bstart, bend = truvari.entry_boundaries(base)
         cstart, cend = truvari.entry_boundaries(comp)
@@ -190,12 +194,16 @@ class Matcher():
             logging.debug("%s and %s are not within REFDIST",
                           str(base), str(comp))
             ret.state = False
+            if short_circuit:
+                return ret
 
         ret.sizesim, ret.sizediff = truvari.entry_size_similarity(base, comp)
         if ret.sizesim < self.params.pctsize:
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(base), str(comp), ret.sizesim)
             ret.state = False
+            if short_circuit:
+                return ret
 
         if not skip_gt:
             if "GT" in base.samples[self.params.bSample]:
@@ -211,6 +219,8 @@ class Matcher():
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
+            if short_circuit:
+                return ret
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
@@ -220,6 +230,8 @@ class Matcher():
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
                 ret.state = False
+                if short_circuit:
+                    return ret
         else:
             ret.seqsim = 0
 
@@ -288,6 +300,7 @@ def chunker(matcher, *files):
         if entry.alts is None: # ignore monomorphic reference
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
+            cur_chrom = entry.chrom
             continue
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
@@ -299,9 +312,9 @@ def chunker(matcher, *files):
             cur_end = None
             cur_chunk = defaultdict(list)
 
+        cur_chrom = entry.chrom
         if not matcher.filter_call(entry, key == 'base'):
             logging.debug(f"Adding to {key} -> {entry}")
-            cur_chrom = entry.chrom
             cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1

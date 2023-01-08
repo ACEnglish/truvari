@@ -23,7 +23,7 @@ def collapse_chunk(chunk):
     """
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
-    logging.debug(f"Comparing chunk {calls}")
+    logging.debug(f"Collapsing chunk {chunk_id}")
     # Need to add a deterministic sort here...
     calls.sort(key=matcher.sorter)
 
@@ -50,7 +50,8 @@ def collapse_chunk(chunk):
             mat = matcher.build_match(cur_keep_candidate,
                                       cur_collapse_candidate,
                                       ret[keep_key][2],
-                                      skip_gt=True)
+                                      skip_gt=True,
+                                      short_circuit=True)
             if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
             # to collapse
@@ -74,8 +75,7 @@ def collapse_chunk(chunk):
         calls = remaining_calls
 
     if matcher.no_consolidate:
-        for key, val in ret.items():
-            logging.debug("Collapsing %s", key)
+        for val in ret.values():
             edited_entry, collapse_cnt = collapse_into_entry(val[0], val[1], matcher.hap)
             val[0] = edited_entry
             val[3] = collapse_cnt
@@ -83,7 +83,7 @@ def collapse_chunk(chunk):
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
         ret.append([i, None, None, 0])
-
+    ret.sort(key=cmp_to_key(lambda x, y: x[0].pos - y[0].pos))
     return ret
 
 
@@ -127,10 +127,15 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 try:
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
-                    logging.warning(
+                    # Happens for things like PL when one is null but its expecting a tuple
+                    logging.debug(
                         "Unable to set FORMAT %s for sample %s", key, sample)
-                    logging.warning("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
-                    logging.warning("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
+                    logging.debug("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
+                    logging.debug("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
+                except KeyError:
+                    logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
+                                  key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
+                                  o_entry.pos, o_entry.id)
 
     return entry, n_consolidate
 
