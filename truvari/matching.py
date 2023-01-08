@@ -73,6 +73,8 @@ class Matcher():
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
         <truvari.bench.MatchResult (False 2.381)>
+
+    Look at `Matcher.make_match_params()` for a list of all params and their defaults
     """
 
     def __init__(self, args=None):
@@ -93,27 +95,26 @@ class Matcher():
         """
         Makes a simple namespace of matching parameters. Holds defaults
         """
-        ret = types.SimpleNamespace()
-        ret.reference = None
-        ret.refdist = 500
-        ret.pctseq = 0.70
-        ret.minhaplen = 50
-        ret.pctsize = 0.70
-        ret.pctovl = 0.0
-        ret.typeignore = False
-        ret.use_lev = False
-        ret.chunksize = 1000
-        ret.bSample = 0
-        ret.cSample = 0
-        ret.dup_to_ins = False
-        # filtering properties
-        ret.sizemin = 50
-        ret.sizefilt = 30
-        ret.sizemax = 50000
-        ret.passonly = False
-        ret.no_ref = False
-        ret.pick = 'single'
-        return ret
+        params = types.SimpleNamespace()
+        params.reference = None
+        params.refdist = 500
+        params.pctseq = 0.70
+        params.minhaplen = 50
+        params.pctsize = 0.70
+        params.pctovl = 0.0
+        params.typeignore = False
+        params.use_lev = False
+        params.chunksize = 1000
+        params.bSample = 0
+        params.cSample = 0
+        params.dup_to_ins = False
+        params.sizemin = 50
+        params.sizefilt = 30
+        params.sizemax = 50000
+        params.passonly = False
+        params.no_ref = False
+        params.pick = 'single'
+        return params
 
     @staticmethod
     def make_match_params_from_args(args):

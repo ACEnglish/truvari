@@ -17,236 +17,9 @@ import numpy as np
 
 import truvari
 
-class StatsBox(OrderedDict):
-    """
-    Make a blank stats box for counting TP/FP/FN and calculating performance
-    """
-
-    def __init__(self):
-        super().__init__()
-        self["TP-base"] = 0
-        self["TP-comp"] = 0
-        self["FP"] = 0
-        self["FN"] = 0
-        self["precision"] = 0
-        self["recall"] = 0
-        self["f1"] = 0
-        self["base cnt"] = 0
-        self["comp cnt"] = 0
-        self["TP-comp_TP-gt"] = 0
-        self["TP-comp_FP-gt"] = 0
-        self["TP-base_TP-gt"] = 0
-        self["TP-base_FP-gt"] = 0
-        self["gt_concordance"] = 0
-        self["gt_matrix"] = defaultdict(Counter)
-
-    def calc_performance(self):
-        """
-        Calculate the precision/recall
-        """
-        if self["TP-base"] == 0 and self["FN"] == 0:
-            logging.warning("No TP or FN calls in base!")
-        elif self["TP-comp"] == 0 and self["FP"] == 0:
-            logging.warning("No TP or FP calls in comp!")
-
-        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
-
-        self["precision"] = precision
-        self["recall"] = recall
-        self["f1"] = f1
-        if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
-            self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
-                                                                     self["TP-comp_FP-gt"])
-
-    def write_json(self, out_name):
-        """
-        Write stats as json to file
-        """
-        with open(os.path.join(out_name), 'w') as fout:
-            fout.write(json.dumps(self, indent=4))
-
-def pick_multi_matches(match_matrix):
-    """
-    Given a numpy array of MatchResults
-    Pick each base/comp call's best match
-    """
-    ret = []
-    for b_max in match_matrix.max(axis=1):
-        b_max = copy.copy(b_max)
-        b_max.comp = None
-        ret.append(b_max)
-
-    for c_max in match_matrix.max(axis=0):
-        c_max = copy.copy(c_max)
-        c_max.base = None
-        ret.append(c_max)
-    return ret
-
-def pick_ac_matches(match_matrix):
-    """
-    Given a numpy array of MatchResults
-    Find upto allele count mumber of matches
-    """
-    ret = []
-    base_cnt, comp_cnt = match_matrix.shape
-    match_matrix = np.ravel(match_matrix)
-    match_matrix.sort()
-    used_comp = Counter()
-    used_base = Counter()
-    for match in match_matrix[::-1]:
-        # No more matches to find
-        if base_cnt == 0 and comp_cnt == 0:
-            break
-        b_key = str(match.base)
-        c_key = str(match.comp)
-        # This is a trick
-        base_is_used = used_base[b_key] >= match.base_gt_count
-        comp_is_used = used_comp[c_key] >= match.comp_gt_count
-        # Only write the comp (FP)
-        if base_cnt == 0 and not comp_is_used:
-            to_process = copy.copy(match)
-            to_process.base = None
-            to_process.multi = True
-            to_process.state = False
-            comp_cnt -= 1
-            if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
-                ret.append(to_process)
-            used_comp[c_key] = 9
-        # Only write the base (FN)
-        elif comp_cnt == 0 and not base_is_used:
-            to_process = copy.copy(match)
-            to_process.comp = None
-            to_process.multi = True
-            to_process.state = False
-            base_cnt -= 1
-            if used_base[b_key] == 0: # Only write as F if it hasn't been a T
-                ret.append(to_process)
-            used_base[b_key] = 9
-        # Write both (any state)
-        elif not base_is_used and not comp_is_used:
-            to_process = copy.copy(match)
-            # Don't write twice
-            if used_base[b_key] != 0:
-                to_process.base = None
-            if used_comp[c_key] != 0:
-                to_process.comp = None
-
-            used_base[b_key] += match.comp_gt_count
-            used_comp[c_key] += match.base_gt_count
-            # All used up
-            if used_base[b_key] >= match.base_gt_count:
-                base_cnt -= 1
-            if used_comp[c_key] >= match.comp_gt_count:
-                comp_cnt -= 1
-
-            # Safety edge case check
-            if to_process.base is not None or to_process.comp is not None:
-                ret.append(to_process)
-    return ret
-
-def pick_single_matches(match_matrix):
-    """
-    Given a numpy array of MatchResults
-    for each base, get its best match and record that the comp call can't be used anymore
-    Once all best pairs are found, return the remaining
-    """
-    ret = []
-    base_cnt, comp_cnt = match_matrix.shape
-    match_matrix = np.ravel(match_matrix)
-    match_matrix.sort()
-    used_comp = set()
-    used_base = set()
-    for match in match_matrix[::-1]:
-        # No more matches to find
-        if base_cnt == 0 and comp_cnt == 0:
-            break
-
-        base_is_used = str(match.base) in used_base
-        comp_is_used = str(match.comp) in used_comp
-        # Only write the comp
-        if base_cnt == 0 and not comp_is_used:
-            to_process = copy.copy(match)
-            to_process.base = None
-            to_process.multi = True
-            to_process.state = False
-            comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
-            ret.append(to_process)
-        # Only write the base
-        elif comp_cnt == 0 and not base_is_used:
-            to_process = copy.copy(match)
-            to_process.comp = None
-            to_process.multi = True
-            to_process.state = False
-            base_cnt -= 1
-            used_base.add(str(to_process.base))
-            ret.append(to_process)
-        # Write both
-        elif not base_is_used and not comp_is_used:
-            to_process = copy.copy(match)
-            base_cnt -= 1
-            used_base.add(str(to_process.base))
-            comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
-            ret.append(to_process)
-    return ret
-
-PICKERS = {"single": pick_single_matches,
-           "ac": pick_ac_matches,
-           "multi": pick_multi_matches
-           }
-
-###############
-# VCF editing #
-###############
-def edit_header(my_vcf):
-    """
-    Add INFO for new fields to vcf
-    """
-    header = my_vcf.header.copy()
-    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
-                     'Description="Truvari score for similarity of match">'))
-    header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
-                     'Description="Pct sequence similarity between this variant and its closest match">'))
-    header.add_line(('##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,'
-                     'Description="Pct size similarity between this variant and its closest match">'))
-    header.add_line(('##INFO=<ID=PctRecOverlap,Number=1,Type=Float,'
-                     'Description="Percent reciprocal overlap percent of the two calls\' coordinates">'))
-    header.add_line(('##INFO=<ID=StartDistance,Number=1,Type=Integer,'
-                     'Description="Distance of the base call\'s end from comparison call\'s start">'))
-    header.add_line(('##INFO=<ID=EndDistance,Number=1,Type=Integer,'
-                     'Description="Distance of the base call\'s end from comparison call\'s end">'))
-    header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
-                     'Description="Difference in size of base and comp calls">'))
-    header.add_line(('##INFO=<ID=GTMatch,Number=1,Type=Integer,'
-                     'Description="Base/Comparison genotypes AC difference">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
-                     'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
-    header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
-                     'Description="Call is false due to non-multimatching">'))
-    return header
-
-
-def annotate_entry(entry, match, header):
-    """
-    Make a new entry with all the information
-    """
-    entry.translate(header)
-    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim is not None else None
-    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim is not None else None
-    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct is not None else None
-    entry.info["SizeDiff"] = match.sizediff
-    entry.info["StartDistance"] = match.st_dist
-    entry.info["EndDistance"] = match.ed_dist
-    entry.info["GTMatch"] = match.gt_match
-    entry.info["TruScore"] = int(match.score) if match.score else None
-    entry.info["MatchId"] = match.matid
-    entry.info["Multi"] = match.multi
-
-
-##########################
-# Parameters and outputs #
-##########################
+##############
+# Parameters #
+##############
 def parse_args(args):
     """
     Pull the command line parameters
@@ -404,9 +177,112 @@ def check_inputs(args):
     return b_check or c_check
 
 
+###############
+# VCF editing #
+###############
+def edit_header(my_vcf):
+    """
+    Add INFO for new fields to vcf
+    """
+    header = my_vcf.header.copy()
+    header.add_line(('##INFO=<ID=TruScore,Number=1,Type=Integer,'
+                     'Description="Truvari score for similarity of match">'))
+    header.add_line(('##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,'
+                     'Description="Pct sequence similarity between this variant and its closest match">'))
+    header.add_line(('##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,'
+                     'Description="Pct size similarity between this variant and its closest match">'))
+    header.add_line(('##INFO=<ID=PctRecOverlap,Number=1,Type=Float,'
+                     'Description="Percent reciprocal overlap percent of the two calls\' coordinates">'))
+    header.add_line(('##INFO=<ID=StartDistance,Number=1,Type=Integer,'
+                     'Description="Distance of the base call\'s end from comparison call\'s start">'))
+    header.add_line(('##INFO=<ID=EndDistance,Number=1,Type=Integer,'
+                     'Description="Distance of the base call\'s end from comparison call\'s end">'))
+    header.add_line(('##INFO=<ID=SizeDiff,Number=1,Type=Float,'
+                     'Description="Difference in size of base and comp calls">'))
+    header.add_line(('##INFO=<ID=GTMatch,Number=1,Type=Integer,'
+                     'Description="Base/Comparison genotypes AC difference">'))
+    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
+                     'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
+    header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
+                     'Description="Call is false due to non-multimatching">'))
+    return header
+
+
+def annotate_entry(entry, match, header):
+    """
+    Make a new entry with all the information
+    """
+    entry.translate(header)
+    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim is not None else None
+    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim is not None else None
+    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct is not None else None
+    entry.info["SizeDiff"] = match.sizediff
+    entry.info["StartDistance"] = match.st_dist
+    entry.info["EndDistance"] = match.ed_dist
+    entry.info["GTMatch"] = match.gt_match
+    entry.info["TruScore"] = int(match.score) if match.score else None
+    entry.info["MatchId"] = match.matid
+    entry.info["Multi"] = match.multi
+
+
+#############
+# Core code #
+#############
+class StatsBox(OrderedDict):
+    """
+    Make a blank stats box for counting TP/FP/FN and calculating performance
+    """
+
+    def __init__(self):
+        super().__init__()
+        self["TP-base"] = 0
+        self["TP-comp"] = 0
+        self["FP"] = 0
+        self["FN"] = 0
+        self["precision"] = 0
+        self["recall"] = 0
+        self["f1"] = 0
+        self["base cnt"] = 0
+        self["comp cnt"] = 0
+        self["TP-comp_TP-gt"] = 0
+        self["TP-comp_FP-gt"] = 0
+        self["TP-base_TP-gt"] = 0
+        self["TP-base_FP-gt"] = 0
+        self["gt_concordance"] = 0
+        self["gt_matrix"] = defaultdict(Counter)
+
+    def calc_performance(self):
+        """
+        Calculate the precision/recall
+        """
+        if self["TP-base"] == 0 and self["FN"] == 0:
+            logging.warning("No TP or FN calls in base!")
+        elif self["TP-comp"] == 0 and self["FP"] == 0:
+            logging.warning("No TP or FP calls in comp!")
+
+        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
+
+        self["precision"] = precision
+        self["recall"] = recall
+        self["f1"] = f1
+        if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
+            self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
+                                                                     self["TP-comp_FP-gt"])
+
+    def write_json(self, out_name):
+        """
+        Write stats as json to file
+        """
+        with open(os.path.join(out_name), 'w') as fout:
+            fout.write(json.dumps(self, indent=4))
+
+
 class BenchOutput():
     """
     Makes all of the output files for a Bench.run
+
+    The variable `BenchOutput.vcf_filenames` holds a dictonary. The keys are tpb, tpc for true positive base/comp vcf
+    filename and fn, fp. The variable `stats_box` holds a :class:`StatsBox`.
     """
     def __init__(self, bench, matcher):
         """
@@ -661,6 +537,140 @@ class Bench():
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
+
+#################
+# Match Pickers #
+#################
+def pick_multi_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    Pick each base/comp call's best match
+    """
+    ret = []
+    for b_max in match_matrix.max(axis=1):
+        b_max = copy.copy(b_max)
+        b_max.comp = None
+        ret.append(b_max)
+
+    for c_max in match_matrix.max(axis=0):
+        c_max = copy.copy(c_max)
+        c_max.base = None
+        ret.append(c_max)
+    return ret
+
+def pick_ac_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    Find upto allele count mumber of matches
+    """
+    ret = []
+    base_cnt, comp_cnt = match_matrix.shape
+    match_matrix = np.ravel(match_matrix)
+    match_matrix.sort()
+    used_comp = Counter()
+    used_base = Counter()
+    for match in match_matrix[::-1]:
+        # No more matches to find
+        if base_cnt == 0 and comp_cnt == 0:
+            break
+        b_key = str(match.base)
+        c_key = str(match.comp)
+        # This is a trick
+        base_is_used = used_base[b_key] >= match.base_gt_count
+        comp_is_used = used_comp[c_key] >= match.comp_gt_count
+        # Only write the comp (FP)
+        if base_cnt == 0 and not comp_is_used:
+            to_process = copy.copy(match)
+            to_process.base = None
+            to_process.multi = True
+            to_process.state = False
+            comp_cnt -= 1
+            if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
+                ret.append(to_process)
+            used_comp[c_key] = 9
+        # Only write the base (FN)
+        elif comp_cnt == 0 and not base_is_used:
+            to_process = copy.copy(match)
+            to_process.comp = None
+            to_process.multi = True
+            to_process.state = False
+            base_cnt -= 1
+            if used_base[b_key] == 0: # Only write as F if it hasn't been a T
+                ret.append(to_process)
+            used_base[b_key] = 9
+        # Write both (any state)
+        elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
+            # Don't write twice
+            if used_base[b_key] != 0:
+                to_process.base = None
+            if used_comp[c_key] != 0:
+                to_process.comp = None
+
+            used_base[b_key] += match.comp_gt_count
+            used_comp[c_key] += match.base_gt_count
+            # All used up
+            if used_base[b_key] >= match.base_gt_count:
+                base_cnt -= 1
+            if used_comp[c_key] >= match.comp_gt_count:
+                comp_cnt -= 1
+
+            # Safety edge case check
+            if to_process.base is not None or to_process.comp is not None:
+                ret.append(to_process)
+    return ret
+
+def pick_single_matches(match_matrix):
+    """
+    Given a numpy array of MatchResults
+    for each base, get its best match and record that the comp call can't be used anymore
+    Once all best pairs are found, return the remaining
+    """
+    ret = []
+    base_cnt, comp_cnt = match_matrix.shape
+    match_matrix = np.ravel(match_matrix)
+    match_matrix.sort()
+    used_comp = set()
+    used_base = set()
+    for match in match_matrix[::-1]:
+        # No more matches to find
+        if base_cnt == 0 and comp_cnt == 0:
+            break
+
+        base_is_used = str(match.base) in used_base
+        comp_is_used = str(match.comp) in used_comp
+        # Only write the comp
+        if base_cnt == 0 and not comp_is_used:
+            to_process = copy.copy(match)
+            to_process.base = None
+            to_process.multi = True
+            to_process.state = False
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+        # Only write the base
+        elif comp_cnt == 0 and not base_is_used:
+            to_process = copy.copy(match)
+            to_process.comp = None
+            to_process.multi = True
+            to_process.state = False
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            ret.append(to_process)
+        # Write both
+        elif not base_is_used and not comp_is_used:
+            to_process = copy.copy(match)
+            base_cnt -= 1
+            used_base.add(str(to_process.base))
+            comp_cnt -= 1
+            used_comp.add(str(to_process.comp))
+            ret.append(to_process)
+    return ret
+
+PICKERS = {"single": pick_single_matches,
+           "ac": pick_ac_matches,
+           "multi": pick_multi_matches
+           }
 
 
 def bench_main(cmdargs):
