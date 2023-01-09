@@ -272,7 +272,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     """
     v = pysam.VariantFile(fn)
     if with_fmt and not sample:
-        sample = pull_samples(fn)
+        sample = list(v.header.samples)
     if sample and len(sample) > 1 and no_prefix:
         raise TypeError("Multiple samples being pulled, must use prefix")
 
@@ -414,12 +414,6 @@ def parse_args(args):
         args.compress = 3
     return args
 
-def pull_samples(vcf_fn):
-    """
-    Pull sample names from a vcf
-    """
-    vcf = pysam.VariantFile(vcf_fn)
-    return list(vcf.header.samples)
 
 def vcf2df_main(args):
     """

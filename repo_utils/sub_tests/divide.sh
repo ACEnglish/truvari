@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 #                                 divide
 # ------------------------------------------------------------
-run test_divide $truv divide $INDIR/variants/multi.vcf.gz $OD/divided/
+run test_divide $truv divide -m 100 $INDIR/variants/multi.vcf.gz $OD/divided/
 if [ $test_divide ]; then
     assert_exit_code 0
 

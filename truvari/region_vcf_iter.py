@@ -8,7 +8,6 @@ from collections import defaultdict
 
 from intervaltree import IntervalTree
 import truvari
-import truvari.comparisons as tcomp
 
 
 class RegionVCFIterator():
@@ -89,7 +88,7 @@ class RegionVCFIterator():
         Returns if this entry's start and end are within a region that is to be included
         Here overlap means lies completely within the boundary of an include region
         """
-        astart, aend = tcomp.entry_boundaries(entry)
+        astart, aend = truvari.entry_boundaries(entry)
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is None or aend - astart > self.max_span:
             return False

@@ -24,7 +24,7 @@ def parse_args(args):
                         help="Output directory to save parts")
     parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=1000,
                         help="Buffer to make mini-clusters (%(default)s)")
-    parser.add_argument("-m", "--min", type=truvari.restricted_int, default=100,
+    parser.add_argument("-m", "--min", type=truvari.restricted_int, default=50000,
                         help="Minimum number of entries per-vcf (%(default)s)")
     parser.add_argument("--no-compress", action="store_false",
                         help="Don't attempt to compress/index sub-VCFs")
