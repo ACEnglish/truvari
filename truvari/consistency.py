@@ -4,21 +4,17 @@ Over multiple vcfs, calculate their intersection/consistency.
 Calls will match between VCFs if they have a matching key of:
     CHROM:POS ID REF ALT
 """
-import io
-import gzip
-import argparse
 import json
+import argparse
 from collections import defaultdict, Counter
 
+import truvari
 
 def parse_vcf(fn):
     """
     Simple vcf reader
     """
-    if fn.endswith(".gz"):
-        fh = io.TextIOWrapper(gzip.open(fn))
-    else:
-        fh = open(fn, 'r')  # pylint: disable=consider-using-with
+    fh = truvari.opt_gz_open(fn)
     for line in fh:
         if line.startswith("#"):
             continue

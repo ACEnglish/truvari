@@ -281,8 +281,9 @@ class BenchOutput():
     """
     Makes all of the output files for a Bench.run
 
-    The variable `BenchOutput.vcf_filenames` holds a dictonary. The keys are tpb, tpc for true positive base/comp vcf
-    filename and fn, fp. The variable `stats_box` holds a :class:`StatsBox`.
+    The variable `BenchOutput.vcf_filenames` holds a dictonary. The keys are tpb, tpc
+    for true positive base/comp vcf filename and fn, fp. The variable `stats_box` holds
+    a :class:`StatsBox`.
     """
     def __init__(self, bench, matcher):
         """
@@ -510,7 +511,9 @@ class Bench():
             return fns
 
         match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id)
-        return self.pick_matches(match_matrix)
+        if isinstance(match_matrix, list):
+            return match_matrix
+        return PICKERS[self.matcher.params.pick](match_matrix)
 
     def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
         """
@@ -529,14 +532,6 @@ class Bench():
 
         return np.array(match_matrix)
 
-    def pick_matches(self, match_matrix):
-        """
-        Sort and annotate matches based on the choosing strategy.
-        Returns matches as a list
-        """
-        if isinstance(match_matrix, list):
-            return match_matrix
-        return PICKERS[self.matcher.params.pick](match_matrix)
 
 #################
 # Match Pickers #

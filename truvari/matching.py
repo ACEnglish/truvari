@@ -252,44 +252,39 @@ def file_zipper(*start_files):
 
     yields key, pysam.VariantRecord
     """
-    next_markers = []
-    files = []
-    names = []
+    markers = [] # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()
     for name, i in start_files:
         try:
-            next_markers.append(next(i))
-            names.append(name)
-            files.append(i)
+            markers.append([name, i, next(i)])
         except StopIteration:
             # For when there are no variants in the file
             pass
 
-    while next_markers:
-        sidx = 0  # assume the first is the least
-        for idx, i in enumerate(next_markers):
-            if i.chrom < next_markers[sidx].chrom:
-                sidx = idx
-            elif i.chrom == next_markers[sidx].chrom and i.start < next_markers[sidx].start:
-                sidx = idx
-        entry = next_markers[sidx]
-        key = names[sidx]
-        file_counts[key] += 1
+    while markers:
+        # Get the first entry among each of the files' tops
+        first_idx = 0
+        for idx, mk in enumerate(markers[1:]):
+            idx += 1
+            if mk[2].chrom < markers[first_idx][2].chrom or \
+              (mk[2].chrom == markers[first_idx][2].chrom and mk[2].start < markers[first_idx][2].start):
+                first_idx = idx
+        name, fh, entry = markers[first_idx]
+        file_counts[name] += 1
         try:
-            next_markers[sidx] = next(files[sidx])
+            # update this file's top
+            markers[first_idx][2] = next(fh)
         except StopIteration:
             # This file is done
-            files.pop(sidx)
-            names.pop(sidx)
-            next_markers.pop(sidx)
-        yield key, entry
+            markers.pop(first_idx)
+        yield name, entry
     logging.info("Zipped %d variants %s", sum(file_counts.values()), file_counts)
 
 def chunker(matcher, *files):
     """
     Given a Matcher and multiple files, zip them and create chunks
 
-    Yields tuple of the matcher, the chunk of calls, and how many unfiltered calls in chunk
+    Yields tuple of the matcher, the chunk of calls, and an identifier of the chunk
     """
     call_counts = Counter()
     chunk_count = 0
