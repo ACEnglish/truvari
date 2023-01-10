@@ -617,50 +617,42 @@ def pick_ac_matches(match_matrix):
 
 def pick_single_matches(match_matrix):
     """
-    Given a numpy array of MatchResults
-    for each base, get its best match and record that the comp call can't be used anymore
-    Once all best pairs are found, return the remaining
+    Given a numpy array of MatchResults, find the single best match for calls
+    Once all best pairs yielded, the unpaired calls are set to FP/FN and yielded
     """
-    ret = []
-    base_cnt, comp_cnt = match_matrix.shape
-    match_matrix = np.ravel(match_matrix)
-    match_matrix.sort()
-    used_comp = set()
-    used_base = set()
-    for match in match_matrix[::-1]:
-        # No more matches to find
-        if base_cnt == 0 and comp_cnt == 0:
-            break
+    hit_order = np.array(np.unravel_index(np.argsort(match_matrix, axis=None), match_matrix.shape)).T
+    top_hit_idx = len(hit_order) - 1
 
-        base_is_used = str(match.base) in used_base
-        comp_is_used = str(match.comp) in used_comp
-        # Only write the comp
-        if base_cnt == 0 and not comp_is_used:
-            to_process = copy.copy(match)
-            to_process.base = None
-            to_process.multi = True
-            to_process.state = False
-            comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
-            ret.append(to_process)
-        # Only write the base
-        elif comp_cnt == 0 and not base_is_used:
-            to_process = copy.copy(match)
-            to_process.comp = None
-            to_process.multi = True
-            to_process.state = False
-            base_cnt -= 1
-            used_base.add(str(to_process.base))
-            ret.append(to_process)
-        # Write both
-        elif not base_is_used and not comp_is_used:
-            to_process = copy.copy(match)
-            base_cnt -= 1
-            used_base.add(str(to_process.base))
-            comp_cnt -= 1
-            used_comp.add(str(to_process.comp))
-            ret.append(to_process)
-    return ret
+    mask = np.ones(match_matrix.shape, dtype='bool') # True = can use
+
+    used_pairs = []
+    while top_hit_idx >= 0 and mask.any():
+        idx = tuple(hit_order[top_hit_idx])
+        if mask[idx]:
+            mask[idx[0], :] = False
+            mask[:, idx[1]] = False
+            used_pairs.append(idx)
+            yield match_matrix[idx]
+        top_hit_idx -= 1
+
+    used_base, used_comp = zip(*used_pairs) if used_pairs else ([],[])
+    # FNs
+    for base_col in set(range(match_matrix.shape[0])) - set(used_base):
+        comp_col = match_matrix[base_col].argmax()
+        to_process = copy.copy(match_matrix[base_col, comp_col])
+        to_process.comp = None # The comp will be written elsewhere
+        to_process.multi = to_process.state
+        to_process.state = False
+        yield to_process
+
+    # FPs
+    for comp_col in set(range(match_matrix.shape[1])) - set(used_comp):
+        base_col = match_matrix[:, comp_col].argmax()
+        to_process = copy.copy(match_matrix[base_col, comp_col])
+        to_process.base = None # The base will be written elsewhere
+        to_process.multi = to_process.state
+        to_process.state = False
+        yield to_process
 
 PICKERS = {"single": pick_single_matches,
            "ac": pick_ac_matches,
