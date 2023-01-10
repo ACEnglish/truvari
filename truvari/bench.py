@@ -577,7 +577,7 @@ def pick_ac_matches(match_matrix):
         if base_cnt == 0 and not comp_is_used:
             to_process = copy.copy(match)
             to_process.base = None
-            to_process.multi = True
+            to_process.multi = to_process.state
             to_process.state = False
             comp_cnt -= 1
             if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
@@ -587,7 +587,7 @@ def pick_ac_matches(match_matrix):
         elif comp_cnt == 0 and not base_is_used:
             to_process = copy.copy(match)
             to_process.comp = None
-            to_process.multi = True
+            to_process.multi = to_process.state
             to_process.state = False
             base_cnt -= 1
             if used_base[b_key] == 0: # Only write as F if it hasn't been a T
