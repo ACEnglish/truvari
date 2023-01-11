@@ -21,8 +21,10 @@ def parse_args(args):
 
     parser.add_argument("vcf", metavar="IN",
                         help="VCF to parse")
-    parser.add_argument("output", metavar="OUT",
+    parser.add_argument("-o", "--output", default="/dev/stdout",
                         help="Output VCF")
+    parser.add_argument("--passonly", action="store_true",
+                        help="Only segment PASS variants")
     # parser.add_argument("-m", "--min", default=10, type=int,
     # help="Minimum span of variants to segment")
     # parser.add_argument("--alter", action="store_true",
@@ -61,7 +63,9 @@ def segment_main(args):
 
     # needs to be split by chrom
     for entry in vcf:
-        if "SVTYPE" not in entry.info or entry.info["SVTYPE"] != "DEL":
+        if args.passonly and truvari.entry_is_filtered(entry):
+            continue
+        if truvari.entry_variant_type(entry).name != "DEL":
             out.write(entry)
             continue
         data = [gtcnt[truvari.get_gt(x["GT"]).name]
