@@ -52,7 +52,7 @@ Available commands:
     [bold][cyan]vcf2df[/][/]        Turn a VCF into a pandas DataFrame
     [bold][cyan]segment[/][/]       Normalization of SVs into disjointed genomic regions
     [bold][cyan]stratify[/][/]      Count variants per-region in vcf
-    [bold][cyan]divide[/][/]        Divide a VCF into multiple parts
+    [bold][cyan]divide[/][/]        Divide a VCF into independent shards
     [bold][cyan]phab[/][/]          Variant harmonization using MSA
     [bold][cyan]refine[/][/]        Automated bench result refinement with phab
     [bold][cyan]version[/][/]       Print the Truvari version and exit

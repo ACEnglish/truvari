@@ -25,12 +25,6 @@ def parse_args(args):
                         help="Output VCF")
     parser.add_argument("--passonly", action="store_true",
                         help="Only segment PASS variants")
-    parser.add_argument("--no-info", action="store_true",
-                        help="Don't add `anno svinfo` to variants")
-    # parser.add_argument("-m", "--min", default=10, type=int,
-    # help="Minimum span of variants to segment")
-    # parser.add_argument("--alter", action="store_true",
-    # help="Add SEG Format field to all variants (false)")
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args
@@ -52,11 +46,9 @@ def segment_main(args):
     Main entry point for running Segmentation
     """
     args = parse_args(args)
-    logging.critical(vars(args))
     vcf = pysam.VariantFile(args.vcf)
     header = edit_header(vcf.header.copy())
-    if not args.no_info:
-        header = svinfo.edit_header(header)
+    header = svinfo.edit_header(header)
 
     out = pysam.VariantFile(args.output, 'w', header=header)
     tree = defaultdict(IntervalTree)
@@ -97,13 +89,14 @@ def segment_main(args):
             new_entry.start = reg.begin
             new_entry.stop = reg.end + 1
             new_entry.ref = 'N'
-            # assuming they're DEL, but DUP/INV/etc also exist..
-            new_entry.alts = ['<DEL>']
-            if not args.no_info:
-                svlen = new_entry.stop - new_entry.start - 1
-                if svlen > 1:
-                    new_entry.info["SVTYPE"] = 'DEL'
-                    new_entry.info["SVLEN"] = new_entry.stop - new_entry.start - 1
+            svlen = new_entry.stop - new_entry.start - 1
+            if svlen > 1:
+                # assuming they're DEL, but DUP may eventually be seg-able
+                new_entry.alts = ['<DEL>']
+                new_entry.info["SVTYPE"] = 'DEL'
+                new_entry.info["SVLEN"] = new_entry.stop - new_entry.start - 1
+            else:
+                new_entry.alts = ['.']
             new_entry.info["SEGCNT"] = segcnt
             for samp, dat in zip(new_entry.samples, reg.data[1]):
                 if dat == 0:
