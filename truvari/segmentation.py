@@ -10,7 +10,7 @@ import numpy as np
 from intervaltree import IntervalTree
 
 import truvari
-
+from truvari.annotations import svinfo
 
 def parse_args(args):
     """
@@ -25,20 +25,15 @@ def parse_args(args):
                         help="Output VCF")
     parser.add_argument("--passonly", action="store_true",
                         help="Only segment PASS variants")
-    # parser.add_argument("-m", "--min", default=10, type=int,
-    # help="Minimum span of variants to segment")
-    # parser.add_argument("--alter", action="store_true",
-    # help="Add SEG Format field to all variants (false)")
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args
 
 
-def edit_header(vcf):
+def edit_header(header):
     """
     Add new vcf header lines
     """
-    header = vcf.header.copy()
     header.add_line(('##INFO=<ID=SEGCNT,Number=1,Type=Integer,'
                      'Definition="Number of SVs overlapping this segment">'))
     header.add_line(('##FORMAT=<ID=SEG,Number=1,Type=Integer,'
@@ -51,9 +46,10 @@ def segment_main(args):
     Main entry point for running Segmentation
     """
     args = parse_args(args)
-
     vcf = pysam.VariantFile(args.vcf)
-    header = edit_header(vcf)
+    header = edit_header(vcf.header.copy())
+    header = svinfo.edit_header(header)
+
     out = pysam.VariantFile(args.output, 'w', header=header)
     tree = defaultdict(IntervalTree)
     # Assume 0 for anything not HET/HOM
@@ -91,9 +87,16 @@ def segment_main(args):
             new_entry = out.new_record()
             new_entry.chrom = entry.chrom
             new_entry.start = reg.begin
-            new_entry.stop = reg.end
-            # assuming they're DEL, but DUP/INV/etc also exist..
-            new_entry.alts = ['<DEL>']
+            new_entry.stop = reg.end + 1
+            new_entry.ref = 'N'
+            svlen = new_entry.stop - new_entry.start - 1
+            if svlen > 1:
+                # assuming they're DEL, but DUP may eventually be seg-able
+                new_entry.alts = ['<DEL>']
+                new_entry.info["SVTYPE"] = 'DEL'
+                new_entry.info["SVLEN"] = new_entry.stop - new_entry.start - 1
+            else:
+                new_entry.alts = ['.']
             new_entry.info["SEGCNT"] = segcnt
             for samp, dat in zip(new_entry.samples, reg.data[1]):
                 if dat == 0:
@@ -103,5 +106,5 @@ def segment_main(args):
                 else:
                     new_entry.samples[samp]["GT"] = (1, 1)
                 new_entry.samples[samp]["SEG"] = int(dat)
-
             out.write(new_entry)
+    logging.info("Finished segment")

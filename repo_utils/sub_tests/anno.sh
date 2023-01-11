@@ -170,3 +170,11 @@ if [ $test_anno_grpaf_subset ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/anno/anno_grpaf.subtags.vcf) $(fn_md5 $OD/anno_grpaf.subtags.vcf)
 fi
+
+# 
+run test_anno_addid \
+    $truv anno addid $INDIR/variants/multi.vcf.gz -o $OD/addid.vcf
+if [ $test_anno_addid ]; then
+    assert_exit_code 0
+    assert_equal $(fn_md5 $ANSDIR/anno/addid.vcf) $(fn_md5 $OD/addid.vcf)
+fi
