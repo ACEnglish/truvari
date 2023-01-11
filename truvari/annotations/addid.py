@@ -1,11 +1,9 @@
 """
 Sets an ID to variants
 """
-import sys
 import logging
 import argparse
 
-import pysam
 import truvari
 
 def parse_args(args):
@@ -27,7 +25,7 @@ def get_idx(line):
     Get string's tab positions
     """
     ret = [0]
-    for i in range(8):
+    for _ in range(8):
         ret.append(line.index('\t', ret[-1] + 1))
     return ret
 
@@ -37,7 +35,7 @@ def addid_main(cmdargs):
     """
     args = parse_args(cmdargs)
     fh = truvari.opt_gz_open(args.input)
-    
+
     cnt = 0
     with open(args.output, 'w') as fout:
         for line in fh:
