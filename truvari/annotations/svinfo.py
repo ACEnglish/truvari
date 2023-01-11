@@ -24,17 +24,28 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def edit_header(my_vcf):
+def edit_header(header):
     """
     Add INFO for new fields to vcf
     """
-    header = my_vcf.header.copy()
     header.add_line(
         '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="SVTYPE">')
     header.add_line(
         '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SVLEN">')
     return header
 
+def add_svinfo(entry, min_size=0, n_header=None):
+    """
+    Add svinfo
+    """
+    sz = truvari.entry_size(entry)
+    if sz < min_size:
+        return
+    if n_header:
+        entry.translate(n_header)
+    svtype = truvari.entry_variant_type(entry)
+    entry.info["SVTYPE"] = svtype.name
+    entry.info["SVLEN"] = sz
 
 def svinfo_main(cmdargs):
     """
@@ -42,14 +53,9 @@ def svinfo_main(cmdargs):
     """
     args = parse_args(cmdargs)
     vcf = pysam.VariantFile(args.input)
-    n_header = edit_header(vcf)
+    n_header = edit_header(vcf.header.copy())
     with pysam.VariantFile(args.output, 'w', header=n_header) as out:
         for entry in vcf:
-            sz = truvari.entry_size(entry)
-            if sz >= args.minsize:
-                entry.translate(n_header)
-                svtype = truvari.entry_variant_type(entry)
-                entry.info["SVTYPE"] = svtype.name
-                entry.info["SVLEN"] = sz
+            add_svinfo(entry, args.minsize, n_header)
             out.write(entry)
     logging.info("Finished svinfo")
