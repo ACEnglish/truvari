@@ -57,7 +57,7 @@ run test_anno_grm \
     $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl
 if [ $test_anno_grm ]; then
     assert_exit_code 0
-    df_check $ANSDIR/anno/grm.jl $OD/grm.jl
+    df_check test_anno_grm $ANSDIR/anno/grm.jl $OD/grm.jl
 fi
 
 #                                 trf
@@ -118,17 +118,17 @@ run test_anno_bpovl \
                      -a $INDIR/misc/anno.gtf.gz -p gff --sizemin 2
 if [ $test_anno_bpovl ]; then
     assert_exit_code 0
-    df_check $ANSDIR/anno/anno_bpovl.jl $OD/anno_bpovl.jl
+    df_check test_anno_bpovl $ANSDIR/anno/anno_bpovl.jl $OD/anno_bpovl.jl
 fi
 
 #                                 density
-run truvari_anno_density \
+run test_anno_density \
     $truv anno density $INDIR/variants/input3.vcf.gz \
                        -o $OD/anno_density.jl \
                        -g $INDIR/beds/genome.bed -m $INDIR/beds/mask.bed
-if [ $truvari_anno_density ]; then
+if [ $test_anno_density ]; then
     assert_exit_code 0
-    df_check $ANSDIR/anno/anno_density.jl $OD/anno_density.jl
+    df_check test_anno_density $ANSDIR/anno/anno_density.jl $OD/anno_density.jl
 fi
 
 #                                 dpcnt
