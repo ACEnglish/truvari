@@ -224,12 +224,25 @@ def consolidate_phab_vcfs(phab_dir, out_vcf):
     """
     Consolidate all the phab output VCFs in a directory and write to compressed indexed vcf
     """
+    def concat(file_names):
+        tmp_name = truvari.make_temp_filename(suffix=".vcf.gz")
+        files = truvari.make_temp_filename(suffix=".txt")
+        with open(files, 'w') as fout:
+            fout.write('\n'.join(file_names))
+        bcftools.concat("--no-version", "-O", "z", "-a", "-f", files, "-o", tmp_name, catch_stdout=False)
+        pysam.tabix_index(tmp_name, preset='vcf')
+        return tmp_name
+
     in_files = glob.glob(os.path.join(phab_dir, "*", "output.vcf.gz"))
-    tmp_name = truvari.make_temp_filename(suffix=".vcf")
-    output = bcftools.concat("--no-version", *in_files)
-    with open(tmp_name, 'w') as fout:
-        fout.write(output)
-    truvari.compress_index_vcf(tmp_name, out_vcf)
+    in_files.sort()
+    while len(in_files) > 1:
+        tmp_names = []
+        # bcftools gets weird with more than 1,010 files
+        for i in range(0, len(in_files), 1010):
+            tmp_names.append(concat(in_files[i:i+1010]))
+        in_files = tmp_names
+    shutil.move(in_files[0], out_vcf)
+    shutil.move(in_files[0] + '.tbi', out_vcf + '.tbi')
 
 def check_requirements():
     """
