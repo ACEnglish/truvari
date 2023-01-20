@@ -41,7 +41,7 @@ def parse_args(args):
                         help="Subset of samples to MSA from base-VCF")
     parser.add_argument("--cSamples", type=str, default=None,
                         help="Subset of samples to MSA from comp-VCF")
-    parser.add_argument("-m", "--mafft-params", type=str, default="--retree 2 --maxiterate 0",
+    parser.add_argument("-m", "--mafft-params", type=str, default="--auto",
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
@@ -134,7 +134,7 @@ bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {v
                 logging.error(ret.stderr)
                 sys.exit(1)
 
-def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
+def run_mafft(seq_fn, output, params="--auto"):
     """
     Run mafft
     """
@@ -147,7 +147,7 @@ def run_mafft(seq_fn, output, params="--retree 2 --maxiterate 0"):
 
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
-        mafft_params="--retree 2 --maxiterate 0", prefix_comp=False):
+        mafft_params="--auto", prefix_comp=False):
     """
     Harmonize variants with MSA.
 
@@ -306,7 +306,7 @@ def phab_wrapper(job):
 #pylint: disable=too-many-arguments
 # This is just how many arguments it takes
 def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vcf=None,
-               bSamples=None, cSamples=None, mafft_params="--retree 2 --maxiterate 0",
+               bSamples=None, cSamples=None, mafft_params="--auto",
                prefix_comp=False, threads=1):
     """
     Run phab on multiple regions
