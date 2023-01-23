@@ -122,7 +122,6 @@ def make_region_report(data):
     und = data.iloc[tot[tot != 1].index]
     if len(und):
         logging.warning("%d regions state undetermined", len(und))
-            
 
     result = {}
     # precision
@@ -278,7 +277,7 @@ def refine_main(cmdargs):
     summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))
     logging.info(json.dumps(summary, indent=4))
 
-    
+
     report = make_region_report(regions)
     regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
 

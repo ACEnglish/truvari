@@ -12,7 +12,7 @@ run test_phab $truv phab -k $OD/phab_result \
 
 if [ $test_phab ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/repo_utils/answer_key/phab/phab_result.vcf.gz) $(OD/phab_result.vcf.gz)
+    assert_equal $(fn_md5 $ANSDIR/phab/phab_result.vcf.gz) $($OD/phab_result.vcf.gz)
 fi
 
 run test_phab_badparams $truv phab -o $OD/phab_result\
