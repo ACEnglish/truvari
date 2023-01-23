@@ -37,8 +37,6 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
-    parser.add_argument("--prog", action="store_true",
-                        help="Turn on progress monitoring")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
@@ -273,7 +271,7 @@ class StatsBox(OrderedDict):
         """
         Write stats as json to file
         """
-        with open(os.path.join(out_name), 'w') as fout:
+        with open(out_name, 'w') as fout:
             fout.write(json.dumps(self, indent=4))
 
 

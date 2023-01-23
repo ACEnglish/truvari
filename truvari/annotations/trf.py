@@ -94,7 +94,7 @@ class TRFAnno():
         """
         ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"], anno["end"])
         # has to have overlap
-        if ovl_pct <= 0:
+        if ovl_pct == 0:
             return None
         anno["ovl_pct"] = ovl_pct
 

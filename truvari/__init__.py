@@ -63,7 +63,6 @@ Dev methods:
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
-:meth:`setup_progressbar`
 :meth:`vcf_to_df`
 
 Objects:
@@ -172,7 +171,6 @@ from truvari.utils import (
     restricted_float,
     restricted_int,
     setup_logging,
-    setup_progressbar,
     vcf_ranges,
 )
 

@@ -8,6 +8,7 @@ import shutil
 import logging
 import argparse
 from argparse import Namespace
+from collections import defaultdict
 
 import pandas as pd
 
@@ -95,6 +96,48 @@ def consolidate_bench_vcfs(benchdir):
     truvari.compress_index_vcf(cout_name)
     return bout_name + '.gz', cout_name + '.gz'
 
+def make_region_report(data):
+    """
+    Given a refine counts DataFrame, calculate the performance of
+    PPV, TNR, etc. Also adds 'state' column to regions inplace
+    """
+    false_pos = (data['out_fp'] != 0)
+    false_neg = (data['out_fn'] != 0)
+    any_false = false_pos | false_neg
+
+    true_positives = (data['out_tp'] != 0) & (data['out_tpbase'] != 0) & ~any_false
+
+    true_negatives = (data[['out_tpbase', 'out_tp', 'out_fn', 'out_fp']] == 0).all(axis=1)
+
+    state_map = defaultdict(lambda: 'UNK')
+    state_map.update({(True, False, False, False): 'TP',
+                      (False, True, False, False): 'TN',
+                      (False, False, True, False): 'FP',
+                      (False, False, False, True): 'FN',
+                      (False, False, True, True): 'FN,FP'})
+
+    data['state'] = [state_map[_] for _ in zip(true_positives, true_negatives, false_pos, false_neg)]
+
+    tot = (true_positives + false_pos + false_neg + true_negatives).astype(int)
+    und = data.iloc[tot[tot != 1].index]
+    if len(und):
+        logging.warning("%d regions state undetermined", len(und))
+            
+
+    result = {}
+    # precision
+    result["PPV"] = true_positives.sum() / (true_positives.sum() + false_pos.sum())
+    # recall
+    result["TPR"] = true_positives.sum() / (true_positives.sum() + false_neg.sum())
+    # specificity
+    result["TNR"] = true_negatives.sum() / (true_negatives.sum() + false_pos.sum())
+    # negative predictive value
+    result["NPV"] = (true_negatives.sum()) / (true_negatives.sum() + false_neg.sum())
+    # accuracy
+    result["ACC"] = (true_positives.sum() + true_negatives.sum()) / \
+                    (true_positives.sum() + true_negatives.sum() + false_pos.sum() + false_neg.sum())
+
+    return result
 
 def parse_args(args):
     """
@@ -232,10 +275,15 @@ def refine_main(cmdargs):
     summary["base cnt"] = summary["TP-base"] + summary["FN"]
     summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
     summary.calc_performance()
-    summary.write_json(os.path.join(args.benchdir, 'refine.summary.json'))
+    summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))
     logging.info(json.dumps(summary, indent=4))
 
-    regions.to_csv(os.path.join(args.benchdir, 'refine.counts.txt'), sep='\t', index=False)
+    
+    report = make_region_report(regions)
+    regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
+
+    with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
+        fout.write(json.dumps(report, indent=4))
 
     if not args.keep_phab:
         shutil.rmtree(phab_dir)

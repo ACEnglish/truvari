@@ -19,7 +19,6 @@ from importlib.metadata import version
 import Levenshtein
 import pysam
 from pysam import bcftools
-import progressbar
 
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
@@ -72,31 +71,6 @@ def restricted_int(x):
     if x < 0:
         raise argparse.ArgumentTypeError(f"{x} is < 0")
     return x
-
-def setup_progressbar(size):
-    """
-    Build a formatted :class:`progressbar.ProgressBar`
-
-    :param `size`: Number of elements in the progress bar
-    :type `size`: int
-
-    :return: Formatted progress bar
-    :rtype: progressbar.ProgressBar
-
-    Example
-        >>> import truvari
-        >>> import time
-        >>> bar = truvari.setup_progressbar(4)
-        >>> for i in range(4):
-        ...     bar.update(i + 1) # The bar animation updates
-        ...     time.sleep(1)
-        >>> bar.finish() # Final update to the bar
-    """
-    return progressbar.ProgressBar(redirect_stdout=True, max_value=size, widgets=[
-        ' [', progressbar.Timer(), ' ', progressbar.Counter(), '/', str(size), '] ',
-        progressbar.Bar(),
-        ' (', progressbar.ETA(), ') ',
-    ])
 
 
 class LogFileStderr():
