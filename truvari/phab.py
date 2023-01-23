@@ -326,7 +326,7 @@ def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vc
         # build jobs
         jobs = []
         for region in var_regions:
-            m_output = os.path.join(output_dir, region[0], f"{region[1]}-{region[2]}")
+            m_output = os.path.join(output_dir, region[0], f"{region[0]}:{region[1]}-{region[2]}")
             jobs.append((region, m_output, params))
 
         pool.imap_unordered(phab_wrapper, jobs)
