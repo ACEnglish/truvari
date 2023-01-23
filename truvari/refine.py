@@ -124,17 +124,27 @@ def make_region_report(data):
         logging.warning("%d regions state undetermined", len(und))
 
     result = {}
+    result["TP"] = int(true_positives.sum())
+    result["TN"] = int(true_negatives.sum())
+    result["FP"] = int(false_pos.sum())
+    result["FN"] = int(false_neg.sum())
+    result["condition P"] = result["TP"] + result["FN"]
+    result["condition N"] = result["TN"] + result["FP"]
+    result["test P"] = result["TP"] + result["FP"]
+    result["test N"] = result["TN"] + result["FN"]
+    result["UND"] = len(und)
     # precision
-    result["PPV"] = true_positives.sum() / (true_positives.sum() + false_pos.sum())
+    result["PPV"] = result["TP"] / result["test P"]
     # recall
-    result["TPR"] = true_positives.sum() / (true_positives.sum() + false_neg.sum())
+    result["TPR"] = result["TP"] / result["condition P"]
     # specificity
-    result["TNR"] = true_negatives.sum() / (true_negatives.sum() + false_pos.sum())
+    result["TNR"] = result["TN"] / result["condition N"]
     # negative predictive value
-    result["NPV"] = (true_negatives.sum()) / (true_negatives.sum() + false_neg.sum())
+    result["NPV"] = result["TN"] / result["test N"]
     # accuracy
-    result["ACC"] = (true_positives.sum() + true_negatives.sum()) / \
-                    (true_positives.sum() + true_negatives.sum() + false_pos.sum() + false_neg.sum())
+    result["ACC"] = (result["TP"] + result["TN"]) / (result["condition P"] + result["condition N"])
+    result["BA"] = (result["TPR"] + result["TNR"]) / 2
+    result["F1"] = 2 * ((result["PPV"] * result["TPR"]) / (result["PPV"] + result["TPR"]))
 
     return result
 
