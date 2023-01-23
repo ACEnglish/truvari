@@ -233,7 +233,7 @@ def consolidate_phab_vcfs(phab_dir, out_vcf):
         pysam.tabix_index(tmp_name, preset='vcf')
         return tmp_name
 
-    in_files = glob.glob(os.path.join(phab_dir, "*", "output.vcf.gz"))
+    in_files = glob.glob(os.path.join(phab_dir, "*", "*", "output.vcf.gz"))
     in_files.sort()
     while len(in_files) > 1:
         tmp_names = []
@@ -326,7 +326,7 @@ def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vc
         # build jobs
         jobs = []
         for region in var_regions:
-            m_output = os.path.join(output_dir, f"{region[0]}:{region[1]}-{region[2]}")
+            m_output = os.path.join(output_dir, region[0], f"{region[1]}-{region[2]}")
             jobs.append((region, m_output, params))
 
         pool.imap_unordered(phab_wrapper, jobs)
