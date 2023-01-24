@@ -121,8 +121,6 @@ def make_region_report(data):
 
     tot = (true_positives + false_pos + false_neg + true_negatives).astype(int)
     und = data.iloc[tot[tot != 1].index]
-    if len(und):
-        logging.warning("%d regions state undetermined", len(und))
 
     result = {}
 
