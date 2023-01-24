@@ -34,51 +34,52 @@ def parse_args(args):
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
-                        help="Indexed fasta used to call variants")
+                        help="Fasta used to call variants. Turns on reference context sequence comparison")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=defaults.refdist,
-                        help="Max reference location distance (%(default)s)")
+                        help="Max reference distance (%(default)s)")
     thresg.add_argument("-p", "--pctseq", type=truvari.restricted_float, default=defaults.pctseq,
-                        help="Min percent sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
-                        help="Minimum haplotype sequence length to create (%(default)s)")
+                        help="Min sequence similarity. Set to 0 to ignore (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=defaults.pctsize,
-                        help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
+                        help="Min variant size similarity (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=defaults.pctovl,
-                        help="Min pct reciprocal overlap (%(default)s)")
+                        help="Min reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
-                        help="Variant types don't need to match to compare (%(default)s)")
+                        help="Don't compare variant types (%(default)s)")
+    thresg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
+                        help="Number of matches reported per-call")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
+    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
+                        help="Min haplotype sequence length to create (%(default)s)")
+
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
-                        help="Baseline calls sample to use (first)")
+                        help="Baseline calls' sample to use (first)")
     genoty.add_argument("--cSample", type=str, default=None,
-                        help="Comparison calls sample to use (first)")
+                        help="Comparison calls' sample to use (first)")
 
     filteg = parser.add_argument_group("Filtering Arguments")
+    filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
+                        help="Only consider calls with FILTER == PASS")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=defaults.sizemin,
                         help="Minimum variant size to consider from --comp (%(default)s)")
     filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=None,
                         help="Minimum variant size to consider from --base (30)")
     filteg.add_argument("--sizemax", type=truvari.restricted_int, default=defaults.sizemax,
-                        help="Maximum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
-                        help="Only consider calls with FILTER == PASS")
+                        help="Maximum variant size to consider (%(default)s)")
     filteg.add_argument("--no-ref", default=defaults.no_ref, choices=['a', 'b', 'c'],
-                        help="Don't include 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
+                        help="Exclude 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
-                        help="Bed file of regions in the genome to include only calls overlapping")
+                        help="Bed file of regions to analyze. Only calls within regions are counted")
     filteg.add_argument("--extend", type=truvari.restricted_int, default=0,
                         help="Distance to allow comp entries outside of includebed regions (%(default)s)")
-    filteg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
-                        help="Behavior for picking variant matchers")
 
     args = parser.parse_args(args)
     # When sizefilt is not provided and sizemin has been lowered below the default,

@@ -100,7 +100,6 @@ class RegionVCFIterator():
         m_ovl = list(m_ovl)[0]
         # Edge case - the variant spans the entire include region
         return astart >= m_ovl.begin and aend <= m_ovl.end
-        
 
     def extend(self, pad):
         """
