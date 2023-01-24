@@ -1,55 +1,53 @@
-2022-12-01 01:13:10,036 [INFO] Truvari v4.0.0.dev0+detached
-2022-12-01 01:13:10,038 [INFO] Command /usr/local/bin/truvari bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_one
-2022-12-01 01:13:10,039 [INFO] Params:
+2023-01-24 01:23:25,300 [INFO] Truvari v4.0.0.dev0+7c777a7.uc
+2023-01-24 01:23:25,302 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_one
+2023-01-24 01:23:25,303 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
     "output": "test_results/refine_output_one",
-    "reference": null,
+    "includebed": "/data/repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed",
+    "extend": 0,
     "debug": false,
-    "prog": false,
+    "reference": null,
     "refdist": 500,
-    "pctsim": 0.7,
+    "pctseq": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
-    "dup_to_ins": false,
     "use_lev": false,
     "chunksize": 1000,
-    "gtcomp": false,
     "bSample": "syndip",
     "cSample": "HG002",
+    "dup_to_ins": false,
     "sizemin": 5,
     "sizefilt": 5,
     "sizemax": 50000,
     "passonly": false,
     "no_ref": false,
-    "includebed": "/data/repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed",
-    "extend": 0,
-    "multimatch": false
+    "pick": "single"
 }
-2022-12-01 01:13:10,131 [INFO] Including 228 bed regions
-2022-12-01 01:13:11,119 [INFO] Zipped 7259 variants Counter({'comp': 5363, 'base': 1896})
-2022-12-01 01:13:11,120 [INFO] 220 chunks of 7259 variants Counter({'__filtered': 6209, 'base': 591, 'comp': 459})
-2022-12-01 01:13:11,127 [INFO] Stats: {
-    "TP-base": 390,
-    "TP-call": 390,
-    "FP": 69,
+2023-01-24 01:23:25,369 [INFO] Including 228 bed regions
+2023-01-24 01:23:26,781 [INFO] Zipped 7250 variants Counter({'comp': 5357, 'base': 1893})
+2023-01-24 01:23:26,782 [INFO] 214 chunks of 7250 variants Counter({'__filtered': 6209, 'base': 588, 'comp': 453})
+2023-01-24 01:23:26,940 [INFO] Stats: {
+    "TP-base": 387,
+    "TP-comp": 387,
+    "FP": 66,
     "FN": 201,
-    "precision": 0.8496732026143791,
-    "recall": 0.6598984771573604,
-    "f1": 0.7428571428571428,
-    "base cnt": 591,
-    "call cnt": 459,
-    "TP-call_TP-gt": 385,
-    "TP-call_FP-gt": 5,
-    "TP-base_TP-gt": 385,
+    "precision": 0.8543046357615894,
+    "recall": 0.6581632653061225,
+    "f1": 0.7435158501440922,
+    "base cnt": 588,
+    "comp cnt": 453,
+    "TP-comp_TP-gt": 382,
+    "TP-comp_FP-gt": 5,
+    "TP-base_TP-gt": 382,
     "TP-base_FP-gt": 5,
-    "gt_concordance": 0.9871794871794872,
+    "gt_concordance": 0.9870801033591732,
     "gt_matrix": {
         "(1, 0)": {
-            "(0, 1)": 205,
+            "(0, 1)": 202,
             "(1, 0)": 14,
             "(1, 1)": 1
         },
@@ -64,4 +62,4 @@
         }
     }
 }
-2022-12-01 01:13:11,276 [INFO] Finished bench
+2023-01-24 01:23:26,941 [INFO] Finished bench

@@ -109,6 +109,7 @@ def make_region_report(data):
 
     true_negatives = (data[['out_tpbase', 'out_tp', 'out_fn', 'out_fp']] == 0).all(axis=1)
 
+
     state_map = defaultdict(lambda: 'UNK')
     state_map.update({(True, False, False, False): 'TP',
                       (False, True, False, False): 'TN',
@@ -124,15 +125,22 @@ def make_region_report(data):
         logging.warning("%d regions state undetermined", len(und))
 
     result = {}
+
+    cond = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
+    condP = int(cond.sum())
+    condN = int((~cond).sum())
+    test = (data['out_tp'] != 0) | (data['out_fp'] != 0)
+    testP = int(test.sum())
+    testN = int((~test).sum())
+
     result["TP"] = int(true_positives.sum())
     result["TN"] = int(true_negatives.sum())
     result["FP"] = int(false_pos.sum())
     result["FN"] = int(false_neg.sum())
-    result["condition P"] = result["TP"] + result["FN"]
-    result["condition N"] = result["TN"] + result["FP"]
-    result["test P"] = result["TP"] + result["FP"]
-    result["test N"] = result["TN"] + result["FN"]
-    result["UND"] = len(und)
+    result["condition P"] = condP
+    result["condition N"] = condN
+    result["test P"] = testP
+    result["test N"] = testN
     # precision
     result["PPV"] = result["TP"] / result["test P"]
     # recall
@@ -145,6 +153,7 @@ def make_region_report(data):
     result["ACC"] = (result["TP"] + result["TN"]) / (result["condition P"] + result["condition N"])
     result["BA"] = (result["TPR"] + result["TNR"]) / 2
     result["F1"] = 2 * ((result["PPV"] * result["TPR"]) / (result["PPV"] + result["TPR"]))
+    result["UND"] = len(und)
 
     return result
 

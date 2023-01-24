@@ -94,7 +94,13 @@ class RegionVCFIterator():
             return False
         if astart == aend - 1:
             return self.tree[entry.chrom].overlaps(astart)
-        return len(self.tree[entry.chrom].overlap(astart, aend)) == 1
+        m_ovl = self.tree[entry.chrom].overlap(astart, aend)
+        if len(m_ovl) != 1:
+            return False
+        m_ovl = list(m_ovl)[0]
+        # Edge case - the variant spans the entire include region
+        return astart >= m_ovl.begin and aend <= m_ovl.end
+        
 
     def extend(self, pad):
         """
