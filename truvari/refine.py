@@ -126,31 +126,31 @@ def make_region_report(data):
 
     result = {}
 
-    cond = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
-    condP = int(cond.sum())
-    condN = int((~cond).sum())
-    test = (data['out_tp'] != 0) | (data['out_fp'] != 0)
-    testP = int(test.sum())
-    testN = int((~test).sum())
+    base = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
+    baseP = int(base.sum())
+    baseN = int((~base).sum())
+    comp = (data['out_tp'] != 0) | (data['out_fp'] != 0)
+    compP = int(comp.sum())
+    compN = int((~comp).sum())
 
     result["TP"] = int(true_positives.sum())
     result["TN"] = int(true_negatives.sum())
     result["FP"] = int(false_pos.sum())
     result["FN"] = int(false_neg.sum())
-    result["condition P"] = condP
-    result["condition N"] = condN
-    result["test P"] = testP
-    result["test N"] = testN
+    result["base P"] = baseP
+    result["base N"] = baseN
+    result["comp P"] = compP
+    result["comp N"] = compN
     # precision
-    result["PPV"] = result["TP"] / result["test P"]
+    result["PPV"] = result["TP"] / result["comp P"]
     # recall
-    result["TPR"] = result["TP"] / result["condition P"]
+    result["TPR"] = result["TP"] / result["base P"]
     # specificity
-    result["TNR"] = result["TN"] / result["condition N"]
+    result["TNR"] = result["TN"] / result["base N"]
     # negative predictive value
-    result["NPV"] = result["TN"] / result["test N"]
+    result["NPV"] = result["TN"] / result["comp N"]
     # accuracy
-    result["ACC"] = (result["TP"] + result["TN"]) / (result["condition P"] + result["condition N"])
+    result["ACC"] = (result["TP"] + result["TN"]) / (result["base P"] + result["base N"])
     result["BA"] = (result["TPR"] + result["TNR"]) / 2
     result["F1"] = 2 * ((result["PPV"] * result["TPR"]) / (result["PPV"] + result["TPR"]))
     result["UND"] = len(und)

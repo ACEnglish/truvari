@@ -7,7 +7,6 @@ import hashlib
 import logging
 
 import edlib
-import Levenshtein
 
 import truvari
 
@@ -172,7 +171,7 @@ def entry_is_present(entry, sample=None):
         truvari.GT.HET, truvari.GT.HOM]
 
 
-def entry_seq_similarity(entryA, entryB, ref=None, min_len=0, use_lev=True):
+def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
     """
     Calculate sequence similarity of two entries. If reference is not None,
     compare their shared reference context. Otherwise, use the unroll technique.
@@ -185,8 +184,6 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0, use_lev=True):
     :type `ref`: :class:`pysam.FastaFile`
     :param `min_len`: Minimum length of reference context to generate
     :type `min_len`: float, optional
-    :param `use_lev`: Use levenshtein distance by default. Set to False to edlib
-    :type `use_lev`: bool, optional
 
     :return: sequence similarity
     :rtype: float
@@ -199,22 +196,22 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0, use_lev=True):
     if entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV:
         allele1 = entryA.alts[0]
         allele2 = entryB.alts[0]
-        return seqsim(allele1, allele2, use_lev)
+        return seqsim(allele1, allele2)
 
     a_seq = entryA.ref if entry_variant_type(entryA) == truvari.SV.DEL else entryA.alts[0]
     b_seq = entryB.ref if entry_variant_type(entryB) == truvari.SV.DEL else entryB.alts[0]
     st_dist, ed_dist = entry_distance(entryA, entryB)
 
     if st_dist == 0 or ed_dist == 0:
-        return seqsim(a_seq, b_seq, use_lev)
+        return seqsim(a_seq, b_seq)
 
     if ref is not None:
         allele1, allele2 = entry_shared_ref_context(entryA, entryB, ref, min_len=min_len)
-        return seqsim(allele1, allele2, use_lev)
+        return seqsim(allele1, allele2)
 
     if st_dist > 0:
-        return unroll_compare(a_seq, b_seq, st_dist % len(b_seq), use_lev)
-    return unroll_compare(b_seq, a_seq, st_dist % len(a_seq), use_lev)
+        return unroll_compare(a_seq, b_seq, st_dist % len(b_seq))
+    return unroll_compare(b_seq, a_seq, st_dist % len(a_seq))
 
 def entry_reciprocal_overlap(entry1, entry2):
     """
@@ -523,7 +520,7 @@ def reciprocal_overlap(astart, aend, bstart, bend):
     return ovl_pct
 
 
-def seqsim(allele1, allele2, use_lev=False):
+def seqsim(allele1, allele2):
     """
     Calculate similarity of two sequences
 
@@ -531,16 +528,12 @@ def seqsim(allele1, allele2, use_lev=False):
     :type `allele1`: :class:`pysam.VariantRecord`
     :param `allele2`: second entry
     :type `allele2`: :class:`pysam.VariantRecord`
-    :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
-    :type `use_lev`: bool, optional
 
     :return: sequence similarity
     :rtype: float
     """
     allele1 = allele1.upper()
     allele2 = allele2.upper()
-    if use_lev:
-        return Levenshtein.ratio(allele1, allele2)
     scr = edlib.align(allele1, allele2)
     totlen = len(allele1) + len(allele2)
     return (totlen - scr["editDistance"]) / totlen
@@ -566,7 +559,7 @@ def sizesim(sizeA, sizeB):
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 
-def unroll_compare(seqA, seqB, p, use_lev=False):
+def unroll_compare(seqA, seqB, p):
     """
     Unroll two sequences and compare.
     See https://gist.github.com/ACEnglish/1e7421c46ee10c71bee4c03982e5df6c for details
@@ -577,12 +570,10 @@ def unroll_compare(seqA, seqB, p, use_lev=False):
     :type `seqB`: string
     :param `p`: positional difference of A from B
     :type `p`: integer
-    :param `use_lev`: Use levenshtein distance by default. Set to False to use the faster edlib
-    :type `use_lev`: bool, optional
 
     :return: sequence similarity of seqA vs seqB after unrolling
     :rtype: float
     """
     f = p % len(seqB)
     uB = seqB[-f:] + seqB[:-f]
-    return seqsim(seqA, uB, use_lev)
+    return seqsim(seqA, uB)

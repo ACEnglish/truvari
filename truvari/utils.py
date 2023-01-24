@@ -16,9 +16,10 @@ from datetime import timedelta
 from collections import namedtuple
 from importlib.metadata import version
 
-import Levenshtein
 import pysam
 from pysam import bcftools
+
+import truvari
 
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
@@ -345,7 +346,7 @@ def make_temp_filename(tmpdir=None, suffix=""):
     fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix # pylint: disable=protected-access
     return fn
 
-def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
+def help_unknown_cmd(user_cmd, avail_cmds, threshold=0.8):
     """
     Guess the command in avail_cmds that's most similar to user_cmd. If there is
     no guess below threshold, don't guess.
@@ -368,17 +369,13 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     """
     guesses = []
     for real in avail_cmds:
-        ratio = Levenshtein.ratio(user_cmd, real)
-        distance = Levenshtein.distance(user_cmd, real)
-        score = distance - ratio
-        score2 = 1 - distance / len(real)
-        dat = (score, real)
-        if ratio >= threshold and score2 >= threshold:
-            guesses.append(dat)
+        score = truvari.seqsim(user_cmd, real)
+        if score >= threshold:
+            guesses.append((score, real))
     guesses.sort()
     if not guesses:
         return None
-    return guesses[0][1]
+    return guesses[-1][1]
 
 def performance_metrics(tpbase, tp, fn, fp):
     """

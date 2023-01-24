@@ -53,8 +53,6 @@ def parse_args(args):
                         help="Variant types don't need to match to compare (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
-    thresg.add_argument("--use-lev", action="store_true",
-                        help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 
