@@ -604,6 +604,9 @@ def check_params(args):
     if not args.repeats.endswith(".bed.gz"):
         logging.error(f"{args.repeats} isn't compressed bed")
         check_fail = True
+    if not os.path.exists(args.repeats):
+        logging.error(f"{args.repeats} doesn't exit")
+        check_fail = True
     if not os.path.exists(args.repeats + '.tbi'):
         logging.error(f"{args.repeats}.tbi doesn't exit")
         check_fail = True
