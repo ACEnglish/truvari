@@ -261,9 +261,6 @@ def check_params(args):
     Ensure files are okay to use
     """
     check_fail = False
-    if not os.path.exists(args.region):
-        logging.error("Region %s does not exist", args.region)
-        check_fail = True
     if not args.output.endswith(".vcf.gz"):
         logging.error("Output file must be a '.vcf.gz', got %s", args.output)
         check_fail = True
