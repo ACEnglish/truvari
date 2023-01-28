@@ -14,6 +14,8 @@ import pysam
 from pysam import bcftools
 import truvari
 
+DEFAULT_MAFFT_PARAM="--auto --thread 1"
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -41,7 +43,7 @@ def parse_args(args):
                         help="Subset of samples to MSA from base-VCF")
     parser.add_argument("--cSamples", type=str, default=None,
                         help="Subset of samples to MSA from comp-VCF")
-    parser.add_argument("-m", "--mafft-params", type=str, default="--auto",
+    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
@@ -82,6 +84,8 @@ def get_reference(fn, output, chrom, start, end):
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
     with open(output, 'w') as fout:
         fout.write(f">ref_{chrom}_{start}_{end}\n{oseq}\n")
+    with open(output + '.ref.fa', 'w') as fout:
+        fout.write(f">{chrom}:{start}-{end}\n{oseq}\n")
 
 def pull_variants(vcf, region, output, ref, samples=None):
     """
@@ -114,9 +118,8 @@ def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):
     """
     chrom, start, end = region
     prefix = 'p:' if prefix_name else ''
-    cmd = """samtools faidx {ref} {chrom}:{start}-{end} | \
-bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {vcf} >> {output}
-"""
+    ref = output + '.ref.fa'
+    cmd = "cat {ref} | bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {vcf} >> {output}"
     for samp in samples:
         for hap in [1, 2]:
             m_cmd = cmd.format(ref=ref,
@@ -134,7 +137,7 @@ bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {v
                 logging.error(ret.stderr)
                 sys.exit(1)
 
-def run_mafft(seq_fn, output, params="--auto"):
+def run_mafft(seq_fn, output, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft
     """
@@ -147,7 +150,7 @@ def run_mafft(seq_fn, output, params="--auto"):
 
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
-        mafft_params="--auto", prefix_comp=False):
+        mafft_params=DEFAULT_MAFFT_PARAM, prefix_comp=False):
     """
     Harmonize variants with MSA.
 
@@ -171,8 +174,6 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
     :type `mafft_params`: :class:`str`
     :param `prefix_comp`: Ensure unique sample names by prefixing comp samples
     :type `prefix_comp`: :class:`bool`
-
-    Raises IOError if `output_dir` does not exist
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -249,7 +250,7 @@ def check_requirements():
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["bcftools", "bgzip", "tabix", "samtools", "mafft"]:
+    for prog in ["bcftools", "bgzip", "tabix", "mafft"]:
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
@@ -260,6 +261,9 @@ def check_params(args):
     Ensure files are okay to use
     """
     check_fail = False
+    if not os.path.exists(args.region):
+        logging.error("Region %s does not exist", args.region)
+        check_fail = True
     if not args.output.endswith(".vcf.gz"):
         logging.error("Output file must be a '.vcf.gz', got %s", args.output)
         check_fail = True
@@ -291,6 +295,7 @@ def check_params(args):
     if not os.path.exists(args.reference):
         logging.error("Reference %s does not exist", args.reference)
         check_fail = True
+
     return check_fail
 
 def phab_wrapper(job):
@@ -305,8 +310,8 @@ def phab_wrapper(job):
 
 #pylint: disable=too-many-arguments
 # This is just how many arguments it takes
-def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vcf=None,
-               bSamples=None, cSamples=None, mafft_params="--auto",
+def phab_multi(base_vcf, reference, output_dir, var_regions, buf=100, comp_vcf=None,
+               bSamples=None, cSamples=None, mafft_params=DEFAULT_MAFFT_PARAM,
                prefix_comp=False, threads=1):
     """
     Run phab on multiple regions
@@ -316,13 +321,13 @@ def phab_multi(base_vcf, reference, output_dir, var_regions, buffer=100, comp_vc
 
     params = {"base_vcf": base_vcf,
               "reference": reference,
-              "buffer": buffer,
+              "buffer": buf,
               "comp_vcf": comp_vcf,
               "bSamples": bSamples,
               "cSamples": cSamples,
               "mafft_params": mafft_params,
               "prefix_comp": prefix_comp}
-    with multiprocessing.Pool(threads) as pool:
+    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
         # build jobs
         jobs = []
         for region in var_regions:

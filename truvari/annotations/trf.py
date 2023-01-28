@@ -161,7 +161,6 @@ class TRFAnno():
                 annos = annos["key"]
             self.translate_coords(annos)
 
-
         scores = []
         for anno in annos:
             m_sc = self.score_annotation(entry.start, entry.stop, anno)
