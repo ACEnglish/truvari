@@ -240,7 +240,7 @@ def refine_main(cmdargs):
     regions = tree_to_regions(reeval_trees)
 
     # Stratify.
-    counts = truvari.benchdir_count_entries(args.benchdir, regions)[["tpbase", "tp", "fn", "fp"]]
+    counts = truvari.benchdir_count_entries(args.benchdir, regions, True)[["tpbase", "tp", "fn", "fp"]]
     regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
     counts.index = regions.index
     counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
@@ -276,7 +276,7 @@ def refine_main(cmdargs):
     m_bench.run()
 
     # update the output variant counts
-    counts = truvari.benchdir_count_entries(outdir, to_eval_coords)[["tpbase", "tp", "fn", "fp"]]
+    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True)[["tpbase", "tp", "fn", "fp"]]
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
