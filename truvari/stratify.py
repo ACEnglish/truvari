@@ -42,7 +42,7 @@ def count_entries(vcf, regions, within):
         for entry in vcf.fetch(row[0], row[1], row[2]):
             if within:
                 ent_start, ent_end = truvari.entry_boundaries(entry)
-                if not row[1] <= ent_start and ent_end <= row[2]:
+                if not (row[1] <= ent_start and ent_end <= row[2]):
                     continue
             counts[idx] += 1
     return counts

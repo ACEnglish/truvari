@@ -247,7 +247,7 @@ def refine_main(cmdargs):
     regions = regions.join(counts)
 
     # Figure out which to reevaluate
-    regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
+    regions["refined"] = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
     logging.info("%d regions to be refined", regions["refined"].sum())
 
     reeval_bed = truvari.make_temp_filename(suffix=".bed")
