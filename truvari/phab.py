@@ -139,14 +139,15 @@ def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):
 
 def run_mafft(seq_fn, output, params=DEFAULT_MAFFT_PARAM):
     """
-    Run mafft
+    Run mafft - return True if successful
     """
     cmd = f"mafft {params} {seq_fn} > {output}"
     ret = truvari.cmd_exe(cmd)
-    if ret.ret_code != 0: # this doesn't (ever?) exit non-zero
+    if ret.ret_code != 0:
         logging.error("Unable to run MAFFT on %s", seq_fn)
         logging.error(ret.stderr)
-        sys.exit(1)
+        return False
+    return True
 
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
@@ -206,7 +207,8 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
 
     msa_output = os.path.join(output_dir, "msa.fa")
-    run_mafft(sequences, msa_output, mafft_params)
+    if not run_mafft(sequences, msa_output, mafft_params):
+        return
 
     output_vcf = os.path.join(output_dir, "output.vcf")
     vcf = pysam.VariantFile(base_vcf)

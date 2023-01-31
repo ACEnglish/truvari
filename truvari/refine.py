@@ -96,6 +96,20 @@ def consolidate_bench_vcfs(benchdir):
     truvari.compress_index_vcf(cout_name)
     return bout_name + '.gz', cout_name + '.gz'
 
+def make_variant_report(regions):
+    """
+    Count all the variants, log and write to output
+    """
+    summary = truvari.StatsBox()
+    summary["TP-base"] = int(regions["out_tpbase"].sum())
+    summary["TP-comp"] = int(regions["out_tp"].sum())
+    summary["FP"] = int(regions["out_fp"].sum())
+    summary["FN"] = int(regions["out_fn"].sum())
+    summary["base cnt"] = summary["TP-base"] + summary["FN"]
+    summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
+    summary.calc_performance()
+    return summary
+
 def make_region_report(data):
     """
     Given a refine counts DataFrame, calculate the performance of
@@ -228,6 +242,29 @@ def check_params(args):
     os.makedirs(phdir)
     return Namespace(**params)
 
+def initial_stratify(benchdir, regions):
+    """
+    Get the stratify counts from the initial bench results
+    """
+    counts = truvari.benchdir_count_entries(benchdir, regions, True)[["tpbase", "tp", "fn", "fp"]]
+    regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
+    counts.index = regions.index
+    counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
+    regions = regions.join(counts)
+    return regions
+
+def refined_stratify(outdir, to_eval_coords, regions):
+    """
+    update regions in-place with the output variant counts
+    """
+    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True)[["tpbase", "tp", "fn", "fp"]]
+    counts.index = regions[regions['refined']].index
+    counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
+    regions = regions.join(counts)
+    for i in ["tpbase", "tp", "fn", "fp"]:
+        regions[f"out_{i}"] = regions[f"in_{i}"].where(~regions['refined'], regions[f"out_{i}"])
+    return regions
+
 def refine_main(cmdargs):
     """
     Main
@@ -240,24 +277,21 @@ def refine_main(cmdargs):
     regions = tree_to_regions(reeval_trees)
 
     # Stratify.
-    counts = truvari.benchdir_count_entries(args.benchdir, regions, True)[["tpbase", "tp", "fn", "fp"]]
-    regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
-    counts.index = regions.index
-    counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
-    regions = regions.join(counts)
+    regions = initial_stratify(args.benchdir, regions)
+
 
     # Figure out which to reevaluate
-    regions["refined"] = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
+    # Set the input VCFs for phab
+    if args.use_original:
+        base_vcf, comp_vcf = params.base, params.comp
+        regions["refined"] = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
+    else:
+        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
+        regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
     logging.info("%d regions to be refined", regions["refined"].sum())
 
     reeval_bed = truvari.make_temp_filename(suffix=".bed")
     regions[regions["refined"]].to_csv(reeval_bed, sep='\t', header=False, index=False)
-
-    # Set the input VCFs for phab
-    if args.use_original:
-        base_vcf, comp_vcf = params.base, params.comp
-    else:
-        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
 
     # Send the vcfs to phab
     to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
@@ -275,25 +309,10 @@ def refine_main(cmdargs):
     m_bench = truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
     m_bench.run()
 
-    # update the output variant counts
-    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True)[["tpbase", "tp", "fn", "fp"]]
-    counts.index = regions[regions['refined']].index
-    counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
-    regions = regions.join(counts)
-    for i in ["tpbase", "tp", "fn", "fp"]:
-        regions[f"out_{i}"] = regions[f"in_{i}"].where(~regions['refined'], regions[f"out_{i}"])
+    regions = refined_stratify(outdir, to_eval_coords, regions)
 
-    summary = truvari.StatsBox()
-    summary["TP-base"] = int(regions["out_tpbase"].sum())
-    summary["TP-comp"] = int(regions["out_tp"].sum())
-    summary["FP"] = int(regions["out_fp"].sum())
-    summary["FN"] = int(regions["out_fn"].sum())
-    summary["base cnt"] = summary["TP-base"] + summary["FN"]
-    summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
-    summary.calc_performance()
+    summary = make_variant_report(regions)
     summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))
-    logging.info(json.dumps(summary, indent=4))
-
 
     report = make_region_report(regions)
     regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
