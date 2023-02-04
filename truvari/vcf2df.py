@@ -239,7 +239,7 @@ def tags_to_ops(items):
     return columns, ops
 
 
-def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
+def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, with_seqs=False):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
@@ -256,6 +256,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     :type `sample`: int/string, optional
     :param `no_prefix`: Don't prefix FORMAT fields with sample name
     :type `no_prefix`: boolean, optional
+    :param `with_seqs`: Add columns for REF and ALT sequences (ALT will be list)
+    :type `with_seqs`: boolean, optional
 
     :return: Converted VCF
     :rtype: pandas.DataFrame
@@ -302,6 +304,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
             sample = [sample]
     else:
         sample = []
+    if with_seqs:
+        header.extend(["REF", "ALT"])
 
     def _transform():
         """
@@ -328,6 +332,10 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
             for samp in sample:
                 for i, op in fmt_ops:
                     cur_row.extend(op(entry.samples[samp], i))
+
+            if with_seqs:
+                cur_row.extend([entry.ref, entry.alts])
+
             yield cur_row
 
     ret = pd.DataFrame(_transform(), columns=header)
