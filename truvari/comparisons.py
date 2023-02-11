@@ -441,8 +441,6 @@ def entry_variant_type(entry):
     mat = sv_alt_match.match(entry.alts[0]) if entry.alts is not None else None
     if mat is not None:
         return truvari.get_svtype(mat.groupdict()["SVTYPE"])
-    logging.warning(
-        "SVTYPE is undetermined for entry, using 'UNK' - %s", str(entry))
     return truvari.get_svtype("UNK")
 
 

@@ -239,7 +239,7 @@ def tags_to_ops(items):
     return columns, ops
 
 
-def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, with_seqs=False):
+def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False, alleles=False):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
@@ -250,14 +250,14 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, w
     :type `fn`: string
     :param `with_info`:  Add the INFO fields from the VCF to the DataFrame columns
     :type `with_info`: boolean, optional
-    :param `with_fmt`: Add the FORMAT fields from the VCF to the DataFrame columns
+    :param `with_format`: Add the FORMAT fields from the VCF to the DataFrame columns
     :type `with_info`: boolean, optional
-    :param `sample`: Sample from the VCF to parse. Only used when with_fmt==True
+    :param `sample`: Sample from the VCF to parse. Only used when with_format==True
     :type `sample`: int/string, optional
     :param `no_prefix`: Don't prefix FORMAT fields with sample name
     :type `no_prefix`: boolean, optional
-    :param `with_seqs`: Add columns for REF and ALT sequences (ALT will be list)
-    :type `with_seqs`: boolean, optional
+    :param `alleles`: Add column with allele sequences
+    :type `alleles`: boolean, optional
 
     :return: Converted VCF
     :rtype: pandas.DataFrame
@@ -273,7 +273,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, w
               dtype='object')
     """
     v = pysam.VariantFile(fn)
-    if with_fmt and not sample:
+    if with_format and not sample:
         sample = list(v.header.samples)
     if sample and len(sample) > 1 and no_prefix:
         raise TypeError("Multiple samples being pulled, must use prefix")
@@ -288,7 +288,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, w
         header.extend(info_header)
 
     fmt_ops = []
-    if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
+    if with_format:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
         logging.debug(fmt_header)
         if isinstance(sample, list) and not no_prefix:
@@ -304,8 +304,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, w
             sample = [sample]
     else:
         sample = []
-    if with_seqs:
-        header.extend(["REF", "ALT"])
+    if alleles:
+        header.append("alleles")
 
     def _transform():
         """
@@ -333,8 +333,8 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False, w
                 for i, op in fmt_ops:
                     cur_row.extend(op(entry.samples[samp], i))
 
-            if with_seqs:
-                cur_row.extend([entry.ref, entry.alts])
+            if alleles:
+                cur_row.append(entry.alleles)
 
             yield cur_row
 
