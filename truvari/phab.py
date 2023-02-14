@@ -8,6 +8,7 @@ import glob
 import shutil
 import logging
 import argparse
+import resource
 import multiprocessing
 
 import pysam
@@ -77,15 +78,17 @@ def parse_regions(argument):
 def get_reference(fn, output, chrom, start, end):
     """
     Pull a subset of the reference and put into a file
+    Returns the anchor base (1bp upstream from start) for msa2vcf
     """
     fasta = pysam.FastaFile(fn)
-    oseq = fasta.fetch(chrom, start - 1, end)
+    oseq = fasta.fetch(chrom, start - 2, end)
     # no need to make it pretty?
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
     with open(output, 'w') as fout:
-        fout.write(f">ref_{chrom}_{start}_{end}\n{oseq}\n")
+        fout.write(f">ref_{chrom}_{start}_{end}\n{oseq[1:]}\n")
     with open(output + '.ref.fa', 'w') as fout:
-        fout.write(f">{chrom}:{start}-{end}\n{oseq}\n")
+        fout.write(f">{chrom}:{start}-{end}\n{oseq[1:]}\n")
+    return oseq[0]
 
 def pull_variants(vcf, region, output, ref, samples=None):
     """
@@ -197,7 +200,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         return
 
     sequences = os.path.join(output_dir, "haps.fa")
-    get_reference(reference, sequences, *buff_region)
+    anchor_base = get_reference(reference, sequences, *buff_region)
 
     build_consensus(subset_base_vcf, reference, buff_region, sequences, bSamples)
 
@@ -217,7 +220,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
 
     with open(output_vcf, 'w') as fout:
         try:
-            fout.write(truvari.msa2vcf(msa_output, n_header))
+            fout.write(truvari.msa2vcf(msa_output, n_header, anchor_base))
         except RuntimeWarning:
             return
 
@@ -235,14 +238,14 @@ def consolidate_phab_vcfs(phab_dir, out_vcf):
         bcftools.concat("--no-version", "-O", "z", "-a", "-f", files, "-o", tmp_name, catch_stdout=False)
         pysam.tabix_index(tmp_name, preset='vcf')
         return tmp_name
-
+    max_files = (resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 1) // 2
     in_files = glob.glob(os.path.join(phab_dir, "*", "*", "output.vcf.gz"))
     in_files.sort()
     while len(in_files) > 1:
         tmp_names = []
         # bcftools gets weird with more than 1,010 files
-        for i in range(0, len(in_files), 1010):
-            tmp_names.append(concat(in_files[i:i+1010]))
+        for i in range(0, len(in_files), max_files):
+            tmp_names.append(concat(in_files[i:i+max_files]))
         in_files = tmp_names
     shutil.move(in_files[0], out_vcf)
     shutil.move(in_files[0] + '.tbi', out_vcf + '.tbi')

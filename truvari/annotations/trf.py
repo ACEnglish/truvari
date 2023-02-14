@@ -287,6 +287,15 @@ def run_trf(fa_fn, executable="trf409.linux64",
             trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs"):
     """
     Given a fasta file, run TRF and return result
+    trf_params are
+        File = sequences input file
+        Match  = matching weight
+        Mismatch  = mismatching penalty
+        Delta = indel penalty
+        PM = match probability (whole number)
+        PI = indel probability (whole number)
+        Minscore = minimum alignment score to report
+        MaxPeriod = maximum period size to report
     """
     if "-ngs" not in trf_params:
         trf_params = trf_params + " -ngs "
