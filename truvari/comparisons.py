@@ -4,7 +4,6 @@ that compare events, coordinates, or transform vcf entries
 """
 import re
 import hashlib
-import logging
 
 import edlib
 
