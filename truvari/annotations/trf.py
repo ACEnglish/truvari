@@ -58,12 +58,13 @@ class TRFAnno():
     Operates on a single TRF region across multiple TRF annotations
     """
 
-    def __init__(self, region, reference, motif_similarity=0.90):
+    def __init__(self, region, reference, motif_similarity=0.90, buf=5):
         """ setup """
         self.region = region
         self.reference = reference
         self.motif_similarity = motif_similarity
         self.known_motifs = {_["repeat"]:_["copies"] for _ in self.region["annos"]}
+        self.buffer = buf
 
     def make_seq(self, entry, svtype):
         """
@@ -92,7 +93,7 @@ class TRFAnno():
         Scores the annotation. Addes fields in place.
         if is_new, we calculate the diff
         """
-        ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"], anno["end"])
+        ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"] - self.buffer, anno["end"] + self.buffer)
         # has to have overlap
         if ovl_pct == 0:
             return None
@@ -128,7 +129,8 @@ class TRFAnno():
         scores = []
         for anno in self.region["annos"]:
             # + 1 for anchor base
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, anno["start"], anno["end"])
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
+                                anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
             m_sc = dict(anno)
@@ -206,7 +208,8 @@ class TRFAnno():
         scores = []
         best_score = {}
         for anno in self.region["annos"]:
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, anno["start"], anno["end"])
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
+                            anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
 
@@ -417,7 +420,7 @@ def process_tr_region(region):
 
     ref = pysam.FastaFile(trfshared.args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
-    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity)
+    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity, trfshared.args.buffer)
     vcf = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
@@ -565,6 +568,8 @@ def parse_args(args):
                         help="Default parameters to send to trf (%(default)s)")
     parser.add_argument("-r", "--repeats", type=str, required=True,
                         help="Reference repeat annotations")
+    parser.add_argument("--buffer", type=int, default=5,
+                        help="buffer on annotations during intersection (%(default)s)")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference fasta file")
     parser.add_argument("-s", "--motif-similarity", type=truvari.restricted_float, default=0.90,
