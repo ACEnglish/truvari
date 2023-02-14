@@ -79,13 +79,13 @@ def get_reference(fn, output, chrom, start, end):
     Pull a subset of the reference and put into a file
     """
     fasta = pysam.FastaFile(fn)
-    oseq = fasta.fetch(chrom, start - 1, end)
+    oseq = fasta.fetch(chrom, start - 2, end)
     # no need to make it pretty?
     #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
     with open(output, 'w') as fout:
-        fout.write(f">ref_{chrom}_{start}_{end}\n{oseq}\n")
+        fout.write(f">ref_{chrom}_{start}_{end}_{oseq[0]}\n{oseq[1:]}\n")
     with open(output + '.ref.fa', 'w') as fout:
-        fout.write(f">{chrom}:{start}-{end}\n{oseq}\n")
+        fout.write(f">{chrom}:{start}-{end}_{oseq[0]}\n{oseq[1:]}\n")
 
 def pull_variants(vcf, region, output, ref, samples=None):
     """

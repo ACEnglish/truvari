@@ -19,7 +19,7 @@ def build_header(chrom=None):
         ret += f"\n##contig=<ID={chrom}>\n"
     return ret
 
-def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
+def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base=None):
     """
     Turn MSA into VCF entries and their presence in samples
     returns list of sample names parsed and dictionary of variant : samples containing the variant
@@ -36,10 +36,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0):
         sample_names.add("_".join(alt_key.split('_')[:-2]))
         alt_seq = msa[alt_key].upper()
         # Gotta assume the first base is a match (little unsafe)
-        anchor_base = ref_seq[0]
-        if anchor_base == '-':
-            logging.error("MSA starts with an indel in %s. Can't make VCF", alt_key)
-            raise RuntimeWarning()
+        anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
 
         cur_variant = []
         cur_pos = start_pos
@@ -133,10 +130,10 @@ def msa2vcf(fn, header=None):
     # The ref_key identifies reference
     ref_key = [_ for _ in msa.references if _.startswith("ref_")][0] # pylint: disable=not-an-iterable
     ref_seq = msa[ref_key].upper()
-    chrom = ref_key.split('_')[1]
-    start_pos = int(ref_key.split('_')[2])
+    _, chrom, start_pos, _, anchor_base = ref_key.split('_')
+    start_pos = int(start_pos)
 
-    sample_names, variants = msa_to_vars(msa, ref_seq, chrom, start_pos)
+    sample_names, variants = msa_to_vars(msa, ref_seq, chrom, start_pos, anchor_base)
     if header is None:
         header = build_header(chrom)
 
