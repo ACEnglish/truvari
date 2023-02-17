@@ -128,15 +128,13 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
                     # Happens for things like PL when one is null but its expecting a tuple
-                    logging.debug(
-                        "Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.debug("Unable to set FORMAT %s for sample %s", key, sample)
                     logging.debug("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
                     logging.debug("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
                 except KeyError:
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
                                   o_entry.pos, o_entry.id)
-
     return entry, n_consolidate
 
 
