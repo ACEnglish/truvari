@@ -132,6 +132,11 @@ def collapse_into_entry(entry, others, hap_mode=False):
                         "Unable to set FORMAT %s for sample %s", key, sample)
                     logging.warning("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
                     logging.warning("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
+                except KeyError:
+                    logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
+                                  key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
+                                  o_entry.pos, o_entry.id)
+
 
     return entry, n_consolidate
 
