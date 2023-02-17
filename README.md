@@ -8,18 +8,18 @@
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
 Toolkit for benchmarking, merging, and annotating Structrual Variants
 
-[WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
-See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
-Read our [Paper](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6) for more details.
+📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
+📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
+📝 Read our [Paper](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6) to learn more.
 
-## Installation
+## 💻 Installation
 Truvari uses Python 3.6+ and can be installed with pip:
 ```
   python3 -m pip install Truvari 
 ```
 For details and more installation options, see [Installation](https://github.com/acenglish/truvari/wiki/Installation) on the wiki.
 
-## Quick Start
+## ⏩ Quick Start
 
 Each sub-command contains help documentation. Start with `truvari -h` to see available commands.
 
@@ -27,7 +27,7 @@ The current most common Truvari use case is for structural variation benchmarkin
 ```
   truvari bench -b base.vcf.gz -c comp.vcf.gz -o output_dir/
 ```
-## Truvari Commands
+## 🧬 Truvari Commands
 
  - [bench](https://github.com/acenglish/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
  - [collapse](https://github.com/acenglish/truvari/wiki/collapse) - Collapse possibly redundant VCF entries
@@ -40,6 +40,6 @@ The current most common Truvari use case is for structural variation benchmarkin
  - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
  - [refine](https://github.com/ACEnglish/truvari/wiki/refine) - Automated bench result refinement with phab
 
-## More Information
+## 🔎 More Information
 
 Find more details and discussions about Truvari on the [WIKI page](https://github.com/acenglish/truvari/wiki).
