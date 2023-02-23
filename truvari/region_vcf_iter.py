@@ -90,7 +90,7 @@ class RegionVCFIterator():
         """
         astart, aend = truvari.entry_boundaries(entry)
         # Filter these early so we don't have to keep checking overlaps
-        if self.max_span is None or aend - astart > self.max_span:
+        if self.max_span is not None and aend - astart > self.max_span:
             return False
         if astart == aend - 1:
             return self.tree[entry.chrom].overlaps(astart)

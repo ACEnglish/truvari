@@ -63,15 +63,23 @@ def parse_regions(argument):
         return ret
     if os.path.exists(argument):
         for i in truvari.opt_gz_open(argument):
-            chrom, start, end = i.strip().split('\t')[:3]
-            start = int(start)
-            end = int(end)
+            try:
+                chrom, start, end = i.strip().split('\t')[:3]
+                start = int(start)
+                end = int(end)
+            except Exception:
+                logging.error("Unable to parse bed line %s", i)
+                sys.exit(1)
             ret.append((chrom, start, end))
     else:
         for i in argument.split(','):
-            chrom, start, end = re.split(':|-', i)
-            start = int(start)
-            end = int(end)
+            try:
+                chrom, start, end = re.split(':|-', i)
+                start = int(start)
+                end = int(end)
+            except ValueError:
+                logging.error("Unable to parse region line %s", i)
+                sys.exit(1)
             ret.append((chrom, start, end))
     return ret
 
