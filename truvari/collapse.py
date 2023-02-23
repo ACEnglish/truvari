@@ -23,7 +23,7 @@ def collapse_chunk(chunk):
     """
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
-    logging.debug(f"Collapsing chunk {chunk_id}")
+    logging.debug("Collapsing chunk %d", chunk_id)
     # Need to add a deterministic sort here...
     calls.sort(key=matcher.sorter)
 
