@@ -67,7 +67,7 @@ def parse_regions(argument):
                 chrom, start, end = i.strip().split('\t')[:3]
                 start = int(start)
                 end = int(end)
-            except Exception:
+            except Exception: #pylint: disable=broad-except
                 logging.error("Unable to parse bed line %s", i)
                 sys.exit(1)
             ret.append((chrom, start, end))
@@ -160,6 +160,7 @@ def run_mafft(seq_fn, output, params=DEFAULT_MAFFT_PARAM):
         return False
     return True
 
+# pylint: disable=too-many-locals
 def phab(base_vcf, reference, output_dir, var_region, buffer=100,
         comp_vcf=None, bSamples=None, cSamples=None,
         mafft_params=DEFAULT_MAFFT_PARAM, prefix_comp=False):
@@ -212,8 +213,6 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
 
     build_consensus(subset_base_vcf, reference, buff_region, sequences, bSamples)
 
-    # if add-to, we put this elsewhere and revisit for now I'll disable that feature
-    # because it assumes we already have an MSA
     if comp_vcf is not None:
         build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
 
@@ -233,6 +232,7 @@ def phab(base_vcf, reference, output_dir, var_region, buffer=100,
             return
 
     truvari.compress_index_vcf(output_vcf)
+# pylint: enable=too-many-locals
 
 def consolidate_phab_vcfs(phab_dir, out_vcf):
     """
