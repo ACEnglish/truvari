@@ -8,10 +8,10 @@ Welcome to Truvari's documentation!
 
 This documentation is aimed at developers looking to reuse truvari's code.
 
-For those looking to use truavari as a tool for analysis, full documentation 
-is available via the github page
+For those looking to use truvari for analysis, full documentation 
+is available via the github wiki
 
-https://github.com/ACEnglish/truvari
+https://github.com/ACEnglish/truvari/wiki
 
 .. toctree::
    :maxdepth: 2
