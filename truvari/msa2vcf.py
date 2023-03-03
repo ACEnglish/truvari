@@ -18,6 +18,22 @@ def build_header(chrom=None):
         ret += f"\n##contig=<ID={chrom}>\n"
     return ret
 
+def trim_variant(cur_variant):
+    """
+    Left trim variants in place
+    """
+    ref = cur_variant[REFIDX]
+    alt = cur_variant[ALTIDX]
+    # If base after anchor base is identical, we have a new anchor base
+    # Stop when there's only one base left or unmached bases
+    trim = 0
+    while trim < len(ref) - 1 and trim < len(alt) - 1 and ref[trim] == alt[trim]:
+        trim += 1
+    cur_variant[1] += trim
+    cur_variant[REFIDX] = ref[trim:]
+    cur_variant[ALTIDX] = alt[trim:]
+    return cur_variant
+    
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     """
     Turn MSA into VCF entries and their presence in samples
@@ -58,6 +74,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
                         cur_variant[REFIDX] = cur_variant[REFIDX][1:]
                         cur_variant[ALTIDX] = cur_variant[ALTIDX][1:]
                         cur_variant[1] += 1
+                    trim_variant(cur_variant)
                     key = "\t".join([str(_) for _ in cur_variant])
                     # this is a weird edge check
                     # sometimes reference bases aren't aligned
@@ -82,6 +99,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
                 cur_variant[REFIDX] = cur_variant[REFIDX][1:]
                 cur_variant[ALTIDX] = cur_variant[ALTIDX][1:]
                 cur_variant[1] += 1
+            trim_variant(cur_variant)
             key = "\t".join([str(_) for _ in cur_variant])
             # this is a weird edge check
             # sometimes reference bases aren't aligned
