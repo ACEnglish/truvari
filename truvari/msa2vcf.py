@@ -1,6 +1,7 @@
 """
 Turn an MSA fasta into VCF. Assumes one entry is reference with name >ref_chrom:start-end
 """
+import copy
 from io import StringIO
 from collections import defaultdict
 
@@ -18,12 +19,17 @@ def build_header(chrom=None):
         ret += f"\n##contig=<ID={chrom}>\n"
     return ret
 
-def trim_variant(cur_variant):
+def decompose_variant(cur_variant):
     """
-    Left trim variants in place
+    Left trim and decompose (repl -> indel) variant
+    returns a list of new variants
     """
+    def var_to_str(v):
+        return "\t".join([str(_) for _ in v])
     ref = cur_variant[REFIDX]
     alt = cur_variant[ALTIDX]
+    if ref == alt:
+        return []
     # If base after anchor base is identical, we have a new anchor base
     # Stop when there's only one base left or unmached bases
     trim = 0
@@ -32,7 +38,15 @@ def trim_variant(cur_variant):
     cur_variant[1] += trim
     cur_variant[REFIDX] = ref[trim:]
     cur_variant[ALTIDX] = alt[trim:]
-    return cur_variant
+    if len(cur_variant[REFIDX]) == 1 or len(cur_variant[ALTIDX]) == 1:
+        return [var_to_str(cur_variant)]
+
+    # decompose REPL to INS and DEL - easier for truvari to compare
+    in_var = copy.copy(cur_variant)
+    in_var[REFIDX] = in_var[REFIDX][0]
+    del_var = copy.copy(cur_variant)
+    del_var[ALTIDX] = del_var[ALTIDX][0]
+    return [var_to_str(in_var), var_to_str(del_var)]
     
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     """
@@ -69,16 +83,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
 
             if ref_base == alt_base: # No variant
                 if cur_variant and is_ref: # back to matching reference
-                    # Anchor base correction
-                    if len(cur_variant[REFIDX]) == len(cur_variant[ALTIDX]):
-                        cur_variant[REFIDX] = cur_variant[REFIDX][1:]
-                        cur_variant[ALTIDX] = cur_variant[ALTIDX][1:]
-                        cur_variant[1] += 1
-                    trim_variant(cur_variant)
-                    key = "\t".join([str(_) for _ in cur_variant])
-                    # this is a weird edge check
-                    # sometimes reference bases aren't aligned
-                    if cur_variant[REFIDX] != cur_variant[ALTIDX]:
+                    for key in decompose_variant(cur_variant):
                         final_vars[key].append(cur_samp_hap)
                     cur_variant = []
             else:
@@ -94,16 +99,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
                 anchor_base = ref_base
         # End Zipping
         if cur_variant:
-            # Anchor base correction
-            if len(cur_variant[REFIDX]) == len(cur_variant[ALTIDX]):
-                cur_variant[REFIDX] = cur_variant[REFIDX][1:]
-                cur_variant[ALTIDX] = cur_variant[ALTIDX][1:]
-                cur_variant[1] += 1
-            trim_variant(cur_variant)
-            key = "\t".join([str(_) for _ in cur_variant])
-            # this is a weird edge check
-            # sometimes reference bases aren't aligned
-            if cur_variant[REFIDX] != cur_variant[ALTIDX]:
+            for key in decompose_variant(cur_variant):
                 final_vars[key].append(cur_samp_hap)
         # End alignment
     sample_names = sorted(list(sample_names))
