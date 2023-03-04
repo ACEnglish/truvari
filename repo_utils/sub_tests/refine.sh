@@ -1,8 +1,6 @@
 # ------------------------------------------------------------
 #                                 refine
 # ------------------------------------------------------------
-export PATH=$INDIR/external/fake_mafft/:$PATH 
-
 run test_refine_one $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
                                 -c $INDIR/refine_data/hg002_comp.vcf.gz \
                                 --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
