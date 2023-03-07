@@ -289,6 +289,10 @@ def chunker(matcher, *files):
     cur_end = None
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
+        if len(entry.alts) > 1:
+            logging.error("Cannot compare multi-allelic records. Please split")
+            logging.error("%s file - line %s", (key, str(entry)))
+            sys.exit(10)
         if entry.alts is None: # ignore monomorphic reference
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
