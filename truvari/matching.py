@@ -146,6 +146,9 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
+        if self.params.passonly and truvari.entry_is_filtered(entry):
+            return True
+
         size = truvari.entry_size(entry)
         if size > self.params.sizemax:
             return True
@@ -159,9 +162,6 @@ class Matcher():
         samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
         if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') and not truvari.entry_is_present(entry, samp):
-            return True
-
-        if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
 
         return False
