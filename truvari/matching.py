@@ -1,6 +1,7 @@
 """
 Comparison engine
 """
+import sys
 import types
 import logging
 from collections import Counter, defaultdict
@@ -291,7 +292,7 @@ def chunker(matcher, *files):
     for key, entry in file_zipper(*files):
         if len(entry.alts) > 1:
             logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("%s file - line %s", (key, str(entry)))
+            logging.error("%s file - line %s", key, str(entry))
             sys.exit(10)
         if entry.alts is None: # ignore monomorphic reference
             cur_chunk['__filtered'].append(entry)

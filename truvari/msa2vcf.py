@@ -47,7 +47,7 @@ def decompose_variant(cur_variant):
     del_var = copy.copy(cur_variant)
     del_var[ALTIDX] = del_var[ALTIDX][0]
     return [var_to_str(in_var), var_to_str(del_var)]
-    
+
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     """
     Turn MSA into VCF entries and their presence in samples
