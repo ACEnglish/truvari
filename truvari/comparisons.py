@@ -313,7 +313,7 @@ def entry_size(entry):
     """
     if "SVLEN" in entry.info:
         if type(entry.info["SVLEN"]) in [list, tuple]:
-            size = abs(entry.info["SVLEN"][0])
+            size = abs(int(entry.info["SVLEN"][0]))
         else:
             size = abs(entry.info["SVLEN"])
     elif entry.alts is not None and entry.alts[0].count("<"):
