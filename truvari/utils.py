@@ -16,9 +16,10 @@ from datetime import timedelta
 from collections import namedtuple
 from importlib.metadata import version
 
-import Levenshtein
 import pysam
-import progressbar
+from pysam import bcftools
+
+import truvari
 
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
@@ -71,31 +72,6 @@ def restricted_int(x):
     if x < 0:
         raise argparse.ArgumentTypeError(f"{x} is < 0")
     return x
-
-def setup_progressbar(size):
-    """
-    Build a formatted :class:`progressbar.ProgressBar`
-
-    :param `size`: Number of elements in the progress bar
-    :type `size`: int
-
-    :return: Formatted progress bar
-    :rtype: progressbar.ProgressBar
-
-    Example
-        >>> import truvari
-        >>> import time
-        >>> bar = truvari.setup_progressbar(4)
-        >>> for i in range(4):
-        ...     bar.update(i + 1) # The bar animation updates
-        ...     time.sleep(1)
-        >>> bar.finish() # Final update to the bar
-    """
-    return progressbar.ProgressBar(redirect_stdout=True, max_value=size, widgets=[
-        ' [', progressbar.Timer(), ' ', progressbar.Counter(), '/', str(size), '] ',
-        progressbar.Bar(),
-        ' (', progressbar.ETA(), ') ',
-    ])
 
 
 class LogFileStderr():
@@ -251,7 +227,7 @@ def ref_ranges(reference, chunk_size=10000000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.ref_ranges("repo_utils/test_files/reference.fa", 1000)
+        >>> gen = truvari.ref_ranges("repo_utils/test_files/references/reference.fa", 1000)
         >>> print(len([_ for _ in gen]))
         1000
     """
@@ -281,7 +257,7 @@ def bed_ranges(bed, chunk_size=10000000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.bed_ranges("repo_utils/test_files/giab.bed", 1000)
+        >>> gen = truvari.bed_ranges("repo_utils/test_files/beds/giab.bed", 1000)
         >>> print(len([_ for _ in gen]))
         992
     """
@@ -311,7 +287,7 @@ def vcf_ranges(vcf, min_dist=1000):
 
     Example
         >>> import truvari
-        >>> gen = truvari.vcf_ranges("repo_utils/test_files/input1.vcf.gz")
+        >>> gen = truvari.vcf_ranges("repo_utils/test_files/variants/input1.vcf.gz")
         >>> print(len([_ for _ in gen]))
         228
     """
@@ -343,6 +319,7 @@ def vcf_ranges(vcf, min_dist=1000):
 def opt_gz_open(in_fn):
     """
     Chooses file handler for plain-text files or `*.gz` files.
+
     returns a generator which yields lines of the file
     """
     def gz_hdlr(fn):
@@ -369,7 +346,7 @@ def make_temp_filename(tmpdir=None, suffix=""):
     fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix # pylint: disable=protected-access
     return fn
 
-def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
+def help_unknown_cmd(user_cmd, avail_cmds, threshold=0.8):
     """
     Guess the command in avail_cmds that's most similar to user_cmd. If there is
     no guess below threshold, don't guess.
@@ -392,33 +369,60 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=.5):
     """
     guesses = []
     for real in avail_cmds:
-        ratio = Levenshtein.ratio(user_cmd, real)
-        distance = Levenshtein.distance(user_cmd, real)
-        score = distance - ratio
-        score2 = 1 - distance / len(real)
-        dat = (score, real)
-        if ratio >= threshold and score2 >= threshold:
-            guesses.append(dat)
+        score = truvari.seqsim(user_cmd, real)
+        if score >= threshold:
+            guesses.append((score, real))
     guesses.sort()
     if not guesses:
         return None
-    return guesses[0][1]
+    return guesses[-1][1]
 
-def compress_index_vcf(fn, remove=True):
+def performance_metrics(tpbase, tp, fn, fp):
     """
-    compress/index a VCF file in place using bgzip and tabix
-    if remove: take out the old one
-    Should maybe shutil.which the tools. Probably should raise an exception instead of exiting
+    Calculates precision, recall, and f1 given counts by state
+    Can return None if values are zero
+
+    :param `tpbase`: found base count
+    :type `tpbase`: int
+    :param `tp`: found comp count
+    :type `tp`: int
+    :param `fn`: missed base count
+    :type `fn`: int
+    :param `fp`: missed comp count
+    :type `fp`: int
+
+    :return: tuple of precision, recall, f1
+    :rtype: tuple, float
     """
-    logging.debug("compress/index")
-    ret = cmd_exe(f"vcf-sort {fn} | bgzip > {fn}_tmp", pipefail=True)
-    os.rename(f"{fn}_tmp", f"{fn}.gz")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
-    ret = cmd_exe(f"tabix -f {fn}.gz")
-    if ret.ret_code != 0:
-        logging.error(ret)
-        sys.exit(ret.ret_code)
+    base_cnt = tpbase + fn
+    comp_cnt = tp + fp
+    if base_cnt == 0 or comp_cnt == 0:
+        return None, None, None
+    precision = tp / comp_cnt
+    recall = tpbase / base_cnt
+    neum = recall * precision
+    denom = recall + precision
+    f1 = 2 * (neum / denom) if denom != 0 else None
+    return precision, recall, f1
+
+def compress_index_vcf(fn, fout=None, remove=True):
+    """
+    Compress and index a vcf. If no fout is provided, write to fn + '.gz'
+
+    :param `fn`: filename of vcf to work on
+    :type `fn`: string
+    :param `fout`: output filename
+    :type `fout`: string, optional
+    :param `remove`: remove fn after fout is made
+    :type `remove`: bool
+    """
+    if fout is None:
+        fout = fn + '.gz'
+    m_tmp = make_temp_filename(suffix='.vcf')
+    with open(m_tmp, 'w') as out_hdlr:
+        out_hdlr.write(bcftools.sort(fn))
+    pysam.tabix_compress(m_tmp, fout)
+    pysam.tabix_index(fout, preset="vcf")
     if remove:
         os.remove(fn)
+    os.remove(m_tmp)

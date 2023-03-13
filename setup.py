@@ -62,9 +62,7 @@ setup(
     },
     install_requires=[
         "rich==12.5.1",
-        "python-Levenshtein==0.12.2",
         "edlib>=1.3.9",
-        "progressbar2>=4.0.0",
         "pysam>=0.15.2",
         "intervaltree>=3.0.2",
         "joblib>=1.0.1",

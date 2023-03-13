@@ -8,47 +8,11 @@ Overview
    :undoc-members:
    :show-inheritance:
 
-Objects
--------
-GT
-^^
-.. autoclass:: GT
-   :members:
-
-RegionVCFIterator
-^^^^^^^^^^^^^^^^^
-.. autoclass:: RegionVCFIterator
-   :members:
-
-LogFileStderr
-^^^^^^^^^^^^^
-.. autoclass:: LogFileStderr
-   :members:
-
-MatchResult
-^^^^^^^^^^^
-.. autoclass:: MatchResult
-   :members:
-
-Matcher
-^^^^^^^
-.. autoclass:: Matcher
-   :members:
-
-SV
-^^
-.. autoclass:: SV
-   :members:
-
 VariantRecord Methods
 ---------------------
 entry_boundaries
 ^^^^^^^^^^^^^^^^
 .. autofunction:: entry_boundaries
-
-entry_create_haplotype
-^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_create_haplotype
 
 entry_distance
 ^^^^^^^^^^^^^^
@@ -66,10 +30,6 @@ entry_is_present
 ^^^^^^^^^^^^^^^^
 .. autofunction:: entry_is_present
 
-entry_pctsim
-^^^^^^^^^^^^
-.. autofunction:: entry_pctsim
-
 entry_reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_reciprocal_overlap
@@ -77,6 +37,10 @@ entry_reciprocal_overlap
 entry_same_variant_type
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_same_variant_type
+
+entry_seq_similarity
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: entry_seq_similarity
 
 entry_size
 ^^^^^^^^^^
@@ -86,9 +50,9 @@ entry_size_similarity
 ^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_size_similarity
 
-entry_to_haplotype
-^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_to_haplotype
+entry_to_hash
+^^^^^^^^^^^^^
+.. autofunction:: entry_to_hash
 
 entry_to_key
 ^^^^^^^^^^^^
@@ -98,8 +62,12 @@ entry_variant_type
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_variant_type
 
+entry_shared_ref_context
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: entry_shared_ref_context
+
 Extra Methods
----------------------
+-------------
 allele_freq_annos
 ^^^^^^^^^^^^^^^^^
 .. autofunction:: allele_freq_annos  
@@ -119,6 +87,10 @@ calc_af
 calc_hwe
 ^^^^^^^^
 .. autofunction:: calc_hwe
+
+compress_index_vcf
+^^^^^^^^^^^^^^^^^^
+.. autofunction:: compress_index_vcf
 
 create_pos_haplotype
 ^^^^^^^^^^^^^^^^^^^^
@@ -156,6 +128,10 @@ phab
 ^^^^
 .. autofunction:: phab
 
+phab_multi
+^^^^^^^^^^
+.. autofunction:: phab_multi
+
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: reciprocal_overlap
@@ -180,12 +156,12 @@ vcf_ranges
 ^^^^^^^^^^
 .. autofunction:: vcf_ranges
 
-weighted_score
-^^^^^^^^^^^^^^
-.. autofunction:: weighted_score
-
 Dev methods
 -----------
+benchdir_count_entries
+^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: benchdir_count_entries
+
 chunker
 ^^^^^^^
 .. autofunction:: chunker
@@ -193,6 +169,18 @@ chunker
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
+
+consolidate_phab_vcfs
+^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: consolidate_phab_vcfs
+
+count_entries
+^^^^^^^^^^^^^
+.. autofunction:: count_entries
+
+fchain
+^^^^^^
+.. autofunction:: fchain
 
 file_zipper
 ^^^^^^^^^^^
@@ -214,6 +202,10 @@ optimize_df_memory
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: optimize_df_memory
 
+performance_metrics
+^^^^^^^^^^^^^^^^^^^
+.. autofunction:: performance_metrics
+
 restricted_float
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_float
@@ -233,6 +225,49 @@ setup_progressbar
 vcf_to_df
 ^^^^^^^^^
 .. autofunction:: vcf_to_df
+
+Objects
+-------
+
+Bench
+^^^^^
+.. autoclass:: Bench
+   :members:
+
+BenchOutput
+^^^^^^^^^^^
+.. autoclass:: BenchOutput
+   :members:
+
+GT
+^^
+.. autoclass:: GT
+   :members:
+
+RegionVCFIterator
+^^^^^^^^^^^^^^^^^
+.. autoclass:: RegionVCFIterator
+   :members:
+
+LogFileStderr
+^^^^^^^^^^^^^
+.. autoclass:: LogFileStderr
+   :members:
+
+MatchResult
+^^^^^^^^^^^
+.. autoclass:: MatchResult
+   :members:
+
+Matcher
+^^^^^^^
+.. autoclass:: Matcher
+   :members:
+
+SV
+^^
+.. autoclass:: SV
+   :members:
 
 Data
 ----

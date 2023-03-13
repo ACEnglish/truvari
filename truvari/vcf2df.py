@@ -63,9 +63,9 @@ SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
 
 def get_svtype(svtype):
     """
-    Turn to an SV
+    Turn a SVTYPE string to a :class:`truvari.SV` object
 
-    :param `svtype`: SVTYPE string to turn into SV object
+    :param `svtype`:
     :type `svtype`: string
 
     :return: A :class:`SV` of the SVTYPE
@@ -174,16 +174,15 @@ def get_files_from_truvdir(directory):
     return dictionary of file identifier and path (e.g. "tp-base": "dir/tp-base.vcf.gz")
     """
     ret = {}
-    pats = [("tpbase", "tp-base.vcf"), ("tp", "tp-call.vcf"),
-            ("fp", "fp.vcf"), ("fn", "fn.vcf")]
+    pats = [("tpbase", "tp-base.vcf.gz"), ("tp", "tp-comp.vcf.gz"),
+            ("fp", "fp.vcf.gz"), ("fn", "fn.vcf.gz")]
     has_error = False
     for key, name in pats:
         fname = os.path.join(directory, name)
         ret[key] = glob.glob(fname)
-        ret[key].extend(glob.glob(fname + '.gz'))
         if len(ret[key]) != 1:
             logging.error(
-                "Expected 1 file for %s[.gz] found %d", fname, len(ret[key]))
+                "Expected 1 file for %s found %d", fname, len(ret[key]))
             has_error = True
     if has_error:
         raise FileNotFoundError((f"Couldn't parse truvari directory {directory}. "
@@ -240,7 +239,7 @@ def tags_to_ops(items):
     return columns, ops
 
 
-def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
+def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False, alleles=False):
     """
     Parse a vcf file and turn it into a dataframe.
     Tries its best to pull info/format tags from the sample information.
@@ -251,32 +250,35 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
     :type `fn`: string
     :param `with_info`:  Add the INFO fields from the VCF to the DataFrame columns
     :type `with_info`: boolean, optional
-    :param `with_fmt`: Add the FORMAT fields from the VCF to the DataFrame columns
+    :param `with_format`: Add the FORMAT fields from the VCF to the DataFrame columns
     :type `with_info`: boolean, optional
-    :param `sample`: Sample from the VCF to parse. Only used when with_fmt==True
+    :param `sample`: Sample from the VCF to parse. Only used when with_format==True
     :type `sample`: int/string, optional
     :param `no_prefix`: Don't prefix FORMAT fields with sample name
     :type `no_prefix`: boolean, optional
+    :param `alleles`: Add column with allele sequences
+    :type `alleles`: boolean, optional
 
     :return: Converted VCF
     :rtype: pandas.DataFrame
 
     Example
         >>> import truvari
-        >>> df = truvari.vcf_to_df("repo_utils/test_files/input2.vcf.gz", True, True)
+        >>> df = truvari.vcf_to_df("repo_utils/test_files/variants/input2.vcf.gz", True, True)
         >>> df.columns
-        Index(['id', 'svtype', 'svlen', 'szbin', 'qual', 'filter', 'is_pass', 'QNAME',
-               'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN', 'NA12878_GT', 'NA12878_PL_ref',
-               'NA12878_PL_het', 'NA12878_PL_hom', 'NA12878_AD_ref', 'NA12878_AD_alt'],
+        Index(['chrom', 'start', 'end', 'id', 'svtype', 'svlen', 'szbin', 'qual',
+               'filter', 'is_pass', 'QNAME', 'QSTART', 'QSTRAND', 'SVTYPE', 'SVLEN',
+               'NA12878_GT', 'NA12878_PL_ref', 'NA12878_PL_het', 'NA12878_PL_hom',
+               'NA12878_AD_ref', 'NA12878_AD_alt'],
               dtype='object')
     """
     v = pysam.VariantFile(fn)
-    if with_fmt and not sample:
-        sample = pull_samples(fn)
+    if with_format and not sample:
+        sample = list(v.header.samples)
     if sample and len(sample) > 1 and no_prefix:
         raise TypeError("Multiple samples being pulled, must use prefix")
 
-    header = ["key", "id", "svtype", "svlen",
+    header = ["hash", "chrom", "start", "end", "id", "svtype", "svlen",
               "szbin", "qual", "filter", "is_pass"]
 
     info_ops = []
@@ -286,7 +288,7 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
         header.extend(info_header)
 
     fmt_ops = []
-    if with_fmt:  # get all the format fields, and how to parse them from header, add them to the header
+    if with_format:  # get all the format fields, and how to parse them from header, add them to the header
         fmt_header, fmt_ops = tags_to_ops(v.header.formats.items())
         logging.debug(fmt_header)
         if isinstance(sample, list) and not no_prefix:
@@ -302,33 +304,44 @@ def vcf_to_df(fn, with_info=True, with_fmt=True, sample=None, no_prefix=False):
             sample = [sample]
     else:
         sample = []
+    if alleles:
+        header.append("alleles")
 
-    rows = []
-    for entry in v:
-        varsize = truvari.entry_size(entry)
-        filt = list(entry.filter)
-        cur_row = [truvari.entry_to_key(entry),
-                   entry.id,
-                   truvari.entry_variant_type(entry).name,
-                   varsize,
-                   truvari.get_sizebin(varsize),
-                   entry.qual,
-                   filt,
-                   not filt or filt[0] == 'PASS'
-                   ]
+    def _transform():
+        """
+        Yields the rows
+        """
+        for entry in v:
+            varsize = truvari.entry_size(entry)
+            cur_row = [truvari.entry_to_hash(entry),
+                       entry.chrom,
+                       entry.start,
+                       entry.stop,
+                       entry.id,
+                       truvari.entry_variant_type(entry).name,
+                       varsize,
+                       truvari.get_sizebin(varsize),
+                       entry.qual,
+                       list(entry.filter),
+                       not truvari.entry_is_filtered(entry)
+                       ]
 
-        for i, op in info_ops:  # Need to make OPs for INFOS..
-            cur_row.extend(op(entry.info, i))
+            for i, op in info_ops:
+                cur_row.extend(op(entry.info, i))
 
-        for samp in sample:
-            for i, op in fmt_ops:
-                cur_row.extend(op(entry.samples[samp], i))
+            for samp in sample:
+                for i, op in fmt_ops:
+                    cur_row.extend(op(entry.samples[samp], i))
 
-        rows.append(cur_row)
-    ret = pd.DataFrame(rows, columns=header)
+            if alleles:
+                cur_row.append(entry.alleles)
+
+            yield cur_row
+
+    ret = pd.DataFrame(_transform(), columns=header)
     ret["szbin"] = ret["szbin"].astype(SZBINTYPE)
     ret["svtype"] = ret["svtype"].astype(SVTYTYPE)
-    return ret.set_index("key")
+    return ret.set_index("hash")
 
 
 def optimize_df_memory(df):
@@ -409,12 +422,6 @@ def parse_args(args):
         args.compress = 3
     return args
 
-def pull_samples(vcf_fn):
-    """
-    Pull sample names from a vcf
-    """
-    vcf = pysam.VariantFile(vcf_fn)
-    return list(vcf.header.samples)
 
 def vcf2df_main(args):
     """

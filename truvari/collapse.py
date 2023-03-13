@@ -17,14 +17,13 @@ import pysam
 import truvari
 import truvari.bench as trubench
 
-
 def collapse_chunk(chunk):
     """
     For calls in a chunk, separate which ones should be kept from collapsed
     """
     matcher, chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
-    logging.debug(f"Comparing chunk {calls}")
+    logging.debug("Collapsing chunk %d", chunk_id)
     # Need to add a deterministic sort here...
     calls.sort(key=matcher.sorter)
 
@@ -51,7 +50,8 @@ def collapse_chunk(chunk):
             mat = matcher.build_match(cur_keep_candidate,
                                       cur_collapse_candidate,
                                       ret[keep_key][2],
-                                      skip_gt=True)
+                                      skip_gt=True,
+                                      short_circuit=True)
             if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
                 mat.state = False
             # to collapse
@@ -75,8 +75,7 @@ def collapse_chunk(chunk):
         calls = remaining_calls
 
     if matcher.no_consolidate:
-        for key, val in ret.items():
-            logging.debug("Collapsing %s", key)
+        for val in ret.values():
             edited_entry, collapse_cnt = collapse_into_entry(val[0], val[1], matcher.hap)
             val[0] = edited_entry
             val[3] = collapse_cnt
@@ -84,7 +83,7 @@ def collapse_chunk(chunk):
     ret = list(ret.values())
     for i in chunk_dict['__filtered']:
         ret.append([i, None, None, 0])
-
+    ret.sort(key=cmp_to_key(lambda x, y: x[0].pos - y[0].pos))
     return ret
 
 
@@ -128,16 +127,14 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 try:
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
-                    logging.warning(
-                        "Unable to set FORMAT %s for sample %s", key, sample)
-                    logging.warning("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
-                    logging.warning("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
+                    # Happens for things like PL when one is null but its expecting a tuple
+                    logging.debug("Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.debug("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
+                    logging.debug("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
                 except KeyError:
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
                                   o_entry.pos, o_entry.id)
-
-
     return entry, n_consolidate
 
 
@@ -247,7 +244,7 @@ def parse_args(args):
     parser = argparse.ArgumentParser(prog="collapse", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input", type=str, required=True,
-                        help="Comparison set of calls")
+                        help="Input variants")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output vcf (stdout)")
     parser.add_argument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
@@ -262,8 +259,8 @@ def parse_args(args):
     thresg = parser.add_argument_group("Comparison Threshold Arguments")
     thresg.add_argument("-r", "--refdist", type=truvari.restricted_int, default=500,
                         help="Max reference location distance (%(default)s)")
-    thresg.add_argument("-p", "--pctsim", type=truvari.restricted_float, default=0.95,
-                        help="Min percent allele sequence similarity. Set to 0 to ignore. (%(default)s)")
+    thresg.add_argument("-p", "--pctseq", type=truvari.restricted_float, default=0.95,
+                        help="Min percent sequence similarity. Set to 0 to ignore. (%(default)s)")
     thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
                         help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
@@ -332,12 +329,10 @@ def build_collapse_matcher(args):
     So set it up for us here
     """
     args.chunksize = args.refdist
-    args.gtcomp = False
     args.bSample = None
     args.cSample = None
     args.sizefilt = args.sizemin
     args.no_ref = False
-    args.multimatch = False
     matcher = truvari.Matcher(args=args)
     matcher.params.includebed = None
     matcher.keep = args.keep
@@ -345,14 +340,15 @@ def build_collapse_matcher(args):
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
     matcher.no_consolidate = args.no_consolidate
+    matcher.picker = 'single'
 
     return matcher
 
-
 def setup_outputs(args):
     """
-    Makes all of the output files
-    return a ... to get to each of the
+    Makes all of the output files for collapse
+
+    returns a dictionary holding outputs
     """
     truvari.setup_logging(args.debug, show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
@@ -423,16 +419,6 @@ def collapse_main(args):
     chunks = truvari.chunker(matcher, ('base', base))
     for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
         output_writer(call, outputs)
-    #with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
-    #    future_chunks = {executor.submit(collapse_chunk, c): c for c in chunks}
-    #    for future in concurrent.futures.as_completed(future_chunks):
-    #        result = None
-    #        try:
-    #            result = future.result()
-    #        except Exception as exc:
-    #            logging.error('%r generated an exception: %s', result, exc)
-    #        else:
-    #            for call in result:
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
@@ -440,7 +426,3 @@ def collapse_main(args):
                  outputs["stats_box"]["kept_cnt"])
     logging.info("%d samples' FORMAT fields consolidated", outputs["stats_box"]["consol_cnt"])
     logging.info("Finished collapse")
-
-
-if __name__ == '__main__':
-    collapse_main(sys.argv[1:])

@@ -85,7 +85,7 @@ def calc_af(gts):
              | MAF - minor allele frequency
              | ExcHet - excess heterozygosity
              | HWE - hardy weinberg equilibrium
-             | AC - allele count
+             | AC - allele count for GT 0 and 1
              | MAC - minor allele count
              | AN - number of called alleles
     :rtype: dict
@@ -104,7 +104,7 @@ def calc_af(gts):
             n_het += 1 if g[0] != g[1] and None not in g else 0
 
     if an == 0:
-        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": 0, "AN": 0}
+        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": [0, 0], "AN": 0}
     af = cnt[1] / an
     srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
     ac = [cnt[_] for _ in [0, 1]]
@@ -136,7 +136,7 @@ def allele_freq_annos(entry, samples=None):
     Example
         >>> import truvari
         >>> import pysam
-        >>> v = pysam.VariantFile('repo_utils/test_files/multi.vcf.gz')
+        >>> v = pysam.VariantFile('repo_utils/test_files/variants/multi.vcf.gz')
         >>> truvari.allele_freq_annos(next(v))
         {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2}
     """

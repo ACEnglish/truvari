@@ -58,12 +58,13 @@ class TRFAnno():
     Operates on a single TRF region across multiple TRF annotations
     """
 
-    def __init__(self, region, reference, motif_similarity=0.90):
+    def __init__(self, region, reference, motif_similarity=0.90, buf=5):
         """ setup """
         self.region = region
         self.reference = reference
         self.motif_similarity = motif_similarity
         self.known_motifs = {_["repeat"]:_["copies"] for _ in self.region["annos"]}
+        self.buffer = buf
 
     def make_seq(self, entry, svtype):
         """
@@ -92,9 +93,9 @@ class TRFAnno():
         Scores the annotation. Addes fields in place.
         if is_new, we calculate the diff
         """
-        ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"], anno["end"])
+        ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"] - self.buffer, anno["end"] + self.buffer)
         # has to have overlap
-        if ovl_pct <= 0:
+        if ovl_pct == 0:
             return None
         anno["ovl_pct"] = ovl_pct
 
@@ -128,7 +129,8 @@ class TRFAnno():
         scores = []
         for anno in self.region["annos"]:
             # + 1 for anchor base
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, anno["start"], anno["end"])
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
+                                anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
             m_sc = dict(anno)
@@ -160,7 +162,6 @@ class TRFAnno():
             if annos:
                 annos = annos["key"]
             self.translate_coords(annos)
-
 
         scores = []
         for anno in annos:
@@ -207,7 +208,8 @@ class TRFAnno():
         scores = []
         best_score = {}
         for anno in self.region["annos"]:
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, anno["start"], anno["end"])
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
+                            anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
 
@@ -285,6 +287,15 @@ def run_trf(fa_fn, executable="trf409.linux64",
             trf_params="2 7 7 80 10 50 500 -m -f -h -d -ngs"):
     """
     Given a fasta file, run TRF and return result
+    trf_params are
+        File = sequences input file
+        Match  = matching weight
+        Mismatch  = mismatching penalty
+        Delta = indel penalty
+        PM = match probability (whole number)
+        PI = indel probability (whole number)
+        Minscore = minimum alignment score to report
+        MaxPeriod = maximum period size to report
     """
     if "-ngs" not in trf_params:
         trf_params = trf_params + " -ngs "
@@ -352,6 +363,8 @@ def process_ref_region(region):
         m_fetch = vcf.fetch(region["chrom"], region["start"], region["end"])
     except ValueError as e:
         logging.debug("Skipping VCF fetch %s", e)
+        return None
+
 
     m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
                              (region["chrom"], region["start"], region["end"]))),
@@ -416,7 +429,7 @@ def process_tr_region(region):
 
     ref = pysam.FastaFile(trfshared.args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
-    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity)
+    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity, trfshared.args.buffer)
     vcf = pysam.VariantFile(trfshared.args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
@@ -564,6 +577,8 @@ def parse_args(args):
                         help="Default parameters to send to trf (%(default)s)")
     parser.add_argument("-r", "--repeats", type=str, required=True,
                         help="Reference repeat annotations")
+    parser.add_argument("--buffer", type=int, default=5,
+                        help="buffer on annotations during intersection (%(default)s)")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference fasta file")
     parser.add_argument("-s", "--motif-similarity", type=truvari.restricted_float, default=0.90,
@@ -576,7 +591,7 @@ def parse_args(args):
                         help="Skip INS estimation procedure and run everything through TRF. (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=int, default=5,
                             help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
-    parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=multiprocessing.cpu_count(),
+    parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=1,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
@@ -602,6 +617,9 @@ def check_params(args):
     if not args.repeats.endswith(".bed.gz"):
         logging.error(f"{args.repeats} isn't compressed bed")
         check_fail = True
+    if not os.path.exists(args.repeats):
+        logging.error(f"{args.repeats} doesn't exit")
+        check_fail = True
     if not os.path.exists(args.repeats + '.tbi'):
         logging.error(f"{args.repeats}.tbi doesn't exit")
         check_fail = True
@@ -624,6 +642,7 @@ def trf_main(cmdargs):
         m_regions = iter_tr_regions(args.repeats)
         m_process = process_tr_region
     else:
+        # refactor. need streaming mode
         m_regions = truvari.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
         m_process = process_ref_region
 
@@ -637,11 +656,8 @@ def trf_main(cmdargs):
         with open(args.output, 'w') as fout:
             fout.write(str(new_header))
             for i in chunks:
-                fout.write(i)
+                if i is not None:
+                    fout.write(i)
         pool.join()
 
     logging.info("Finished trf")
-
-
-if __name__ == '__main__':
-    trf_main(sys.argv[1:])

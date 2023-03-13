@@ -1,11 +1,13 @@
 INDIR=repo_utils/test_files
-ANSDIR=$INDIR/answer_key
+ANSDIR=repo_utils/answer_key
 OD=test_results
 COVERAGE_RCFILE=.coveragerc
 
 # truvari in code coverage
 truv="coverage run --concurrency=multiprocessing,thread -p -m truvari.__main__"
 
+# Fake MAFFT so we don't have to rely on it in github actions
+export PATH=$INDIR/external/fake_mafft/:$PATH 
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
@@ -29,7 +31,6 @@ info_tests() {
     infos=$3
     python3 repo_utils/info_puller.py $base_vcf ${infos} | sort > $OD/answer.txt
     python3 repo_utils/info_puller.py $comp_vcf ${infos} | sort > $OD/result.txt
-    run test_infos_${name}
     assert_equal $(fn_md5 $OD/answer.txt) $(fn_md5 $OD/result.txt)
 }
 

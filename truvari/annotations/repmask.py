@@ -1,5 +1,4 @@
 """ Wrapper around RepeatMasker to annotate insertion sequences in a VCF """
-import os
 import sys
 import logging
 import argparse
@@ -79,7 +78,7 @@ class RepMask():
                 if self.min_length <= entry_size <= self.max_length:
                     cnt += 1
                     cntbp += entry_size
-                    if truvari.entry_variant_type(entry) == "INS":
+                    if truvari.entry_variant_type(entry) == truvari.SV.INS:
                         ret.write(f">{pos}\n{entry.alts[0]}\n")
                     else:
                         ret.write(f">{pos}\n{entry.ref}\n")
@@ -190,7 +189,7 @@ def parse_args(args):
                         help="Threshold for pct of allele covered (%(default)s)")
     parser.add_argument("-p", "--params", type=str, default=DEFAULTPARAMS,
                         help="Default parameter string to send to RepeatMasker (%(default)s)")
-    parser.add_argument("-T", "--threads", type=truvari.restricted_int, default=os.cpu_count(),
+    parser.add_argument("-T", "--threads", type=truvari.restricted_int, default=1,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")

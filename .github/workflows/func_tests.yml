@@ -26,6 +26,7 @@ jobs:
           pip install pylint
           pip install anybadge
           pip install coverage
+          sudo apt-get install bcftools samtools tabix
           python -m pip install .
       - name: Running ssshtest
         run: |

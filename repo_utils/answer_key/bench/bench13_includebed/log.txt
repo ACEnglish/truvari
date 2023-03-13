@@ -1,0 +1,62 @@
+2022-12-01 18:26:01,597 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 18:26:01,598 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13_includebed/ --includebed repo_utils/test_files/beds/include.bed
+2022-12-01 18:26:01,600 [INFO] Params:
+{
+    "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
+    "output": "test_results/bench13_includebed/",
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "minhaplen": 50,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "dup_to_ins": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": "NA24385",
+    "cSample": "HG00733",
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": "/data/repo_utils/test_files/beds/include.bed",
+    "extend": 0,
+    "multimatch": false
+}
+2022-12-01 18:26:01,638 [INFO] Including 11 bed regions
+2022-12-01 18:26:01,640 [INFO] Found 1 chromosomes with overlapping regions
+2022-12-01 18:26:01,759 [INFO] Zipped 2030 variants Counter({'base': 1130, 'comp': 900})
+2022-12-01 18:26:01,760 [INFO] 10 chunks of 2030 variants Counter({'__filtered': 2009, 'comp': 11, 'base': 10})
+2022-12-01 18:26:01,764 [INFO] Stats: {
+    "TP-base": 5,
+    "TP-call": 5,
+    "FP": 4,
+    "FN": 5,
+    "precision": 0.5555555555555556,
+    "recall": 0.5,
+    "f1": 0.5263157894736842,
+    "base cnt": 10,
+    "call cnt": 9,
+    "TP-call_TP-gt": 3,
+    "TP-call_FP-gt": 2,
+    "TP-base_TP-gt": 3,
+    "TP-base_FP-gt": 2,
+    "gt_concordance": 0.6,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(1, 0)": 1,
+            "(1, 1)": 2
+        },
+        "(0, 1)": {
+            "(1, 1)": 1,
+            "(1, 0)": 1
+        }
+    }
+}
+2022-12-01 18:26:01,878 [INFO] Finished bench

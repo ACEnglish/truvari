@@ -1,25 +1,28 @@
 """
+
 Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
 
 VariantRecord methods:
+
 :meth:`entry_boundaries`
-:meth:`entry_create_haplotype`
 :meth:`entry_distance`
 :meth:`entry_gt_comp`
 :meth:`entry_is_filtered`
 :meth:`entry_is_present`
-:meth:`entry_pctsim`
 :meth:`entry_reciprocal_overlap`
 :meth:`entry_same_variant_type`
+:meth:`entry_shared_ref_context`
+:meth:`entry_seq_similarity`
 :meth:`entry_size`
 :meth:`entry_size_similarity`
-:meth:`entry_to_haplotype`
+:meth:`entry_to_hash`
 :meth:`entry_to_key`
 :meth:`entry_variant_type`
 
 Extra methods:
+
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
 :meth:`build_anno_tree`
@@ -35,37 +38,47 @@ Extra methods:
 :meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`phab`
+:meth:`phab_multi`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
 :meth:`sizesim`
 :meth:`unroll_compare`
 :meth:`vcf_ranges`
-:meth:`weighted_score`
 
 Dev methods:
+
+:meth:`benchdir_count_entries`
 :meth:`chunker`
 :meth:`cmd_exe`
+:meth:`consolidate_phab_vcfs`
+:meth:`count_entries`
+:meth:`fchain`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
+:meth:`performance_metrics`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
-:meth:`setup_progressbar`
 :meth:`vcf_to_df`
 
 Objects:
+
+:class:`Bench`
+:class:`BenchOutput`
 :class:`GT`
 :class:`RegionVCFIterator`
 :class:`LogFileStderr`
 :class:`MatchResult`
 :class:`Matcher`
+:class:`StatsBox`
 :class:`SV`
 
 Data:
+
 :data:`truvari.HEADERMAT`
 :data:`truvari.QUALBINS`
 :data:`truvari.SVTYTYPE`
@@ -74,7 +87,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '3.5.1'
+__version__ = '4.0.0'
 
 
 from truvari.annotations.af_calc import (
@@ -83,20 +96,26 @@ from truvari.annotations.af_calc import (
     calc_hwe
 )
 
+from truvari.bench import (
+    Bench,
+    BenchOutput,
+    StatsBox,
+)
+
 from truvari.comparisons import (
     create_pos_haplotype,
     entry_boundaries,
-    entry_create_haplotype,
     entry_distance,
     entry_gt_comp,
     entry_is_filtered,
     entry_is_present,
-    entry_pctsim,
     entry_reciprocal_overlap,
     entry_same_variant_type,
+    entry_shared_ref_context,
+    entry_seq_similarity,
     entry_size,
     entry_size_similarity,
-    entry_to_haplotype,
+    entry_to_hash,
     entry_to_key,
     entry_variant_type,
     overlap_percent,
@@ -105,7 +124,6 @@ from truvari.comparisons import (
     seqsim,
     sizesim,
     unroll_compare,
-    weighted_score,
 )
 
 from truvari.matching import (
@@ -119,13 +137,24 @@ from truvari.msa2vcf import (
     msa2vcf
 )
 
+from truvari.pipeline import (
+    fchain
+)
+
 from truvari.phab import (
-    phab
+    phab,
+    phab_multi,
+    consolidate_phab_vcfs
 )
 
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
     build_anno_tree
+)
+
+from truvari.stratify import (
+    count_entries,
+    benchdir_count_entries,
 )
 
 from truvari.utils import (
@@ -137,11 +166,11 @@ from truvari.utils import (
     help_unknown_cmd,
     make_temp_filename,
     opt_gz_open,
+    performance_metrics,
     ref_ranges,
     restricted_float,
     restricted_int,
     setup_logging,
-    setup_progressbar,
     vcf_ranges,
 )
 

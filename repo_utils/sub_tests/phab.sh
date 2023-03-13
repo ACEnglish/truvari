@@ -1,12 +1,23 @@
 # ------------------------------------------------------------
-#                                 phab - disabled for now (tools)
+#                                 phab
 # ------------------------------------------------------------
-#run test_phab $truv phab -o $OD/phab_result \
-#        -b $INDIR/phab_base.vcf.gz \
-#        -c $INDIR/phab_comp.vcf.gz \
-#        -f $INDIR/phab_ref.fa \
-#        -r chr1:700-900
-#assert_exit_code 0
-#
-#run test_phab_result
-#assert_equal $(fn_md5 $ANSDIR/phab_result.vcf.gz) $(fn_md5 $OD/phab_result/output.vcf.gz)
+run test_phab $truv phab -k $OD/phab_result \
+                         -o $OD/phab_result.vcf.gz \
+                         -b $INDIR/variants/phab_base.vcf.gz \
+                         -c $INDIR/variants/phab_comp.vcf.gz \
+                         -f $INDIR/references/phab_ref.fa \
+                         -r chr1:700-900
+
+if [ $test_phab ]; then
+    assert_exit_code 0
+    assert_equal $(fn_md5 $ANSDIR/phab/phab_result.vcf.gz) $(fn_md5 $OD/phab_result.vcf.gz)
+fi
+
+run test_phab_badparams $truv phab -o $OD/phab_result\
+    -b doesntexist.vcf \
+    -c alsobad.vcf \
+    -f noref \
+    -r chrP:4802-99292
+if [ $test_phab_badparams ]; then
+    assert_exit_code 100
+fi

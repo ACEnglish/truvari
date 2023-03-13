@@ -1,0 +1,24 @@
+usage: truvari [-h] CMD ...
+
+Truvari v4.0.0 Structural Variant Benchmarking and Annotation
+
+Available commands:
+    bench         Performance metrics from comparison of two VCFs
+    collapse      Collapse possibly redundant VCF entries
+    anno          Annotate a VCF
+    consistency   Consistency report between multiple VCFs
+    vcf2df        Turn a VCF into a pandas DataFrame
+    segment       Normalization of SVs into disjointed genomic regions
+    stratify      Count variants per-region in vcf
+    divide        Divide a VCF into independent shards
+    phab          Variant harmonization using MSA
+    refine        Automated bench result refinement with phab
+    version       Print the Truvari version and exit
+
+positional arguments:
+  CMD         Command to execute
+  OPTIONS     Options to pass to the command
+
+options:
+  -h, --help  show this help message and exit
+

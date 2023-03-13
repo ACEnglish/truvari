@@ -1,0 +1,64 @@
+2022-12-01 18:25:56,985 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 18:25:56,987 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13/
+2022-12-01 18:25:56,989 [INFO] Params:
+{
+    "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
+    "output": "test_results/bench13/",
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "minhaplen": 50,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "dup_to_ins": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": "NA24385",
+    "cSample": "HG00733",
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": null,
+    "extend": 0,
+    "multimatch": false
+}
+2022-12-01 18:25:57,189 [INFO] Zipped 4216 variants Counter({'base': 2151, 'comp': 2065})
+2022-12-01 18:25:57,191 [INFO] 15 chunks of 4216 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 16})
+2022-12-01 18:25:57,194 [INFO] Stats: {
+    "TP-base": 10,
+    "TP-call": 10,
+    "FP": 7,
+    "FN": 6,
+    "precision": 0.5882352941176471,
+    "recall": 0.625,
+    "f1": 0.6060606060606061,
+    "base cnt": 16,
+    "call cnt": 17,
+    "TP-call_TP-gt": 7,
+    "TP-call_FP-gt": 3,
+    "TP-base_TP-gt": 7,
+    "TP-base_FP-gt": 3,
+    "gt_concordance": 0.7,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(1, 0)": 1,
+            "(1, 1)": 2
+        },
+        "(0, 1)": {
+            "(0, 1)": 2,
+            "(1, 1)": 2,
+            "(1, 0)": 1
+        },
+        "(1, 0)": {
+            "(1, 0)": 2
+        }
+    }
+}
+2022-12-01 18:25:57,291 [INFO] Finished bench

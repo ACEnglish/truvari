@@ -1,0 +1,67 @@
+2022-12-01 18:26:04,018 [INFO] Truvari v4.0.0.dev0+detached
+2022-12-01 18:26:04,019 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/beds/include.bed --extend 500
+2022-12-01 18:26:04,021 [INFO] Params:
+{
+    "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
+    "output": "test_results/bench13_extend/",
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
+    "debug": false,
+    "prog": false,
+    "refdist": 500,
+    "pctsim": 0.7,
+    "minhaplen": 50,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "dup_to_ins": false,
+    "use_lev": false,
+    "chunksize": 1000,
+    "gtcomp": false,
+    "bSample": "NA24385",
+    "cSample": "HG00733",
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "includebed": "/data/repo_utils/test_files/beds/include.bed",
+    "extend": 500,
+    "multimatch": false
+}
+2022-12-01 18:26:04,070 [INFO] Including 11 bed regions
+2022-12-01 18:26:04,072 [INFO] Found 1 chromosomes with overlapping regions
+2022-12-01 18:26:04,072 [INFO] Extending the regions by 500 bases
+2022-12-01 18:26:04,075 [INFO] Found 1 chromosomes with overlapping regions
+2022-12-01 18:26:04,200 [INFO] Zipped 2050 variants Counter({'base': 1130, 'comp': 920})
+2022-12-01 18:26:04,201 [INFO] 11 chunks of 2050 variants Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
+2022-12-01 18:26:04,206 [INFO] Stats: {
+    "TP-base": 6,
+    "TP-call": 6,
+    "FP": 4,
+    "FN": 4,
+    "precision": 0.6,
+    "recall": 0.6,
+    "f1": 0.6,
+    "base cnt": 10,
+    "call cnt": 10,
+    "TP-call_TP-gt": 4,
+    "TP-call_FP-gt": 2,
+    "TP-base_TP-gt": 4,
+    "TP-base_FP-gt": 2,
+    "gt_concordance": 0.6666666666666666,
+    "gt_matrix": {
+        "(1, 1)": {
+            "(1, 0)": 1,
+            "(1, 1)": 2
+        },
+        "(0, 1)": {
+            "(1, 1)": 1,
+            "(1, 0)": 1
+        },
+        "(1, 0)": {
+            "(1, 0)": 1
+        }
+    }
+}
+2022-12-01 18:26:04,309 [INFO] Finished bench
