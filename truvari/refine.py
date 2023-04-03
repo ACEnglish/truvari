@@ -154,17 +154,27 @@ def make_region_report(data):
     result["comp P"] = compP
     result["comp N"] = compN
     # precision
-    result["PPV"] = result["TP"] / result["comp P"]
+    result["PPV"] = result["TP"] / result["comp P"] if result["comp P"] != 0 else None
     # recall
-    result["TPR"] = result["TP"] / result["base P"]
+    result["TPR"] = result["TP"] / result["base P"] if result["base P"] != 0 else None
     # specificity
-    result["TNR"] = result["TN"] / result["base N"]
+    result["TNR"] = result["TN"] / result["base N"] if result["base N"] != 0 else None
     # negative predictive value
-    result["NPV"] = result["TN"] / result["comp N"]
+    result["NPV"] = result["TN"] / result["comp N"] if result["comp N"] != 0 else None
     # accuracy
-    result["ACC"] = (result["TP"] + result["TN"]) / (result["base P"] + result["base N"])
-    result["BA"] = (result["TPR"] + result["TNR"]) / 2
-    result["F1"] = 2 * ((result["PPV"] * result["TPR"]) / (result["PPV"] + result["TPR"]))
+    if result["base P"] + result["base N"] != 0:
+        result["ACC"] = (result["TP"] + result["TN"]) / (result["base P"] + result["base N"])
+    else:
+        result["ACC"] = None
+    if result["TPR"] is not None and result["TNR"] is not None:
+        result["BA"] = (result["TPR"] + result["TNR"]) / 2
+    else:
+        result["BA"] = None
+
+    if result["PPV"] and result["TPR"]:
+        result["F1"] = 2 * ((result["PPV"] * result["TPR"]) / (result["PPV"] + result["TPR"]))
+    else:
+        result["F1"] = None
     result["UND"] = len(und)
 
     return result
@@ -315,8 +325,8 @@ def refine_main(cmdargs):
     summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))
 
     report = make_region_report(regions)
+    regions['end'] -= 1 # Undo IntervalTree's correction
     regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
-
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
         fout.write(json.dumps(report, indent=4))
 
