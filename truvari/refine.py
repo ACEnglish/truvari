@@ -115,8 +115,8 @@ def make_region_report(data):
     Given a refine counts DataFrame, calculate the performance of
     PPV, TNR, etc. Also adds 'state' column to regions inplace
     """
-    false_pos = (data['out_fp'] != 0)
-    false_neg = (data['out_fn'] != 0)
+    false_pos = data['out_fp'] != 0
+    false_neg = data['out_fn'] != 0
     any_false = false_pos | false_neg
 
     true_positives = (data['out_tp'] != 0) & (data['out_tpbase'] != 0) & ~any_false

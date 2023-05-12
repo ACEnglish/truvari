@@ -7,19 +7,16 @@ import os
 import sys
 import json
 import math
-import types
 import shutil
 import logging
 import argparse
+import functools
 import multiprocessing
 from io import StringIO
-from functools import cmp_to_key
 
 import pysam
 import tabix
 import truvari
-
-trfshared = types.SimpleNamespace()
 
 try:
     from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
@@ -50,7 +47,7 @@ def compare_scores(a, b):
         elif aspan < bspan:
             ret = -1
     return ret
-score_sorter = cmp_to_key(compare_scores)
+score_sorter = functools.cmp_to_key(compare_scores)
 
 class TRFAnno():
     """
@@ -344,7 +341,7 @@ class AnnoStack():
         self.tanno = TRFAnno(cur_anno, ref_seq, self.motif_sim)
 
 
-def process_ref_region(region):
+def process_ref_region(region, args):
     """
     Process a section of the reference.
     Tries to run TRF only once
@@ -355,7 +352,7 @@ def process_ref_region(region):
     logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    vcf = pysam.VariantFile(trfshared.args.input)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -366,10 +363,10 @@ def process_ref_region(region):
         return None
 
 
-    m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
+    m_stack = AnnoStack(list(iter_tr_regions(args.repeats,
                              (region["chrom"], region["start"], region["end"]))),
-                        pysam.FastaFile(trfshared.args.reference),
-                        trfshared.args.motif_similarity)
+                        pysam.FastaFile(args.reference),
+                        args.motif_similarity)
 
     batch = []
     fa_fn = truvari.make_temp_filename(suffix=".fa")
@@ -389,7 +386,7 @@ def process_ref_region(region):
 
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
+            if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
@@ -397,7 +394,7 @@ def process_ref_region(region):
                 m_anno = m_stack.tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == truvari.SV.INS:
-                m_anno = m_stack.tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
+                m_anno = m_stack.tanno.ins_estimate_anno(entry) if not args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
@@ -405,7 +402,7 @@ def process_ref_region(region):
                     fa_out.write(f">{len(batch) - 1}\n{m_stack.tanno.make_seq(entry, 'INS')}\n")
 
     if batch:
-        annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
+        annotations = run_trf(fa_fn, args.executable, args.trf_params)
         for key, (entry, tanno) in enumerate(batch):
             key = str(key)
             m_anno = None
@@ -420,17 +417,17 @@ def process_ref_region(region):
     logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
 
-def process_tr_region(region):
+def process_tr_region(region, args):
     """
     Process vcf lines from a tr reference section
     """
     logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    ref = pysam.FastaFile(trfshared.args.reference)
+    ref = pysam.FastaFile(args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
-    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity, trfshared.args.buffer)
-    vcf = pysam.VariantFile(trfshared.args.input)
+    tanno = TRFAnno(region, ref_seq, args.motif_similarity, args.buffer)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -448,7 +445,7 @@ def process_tr_region(region):
                 continue
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
+            if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
@@ -456,7 +453,7 @@ def process_tr_region(region):
                 m_anno = tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == truvari.SV.INS:
-                m_anno = tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
+                m_anno = tanno.ins_estimate_anno(entry) if not args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
@@ -465,7 +462,7 @@ def process_tr_region(region):
                     fa_out.write(f">{len(batch) - 1}\n{seq}\n")
 
     if batch:
-        annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
+        annotations = run_trf(fa_fn, args.executable, args.trf_params)
         for key, entry in enumerate(batch):
             key = str(key)
             m_anno = None
@@ -634,20 +631,18 @@ def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
     check_params(args)
-    trfshared.args = args
 
     m_regions = None
     m_process = None
     if args.regions_only:
         m_regions = iter_tr_regions(args.repeats)
-        m_process = process_tr_region
+        m_process = functools.partial(process_tr_region, args=args)
     else:
         # refactor. need streaming mode
         m_regions = truvari.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
-        m_process = process_ref_region
+        m_process = functools.partial(process_ref_region, args=args)
 
-
-    vcf = pysam.VariantFile(trfshared.args.input)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
 
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
