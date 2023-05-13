@@ -16,6 +16,7 @@ from pysam import bcftools
 from intervaltree import IntervalTree
 
 import truvari
+from truvari.phab import check_requirements as phab_check_requirements
 
 def read_json(fn):
     """
@@ -280,6 +281,10 @@ def refine_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
+
+    if not phab_check_requirements():
+        logging.error("Couldn't run Truvari. Please fix parameters\n")
+        sys.exit(100)
 
     params = check_params(args)
 
