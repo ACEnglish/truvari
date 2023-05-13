@@ -282,7 +282,7 @@ def refine_main(cmdargs):
     """
     args = parse_args(cmdargs)
 
-    if not phab_check_requirements():
+    if phab_check_requirements():
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
