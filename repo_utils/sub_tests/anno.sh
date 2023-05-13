@@ -54,7 +54,7 @@ fi
 
 #                                 grm
 run test_anno_grm \
-    $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl
+    $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl -t 2
 if [ $test_anno_grm ]; then
     assert_exit_code 0
     df_check test_anno_grm $ANSDIR/anno/grm.jl $OD/grm.jl
