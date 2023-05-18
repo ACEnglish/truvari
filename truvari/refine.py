@@ -34,11 +34,22 @@ def intersect_beds(bed_a, bed_b):
     shared = {}
     count = 0
     for chrom in bed_a:
+        a_intv = sorted(bed_a[chrom])
+        b_intv = sorted(bed_b[chrom])
+        a_idx = 0
+        b_idx = 0
         s_inc = []
-        for i in bed_a[chrom]:
-            if bed_b[chrom].overlaps(i):
-                count += 1
-                s_inc.append(i)
+        while a_idx < len(a_intv) and b_idx < len(b_intv):
+            if a_intv[a_idx].end < b_intv[b_idx].begin:
+                a_idx += 1
+                continue
+            if b_intv[b_idx].end < a_intv[a_idx].begin:
+                b_idx += 1
+                continue
+            # not before and not after means overlap
+            count += 1
+            s_inc.append(a_intv[a_idx])
+            a_idx += 1
         shared[chrom] = IntervalTree(s_inc)
     return shared, count
 
