@@ -10,7 +10,12 @@ import hashlib
 sys.stderr.write(f"Running fake MAFFT\n")
 m_dir = os.path.dirname(os.path.realpath(__file__))
 
-md5sum = hashlib.md5(sys.stdin.read().encode()).hexdigest()
+stdin = sys.stdin.read()
+md5sum = hashlib.md5(stdin.encode()).hexdigest()
+fn = os.path.join(m_dir, f"lookup/fm_{md5sum}.msa")
 
-with open(os.path.join(m_dir, f"lookup/fm_{md5sum}.msa")) as result:
+#if not os.path.exists(fn):
+#    with open("delme.txt", 'w') as fout:
+#        fout.write(stdin)
+with open(fn) as result:
     sys.stdout.write(result.read())

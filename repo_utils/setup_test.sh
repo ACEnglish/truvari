@@ -20,7 +20,7 @@ sort_vcf() {
 fn_md5() {
     fn=$1
     # simple md5sum checking
-    md5sum $fn | cut -f1 -d\
+    md5sum $fn | cut -f1 -d\ 
 }
 
 info_tests() {

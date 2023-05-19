@@ -119,18 +119,22 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
     """
+    # Dev only method for overwriting test answers - don't use until code is good
+    dev_name = None
+    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
+        import hashlib # pylint: disable=import-outside-toplevel
+        dev_name = hashlib.md5(seq_bytes).hexdigest()
+
     cmd = f"mafft --quiet {params} -"
     ret = truvari.cmd_exe(cmd, stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
         return ""
-    # Dev only method for overwriting test answers - don't use until code is good
-    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
-        import hashlib # pylint: disable=import-outside-toplevel
-        name = hashlib.md5(ret.stdout.encode()).hexdigest()
-        with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + name + ".msa", 'w') as fout:
+    if dev_name is not None:
+        with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + dev_name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
+
     fasta = {}
     for name, sequence in fasta_reader(ret.stdout, name_entries=False):
         fasta[name] = sequence.decode()
