@@ -221,7 +221,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(all_samp_names) + "\n")
 
-        with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+        with multiprocessing.Pool(threads) as pool:
             m_maft = partial(mafft_to_vars, params=mafft_params)
             for result in pool.imap_unordered(m_maft, jobs):
                 fout.write(result)

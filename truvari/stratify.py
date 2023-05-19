@@ -8,6 +8,7 @@ import multiprocessing
 from functools import partial
 
 import pysam
+import numpy as np
 import pandas as pd
 
 import truvari
@@ -34,7 +35,7 @@ def parse_args(args):
     truvari.setup_logging(args.debug, show_version=True)
     return args
 
-def count_entries(vcf, regions, within):
+def count_entries(vcf, chroms, regions, within):
     """
     Count the number of variants per bed region a VCF
     regions is a list of lists with sub-lists having 0:3 of chrom, start, end
@@ -43,8 +44,9 @@ def count_entries(vcf, regions, within):
     if isinstance(vcf, str):
         vcf = pysam.VariantFile(vcf)
     counts = [0] * len(regions)
-    for idx, row in enumerate(regions):
-        for entry in vcf.fetch(row[0], row[1], row[2]):
+    for idx, row in enumerate(zip(chroms, regions)):
+        chrom, row = row
+        for entry in vcf.fetch(chrom, row[0], row[1]):
             if within:
                 ent_start, ent_end = truvari.entry_boundaries(entry)
                 if not (row[1] <= ent_start and ent_end <= row[2]):
@@ -65,7 +67,9 @@ def benchdir_count_entries(benchdir, regions, within=False, threads=4):
             os.path.join(benchdir, 'fp.vcf.gz')]
     if isinstance(regions, pd.DataFrame):
         regions = regions.to_numpy().tolist() # the methods expect lists
-    method = partial(count_entries, regions=regions, within=within)
+    chroms = np.array([_[0] for _ in regions])
+    intvs = np.array([[_[1], _[2]] for _ in regions])
+    method = partial(count_entries, chroms=chroms, regions=intvs, within=within)
     data = {}
     with multiprocessing.Pool(threads) as pool: #, maxtasksperchild=1) as pool:
         for name, counts in zip(names, pool.map(method, vcfs)):
