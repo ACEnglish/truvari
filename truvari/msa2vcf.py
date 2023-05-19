@@ -61,8 +61,9 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
         if alt_key.startswith("ref_"):
             continue
         # gross
-        cur_samp_hap = "_".join(alt_key.split('_')[:-1])
-        sample_names.add("_".join(alt_key.split('_')[:-2]))
+        tmp = alt_key.split('_')
+        cur_samp_hap = "_".join(tmp[:2])
+        sample_names.add(tmp[0])
         alt_seq = msa[alt_key].upper()
 
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base

@@ -211,8 +211,6 @@ def parse_args(args):
                         help="Use original input VCFs instead of filtered tp/fn/fps")
     parser.add_argument("-t", "--threads", default=1, type=int,
                         help="Number of threads to use (%(default)s)")
-    parser.add_argument("-k", "--keep-phab", action="store_true",
-                        help="Keep the phab intermediate files")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -244,11 +242,6 @@ def check_params(args):
     # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
 
-    phdir = os.path.join(args.benchdir, 'phab')
-    if os.path.exists(phdir):
-        logging.error("Directory %s exists. Cannot run refine", phdir)
-        sys.exit(1)
-
     bhdir = os.path.join(args.benchdir, 'phab_bench')
     if os.path.exists(bhdir):
         logging.error("Directory %s exists. Cannot run refine", bhdir)
@@ -263,7 +256,6 @@ def check_params(args):
     if check_fail:
         sys.exit(1)
 
-    os.makedirs(phdir)
     return Namespace(**params)
 
 def initial_stratify(benchdir, regions):
@@ -321,15 +313,13 @@ def refine_main(cmdargs):
     regions[regions["refined"]].to_csv(reeval_bed, sep='\t', header=False, index=False)
 
     # Send the vcfs to phab
-    to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
-    phab_dir = os.path.join(args.benchdir, "phab")
-    truvari.phab_multi(base_vcf, args.reference, phab_dir, to_eval_coords,
-                       comp_vcf=comp_vcf, prefix_comp=True, threads=args.threads)
-
     phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
-    truvari.consolidate_phab_vcfs(phab_dir, phab_vcf)
+    to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
+    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, comp_vcf=comp_vcf,
+                 prefix_comp=True, threads=args.threads)
 
     # Now run bench on the phab harmonized variants
+    logging.info("Running bench")
     matcher = truvari.Matcher(params)
     matcher.params.no_ref = 'a'
     outdir = os.path.join(args.benchdir, "phab_bench")
@@ -347,6 +337,4 @@ def refine_main(cmdargs):
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
         fout.write(json.dumps(report, indent=4))
 
-    if not args.keep_phab:
-        shutil.rmtree(phab_dir)
     logging.info("Finished refine")

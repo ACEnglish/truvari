@@ -77,7 +77,7 @@ def extract_reference(reg_fn, ref_fn):
 def fasta_reader(fa_str, name_entries=True):
     """
     Parses a fasta file as a string and yields tuples of (location, entry)
-    if name_entries, the 
+    if name_entries, the entry names are written to the value and location is honored
     """
     cur_name = None
     cur_entry = BytesIO()
@@ -125,7 +125,11 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
         return ""
-
+    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
+        import hashlib
+        name = hashlib.md5(ret.stdout.encode()).hexdigest()
+        with open("fm_" + name + ".msa", 'w') as fout:
+            fout.write(ret.stdout)
     fasta = {}
     for name, sequence in fasta_reader(ret.stdout, name_entries=False):
         fasta[name] = sequence.decode()
@@ -175,9 +179,13 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     if comp_vcf and cSamples is None:
         bsamps = list(pysam.VariantFile(base_vcf).header.samples)
         all_samples.extend([(comp_vcf, samp, prefix_comp or samp in bsamps)
-                            for samp in  list(pysam.VariantFile(comp_vcf).header.samples)])
+                            for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
     # Need for header later
-    all_samp_names = sorted([_[1] for _ in all_samples])
+    all_samp_names = []
+    for _, samp, prefix in all_samples:
+        prefix = 'p:' if prefix else ''
+        all_samp_names.append(prefix + samp)
+    all_samp_names.sort()
 
     all_haps = defaultdict(BytesIO)
     partial_extract_haps = partial(extract_haplotypes, ref_fn=ref_haps_fn)
