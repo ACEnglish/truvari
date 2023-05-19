@@ -60,16 +60,16 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     for alt_key in msa.keys():
         if alt_key.startswith("ref_"):
             continue
-        # gross
-        tmp = alt_key.split('_')
-        cur_samp_hap = "_".join(tmp[:2])
-        sample_names.add(tmp[0])
+
+        # Trim off the location then haplotype from key sample
+        cur_samp_hap = alt_key[:alt_key.rindex('_')]
+        sample_names.add(cur_samp_hap[:-2])
         alt_seq = msa[alt_key].upper()
 
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
 
         cur_variant = []
-        cur_pos = start_pos # still have a problem here with anchor base.
+        cur_pos = start_pos
         # This is too long. need to have a separate zip method
         for ref_base, alt_base in zip(ref_seq, alt_seq):
             is_ref = ref_base != '-'
@@ -125,7 +125,7 @@ def make_vcf(variants, sample_names):
     out.seek(0)
     return out.read()
 
-def msa2vcf(msa, anchor_base=None):
+def msa2vcf(msa, anchor_base='N'):
     """
     Parse an MSA dict of {name: alignment, ...} and returns its VCF entries as a string
 

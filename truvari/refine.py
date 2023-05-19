@@ -6,6 +6,8 @@ import sys
 import json
 import logging
 import argparse
+from functools import partial
+import multiprocessing as mp
 from argparse import Namespace
 from collections import defaultdict
 
@@ -89,7 +91,6 @@ def resolve_regions(params, args):
     # might need to merge overlaps.
     return reeval_trees
 
-
 def consolidate_bench_vcfs(benchdir):
     """
     Pull and consolidate base/comp variants from their regions
@@ -135,7 +136,6 @@ def make_region_report(data):
     true_positives = (data['out_tp'] != 0) & (data['out_tpbase'] != 0) & ~any_false
 
     true_negatives = (data[['out_tpbase', 'out_tp', 'out_fn', 'out_fp']] == 0).all(axis=1)
-
 
     state_map = defaultdict(lambda: 'UNK')
     state_map.update({(True, False, False, False): 'TP',
@@ -208,7 +208,7 @@ def parse_args(args):
                         help="When intersecting includebed with regions, use includebed coordinates")
     parser.add_argument("-u", "--use-original", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
-    parser.add_argument("-t", "--threads", default=1, type=int,
+    parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
@@ -257,22 +257,39 @@ def check_params(args):
 
     return Namespace(**params)
 
-def initial_stratify(benchdir, regions):
+def initial_stratify(benchdir, regions, threads=1):
     """
     Get the stratify counts from the initial bench results
     """
-    counts = truvari.benchdir_count_entries(benchdir, regions, True)[["tpbase", "tp", "fn", "fp"]]
+    counts = truvari.benchdir_count_entries(benchdir, regions, True, threads)[["tpbase", "tp", "fn", "fp"]]
     regions = pd.DataFrame(regions, columns=["chrom", "start", "end"])
     counts.index = regions.index
     counts.columns = ["in_tpbase", "in_tp", "in_fn", "in_fp"]
     regions = regions.join(counts)
     return regions
 
-def refined_stratify(outdir, to_eval_coords, regions):
+def original_stratify(base_vcf, comp_vcf, regions):
+    """
+    Get the variant counts from the original vcfs and return a list of refine bools
+    The logic here is that `(regions["in_fn"] > 0) | (regions["in_fp"] > 0)` may create
+    a number of regions which don't benefit from phab because either is without variants.
+    So, for that subset we'll double check that base AND comp have any variants to compare.
+    Some regions will still be evaluated for no good reason e.g. PASS only or a rogue snp.
+    """
+    to_eval = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
+    candidates = regions[to_eval]
+    method = partial(truvari.count_entries, regions=candidates.to_numpy().tolist(), within=True)
+    results = []
+    with mp.Pool(2, maxtasksperchild=1) as pool:
+        for result in pool.map(method, [base_vcf, comp_vcf]):
+            results.append(pd.Series(result, index=candidates.index))
+    return to_eval & (results[0] != 0) & (results[1] != 0)
+
+def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     """
     update regions in-place with the output variant counts
     """
-    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True)[["tpbase", "tp", "fn", "fp"]]
+    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True, threads)[["tpbase", "tp", "fn", "fp"]]
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
@@ -296,13 +313,13 @@ def refine_main(cmdargs):
     regions = tree_to_regions(reeval_trees)
 
     # Stratify.
-    regions = initial_stratify(args.benchdir, regions)
+    regions = initial_stratify(args.benchdir, regions, args.threads)
 
     # Figure out which to reevaluate
     # Set the input VCFs for phab
     if args.use_original:
         base_vcf, comp_vcf = params.base, params.comp
-        regions["refined"] = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
+        regions["refined"] = original_stratify(base_vcf, comp_vcf, regions)
     else:
         base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
         regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
@@ -325,7 +342,7 @@ def refine_main(cmdargs):
     m_bench = truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
     m_bench.run()
 
-    regions = refined_stratify(outdir, to_eval_coords, regions)
+    regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
 
     summary = make_variant_report(regions)
     summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))

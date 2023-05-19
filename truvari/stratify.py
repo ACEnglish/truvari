@@ -2,7 +2,10 @@
 Count variants per-region in vcf
 """
 import os
+import logging
 import argparse
+import multiprocessing
+from functools import partial
 
 import pysam
 import pandas as pd
@@ -37,6 +40,8 @@ def count_entries(vcf, regions, within):
     regions is a list of lists with sub-lists having 0:3 of chrom, start, end
     Returns a list of the counts in the same order as the regions
     """
+    if isinstance(vcf, str):
+        vcf = pysam.VariantFile(vcf)
     counts = [0] * len(regions)
     for idx, row in enumerate(regions):
         for entry in vcf.fetch(row[0], row[1], row[2]):
@@ -47,20 +52,24 @@ def count_entries(vcf, regions, within):
             counts[idx] += 1
     return counts
 
-def benchdir_count_entries(benchdir, regions, within=False):
+def benchdir_count_entries(benchdir, regions, within=False, threads=4):
     """
     Count the number of variants per bed region in Truvari bench directory by state
 
     Returns a pandas dataframe of the counts
     """
-    vcfs = {'tpbase': pysam.VariantFile(os.path.join(benchdir, 'tp-base.vcf.gz')),
-            'tp': pysam.VariantFile(os.path.join(benchdir, 'tp-comp.vcf.gz')),
-            'fn': pysam.VariantFile(os.path.join(benchdir, 'fn.vcf.gz')),
-            'fp': pysam.VariantFile(os.path.join(benchdir, 'fp.vcf.gz'))
-            }
+    names = ['tpbase', 'tp', 'fn', 'fp']
+    vcfs = [os.path.join(benchdir, 'tp-base.vcf.gz'),
+            os.path.join(benchdir, 'tp-comp.vcf.gz'),
+            os.path.join(benchdir, 'fn.vcf.gz'),
+            os.path.join(benchdir, 'fp.vcf.gz')]
+    if isinstance(regions, pd.DataFrame):
+        regions = regions.to_numpy().tolist() # the methods expect lists
+    method = partial(count_entries, regions=regions, within=within)
     data = {}
-    for name, vcf in vcfs.items():
-        data[name] = count_entries(vcf, regions, within)
+    with multiprocessing.Pool(threads) as pool: #, maxtasksperchild=1) as pool:
+        for name, counts in zip(names, pool.map(method, vcfs)):
+            data[name] = counts
     return pd.DataFrame(data)
 
 def stratify_main(cmdargs):
@@ -79,3 +88,4 @@ def stratify_main(cmdargs):
     counts.index = regions.index
     regions = regions.join(counts)
     regions.to_csv(args.output, header=args.header, index=False, sep='\t')
+    logging.info("Finished")
