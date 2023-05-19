@@ -126,7 +126,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         logging.error(ret.stderr)
         return ""
     if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
-        import hashlib
+        import hashlib # pylint: disable=import-outside-toplevel
         name = hashlib.md5(ret.stdout.encode()).hexdigest()
         with open("fm_" + name + ".msa", 'w') as fout:
             fout.write(ret.stdout)

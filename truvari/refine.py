@@ -4,7 +4,6 @@ Automated Truvari bench result refinement with phab
 import os
 import sys
 import json
-import shutil
 import logging
 import argparse
 from argparse import Namespace
