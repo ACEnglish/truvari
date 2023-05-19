@@ -45,11 +45,12 @@ def count_entries(vcf, chroms, regions, within):
         vcf = pysam.VariantFile(vcf)
     counts = [0] * len(regions)
     for idx, row in enumerate(zip(chroms, regions)):
-        chrom, row = row
-        for entry in vcf.fetch(chrom, row[0], row[1]):
+        chrom, coords = row
+        start, end = coords
+        for entry in vcf.fetch(chrom, start, end):
             if within:
                 ent_start, ent_end = truvari.entry_boundaries(entry)
-                if not (row[1] <= ent_start and ent_end <= row[2]):
+                if not (start <= ent_start and ent_end <= end):
                     continue
             counts[idx] += 1
     return counts
@@ -87,7 +88,9 @@ def stratify_main(cmdargs):
     if os.path.isdir(args.in_vcf):
         counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[["tpbase", "tp", "fn", "fp"]]
     else:
-        counts = count_entries(pysam.VariantFile(args.in_vcf), r_list, args.within)
+        chroms = np.array([_[0] for _ in r_list])
+        intvs = np.array([[_[1], _[2]] for _ in r_list])
+        counts = count_entries(pysam.VariantFile(args.in_vcf), chroms, intvs, args.within)
         counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)

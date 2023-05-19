@@ -12,7 +12,6 @@ from argparse import Namespace
 from collections import defaultdict
 
 import pandas as pd
-
 from pysam import bcftools
 from intervaltree import IntervalTree
 
@@ -278,8 +277,8 @@ def original_stratify(base_vcf, comp_vcf, regions):
     """
     to_eval = (regions["in_fn"] > 0) | (regions["in_fp"] > 0)
     candidates = regions[to_eval]
-    chroms = np.array([_[0] for _ in regions])
-    intvs = np.array([[_[1], _[2]] for _ in regions])
+    chroms = candidates["chrom"].to_numpy()
+    intvs = candidates[["start", "end"]].to_numpy()
     method = partial(truvari.count_entries, chroms=chroms, regions=intvs, within=True)
     results = []
     with mp.Pool(2, maxtasksperchild=1) as pool:
@@ -333,7 +332,7 @@ def refine_main(cmdargs):
     # Send the vcfs to phab
     phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
     to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=50, comp_vcf=comp_vcf,
+    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=100, comp_vcf=comp_vcf,
                  prefix_comp=True, threads=args.threads)
 
     # Now run bench on the phab harmonized variants

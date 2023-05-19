@@ -7,7 +7,10 @@ COVERAGE_RCFILE=.coveragerc
 truv="coverage run --concurrency=multiprocessing,thread -p -m truvari.__main__"
 
 # Fake MAFFT so we don't have to rely on it in github actions
-export PATH=$INDIR/external/fake_mafft/:$PATH
+if [ -z "$PHAB_WRITE_MAFFT" ]
+then
+    export PATH=$INDIR/external/fake_mafft/:$PATH
+fi
 # ------------------------------------------------------------
 #                                 test helpers
 # ------------------------------------------------------------
