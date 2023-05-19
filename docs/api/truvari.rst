@@ -128,10 +128,6 @@ phab
 ^^^^
 .. autofunction:: phab
 
-phab_multi
-^^^^^^^^^^
-.. autofunction:: phab_multi
-
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: reciprocal_overlap
@@ -169,10 +165,6 @@ chunker
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
-
-consolidate_phab_vcfs
-^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: consolidate_phab_vcfs
 
 count_entries
 ^^^^^^^^^^^^^

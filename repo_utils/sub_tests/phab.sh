@@ -1,8 +1,7 @@
 # ------------------------------------------------------------
 #                                 phab
 # ------------------------------------------------------------
-run test_phab $truv phab -k $OD/phab_result \
-                         -o $OD/phab_result.vcf.gz \
+run test_phab $truv phab -o $OD/phab_result.vcf.gz \
                          -b $INDIR/variants/phab_base.vcf.gz \
                          -c $INDIR/variants/phab_comp.vcf.gz \
                          -f $INDIR/references/phab_ref.fa \

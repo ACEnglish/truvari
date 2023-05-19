@@ -1,23 +1,11 @@
 """
 Turn an MSA fasta into VCF. Assumes one entry is reference with name >ref_chrom:start-end
 """
-import copy
 from io import StringIO
 from collections import defaultdict
 
-import pysam
-
 REFIDX = 3
 ALTIDX = 4
-
-def build_header(chrom=None):
-    """
-    Bare minimum vcf header
-    """
-    ret = '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
-    if chrom is not None:
-        ret += f"\n##contig=<ID={chrom}>\n"
-    return ret
 
 def decompose_variant(cur_variant):
     """
@@ -30,6 +18,7 @@ def decompose_variant(cur_variant):
     alt = cur_variant[ALTIDX]
     if ref == alt:
         return []
+    #return [var_to_str(cur_variant)]
     # If base after anchor base is identical, we have a new anchor base
     # Stop when there's only one base left or unmached bases
     trim = 0
@@ -38,15 +27,26 @@ def decompose_variant(cur_variant):
     cur_variant[1] += trim
     cur_variant[REFIDX] = ref[trim:]
     cur_variant[ALTIDX] = alt[trim:]
-    if len(cur_variant[REFIDX]) == 1 or len(cur_variant[ALTIDX]) == 1:
-        return [var_to_str(cur_variant)]
+    #if len(cur_variant[REFIDX]) == 1 or len(cur_variant[ALTIDX]) == 1:
+    return [var_to_str(cur_variant)]
 
-    # decompose REPL to INS and DEL - easier for truvari to compare
-    in_var = copy.copy(cur_variant)
-    in_var[REFIDX] = in_var[REFIDX][0]
-    del_var = copy.copy(cur_variant)
-    del_var[ALTIDX] = del_var[ALTIDX][0]
-    return [var_to_str(in_var), var_to_str(del_var)]
+    # This works to find if you can split alt into two by ref
+    # But I don't know how I feel about it
+    #pos = 655
+    #if ref in alt:
+    #    idx = alt.index(ref)
+    #    new_ref1 = ref[0]
+    #    new_alt1 = alt[:idx]
+    #    new_ref2 = ref[-1]
+    #    new_alt2 = alt[idx + len(ref) - 1:]
+    #    print(pos, new_ref1, new_alt1)
+    #    print(pos + len(ref) - 1, new_ref2, new_alt2)
+    # decompose REPL to INS and DEL - easier for truvari to compare.. but doesn't work
+    #in_var = copy.copy(cur_variant)
+    #in_var[REFIDX] = in_var[REFIDX][0]
+    #del_var = copy.copy(cur_variant)
+    #del_var[ALTIDX] = del_var[ALTIDX][0]
+    #return [var_to_str(in_var), var_to_str(del_var)]
 
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     """
@@ -57,7 +57,7 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
 
     final_vars = defaultdict(list)
 
-    for alt_key in msa.references:
+    for alt_key in msa.keys():
         if alt_key.startswith("ref_"):
             continue
         # gross
@@ -105,15 +105,11 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     sample_names = sorted(list(sample_names))
     return sample_names, final_vars
 
-def make_vcf(variants, sample_names, header):
+def make_vcf(variants, sample_names):
     """
-    Write VCF - building GTs
+    Write VCF lines - building GTs
     """
     out = StringIO()
-    out.write(header)
-    out.write("#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT\t")
-    out.write("\t".join(sample_names) + '\n')
-
     for var in variants:
         out.write(var)
         for sample in sample_names:
@@ -128,26 +124,18 @@ def make_vcf(variants, sample_names, header):
     out.seek(0)
     return out.read()
 
-def msa2vcf(fn, header=None, anchor_base=None):
+def msa2vcf(msa, anchor_base=None):
     """
-    Parse an MSA file and returns its VCF as a string
+    Parse an MSA dict of {name: alignment, ...} and returns its VCF entries as a string
 
     Assumes one entry in the MSA has the name `ref_${chrom}:${start}-${end}` which gives VCF entries coordinates
-
-    VCF can be given a header or a minimal one is created with only file format and a single contig line
     Provide anchor_base to prevent 'N' from being used as an anchor base
-    Returns a string
+    Returns a string of entries
     """
-    msa = pysam.FastaFile(fn)
-
-    # The ref_key identifies reference
-    ref_key = [_ for _ in msa.references if _.startswith("ref_")][0] # pylint: disable=not-an-iterable
+    ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
     ref_seq = msa[ref_key].upper()
-    _, chrom, start_pos, _ = ref_key.split('_')
-    start_pos = int(start_pos)
+    chrom, rest = ref_key[len("ref_"):].split(':')
+    start_pos  = int(rest.split('-')[0])
 
     sample_names, variants = msa_to_vars(msa, ref_seq, chrom, start_pos, anchor_base)
-    if header is None:
-        header = build_header(chrom)
-
-    return make_vcf(variants, sample_names, header)
+    return make_vcf(variants, sample_names)

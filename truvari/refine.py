@@ -35,6 +35,7 @@ def intersect_beds(bed_a, bed_b):
     count = 0
     for chrom in bed_a:
         a_intv = sorted(bed_a[chrom])
+        bed_b[chrom].merge_overlaps()
         b_intv = sorted(bed_b[chrom])
         a_idx = 0
         b_idx = 0
@@ -63,6 +64,7 @@ def resolve_regions(params, args):
     """
     Figures out or creates the regions we'll be analyzing
     """
+    logging.info("Setting up regions")
     if params.includebed is None and args.regions is None:
         logging.error("Bench output didn't use `--includebed` and `--regions` not provided")
         logging.error("Unable to run refine")
@@ -304,7 +306,6 @@ def refine_main(cmdargs):
 
     # Stratify.
     regions = initial_stratify(args.benchdir, regions)
-
 
     # Figure out which to reevaluate
     # Set the input VCFs for phab

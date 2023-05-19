@@ -142,13 +142,15 @@ def alarm_handler(signum, frame=None):
     raise Alarm
 
 
-def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
+def cmd_exe(cmd, stdin=None, timeout=-1, cap_stderr=True, pipefail=False):
     """
     Executes a command through the shell and captures the output while enabling
     process handling with timeouts and keyboard interrupts.
 
     :param `cmd`: The command to be executed.
     :type `cmd`: string
+    :param `stdin`: stdinput to pipe to command
+    :type `stdin`: bytes
     :param `timeout`: Timeout for the command in minutes. So 1440 means 24 hours. -1 means never
     :type `timeout`: int
     :param `cap_stderr`: If True, capture the stderr and return it as part of the returned cmd_results.
@@ -182,14 +184,15 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     if pipefail:
         cmd = f"set -o pipefail; {cmd}"
     # pylint: disable=consider-using-with
+    m_in = sys.stdin if stdin is None else subprocess.PIPE
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                            stdin=sys.stdin, stderr=stderr, close_fds=True,
+                            stdin=m_in, stderr=stderr, close_fds=True,
                             start_new_session=True, executable="/bin/bash")
     if timeout > 0:
         signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(int(timeout * 60))
     try:
-        stdoutVal, stderrVal = proc.communicate()
+        stdoutVal, stderrVal = proc.communicate(input=stdin)
         signal.alarm(0)  # reset the alarm
     except Alarm:
         logging.error(("Command was taking too long. "
@@ -211,7 +214,6 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     ret = cmd_result(retCode, stdoutVal, stderrVal.decode(),
                      timedelta(seconds=time.time() - t_start))
     return ret
-
 
 def ref_ranges(reference, chunk_size=10000000):
     """

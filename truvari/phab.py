@@ -4,54 +4,18 @@ Wrapper around MAFFT and other tools to perform an MSA comparison of phased vari
 import os
 import re
 import sys
-import glob
 import shutil
 import logging
 import argparse
-import resource
 import multiprocessing
+from io import BytesIO
+from functools import partial
+from collections import defaultdict
 
 import pysam
-from pysam import bcftools
+from pysam import bcftools, samtools
+from intervaltree import IntervalTree
 import truvari
-
-DEFAULT_MAFFT_PARAM="--auto --thread 1"
-
-def parse_args(args):
-    """
-    Pull the command line parameters
-    """
-    parser = argparse.ArgumentParser(prog="phab", description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-r", "--region", type=str, required=True,
-                        help="Bed filename or comma-separated list of chrom:start-end regions to process")
-    # could maybe allow this to be an existing MSA and then we just use comp and add-to
-    parser.add_argument("-b", "--base", type=str, required=True,
-                        help="Baseline vcf to MSA")
-    parser.add_argument("-c", "--comp", type=str, default=None,
-                        help="Comparison vcf to MSA")
-    parser.add_argument("-f", "--reference", type=str, required=True,
-                        help="Reference")
-    parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
-    #parser.add_argument("--add-to", action='store_true',
-    #                    help="Build the baseMSA independentally of the compMSA, then add the comp")
-    parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
-                        help="Output VCF")
-    parser.add_argument("-k", "--keep-parts", type=str, default=None,
-                        help="Directory to save intermediate region results")
-    parser.add_argument("--bSamples", type=str, default=None,
-                        help="Subset of samples to MSA from base-VCF")
-    parser.add_argument("--cSamples", type=str, default=None,
-                        help="Subset of samples to MSA from comp-VCF")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
-                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("-t", "--threads", type=int, default=1,
-                        help="Number of threads (%(default)s)")
-    parser.add_argument("--debug", action="store_true",
-                        help="Verbose logging")
-    args = parser.parse_args(args)
-    return args
 
 def parse_regions(argument):
     """
@@ -83,187 +47,216 @@ def parse_regions(argument):
             ret.append((chrom, start, end))
     return ret
 
-def get_reference(fn, output, chrom, start, end):
+def merged_region_file(regions, buff=100):
     """
-    Pull a subset of the reference and put into a file
-    Returns the anchor base (1bp upstream from start) for msa2vcf
+    Write a file for extracting reference regions with samtools
+    returns the name of the temporary file made
     """
-    fasta = pysam.FastaFile(fn)
-    oseq = fasta.fetch(chrom, start - 2, end)
-    # no need to make it pretty?
-    #oseq = re.sub("(.{60})", "\\1\n", oseq, 0, re.DOTALL)
-    with open(output, 'w') as fout:
-        fout.write(f">ref_{chrom}_{start}_{end}\n{oseq[1:]}\n")
-    with open(output + '.ref.fa', 'w') as fout:
-        fout.write(f">{chrom}:{start}-{end}\n{oseq[1:]}\n")
-    return oseq[0]
+    m_dict = defaultdict(list)
+    for i in regions:
+        m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
 
-def pull_variants(vcf, region, output, ref, samples=None):
-    """
-    Given vcf and a region, grab the relevant variants
-    Maybe can make fill-from fasta optional.. but it isn't huge overhead (for now)
-    """
-    chrom, start, end = region
-    if samples is not None:
-        samples = "-s " + ",".join(samples)
-    else:
-        samples = ""
-    cmd = f"""bcftools view -c 1 {samples} -r {chrom}:{start}-{end} {vcf} \
-| bcftools +fill-from-fasta /dev/stdin -- -c REF -f {ref} \
-| bgzip > {output} && tabix {output}"""
+    out_file_name = truvari.make_temp_filename()
+    with open(out_file_name, 'w') as fout:
+        for chrom in m_dict:
+            intvs = IntervalTree.from_tuples(m_dict[chrom])
+            intvs.merge_overlaps()
+            for i in sorted(intvs):
+                fout.write(f"{chrom}:{i.begin}-{i.end}\n")
+    return out_file_name
 
-    ret = truvari.cmd_exe(cmd, pipefail=True)
+def extract_reference(reg_fn, ref_fn):
+    """
+    Pull the reference
+    """
+    out_fn = truvari.make_temp_filename(suffix='.fa')
+    with open(out_fn, 'w') as fout:
+        fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
+    return out_fn
+
+def fasta_reader(fa_str, name_entries=True):
+    """
+    Parses a fasta file as a string and yields tuples of (location, entry)
+    if name_entries, the 
+    """
+    cur_name = None
+    cur_entry = BytesIO()
+    for i in fa_str.split('\n'):
+        if not i.startswith(">"):
+            cur_entry.write(i.encode())
+            continue
+        if cur_name is not None:
+            cur_entry.write(b'\n')
+            cur_entry.seek(0)
+            yield cur_name, cur_entry.read()
+        cur_name = i[1:]
+        cur_entry = BytesIO()
+        if name_entries:
+            cur_name = cur_name.split('_')[-1]
+            cur_entry.write((i + '\n').encode())
+
+    cur_entry.write(b'\n')
+    cur_entry.seek(0)
+    yield cur_name, cur_entry.read()
+
+def extract_haplotypes(data, ref_fn):
+    """
+    Given a data tuple of VCF, sample name, and prefix bool
+    Call bcftools consensus
+    Returns list of tuples [location, fastaentry] for every haplotype, so locations are duplicated
+    """
+    vcf_fn, sample, prefix = data
+    prefix = 'p:' if prefix else ''
+    ret = []
+    cmd = "-H{{hap}} --sample {sample} --prefix {prefix}{sample}_{{hap}}_ -f {ref} {vcf}"
+    cmd = cmd.format(sample=sample, prefix = prefix, ref=ref_fn, vcf=vcf_fn)
+    for i in [1, 2]:
+        ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
+    return ret
+
+DEFAULT_MAFFT_PARAM="--auto --thread 1"
+def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
+    """
+    Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
+    """
+    cmd = f"mafft --quiet {params} -"
+    ret = truvari.cmd_exe(cmd, stdin=seq_bytes)
     if ret.ret_code != 0:
-        logging.error("Unable to pull variants from %s", vcf)
+        logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
-        sys.exit(1)
-    cnt = 0
-    with pysam.VariantFile(output) as fh:
-        for _ in fh:
-            cnt += 1
-    return cnt
+        return ""
 
-def build_consensus(vcf, ref, region, output, samples=None, prefix_name=False):
-    """
-    Make the consensus sequence - appends to output
-    """
-    chrom, start, end = region
-    prefix = 'p:' if prefix_name else ''
-    ref = output + '.ref.fa'
-    cmd = "cat {ref} | bcftools consensus -H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ {vcf} >> {output}"
-    for samp in samples:
-        for hap in [1, 2]:
-            m_cmd = cmd.format(ref=ref,
-                               chrom=chrom,
-                               start=start,
-                               end=end,
-                               hap=hap,
-                               sample=samp,
-                               prefix=prefix,
-                               vcf=vcf,
-                               output=output)
-            ret = truvari.cmd_exe(m_cmd, pipefail=True)
-            if ret.ret_code != 0:
-                logging.error("Unable to make haplotype %d for sample %s", hap, samp)
-                logging.error(ret.stderr)
-                sys.exit(1)
+    fasta = {}
+    for name, sequence in fasta_reader(ret.stdout, name_entries=False):
+        fasta[name] = sequence.decode()
+    return truvari.msa2vcf(fasta)
 
-def run_mafft(seq_fn, output, params=DEFAULT_MAFFT_PARAM):
+#pylint: disable=too-many-arguments, too-many-locals
+# This is just how many arguments it takes
+def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
+               mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
+               prefix_comp=False, threads=1):
     """
-    Run mafft - return True if successful
-    """
-    cmd = f"mafft {params} {seq_fn} > {output}"
-    ret = truvari.cmd_exe(cmd)
-    if ret.ret_code != 0:
-        logging.error("Unable to run MAFFT on %s", seq_fn)
-        logging.error(ret.stderr)
-        return False
-    return True
+    Harmonize variants with MSA. Runs on a set of regions given files to create
+    haplotypes and writes results to a compressed/indexed VCF
 
-# pylint: disable=too-many-locals
-def phab(base_vcf, reference, output_dir, var_region, buffer=100,
-        comp_vcf=None, bSamples=None, cSamples=None,
-        mafft_params=DEFAULT_MAFFT_PARAM, prefix_comp=False):
-    """
-    Harmonize variants with MSA.
-
+    :param `var_regions`: List of tuples of region's (chrom, start, end)
+    :type `var_regions`: :class:`list`
     :param `base_vcf`: VCF file name
     :type `base_vcf`: :class:`str`
-    :param `reference`: Reference file name
-    :type `reference`: :class:`str`
-    :param `output_dir`: Destination for results
-    :type `output_dir`: :class:`str`
-    :param `var_region`: Tuple of region's (chrom, start, end)
-    :type `var_region`: :class:`tuple`
-    :param `buffer`: Flanking reference bases to add to haplotypes
-    :type `buffer`: :class:`int`
-    :param `comp_vcf`: VCF file name
-    :type `comp_vcf`: :class:`str`
+    :param `ref_fn`: Reference file name
+    :type `ref_fn`: :class:`str`
+    :param `output_fn`: Output VCF.gz
     :param `bSamples`: Samples from `base_vcf` to create haplotypes
     :type `bSamples`: :class:`list`
-    :param `cSamples`: Samples from `comp_vcf` to create haplotypes
-    :type `cSamples`: :class:`list`
+    :param `buffer`: Flanking reference bases to added to regions
+    :type `buffer`: :class:`int`
     :param `mafft_params`: Parameters for mafft
     :type `mafft_params`: :class:`str`
+    :param `comp_vcf`: VCF file name
+    :type `comp_vcf`: :class:`str`
+    :param `cSamples`: Samples from `comp_vcf` to create haplotypes
+    :type `cSamples`: :class:`list`
     :param `prefix_comp`: Ensure unique sample names by prefixing comp samples
     :type `prefix_comp`: :class:`bool`
+    :param `threads`: Number of threads to use
+    :type `threads`: :class:`int`
     """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    logging.info("Preparing regions")
+    region_fn = merged_region_file(var_regions, buffer)
 
-    buff_region = (var_region[0], var_region[1] - buffer, var_region[2] + buffer)
+    logging.info("Extracting haplotypes")
+    ref_haps_fn = extract_reference(region_fn, ref_fn)
 
+    all_samples = [] #tuple of (VCF, sample_name, should_prefix
     if bSamples is None:
-        bSamples = list(pysam.VariantFile(base_vcf).header.samples)
+        all_samples.extend([(base_vcf, samp, False)
+                            for samp in  list(pysam.VariantFile(base_vcf).header.samples)])
     if comp_vcf and cSamples is None:
-        cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
+        bsamps = list(pysam.VariantFile(base_vcf).header.samples)
+        all_samples.extend([(comp_vcf, samp, prefix_comp or samp in bsamps)
+                            for samp in  list(pysam.VariantFile(comp_vcf).header.samples)])
+    # Need for header later
+    all_samp_names = sorted([_[1] for _ in all_samples])
 
-    # Make sure there are variants first
-    subset_base_vcf = os.path.join(output_dir, "base.vcf.gz")
-    num_vars = pull_variants(base_vcf, var_region, subset_base_vcf, reference, bSamples)
-    if comp_vcf is not None:
-        subset_comp_vcf = os.path.join(output_dir, "comp.vcf.gz")
-        num_vars += pull_variants(comp_vcf, var_region, subset_comp_vcf, reference, cSamples)
+    all_haps = defaultdict(BytesIO)
+    partial_extract_haps = partial(extract_haplotypes, ref_fn=ref_haps_fn)
+    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+        for haplotype in pool.imap_unordered(partial_extract_haps, all_samples):
+            for location, fasta_entry in haplotype:
+                all_haps[location].write(fasta_entry)
 
-    if num_vars == 0:
-        return
+    # Parse the ref_fn and write each of its entries to all_haps[location]
+    jobs = []
+    m_ref = pysam.FastaFile(ref_haps_fn)
+    for location in list(m_ref.references):
+        cur = all_haps[location]
+        cur.write(f">ref_{location}\n".encode())
+        cur.write(m_ref[location].encode())
+        cur.write(b'\n')
+        cur.seek(0)
+        jobs.append(cur.read())
 
-    sequences = os.path.join(output_dir, "haps.fa")
-    anchor_base = get_reference(reference, sequences, *buff_region)
+    logging.info("Harmonizing variants over %d regions", len(jobs))
+    output_temp_fn = output_fn[:-len(".gz")]
+    with open(output_temp_fn, 'w') as fout:
+        # Write header
+        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+        base = pysam.VariantFile(base_vcf)
+        for ctg in base.header.contigs.values():
+            fout.write(str(ctg.header_record))
+        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
+        fout.write("\t".join(all_samp_names) + "\n")
 
-    build_consensus(subset_base_vcf, reference, buff_region, sequences, bSamples)
+        with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+            m_maft = partial(mafft_to_vars, params=mafft_params)
+            for result in pool.imap_unordered(m_maft, jobs):
+                fout.write(result)
+            pool.close()
+            pool.join()
+    truvari.compress_index_vcf(output_temp_fn, output_fn)
+#pylint: enable=too-many-arguments, too-many-locals
 
-    if comp_vcf is not None:
-        build_consensus(subset_comp_vcf, reference, buff_region, sequences, cSamples, prefix_comp)
-
-    msa_output = os.path.join(output_dir, "msa.fa")
-    if not run_mafft(sequences, msa_output, mafft_params):
-        return
-
-    output_vcf = os.path.join(output_dir, "output.vcf")
-    vcf = pysam.VariantFile(base_vcf)
-    n_header = '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
-    n_header += str(vcf.header.contigs[var_region[0]].header_record)
-
-    with open(output_vcf, 'w') as fout:
-        try:
-            fout.write(truvari.msa2vcf(msa_output, n_header, anchor_base))
-        except RuntimeWarning:
-            return
-
-    truvari.compress_index_vcf(output_vcf)
-# pylint: enable=too-many-locals
-
-def consolidate_phab_vcfs(phab_dir, out_vcf):
+######
+# UI #
+######
+def parse_args(args):
     """
-    Consolidate all the phab output VCFs in a directory and write to compressed indexed vcf
+    Pull the command line parameters
     """
-    def concat(file_names):
-        tmp_name = truvari.make_temp_filename(suffix=".vcf.gz")
-        files = truvari.make_temp_filename(suffix=".txt")
-        with open(files, 'w') as fout:
-            fout.write('\n'.join(file_names))
-        bcftools.concat("--no-version", "-O", "z", "-a", "-f", files, "-o", tmp_name, catch_stdout=False)
-        pysam.tabix_index(tmp_name, preset='vcf')
-        return tmp_name
-    max_files = (resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 1) // 2
-    in_files = glob.glob(os.path.join(phab_dir, "*", "*", "output.vcf.gz"))
-    in_files.sort()
-    while len(in_files) > 1:
-        tmp_names = []
-        # bcftools gets weird with more than 1,010 files
-        for i in range(0, len(in_files), max_files):
-            tmp_names.append(concat(in_files[i:i+max_files]))
-        in_files = tmp_names
-    shutil.move(in_files[0], out_vcf)
-    shutil.move(in_files[0] + '.tbi', out_vcf + '.tbi')
+    parser = argparse.ArgumentParser(prog="phab", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-r", "--region", type=str, required=True,
+                        help="Bed filename or comma-separated list of chrom:start-end regions to process")
+    parser.add_argument("-b", "--base", type=str, required=True,
+                        help="Baseline vcf to MSA")
+    parser.add_argument("-c", "--comp", type=str, default=None,
+                        help="Comparison vcf to MSA")
+    parser.add_argument("-f", "--reference", type=str, required=True,
+                        help="Reference")
+    parser.add_argument("--buffer", type=int, default=100,
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
+    parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
+                        help="Output VCF")
+    parser.add_argument("--bSamples", type=str, default=None,
+                        help="Subset of samples to MSA from base-VCF")
+    parser.add_argument("--cSamples", type=str, default=None,
+                        help="Subset of samples to MSA from comp-VCF")
+    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("-t", "--threads", type=int, default=1,
+                        help="Number of threads (%(default)s)")
+    parser.add_argument("--debug", action="store_true",
+                        help="Verbose logging")
+    args = parser.parse_args(args)
+    return args
 
 def check_requirements():
     """
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["bcftools", "bgzip", "tabix", "mafft"]:
+    for prog in ["mafft"]:
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
@@ -276,9 +269,6 @@ def check_params(args):
     check_fail = False
     if not args.output.endswith(".vcf.gz"):
         logging.error("Output file must be a '.vcf.gz', got %s", args.output)
-        check_fail = True
-    if args.keep_parts and os.path.isdir(args.keep_parts):
-        logging.error("Output directory '%s' already exists", args.keep_parts)
         check_fail = True
     if args.comp is not None and not os.path.exists(args.comp):
         logging.error("File %s does not exist", args.comp)
@@ -308,47 +298,6 @@ def check_params(args):
 
     return check_fail
 
-def phab_wrapper(job):
-    """
-    Convience function to call phab (which works no a single region)
-    job is a tuple of region, output_dir, and kwargs dict
-    """
-    try:
-        phab(var_region=job[0], output_dir=job[1], **job[2])
-    except Exception as e: #pylint: disable=broad-except
-        logging.critical("phab failed on %s\n%s", str(job[0]), e)
-
-#pylint: disable=too-many-arguments
-# This is just how many arguments it takes
-def phab_multi(base_vcf, reference, output_dir, var_regions, buf=100, comp_vcf=None,
-               bSamples=None, cSamples=None, mafft_params=DEFAULT_MAFFT_PARAM,
-               prefix_comp=False, threads=1):
-    """
-    Run phab on multiple regions
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    params = {"base_vcf": base_vcf,
-              "reference": reference,
-              "buffer": buf,
-              "comp_vcf": comp_vcf,
-              "bSamples": bSamples,
-              "cSamples": cSamples,
-              "mafft_params": mafft_params,
-              "prefix_comp": prefix_comp}
-    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        # build jobs
-        jobs = []
-        for region in var_regions:
-            m_output = os.path.join(output_dir, region[0], f"{region[0]}:{region[1]}-{region[2]}")
-            jobs.append((region, m_output, params))
-
-        pool.imap_unordered(phab_wrapper, jobs)
-        pool.close()
-        pool.join()
-#pylint: enable=too-many-arguments
-
 def phab_main(cmdargs):
     """
     Main
@@ -359,36 +308,14 @@ def phab_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    # Setting up the samples is tricky
-    if args.bSamples is None:
-        args.bSamples = list(pysam.VariantFile(args.base).header.samples)
-    else:
+    if args.bSamples is not None:
         args.bSamples = args.bSamples.split(',')
 
-    if args.comp:
-        if args.cSamples is None:
-            args.cSamples = list(pysam.VariantFile(args.comp).header.samples)
-        else:
-            args.cSamples = args.cSamples.split(',')
-
-    prefix_comp = False
-    if args.cSamples and set(args.cSamples) & set(args.bSamples):
-        logging.warning("--cSamples intersect with --bSamples. Output vcf --comp SAMPLE names will have prefix 'p:'")
-        prefix_comp = True
+    if args.comp and args.cSamples is not None:
+        args.cSamples = args.cSamples.split(',')
 
     all_regions = parse_regions(args.region)
-    if args.keep_parts is None:
-        remove = True # remove at the end
-        args.keep_parts = truvari.make_temp_filename()
-    else:
-        remove = False
-    phab_multi(args.base, args.reference, args.keep_parts, all_regions, args.buffer, args.comp,
-               args.bSamples, args.cSamples, args.mafft_params, prefix_comp, args.threads)
-
-    consolidate_phab_vcfs(args.keep_parts, args.output)
-
-    if remove:
-        logging.info("Cleaning")
-        shutil.rmtree(args.keep_parts)
+    phab(all_regions, args.base, args.reference, args.output, args.bSamples, args.buffer,
+         args.mafft_params, args.comp, args.cSamples, threads=args.threads)
 
     logging.info("Finished phab")

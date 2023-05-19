@@ -38,7 +38,6 @@ Extra methods:
 :meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`phab`
-:meth:`phab_multi`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
@@ -143,8 +142,6 @@ from truvari.pipeline import (
 
 from truvari.phab import (
     phab,
-    phab_multi,
-    consolidate_phab_vcfs
 )
 
 from truvari.region_vcf_iter import (
