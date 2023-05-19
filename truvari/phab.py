@@ -125,10 +125,11 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
         return ""
+    # Dev only method for overwriting test answers - don't use until code is good
     if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
         import hashlib # pylint: disable=import-outside-toplevel
         name = hashlib.md5(ret.stdout.encode()).hexdigest()
-        with open("fm_" + name + ".msa", 'w') as fout:
+        with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
     fasta = {}
     for name, sequence in fasta_reader(ret.stdout, name_entries=False):
