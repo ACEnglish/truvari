@@ -1,9 +1,11 @@
 """
 Turn an MSA fasta into VCF. Assumes one entry is reference with name >ref_chrom:start-end
 """
+import copy
 from io import StringIO
 from collections import defaultdict
 
+POSIDX = 1
 REFIDX = 3
 ALTIDX = 4
 
@@ -18,35 +20,27 @@ def decompose_variant(cur_variant):
     alt = cur_variant[ALTIDX]
     if ref == alt:
         return []
-    #return [var_to_str(cur_variant)]
-    # If base after anchor base is identical, we have a new anchor base
-    # Stop when there's only one base left or unmached bases
+
+    # If anchor base is identical, we can move down
+    # Stop when there's only one base left or an unmached anchor base
     trim = 0
     while trim < len(ref) - 1 and trim < len(alt) - 1 and ref[trim] == alt[trim]:
         trim += 1
     cur_variant[1] += trim
     cur_variant[REFIDX] = ref[trim:]
     cur_variant[ALTIDX] = alt[trim:]
-    #if len(cur_variant[REFIDX]) == 1 or len(cur_variant[ALTIDX]) == 1:
-    return [var_to_str(cur_variant)]
+    if len(cur_variant[REFIDX]) == 1 or len(cur_variant[ALTIDX]) == 1:
+        return [var_to_str(cur_variant)]
 
-    # This works to find if you can split alt into two by ref
-    # But I don't know how I feel about it
-    #pos = 655
-    #if ref in alt:
-    #    idx = alt.index(ref)
-    #    new_ref1 = ref[0]
-    #    new_alt1 = alt[:idx]
-    #    new_ref2 = ref[-1]
-    #    new_alt2 = alt[idx + len(ref) - 1:]
-    #    print(pos, new_ref1, new_alt1)
-    #    print(pos + len(ref) - 1, new_ref2, new_alt2)
-    # decompose REPL to INS and DEL - easier for truvari to compare.. but doesn't work
-    #in_var = copy.copy(cur_variant)
-    #in_var[REFIDX] = in_var[REFIDX][0]
-    #del_var = copy.copy(cur_variant)
-    #del_var[ALTIDX] = del_var[ALTIDX][0]
-    #return [var_to_str(in_var), var_to_str(del_var)]
+    # decompose REPL to DEL and INS - easier for truvari to compare
+    del_var = copy.copy(cur_variant)
+    del_var[ALTIDX] = del_var[ALTIDX][0]
+    del_var[REFIDX] = del_var[REFIDX][:-1]
+    in_var = copy.copy(cur_variant)
+    in_var[REFIDX] = in_var[REFIDX][-1]
+    in_var[ALTIDX] = in_var[ALTIDX][1:]
+    in_var[POSIDX] += len(cur_variant[REFIDX]) - 1
+    return [var_to_str(del_var), var_to_str(in_var)]
 
 def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
     """
