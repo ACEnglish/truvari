@@ -74,6 +74,23 @@ def extract_reference(reg_fn, ref_fn):
         fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
     return out_fn
 
+def collect_samples(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
+    """
+    Figures out sample names for the run.
+    returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
+    """
+    ret = []
+    if bSamples is None:
+        ret.extend([(base_vcf, samp, False)
+                    for samp in list(pysam.VariantFile(base_vcf).header.samples)])
+    if comp_vcf and cSamples is None:
+        bsamps = list(pysam.VariantFile(base_vcf).header.samples)
+        ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps)
+                    for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
+    samp_names = [('p:' if prefix else '') + samp for _, samp, prefix in ret]
+    samp_names.sort()
+    return ret, samp_names
+
 def fasta_reader(fa_str, name_entries=True):
     """
     Parses a fasta file as a string and yields tuples of (location, entry)
@@ -114,6 +131,45 @@ def extract_haplotypes(data, ref_fn):
         ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
     return ret
 
+def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
+    """
+    Calls extract haplotypes for every hap_job
+    """
+    all_haps = defaultdict(BytesIO)
+    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+        for haplotype in pool.imap_unordered(partial(extract_haplotypes, ref_fn=ref_haps_fn),
+                                             hap_jobs):
+            for location, fasta_entry in haplotype:
+                all_haps[location].write(fasta_entry)
+
+    m_ref = pysam.FastaFile(ref_haps_fn)
+    for location in list(m_ref.references):
+        all_haps[location].write(f">ref_{location}\n".encode())
+        all_haps[location].write(m_ref[location].encode())
+        all_haps[location].write(b'\n')
+        all_haps[location].seek(0)
+        yield all_haps[location].read()
+
+def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads):
+    """
+    Parallel processing of variants to harmonize. Writes to output
+    """
+    # output_fn, base_vcf, samp_names, threads, harm_jobs
+    with open(output_fn[:-len(".gz")], 'w') as fout:
+        # Write header
+        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
+            fout.write(str(ctg.header_record))
+        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
+        fout.write("\t".join(samp_names) + "\n")
+        # Write mafft
+        with multiprocessing.Pool(threads) as pool:
+            for result in pool.imap_unordered(partial(mafft_to_vars, params=mafft_params),
+                                              harm_jobs):
+                fout.write(result)
+    truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
+
+
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
@@ -140,11 +196,11 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         fasta[name] = sequence.decode()
     return truvari.msa2vcf(fasta)
 
-#pylint: disable=too-many-arguments, too-many-locals
+#pylint: disable=too-many-arguments
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
-               mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
-               prefix_comp=False, threads=1):
+         mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
+         prefix_comp=False, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -177,58 +233,13 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
 
-    all_samples = [] #tuple of (VCF, sample_name, should_prefix
-    if bSamples is None:
-        all_samples.extend([(base_vcf, samp, False)
-                            for samp in  list(pysam.VariantFile(base_vcf).header.samples)])
-    if comp_vcf and cSamples is None:
-        bsamps = list(pysam.VariantFile(base_vcf).header.samples)
-        all_samples.extend([(comp_vcf, samp, prefix_comp or samp in bsamps)
-                            for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
-    # Need for header later
-    all_samp_names = []
-    for _, samp, prefix in all_samples:
-        prefix = 'p:' if prefix else ''
-        all_samp_names.append(prefix + samp)
-    all_samp_names.sort()
+    hap_jobs, samp_names = collect_samples(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
 
-    all_haps = defaultdict(BytesIO)
-    partial_extract_haps = partial(extract_haplotypes, ref_fn=ref_haps_fn)
-    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        for haplotype in pool.imap_unordered(partial_extract_haps, all_samples):
-            for location, fasta_entry in haplotype:
-                all_haps[location].write(fasta_entry)
+    harm_jobs = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
 
-    # Parse the ref_fn and write each of its entries to all_haps[location]
-    jobs = []
-    m_ref = pysam.FastaFile(ref_haps_fn)
-    for location in list(m_ref.references):
-        cur = all_haps[location]
-        cur.write(f">ref_{location}\n".encode())
-        cur.write(m_ref[location].encode())
-        cur.write(b'\n')
-        cur.seek(0)
-        jobs.append(cur.read())
-
-    logging.info("Harmonizing variants over %d regions", len(jobs))
-    output_temp_fn = output_fn[:-len(".gz")]
-    with open(output_temp_fn, 'w') as fout:
-        # Write header
-        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-        base = pysam.VariantFile(base_vcf)
-        for ctg in base.header.contigs.values():
-            fout.write(str(ctg.header_record))
-        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
-        fout.write("\t".join(all_samp_names) + "\n")
-
-        with multiprocessing.Pool(threads) as pool:
-            m_maft = partial(mafft_to_vars, params=mafft_params)
-            for result in pool.imap_unordered(m_maft, jobs):
-                fout.write(result)
-            pool.close()
-            pool.join()
-    truvari.compress_index_vcf(output_temp_fn, output_fn)
-#pylint: enable=too-many-arguments, too-many-locals
+    logging.info("Harmonizing variants")
+    harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads)
+#pylint: enable=too-many-arguments
 
 ######
 # UI #
