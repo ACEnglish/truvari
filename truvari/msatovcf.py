@@ -126,6 +126,15 @@ def msa2vcf(msa, anchor_base='N'):
     Assumes one entry in the MSA has the name `ref_${chrom}:${start}-${end}` which gives VCF entries coordinates
     Provide anchor_base to prevent 'N' from being used as an anchor base
     Returns a string of entries
+
+    Example (for dealing with test coverage not being seen)
+        >>> import truvari
+        >>> from truvari.phab import fasta_reader
+        >>> msa_dir = "repo_utils/test_files/external/fake_mafft/lookup/"
+        >>> msa_file = "fm_03ffe346bf2196b0ceebee5beb9a6acb.msa"
+        >>> seqs = open(msa_dir + msa_file).read()
+        >>> fasta = {n:s.decode() for n, s in fasta_reader(seqs, False)}
+        >>> m_entries_str = truvari.msa2vcf(fasta)
     """
     ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
     ref_seq = msa[ref_key].upper()

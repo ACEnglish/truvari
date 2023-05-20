@@ -11,8 +11,9 @@ sys.path.insert(0, os.getcwd())
 from truvari import (
     bench,
     comparisons,
+    msatovcf,
     utils,
-    vcf2df
+    vcf2df,
 )
 from truvari.annotations import af_calc
     
@@ -29,8 +30,9 @@ fails = 0
 fails += tester(comparisons)
 fails += tester(utils)
 fails += tester(vcf2df)
+fails += tester(msatovcf)
 fails += tester(af_calc)
-fails ++ tester(bench)
+fails += tester(bench)
 
 os.remove("log.txt")
 sys.exit(fails)

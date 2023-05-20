@@ -132,7 +132,7 @@ from truvari.matching import (
     file_zipper
 )
 
-from truvari.msa2vcf import (
+from truvari.msatovcf import (
     msa2vcf
 )
 
