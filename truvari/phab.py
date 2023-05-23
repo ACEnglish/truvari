@@ -188,7 +188,7 @@ def wfa_to_vars(seq_bytes, *args, **kwargs):
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
     # Get the ref sequence
-    aligner = WavefrontAligner(reference)
+    aligner = WavefrontAligner(reference, distance="affine2p")
     for haplotype in fasta:
         if haplotype == ref_key:
             continue
@@ -338,7 +338,7 @@ def check_requirements(align):
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
-    elif align == "wfa" not wfa_available:
+    elif align == "wfa" and not wfa_available:
         logging.error("pywfa could not be imported")
         check_fail = True
     return check_fail
