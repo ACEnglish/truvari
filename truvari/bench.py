@@ -225,6 +225,43 @@ def annotate_entry(entry, match, header):
 #############
 # Core code #
 #############
+class WeightedStatsBox(OrderedDict):
+    """
+    Make a blank stats box for counting variant pairs as TP/FP/FN, but weighted by match similarity
+    """
+    def __init__(self):
+        self["TP"] = 0
+        self["FP"] = 0
+        self["FN"] = 0
+        self["precision"] = 0
+        self["recall"] = 0
+        self["f1"] = 0
+        self["total"] = 0
+
+    def add(self, score, which):
+        """
+        The score is how much credit to give to TP. 
+        If score is None, set it to 0
+        To avoid double counting, specify has_comp=True, which means a separate call to `.add` will be made 
+        The score is always added to 
+        is_base will figure out if 1-score
+        should be applied to both FN/FP (true) or FP only
+        """
+        if score is None:
+            score = 0
+        self['total'] += 1
+        self["TP"] += score
+        if which != 2:
+            self["FN"] += 1 -  score
+        if which != 1:
+            self["FP"] += 1 - score
+    
+    def calc_performance(self):
+        """
+        Calculate metrics
+        """
+        self["precision"], self["recall"], self["f1"] = truvari.performance_metrics(self["TP"], self["TP"], self["FN"], self["FP"])
+
 class StatsBox(OrderedDict):
     """
     Make a blank stats box for counting TP/FP/FN and calculating performance
@@ -317,6 +354,7 @@ class BenchOutput():
             self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
+        self.wt_stats_box = WeightedStatsBox()
 
     def write_match(self, match):
         """
@@ -325,6 +363,8 @@ class BenchOutput():
         Writer is responsible for handling FPs between sizefilt-sizemin
         """
         box = self.stats_box
+        wt_box = self.wt_stats_box
+        skip = False
         if match.base:
             box["base cnt"] += 1
             annotate_entry(match.base, match, self.n_headers['b'])
@@ -358,6 +398,23 @@ class BenchOutput():
                 box["comp cnt"] += 1
                 box["FP"] += 1
                 self.out_vcfs["fp"].write(match.comp)
+            else:
+                skip = True
+
+        if skip: # don't count partial credit to sizefilt-sizemin FPs
+            return
+
+        # This is convoluted
+        if match.base and match.comp:
+            logging.critical("%s:%d - %s:%d", match.base.chrom, match.base.pos, match.comp.chrom, match.comp.pos)
+            wt_box.add(match.base.info["PctSeqSimilarity"], 0)
+        elif match.base and not match.comp:
+            logging.critical("FN %s:%d", match.base.chrom, match.base.pos)
+            wt_box.add(match.base.info["PctSeqSimilarity"], 1)
+        elif not match.base and match.comp:
+            logging.critical("FP %s:%d", match.comp.chrom, match.comp.pos)
+            wt_box.add(match.comp.info["PctSeqSimilarity"], 2)
+
 
     def close_outputs(self):
         """
@@ -370,6 +427,8 @@ class BenchOutput():
             truvari.compress_index_vcf(i)
 
         self.stats_box.calc_performance()
+        self.wt_stats_box.calc_performance()
+        self.stats_box["weighted"] = dict(self.wt_stats_box)
         self.stats_box.write_json(os.path.join(self.m_bench.outdir, "summary.json"))
 
 
