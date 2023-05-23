@@ -178,25 +178,59 @@ def expand_cigar(seq, ref, cigar):
         else:
             seq_pos += span
             ref_pos += span
+    print("".join(seq))
     return "".join(seq), "".join(ref)
 
-def wfa_to_vars(seq_bytes, *args, **kwargs):
+def wfa_to_vars(seq_bytes):
     """
     """
-    # All I need to do is..
     fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
     # Get the ref sequence
-    aligner = WavefrontAligner(reference, distance="affine2p")
+    aligner = WavefrontAligner(scope="score",
+                               distance="affine2p",
+                               span="end-to-end",
+                               heuristic="adaptive")
     for haplotype in fasta:
         if haplotype == ref_key:
             continue
         seq = fasta[haplotype]
-        aligner.wavefront_align(seq)
+        aligner.wavefront_align(reference, seq)
         assert aligner.status == 0
         fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
     return truvari.msa2vcf(fasta)
+
+def edlib_to_vars(seq_bytes):
+    import edlib
+    lookup = defaultdict(int)
+    lookup.update({"I":1, "D": 2})
+    def to_tuple(cig):
+        cur_pos = 0
+        i_pos = 0
+        while i_pos < len(cig):
+            if cig[i_pos].isdigit():
+                i_pos += 1
+            else:
+                s = (lookup[cig[i_pos]], int(cig[cur_pos:i_pos]))
+                yield s
+                i_pos += 1
+                cur_pos = i_pos
+        
+        
+    fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
+    ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
+    reference = fasta[ref_key]
+    # Get the ref sequence
+
+    for haplotype in fasta:
+        if haplotype == ref_key:
+            continue
+        seq = fasta[haplotype]
+        result = edlib.align(reference, seq, mode = "HW", task = "path")
+        fasta[haplotype] = expand_cigar(seq, reference, to_tuple(result["cigar"]))
+    return truvari.msa2vcf(fasta)
+
     
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
@@ -230,9 +264,11 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     Parallel processing of variants to harmonize. Writes to output
     """
     # output_fn, base_vcf, samp_names, threads, harm_jobs
-    align_method = mafft_to_vars
+    align_method = partial(mafft_to_vars, params=mafft_params)
     if method == "wfa":
         align_method = wfa_to_vars
+    elif method == "edlib":
+        align_method = edlib_to_vars
     with open(output_fn[:-len(".gz")], 'w') as fout:
         # Write header
         fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
@@ -242,8 +278,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         fout.write("\t".join(samp_names) + "\n")
         # Write mafft
         with multiprocessing.Pool(threads) as pool:
-            for result in pool.imap_unordered(partial(align_method, params=mafft_params),
-                                              harm_jobs):
+            for result in pool.imap_unordered(align_method, harm_jobs):
                 fout.write(result)
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
@@ -320,7 +355,7 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
+    parser.add_argument("--align", type=str, choices=["mafft", "edlib", "wfa"], default="mafft",
                         help="Alignment method accurate (mafft) or fast (wfa) (%(default)s)")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")

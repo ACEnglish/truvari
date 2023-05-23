@@ -16,7 +16,7 @@ run test_phab_wfa $truv phab -o $OD/phab_result_wfa.vcf.gz \
                          -b $INDIR/variants/phab_base.vcf.gz \
                          -c $INDIR/variants/phab_comp.vcf.gz \
                          -f $INDIR/references/phab_ref.fa \
-                         -r chr1:700-900 --align wfa
+                         -r chr1:700-900 --align edlib
 if [ $test_phab_wfa ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result_wfa.vcf.gz) $(fn_md5 $OD/phab_result_wfa.vcf.gz)
