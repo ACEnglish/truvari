@@ -240,10 +240,10 @@ class WeightedStatsBox(OrderedDict):
 
     def add(self, score, which):
         """
-        The score is how much credit to give to TP. 
+        The score is how much credit to give to TP.
         If score is None, set it to 0
-        To avoid double counting, specify has_comp=True, which means a separate call to `.add` will be made 
-        The score is always added to 
+        To avoid double counting, specify has_comp=True, which means a separate call to `.add` will be made
+        The score is always added to
         is_base will figure out if 1-score
         should be applied to both FN/FP (true) or FP only
         """
@@ -255,7 +255,7 @@ class WeightedStatsBox(OrderedDict):
             self["FN"] += 1 -  score
         if which != 1:
             self["FP"] += 1 - score
-    
+
     def calc_performance(self):
         """
         Calculate metrics
