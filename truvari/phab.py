@@ -178,9 +178,10 @@ def expand_cigar(seq, ref, cigar):
         else:
             seq_pos += span
             ref_pos += span
+    print("".join(seq))
     return "".join(seq), "".join(ref)
 
-def wfa_to_vars(all_seq_bytes, *args, **kwargs):
+def wfa_to_vars(seq_bytes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but also considerably less accurate
@@ -203,7 +204,6 @@ def wfa_to_vars(all_seq_bytes, *args, **kwargs):
             fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
         ret.append(truvari.msa2vcf(fasta))
     return "".join(ret)
-    
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
@@ -236,7 +236,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     Parallel processing of variants to harmonize. Writes to output
     """
     # output_fn, base_vcf, samp_names, threads, harm_jobs
-    align_method = mafft_to_vars
+    align_method = partial(mafft_to_vars, params=mafft_params)
     if method == "wfa":
         align_method = wfa_to_vars
         # reshape jobs so we don't remake the aligner
@@ -254,8 +254,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         fout.write("\t".join(samp_names) + "\n")
         # Write mafft
         with multiprocessing.Pool(threads) as pool:
-            for result in pool.imap_unordered(partial(align_method, params=mafft_params),
-                                              harm_jobs):
+            for result in pool.imap_unordered(align_method, harm_jobs):
                 fout.write(result)
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
