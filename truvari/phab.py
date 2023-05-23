@@ -180,23 +180,29 @@ def expand_cigar(seq, ref, cigar):
             ref_pos += span
     return "".join(seq), "".join(ref)
 
-def wfa_to_vars(seq_bytes, *args, **kwargs):
+def wfa_to_vars(all_seq_bytes, *args, **kwargs):
     """
+    Align haplotypes independently with WFA
+    Much faster than mafft, but also considerably less accurate
     """
-    # All I need to do is..
-    fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
-    ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
-    reference = fasta[ref_key]
-    # Get the ref sequence
-    aligner = WavefrontAligner(reference, distance="affine2p")
-    for haplotype in fasta:
-        if haplotype == ref_key:
-            continue
-        seq = fasta[haplotype]
-        aligner.wavefront_align(seq)
-        assert aligner.status == 0
-        fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
-    return truvari.msa2vcf(fasta)
+    ret = []
+    #aligner = WavefrontAligner(mismatch=1, gap_opening=2, gap_extension=1, gap_opening2=4, gap_extension2=1, distance="affine2p")
+    aligner = WavefrontAligner(distance="affine2p")
+    for seq_bytes in all_seq_bytes:
+        # All I need to do is..
+        fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
+        ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
+        reference = fasta[ref_key]
+        # Get the ref sequence
+        for haplotype in fasta:
+            if haplotype == ref_key:
+                continue
+            seq = fasta[haplotype]
+            aligner.wavefront_align(seq, pattern=reference)
+            assert aligner.status == 0
+            fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
+        ret.append(truvari.msa2vcf(fasta))
+    return "".join(ret)
     
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
@@ -233,6 +239,12 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     align_method = mafft_to_vars
     if method == "wfa":
         align_method = wfa_to_vars
+        # reshape jobs so we don't remake the aligner
+        harm_jobs = list(harm_jobs)
+        n_jobs = []
+        for i in range(threads):
+            n_jobs.append(harm_jobs[i::threads])
+        harm_jobs = n_jobs
     with open(output_fn[:-len(".gz")], 'w') as fout:
         # Write header
         fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
@@ -335,8 +347,8 @@ def check_requirements(align):
     """
     check_fail = False
     if align == "mafft":
-        if not shutil.which(prog):
-            logging.error("Unable to find `%s` in PATH", prog)
+        if not shutil.which("mafft"):
+            logging.error("Unable to find mafft in PATH")
             check_fail = True
     elif align == "wfa" and not wfa_available:
         logging.error("pywfa could not be imported")
