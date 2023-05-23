@@ -6,7 +6,7 @@
 [![Downloads](https://pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
-Toolkit for benchmarking, merging, and annotating Structrual Variants
+Toolkit for benchmarking, merging, and annotating Structural Variants
 
 📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
 📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
