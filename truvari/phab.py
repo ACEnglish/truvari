@@ -21,7 +21,7 @@ try:
     from pywfa.align import WavefrontAligner
     wfa_available=True
 except ImportError:
-    # Can't load 
+    # Can't load
     wfa_available=False
 
 def parse_regions(argument):
@@ -181,7 +181,7 @@ def expand_cigar(seq, ref, cigar):
     print("".join(seq))
     return "".join(seq), "".join(ref)
 
-def wfa_to_vars(seq_bytes):
+def wfa_to_vars(all_seq_bytes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but also considerably less accurate
