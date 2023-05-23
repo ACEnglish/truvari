@@ -17,6 +17,13 @@ from pysam import bcftools, samtools
 from intervaltree import IntervalTree
 import truvari
 
+try:
+    from pywfa.align import WavefrontAligner
+    wfa_available=True
+except ImportError:
+    # Can't load 
+    wfa_available=False
+
 def parse_regions(argument):
     """
     Parse the --region rgument
@@ -74,10 +81,11 @@ def extract_reference(reg_fn, ref_fn):
         fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
     return out_fn
 
-def collect_samples(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
+def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
     """
-    Figures out sample names for the run.
+    Sets up sample parameters for extract haplotypes
     returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
+    to expect in the haplotypes' fasta
     """
     ret = []
     if bSamples is None:
@@ -150,26 +158,46 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
         all_haps[location].seek(0)
         yield all_haps[location].read()
 
-def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads):
+def expand_cigar(seq, ref, cigar):
     """
-    Parallel processing of variants to harmonize. Writes to output
+    Put gaps '-' in sequence where needed
     """
-    # output_fn, base_vcf, samp_names, threads, harm_jobs
-    with open(output_fn[:-len(".gz")], 'w') as fout:
-        # Write header
-        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
-            fout.write(str(ctg.header_record))
-        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
-        fout.write("\t".join(samp_names) + "\n")
-        # Write mafft
-        with multiprocessing.Pool(threads) as pool:
-            for result in pool.imap_unordered(partial(mafft_to_vars, params=mafft_params),
-                                              harm_jobs):
-                fout.write(result)
-    truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
+    seq_pos = 0
+    seq = list(seq)
+    ref_pos = 0
+    ref = list(ref)
+    for code, span in cigar:
+        if code == 2:
+            seq.insert(seq_pos, '-' * span)
+            seq_pos += 1
+            ref_pos += span
+        elif code == 1:
+            ref.insert(ref_pos, '-' * span)
+            seq_pos += span
+            ref_pos += 1
+        else:
+            seq_pos += span
+            ref_pos += span
+    return "".join(seq), "".join(ref)
 
-
+def wfa_to_vars(seq_bytes, *args, **kwargs):
+    """
+    """
+    # All I need to do is..
+    fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
+    ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
+    reference = fasta[ref_key]
+    # Get the ref sequence
+    aligner = WavefrontAligner(reference)
+    for haplotype in fasta:
+        if haplotype == ref_key:
+            continue
+        seq = fasta[haplotype]
+        aligner.wavefront_align(seq)
+        assert aligner.status == 0
+        fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
+    return truvari.msa2vcf(fasta)
+    
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
@@ -187,6 +215,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
         return ""
+
     if dev_name is not None:
         with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + dev_name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
@@ -196,11 +225,34 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         fasta[name] = sequence.decode()
     return truvari.msa2vcf(fasta)
 
+def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method="mafft"):
+    """
+    Parallel processing of variants to harmonize. Writes to output
+    """
+    # output_fn, base_vcf, samp_names, threads, harm_jobs
+    align_method = mafft_to_vars
+    if method == "wfa":
+        align_method = wfa_to_vars
+    with open(output_fn[:-len(".gz")], 'w') as fout:
+        # Write header
+        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
+            fout.write(str(ctg.header_record))
+        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
+        fout.write("\t".join(samp_names) + "\n")
+        # Write mafft
+        with multiprocessing.Pool(threads) as pool:
+            for result in pool.imap_unordered(partial(align_method, params=mafft_params),
+                                              harm_jobs):
+                fout.write(result)
+    truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
+
+
 #pylint: disable=too-many-arguments
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
          mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
-         prefix_comp=False, threads=1):
+         prefix_comp=False, threads=1, method="mafft"):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -226,19 +278,19 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     :type `prefix_comp`: :class:`bool`
     :param `threads`: Number of threads to use
     :type `threads`: :class:`int`
+    :param `method`: Alignment method to use mafft or wfa
+    :type `method`: :class:`str`
     """
     logging.info("Preparing regions")
     region_fn = merged_region_file(var_regions, buffer)
 
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
-
-    hap_jobs, samp_names = collect_samples(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
-
+    hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
     harm_jobs = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
 
     logging.info("Harmonizing variants")
-    harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads)
+    harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method)
 #pylint: enable=too-many-arguments
 
 ######
@@ -268,6 +320,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
+                        help="Alignment method accurate (mafft) or fast (wfa) (%(default)s)")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -275,15 +329,18 @@ def parse_args(args):
     args = parser.parse_args(args)
     return args
 
-def check_requirements():
+def check_requirements(align):
     """
     ensure external programs are in PATH
     """
     check_fail = False
-    for prog in ["mafft"]:
+    if align == "mafft":
         if not shutil.which(prog):
             logging.error("Unable to find `%s` in PATH", prog)
             check_fail = True
+    elif align == "wfa" not wfa_available:
+        logging.error("pywfa could not be imported")
+        check_fail = True
     return check_fail
 
 def check_params(args):
@@ -328,7 +385,7 @@ def phab_main(cmdargs):
     """
     args = parse_args(cmdargs)
     truvari.setup_logging(args.debug, show_version=True)
-    if check_requirements() or check_params(args):
+    if check_requirements(args.align) or check_params(args):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
@@ -340,6 +397,6 @@ def phab_main(cmdargs):
 
     all_regions = parse_regions(args.region)
     phab(all_regions, args.base, args.reference, args.output, args.bSamples, args.buffer,
-         args.mafft_params, args.comp, args.cSamples, threads=args.threads)
+         args.mafft_params, args.comp, args.cSamples, threads=args.threads, method=args.align)
 
     logging.info("Finished phab")

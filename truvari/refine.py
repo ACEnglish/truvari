@@ -209,6 +209,8 @@ def parse_args(args):
                         help="Use original input VCFs instead of filtered tp/fn/fps")
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
+                        help="Alignment method for phab (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -304,7 +306,7 @@ def refine_main(cmdargs):
     """
     args = parse_args(cmdargs)
 
-    if phab_check_requirements():
+    if phab_check_requirements(args.align):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
@@ -333,7 +335,7 @@ def refine_main(cmdargs):
     phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
     to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=100, comp_vcf=comp_vcf,
-                 prefix_comp=True, threads=args.threads)
+                 prefix_comp=True, threads=args.threads, method=args.align)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")

@@ -42,7 +42,7 @@ def decompose_variant(cur_variant):
     in_var[POSIDX] += len(cur_variant[REFIDX]) - 1
     return [var_to_str(del_var), var_to_str(in_var)]
 
-def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
+def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
     """
     Turn MSA into VCF entries and their presence in samples
     returns list of sample names parsed and dictionary of variant : samples containing the variant
@@ -58,7 +58,12 @@ def msa_to_vars(msa, ref_seq, chrom, start_pos=0, abs_anchor_base='N'):
         # Trim off the location then haplotype from key sample
         cur_samp_hap = alt_key[:alt_key.rindex('_')]
         sample_names.add(cur_samp_hap[:-2])
-        alt_seq = msa[alt_key].upper()
+        if isinstance(msa[alt_key], tuple):
+            ref_seq, alt_seq = msa[alt_key]
+            ref_seq = ref_seq.upper()
+            alt_seq = alt_seq.upper()
+        else:
+            alt_seq = msa[alt_key].upper()
 
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
 
@@ -137,9 +142,9 @@ def msa2vcf(msa, anchor_base='N'):
         >>> m_entries_str = truvari.msa2vcf(fasta)
     """
     ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
-    ref_seq = msa[ref_key].upper()
     chrom, rest = ref_key[len("ref_"):].split(':')
+    ref_seq = msa[ref_key].upper() if isinstance(msa[ref_key], str) else None
     start_pos  = int(rest.split('-')[0])
 
-    sample_names, variants = msa_to_vars(msa, ref_seq, chrom, start_pos, anchor_base)
+    sample_names, variants = msa_to_vars(msa, chrom, ref_seq, start_pos, anchor_base)
     return make_vcf(variants, sample_names)
