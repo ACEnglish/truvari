@@ -17,12 +17,8 @@ from pysam import bcftools, samtools
 from intervaltree import IntervalTree
 import truvari
 
-try:
-    from pywfa.align import WavefrontAligner
-    wfa_available=True
-except ImportError:
-    # Can't load
-    wfa_available=False
+from pywfa.align import WavefrontAligner
+wfa_available=True
 
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 

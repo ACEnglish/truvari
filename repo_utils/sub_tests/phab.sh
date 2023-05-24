@@ -8,6 +8,7 @@ run test_phab $truv phab -o $OD/phab_result.vcf.gz \
                          -r chr1:700-900 --align mafft
 
 if [ $test_phab ]; then
+    dump_logs
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result.vcf.gz) $(fn_md5 $OD/phab_result.vcf.gz)
 fi
