@@ -22,9 +22,6 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
-          sudo apt-get install python3.10-venv
-          python3 -m venv truv_env
-          source truv_env/bin/activate
           python3 -m pip install --upgrade pip setuptools
           python3 -m pip install Cython pylint anybadge coverage
           python3 -m pip install 'pywfa @ git+https://github.com/ACEnglish/pywfa'
