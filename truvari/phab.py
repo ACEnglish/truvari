@@ -24,9 +24,11 @@ except ImportError:
     # Can't load
     wfa_available=False
 
+DEFAULT_MAFFT_PARAM="--auto --thread 1"
+
 def parse_regions(argument):
     """
-    Parse the --region rgument
+    Parse the --region argument
     returns list of regions
     """
     ret = []
@@ -152,9 +154,7 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
 
     m_ref = pysam.FastaFile(ref_haps_fn)
     for location in list(m_ref.references):
-        all_haps[location].write(f">ref_{location}\n".encode())
-        all_haps[location].write(m_ref[location].encode())
-        all_haps[location].write(b'\n')
+        all_haps[location].write(f">ref_{location}\n{m_ref[location]}\n".encode())
         all_haps[location].seek(0)
         yield all_haps[location].read()
 
@@ -178,7 +178,8 @@ def expand_cigar(seq, ref, cigar):
         else:
             seq_pos += span
             ref_pos += span
-    print("".join(seq))
+    #seq.append('-' * (len(seq) - seq_pos))
+    #ref.append('-' * (len(ref) - ref_pos))
     return "".join(seq), "".join(ref)
 
 def wfa_to_vars(all_seq_bytes):
@@ -187,14 +188,12 @@ def wfa_to_vars(all_seq_bytes):
     Much faster than mafft, but also considerably less accurate
     """
     ret = []
-    #aligner = WavefrontAligner(mismatch=1, gap_opening=2, gap_extension=1, gap_opening2=4, gap_extension2=1, distance="affine2p")
     aligner = WavefrontAligner(distance="affine2p")
     for seq_bytes in all_seq_bytes:
-        # All I need to do is..
         fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
         ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
         reference = fasta[ref_key]
-        # Get the ref sequence
+
         for haplotype in fasta:
             if haplotype == ref_key:
                 continue
@@ -203,8 +202,9 @@ def wfa_to_vars(all_seq_bytes):
             assert aligner.status == 0
             fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
         ret.append(truvari.msa2vcf(fasta))
+
     return "".join(ret)
-DEFAULT_MAFFT_PARAM="--auto --thread 1"
+
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
@@ -235,7 +235,6 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     """
     Parallel processing of variants to harmonize. Writes to output
     """
-    # output_fn, base_vcf, samp_names, threads, harm_jobs
     align_method = partial(mafft_to_vars, params=mafft_params)
     if method == "wfa":
         align_method = wfa_to_vars
@@ -245,17 +244,18 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         for i in range(threads):
             n_jobs.append(harm_jobs[i::threads])
         harm_jobs = n_jobs
+
     with open(output_fn[:-len(".gz")], 'w') as fout:
-        # Write header
         fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
         for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
-        # Write mafft
+
         with multiprocessing.Pool(threads) as pool:
             for result in pool.imap_unordered(align_method, harm_jobs):
                 fout.write(result)
+
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
 
