@@ -184,7 +184,7 @@ def wfa_to_vars(all_seq_bytes):
     Much faster than mafft, but also considerably less accurate
     """
     ret = []
-    aligner = WavefrontAligner(distance="affine2p")
+    aligner = WavefrontAligner(span="end-to-end", heuristic="adaptive")
     for seq_bytes in all_seq_bytes:
         fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
         ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
