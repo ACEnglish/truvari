@@ -15,10 +15,8 @@ from collections import defaultdict
 import pysam
 from pysam import bcftools, samtools
 from intervaltree import IntervalTree
+from pywfa.align import WavefrontAligner # pylint: disable=no-name-in-module
 import truvari
-
-from pywfa.align import WavefrontAligner
-wfa_available=True
 
 DEFAULT_MAFFT_PARAM="--auto --thread 1"
 
@@ -345,9 +343,6 @@ def check_requirements(align):
         if not shutil.which("mafft"):
             logging.error("Unable to find mafft in PATH")
             check_fail = True
-    elif align == "wfa" and not wfa_available:
-        logging.error("pywfa could not be imported")
-        check_fail = True
     return check_fail
 
 def check_params(args):
