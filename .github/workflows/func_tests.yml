@@ -24,7 +24,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip setuptools
           python3 -m pip install Cython pylint anybadge coverage
-          python3 -m pip install 'pywfa @ git+https://github.com/ACEnglish/pywfa'
           python3 -m pip install .
       - name: Running ssshtest
         run: |
