@@ -23,7 +23,7 @@ run test_refine_two $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
               --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
               -s 5 -o $OD/refine_output_two
 
-run test_refine_two $truv refine -I -r $INDIR/refine_data/h2_hc_tr_hg002.bed \
+run test_refine_two $truv refine -u -U -r $INDIR/refine_data/h2_hc_tr_hg002.bed \
                -f $INDIR/refine_data/chr20.fa.gz \
                $OD/refine_output_two
 

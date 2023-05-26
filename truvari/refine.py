@@ -75,19 +75,17 @@ def resolve_regions(params, args):
     elif args.regions is not None and params.includebed is not None:
         a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
         b_trees, orig_count = truvari.build_anno_tree(params.includebed, idxfmt="")
-        if args.use_includebed:
-            reeval_trees, new_count = intersect_beds(b_trees, a_trees)
-            logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
-                     orig_count, new_count, regi_count)
-
-        else:
+        if args.use_region_coords:
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                      regi_count, new_count, orig_count)
+        else:
+            reeval_trees, new_count = intersect_beds(b_trees, a_trees)
+            logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
+                     orig_count, new_count, regi_count)
     else:
         reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
-    # might need to merge overlaps.
     return reeval_trees
 
 def consolidate_bench_vcfs(benchdir):
@@ -203,10 +201,10 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to process")
-    parser.add_argument("-I", "--use-includebed", action="store_true",
-                        help="When intersecting includebed with regions, use includebed coordinates")
-    parser.add_argument("-u", "--use-original", action="store_true",
+    parser.add_argument("-u", "--use-original-vcfs", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
+    parser.add_argument("-U", "--use-region-coords", action="store_true",
+                        help="When subsetting the includebed with regions, use region coordinates")
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -317,8 +315,7 @@ def refine_main(cmdargs):
     regions = initial_stratify(args.benchdir, regions, args.threads)
 
     # Figure out which to reevaluate
-    # Set the input VCFs for phab
-    if args.use_original:
+    if args.use_original_vcfs:
         base_vcf, comp_vcf = params.base, params.comp
         regions["refined"] = original_stratify(base_vcf, comp_vcf, regions)
     else:
