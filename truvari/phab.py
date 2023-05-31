@@ -128,7 +128,11 @@ def extract_haplotypes(data, ref_fn):
     cmd = "-H{{hap}} --sample {sample} --prefix {prefix}{sample}_{{hap}}_ -f {ref} {vcf}"
     cmd = cmd.format(sample=sample, prefix = prefix, ref=ref_fn, vcf=vcf_fn)
     for i in [1, 2]:
-        ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
+        try:
+            ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
+        except pysam.utils.SamtoolsError as e:
+            logging.error("Unable to generate consensus sequence for %s hap %d", sample, i)
+            logging.debug(e)
     return ret
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
