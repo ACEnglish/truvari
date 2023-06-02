@@ -22,12 +22,9 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install pylint
-          pip install anybadge
-          pip install coverage
-          sudo apt-get install bcftools samtools tabix
-          python -m pip install .
+          python3 -m pip install --upgrade pip setuptools
+          python3 -m pip install Cython pylint anybadge coverage
+          python3 -m pip install .
       - name: Running ssshtest
         run: |
           bash repo_utils/truvari_ssshtests.sh

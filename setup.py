@@ -61,7 +61,8 @@ setup(
       ]
     },
     install_requires=[
-        "rich==12.5.1",
+        "pywfa>=0.5.0",
+        "rich>=12.5.1",
         "edlib>=1.3.9",
         "pysam>=0.15.2",
         "intervaltree>=3.0.2",
