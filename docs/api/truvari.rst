@@ -170,10 +170,6 @@ count_entries
 ^^^^^^^^^^^^^
 .. autofunction:: count_entries
 
-fchain
-^^^^^^
-.. autofunction:: fchain
-
 file_zipper
 ^^^^^^^^^^^
 .. autofunction:: file_zipper

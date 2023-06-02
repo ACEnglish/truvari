@@ -132,11 +132,7 @@ def extract_haplotypes(data, ref_fn):
     cmd = "-H{{hap}} --sample {sample} --prefix {prefix}{sample}_{{hap}}_ -f {ref} {vcf}"
     cmd = cmd.format(sample=sample, prefix = prefix, ref=ref_fn, vcf=vcf_fn)
     for i in [1, 2]:
-        try:
-            ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
-        except pysam.utils.SamtoolsError as e:
-            logging.error("Unable to generate consensus sequence for %s hap %d", sample, i)
-            logging.debug(e)
+        ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
     return ret
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
@@ -149,6 +145,8 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
                                              hap_jobs):
             for location, fasta_entry in haplotype:
                 all_haps[location].write(fasta_entry)
+        pool.close()
+        pool.join()
 
     m_ref = pysam.FastaFile(ref_haps_fn)
     for location in list(m_ref.references):
@@ -253,6 +251,8 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         with multiprocessing.Pool(threads) as pool:
             for result in pool.imap_unordered(align_method, harm_jobs):
                 fout.write(result)
+            pool.close()
+            pool.join()
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
