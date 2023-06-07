@@ -230,6 +230,7 @@ class WeightedStatsBox(OrderedDict):
     Make a blank stats box for counting variant pairs as TP/FP/FN, but weighted by match similarity
     """
     def __init__(self):
+        super().__init__()
         self["TP"] = 0
         self["FP"] = 0
         self["FN"] = 0

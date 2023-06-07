@@ -156,20 +156,16 @@ class Matcher():
 
         if self.params.check_multi and len(entry.alts) > 1:
             logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("%s file - line %s", key, str(entry))
+            logging.error("line %s", str(entry))
             sys.exit(10)
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
 
         size = truvari.entry_size(entry)
-        if size > self.params.sizemax:
-            return True
-
-        if base and size < self.params.sizemin:
-            return True
-
-        if not base and size < self.params.sizefilt:
+        if (size > self.params.sizemax)
+           or (base and size < self.params.sizemin)
+           or (not base and size < self.params.sizefilt):
             return True
 
         samp = self.params.bSample if base else self.params.cSample
