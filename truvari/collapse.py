@@ -10,18 +10,18 @@ import json
 import logging
 import argparse
 import itertools
-from functools import cmp_to_key
+from functools import cmp_to_key, partial
 
 import pysam
 
 import truvari
 import truvari.bench as trubench
 
-def collapse_chunk(chunk):
+def collapse_chunk(chunk, matcher):
     """
     For calls in a chunk, separate which ones should be kept from collapsed
     """
-    matcher, chunk_dict, chunk_id = chunk
+    chunk_dict, chunk_id = chunk
     calls = chunk_dict['base']
     logging.debug("Collapsing chunk %d", chunk_id)
     # Need to add a deterministic sort here...
@@ -401,7 +401,6 @@ def close_outputs(outputs):
     outputs["output_vcf"].close()
     outputs["collap_vcf"].close()
 
-
 def collapse_main(args):
     """
     Main
@@ -417,7 +416,8 @@ def collapse_main(args):
     base = pysam.VariantFile(args.input)
 
     chunks = truvari.chunker(matcher, ('base', base))
-    for call in itertools.chain.from_iterable(map(collapse_chunk, chunks)):
+    m_colap = partial(collapse_chunk, matcher=matcher)
+    for call in itertools.chain.from_iterable(map(m_colap, chunks)):
         output_writer(call, outputs)
 
     close_outputs(outputs)

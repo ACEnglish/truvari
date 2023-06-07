@@ -282,7 +282,7 @@ def chunker(matcher, *files):
     """
     Given a Matcher and multiple files, zip them and create chunks
 
-    Yields tuple of the matcher, the chunk of calls, and an identifier of the chunk
+    Yields tuple of the chunk of calls, and an identifier of the chunk
     """
     call_counts = Counter()
     chunk_count = 0
@@ -304,7 +304,7 @@ def chunker(matcher, *files):
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
-            yield matcher, cur_chunk, chunk_count
+            yield cur_chunk, chunk_count
             # Reset
             cur_chrom = None
             cur_end = None
@@ -321,4 +321,4 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
     chunk_count += 1
     logging.info("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
-    yield matcher, cur_chunk, chunk_count
+    yield cur_chunk, chunk_count

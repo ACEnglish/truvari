@@ -535,7 +535,7 @@ class Bench():
         """
         Given a filtered chunk, (from chunker) compare all of the calls
         """
-        _, chunk_dict, chunk_id = chunk
+        chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
         return self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
 
