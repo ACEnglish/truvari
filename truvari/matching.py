@@ -114,6 +114,8 @@ class Matcher():
         params.passonly = False
         params.no_ref = False
         params.pick = 'single'
+        params.ignore_monref = True
+        params.check_multi = True
         return params
 
     @staticmethod
@@ -140,6 +142,8 @@ class Matcher():
         ret.passonly = args.passonly
         ret.no_ref = args.no_ref
         ret.pick = args.pick if "pick" in args else "single"
+        ret.check_monref = True
+        ret.check_multi = True
         return ret
 
     def filter_call(self, entry, base=False):
@@ -147,6 +151,14 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
+        if self.params.check_monref and entry.alts is None: # ignore monomorphic reference
+            return True
+
+        if self.params.check_multi and len(entry.alts) > 1:
+            logging.error("Cannot compare multi-allelic records. Please split")
+            logging.error("%s file - line %s", key, str(entry))
+            sys.exit(10)
+
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
 
@@ -290,16 +302,6 @@ def chunker(matcher, *files):
     cur_end = None
     cur_chunk = defaultdict(list)
     for key, entry in file_zipper(*files):
-        if entry.alts is None: # ignore monomorphic reference
-            cur_chunk['__filtered'].append(entry)
-            call_counts['__filtered'] += 1
-            cur_chrom = entry.chrom
-            continue
-        if len(entry.alts) > 1:
-            logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("%s file - line %s", key, str(entry))
-            sys.exit(10)
-
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
@@ -312,7 +314,6 @@ def chunker(matcher, *files):
 
         cur_chrom = entry.chrom
         if not matcher.filter_call(entry, key == 'base'):
-            logging.debug(f"Adding to {key} -> {entry}")
             cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1
