@@ -163,8 +163,8 @@ class Matcher():
             return True
 
         size = truvari.entry_size(entry)
-        if (size > self.params.sizemax)
-           or (base and size < self.params.sizemin)
+        if (size > self.params.sizemax) \
+           or (base and size < self.params.sizemin) \
            or (not base and size < self.params.sizefilt):
             return True
 
