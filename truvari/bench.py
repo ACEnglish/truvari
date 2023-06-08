@@ -407,13 +407,10 @@ class BenchOutput():
 
         # This is convoluted
         if match.base and match.comp:
-            logging.critical("%s:%d - %s:%d", match.base.chrom, match.base.pos, match.comp.chrom, match.comp.pos)
             wt_box.add(match.base.info["PctSeqSimilarity"], 0)
         elif match.base and not match.comp:
-            logging.critical("FN %s:%d", match.base.chrom, match.base.pos)
             wt_box.add(match.base.info["PctSeqSimilarity"], 1)
         elif not match.base and match.comp:
-            logging.critical("FP %s:%d", match.comp.chrom, match.comp.pos)
             wt_box.add(match.comp.info["PctSeqSimilarity"], 2)
 
 
