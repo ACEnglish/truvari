@@ -4,8 +4,6 @@ Calculations are python implementations of bcftools +fill_tags
 (https://samtools.github.io/bcftools/) Results are within 1e-6
 difference of bcftools +fill_tags
 """
-from collections import Counter
-
 import numpy as np
 
 
@@ -126,8 +124,8 @@ def calc_af(gts):
     if ret["AC"] == 0:
         return ret
     ret["AF"] = ret["AC"][1] / ret["AN"]
-    mac = min(ret["AC"])
-    maf = mac / ret["AN"]
+    ret["MAC"] = min(ret["AC"])
+    ret["MAF"] = ret["MAC"] / ret["AN"]
 
     ret["ExcHet"], ret["HWE"] = calc_hwe(ret["AC"][0], ret["AC"][1], ret["N_HET"])
     return ret
@@ -156,7 +154,7 @@ def allele_freq_annos(entry, samples=None):
         >>> import pysam
         >>> v = pysam.VariantFile('repo_utils/test_files/variants/multi.vcf.gz')
         >>> truvari.allele_freq_annos(next(v))
-        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2}
+        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
     """
     if samples is None:
         samples = list(entry.samples.keys())
