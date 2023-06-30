@@ -121,7 +121,7 @@ def calc_af(gts):
             else:
                 ret["N_HEMI"] += 1
 
-    if ret["AC"] == 0:
+    if ret["AN"] == 0:
         return ret
     ret["AF"] = ret["AC"][1] / ret["AN"]
     ret["MAC"] = min(ret["AC"])
