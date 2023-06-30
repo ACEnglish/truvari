@@ -85,34 +85,52 @@ def calc_af(gts):
              | MAF - minor allele frequency
              | ExcHet - excess heterozygosity
              | HWE - hardy weinberg equilibrium
-             | AC - allele count for GT 0 and 1
+             | AC - allele count for GT 1
              | MAC - minor allele count
              | AN - number of called alleles
+             | N_HEMI - Number of partial genotypes (length of 1 or a single missing)
+             | N_HOMREF - homozygous reference GT count
+             | N_HET - heterozygous GT count
+             | N_HOMALT - homozygous alternate GT count
+             | N_MISS - Number of missing genotypes (all .)
     :rtype: dict
     """
-    an = 0
-    n_het = 0
-    cnt = Counter()  # 0 or 1 allele counts
+    ret = {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": [0, 0], "AN": 0,
+           "N_HEMI": 0, "N_HOMREF": 0, "N_HET": 0, "N_HOMALT": 0, "N_MISS": 0}
     for g in gts:
         if len(g) > 2:
             continue
         for j in g:
             if j is not None:
-                an += 1
-                cnt[j] += 1
+                ret["AN"] += 1
+                ret["AC"][j] += 1
         if len(g) == 2:
-            n_het += 1 if g[0] != g[1] and None not in g else 0
+            if g[0] == g[1]:
+                if g[0] == 0:
+                    ret["N_HOMREF"] += 1
+                elif g[0] is None:
+                    ret["N_MISS"] += 1
+                else:
+                    ret["N_HOMALT"] += 1
+            else:
+                if g[0] is None or g[1] is None:
+                    ret["N_HEMI"] += 1
+                else:
+                    ret["N_HET"] += 1
+        else:
+            if g[0] is None:
+                ret["N_MISS"] += 1
+            else:
+                ret["N_HEMI"] += 1
 
-    if an == 0:
-        return {"AF": 0, "MAF": 0, "ExcHet": 0, "HWE": 0, "MAC": 0, "AC": [0, 0], "AN": 0}
-    af = cnt[1] / an
-    srt = [(v, k) for k, v in sorted(cnt.items(), key=lambda item: item[1])]
-    ac = [cnt[_] for _ in [0, 1]]
-    mac = srt[0][0]
-    maf = 1 - (srt[-1][0] / an)
+    if ret["AC"] == 0:
+        return ret
+    ret["AF"] = ret["AC"][1] / ret["AN"]
+    mac = min(ret["AC"])
+    maf = mac / ret["AN"]
 
-    p_exc_het, p_hwe = calc_hwe(cnt[0], cnt[1], n_het)
-    return {"AF": af, "MAF": maf, "ExcHet": p_exc_het, "HWE": p_hwe, "MAC": mac, "AC": ac, "AN": an}
+    ret["ExcHet"], ret["HWE"] = calc_hwe(ret["AC"][0], ret["AC"][1], ret["N_HET"])
+    return ret
 
 def allele_freq_annos(entry, samples=None):
     """

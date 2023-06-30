@@ -47,6 +47,11 @@ def edit_header(header, tags, groups):
     tag_meta["MAC"] = ("Integer", 'A', "Minor Allele Count on {count} {grp} samples")
     tag_meta["HWE"] = ("Float", '1', "HWE test (PMID:15789306) on {count} {grp} samples; 1=good, 0=bad")
     tag_meta["ExcHet"] = ("Float", '1', "Test excess heterozygosity on {count} {grp} samples; 1=good, 0=bad")
+    tag_meta["N_HEMI"] = ("Integer", '1', "Number of partial genotypes (length of 1 or a single missing allele)")
+    tag_meta["N_MISS"] = ("Integer", '1', "Number of missing genotypes (all alleles missing)")
+    tag_meta["N_HOMREF"] = ("Integer", '1', "Number of REF/REF genotypes")
+    tag_meta["N_HET"] = ("Integer", '1', "Number of REF/ALT genotypes")
+    tag_meta["N_HOMALT"] = ("Integer", '1', "Number of ALT/ALT genotypes")
 
     cnts = groups["group"].value_counts()
     for g_name, g_count in zip(cnts.index, cnts):
@@ -65,7 +70,8 @@ def grpaf_main(cmd_args):
     """
     args = parse_args(cmd_args)
     # validate tags
-    all_tags = ["AF", "MAF", "ExcHet", "HWE", "MAC", "AC", "AN"]
+    all_tags = ["AF", "MAF", "ExcHet", "HWE", "MAC", "AC", "AN", "N_HEMI", "N_MISS",
+                "N_HOMREF", "N_HET", "N_HOMALT"]
     if args.tags == 'all':
         args.tags = all_tags
     else:
