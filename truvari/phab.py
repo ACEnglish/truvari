@@ -176,7 +176,7 @@ def expand_cigar(seq, ref, cigar):
             ref_pos += span
     #seq.append('-' * (len(seq) - seq_pos))
     #ref.append('-' * (len(ref) - ref_pos))
-    return "".join(seq), "".join(ref)
+    return "".join(ref), "".join(seq)
 
 def wfa_to_vars(all_seq_bytes):
     """
