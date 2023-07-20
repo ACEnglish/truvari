@@ -212,7 +212,6 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
-    truvari.setup_logging(args.debug, show_version=True)
     return args
 
 def check_params(args):
@@ -303,12 +302,15 @@ def refine_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-
     if phab_check_requirements(args.align):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
     params = check_params(args)
+    truvari.setup_logging(args.debug,
+                          truvari.LogFileStderr(os.path.join(args.benchdir, "refine.log.txt")),
+                          show_version=True)
+    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
     reeval_trees = resolve_regions(params, args)
     regions = tree_to_regions(reeval_trees)
