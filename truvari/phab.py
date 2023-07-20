@@ -183,7 +183,6 @@ def wfa_to_vars(seq_bytes):
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
     """
-    ret = []
     fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
@@ -229,7 +228,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     Parallel processing of variants to harmonize. Writes to output
     """
     if method == "mafft":
-        align_method = partial(aligner, params=mafft_params)
+        align_method = partial(mafft_to_vars, params=mafft_params)
     else:
         align_method = wfa_to_vars
 
