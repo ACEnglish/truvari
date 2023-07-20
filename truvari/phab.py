@@ -178,28 +178,25 @@ def expand_cigar(seq, ref, cigar):
     #ref.append('-' * (len(ref) - ref_pos))
     return "".join(ref), "".join(seq)
 
-def wfa_to_vars(all_seq_bytes):
+def wfa_to_vars(seq_bytes):
     """
     Align haplotypes independently with WFA
-    Much faster than mafft, but also considerably less accurate
+    Much faster than mafft, but may be less accurate at finding parsimonous representations
     """
     ret = []
-    aligner = WavefrontAligner(span="end-to-end", heuristic="adaptive")
-    for seq_bytes in all_seq_bytes:
-        fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
-        ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
-        reference = fasta[ref_key]
+    fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
+    ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
+    reference = fasta[ref_key]
 
-        for haplotype in fasta:
-            if haplotype == ref_key:
-                continue
-            seq = fasta[haplotype]
-            aligner.wavefront_align(seq, pattern=reference)
-            assert aligner.status == 0
-            fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
-        ret.append(truvari.msa2vcf(fasta))
-
-    return "".join(ret)
+    aligner = WavefrontAligner(reference, span="end-to-end", heuristic="adaptive")
+    for haplotype in fasta:
+        if haplotype == ref_key:
+            continue
+        seq = fasta[haplotype]
+        aligner.wavefront_align(seq)
+        assert aligner.status == 0
+        fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
+    return truvari.msa2vcf(fasta)
 
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
@@ -231,15 +228,10 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     """
     Parallel processing of variants to harmonize. Writes to output
     """
-    align_method = partial(mafft_to_vars, params=mafft_params)
-    if method == "wfa":
+    if method == "mafft":
+        align_method = partial(aligner, params=mafft_params)
+    else:
         align_method = wfa_to_vars
-        # reshape jobs so we don't remake the aligner
-        harm_jobs = list(harm_jobs)
-        n_jobs = []
-        for i in range(threads):
-            n_jobs.append(harm_jobs[i::threads])
-        harm_jobs = n_jobs
 
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
@@ -248,7 +240,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
 
-        with multiprocessing.Pool(threads) as pool:
+        with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
             for result in pool.imap_unordered(align_method, harm_jobs):
                 fout.write(result)
             pool.close()
