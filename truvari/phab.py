@@ -147,7 +147,12 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
                 all_haps[location].write(fasta_entry)
         pool.close()
         pool.join()
+    return all_haps
 
+def consolidate_haplotypes_with_reference(all_haps, ref_haps_fn):
+    """
+    Generator for putting the reference into the haplotypes
+    """
     m_ref = pysam.FastaFile(ref_haps_fn)
     for location in list(m_ref.references):
         all_haps[location].write(f">ref_{location}\n{m_ref[location]}\n".encode())
@@ -287,7 +292,8 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
-    harm_jobs = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
+    sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
+    harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
 
     logging.info("Harmonizing variants")
     harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method)
