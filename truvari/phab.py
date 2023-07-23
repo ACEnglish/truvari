@@ -61,7 +61,7 @@ def merged_region_file(regions, buff=100):
 
     out_file_name = truvari.make_temp_filename()
     with open(out_file_name, 'w') as fout:
-        for chrom in m_dict:
+        for chrom in sorted(m_dict.keys()):
             intvs = IntervalTree.from_tuples(m_dict[chrom])
             intvs.merge_overlaps()
             for i in sorted(intvs):
@@ -125,7 +125,8 @@ def extract_haplotypes(data, ref_fn):
     """
     Given a data tuple of VCF, sample name, and prefix bool
     Call bcftools consensus
-    Returns list of tuples [location, fastaentry] for every haplotype, so locations are duplicated
+    Returns list of tuples [location, fastaentry] for every haplotype,
+    so locations are duplicated
     """
     vcf_fn, sample, prefix, hap = data
     prefix = 'p:' if prefix else ''
@@ -177,8 +178,6 @@ def expand_cigar(seq, ref, cigar):
         else:
             seq_pos += span
             ref_pos += span
-    #seq.append('-' * (len(seq) - seq_pos))
-    #ref.append('-' * (len(ref) - ref_pos))
     return "".join(ref), "".join(seq)
 
 def wfa_to_vars(seq_bytes):
