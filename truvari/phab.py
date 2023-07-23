@@ -131,7 +131,7 @@ def extract_haplotypes(data, ref_fn):
     prefix = 'p:' if prefix else ''
     cmd = f"-H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ -f {ref_fn} {vcf_fn}".split(' ')
     # Can't return generator from process
-    return [_ for _ in fasta_reader(bcftools.consensus(*cmd))]
+    return sorted([_ for _ in fasta_reader(bcftools.consensus(*cmd))])
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
