@@ -132,14 +132,14 @@ def extract_haplotypes(data, ref_fn):
     prefix = 'p:' if prefix else ''
     cmd = f"-H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ -f {ref_fn} {vcf_fn}".split(' ')
     # Can't return generator from process
-    return sorted(list(fasta_reader(bcftools.consensus(*cmd))))
+    return list(fasta_reader(bcftools.consensus(*cmd)))
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
     Calls extract haplotypes for every hap_job
     """
     all_haps = defaultdict(BytesIO)
-    with multiprocessing.Pool(threads) as pool:
+    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
         for haplotype in pool.imap_unordered(partial(extract_haplotypes, ref_fn=ref_haps_fn),
                                              hap_jobs):
             for location, fasta_entry in haplotype:
