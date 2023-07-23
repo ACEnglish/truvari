@@ -136,7 +136,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> import truvari
         >>> from truvari.phab import fasta_reader
         >>> msa_dir = "repo_utils/test_files/external/fake_mafft/lookup/"
-        >>> msa_file = "fm_03ffe346bf2196b0ceebee5beb9a6acb.msa"
+        >>> msa_file = "fm_0130785485c4c1711be9dcebabcbe57c.msa"
         >>> seqs = open(msa_dir + msa_file).read()
         >>> fasta = {n:s.decode() for n, s in fasta_reader(seqs, False)}
         >>> m_entries_str = truvari.msa2vcf(fasta)
