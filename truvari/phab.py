@@ -93,7 +93,7 @@ def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
         for hap in [1, 2]:
             ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps, hap)
                         for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
-    samp_names = sorted(list(set([('p:' if prefix else '') + samp for _, samp, prefix, _ in ret])))
+    samp_names = sorted({('p:' if prefix else '') + samp for _, samp, prefix, _ in ret})
     return ret, samp_names
 
 def fasta_reader(fa_str, name_entries=True):
@@ -131,7 +131,7 @@ def extract_haplotypes(data, ref_fn):
     prefix = 'p:' if prefix else ''
     cmd = f"-H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ -f {ref_fn} {vcf_fn}".split(' ')
     # Can't return generator from process
-    return sorted([_ for _ in fasta_reader(bcftools.consensus(*cmd))])
+    return sorted(list(fasta_reader(bcftools.consensus(*cmd))))
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
