@@ -220,37 +220,45 @@ def check_params(args):
 
     Returns as a Namespace
     """
+    check_fail = False
     param_path = os.path.join(args.benchdir, "params.json")
     if not os.path.exists(param_path):
+        check_fail = True
         logging.error("Bench directory %s doesn't have params.json", param_path)
-        sys.exit(1)
     params = read_json(param_path)
 
+    p_file = os.path.join(args.benchdir, "phab.output.vcf.gz")
+    if os.path.exists(p_file):
+        check_fail = True
+        logging.error("Phab output file %s already exists", p_file)
+
     if params["reference"] is None and args.reference is None:
+        check_fail = True
         logging.error("Reference not in params.json or given as a parameter to refine")
-        sys.exit(1)
     elif args.reference is None:
         args.reference = params["reference"]
 
+
     if not os.path.exists(args.reference):
+        check_fail = True
         logging.error("Reference %s does not exist", args.reference)
-        sys.exit(1)
 
     # Setup prefix
     params["cSample"] = "p:" + params["cSample"]
 
     bhdir = os.path.join(args.benchdir, 'phab_bench')
     if os.path.exists(bhdir):
+        check_fail = True
         logging.error("Directory %s exists. Cannot run refine", bhdir)
-        sys.exit(1)
 
     # Should check that bench dir has compressed/indexed vcfs for fetching
-    check_fail = False
     for i in ["tp-base.vcf.gz", "tp-comp.vcf.gz", "fn.vcf.gz", "fp.vcf.gz"]:
         if not os.path.exists(os.path.join(args.benchdir, i)):
-            logging.error("Benchdir doesn't have compressed/indexed %s", i)
             check_fail = True
+            logging.error("Benchdir doesn't have compressed/indexed %s", i)
+
     if check_fail:
+        logging.error("Please fix parameters")
         sys.exit(1)
 
     return Namespace(**params)

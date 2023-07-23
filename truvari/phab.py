@@ -80,19 +80,20 @@ def extract_reference(reg_fn, ref_fn):
 def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
     """
     Sets up sample parameters for extract haplotypes
-    returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
+    returns list of tuple of (VCF, sample_name, should_prefix, haplotype_number) and the sample names
     to expect in the haplotypes' fasta
     """
     ret = []
     if bSamples is None:
-        ret.extend([(base_vcf, samp, False)
-                    for samp in list(pysam.VariantFile(base_vcf).header.samples)])
+        for hap in [1, 2]:
+            ret.extend([(base_vcf, samp, False, hap)
+                        for samp in list(pysam.VariantFile(base_vcf).header.samples)])
     if comp_vcf and cSamples is None:
         bsamps = list(pysam.VariantFile(base_vcf).header.samples)
-        ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps)
-                    for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
-    samp_names = [('p:' if prefix else '') + samp for _, samp, prefix in ret]
-    samp_names.sort()
+        for hap in [1, 2]:
+            ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps, hap)
+                        for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
+    samp_names = sorted([('p:' if prefix else '') + samp for _, samp, prefix, _ in ret][::2])
     return ret, samp_names
 
 def fasta_reader(fa_str, name_entries=True):
@@ -126,14 +127,11 @@ def extract_haplotypes(data, ref_fn):
     Call bcftools consensus
     Returns list of tuples [location, fastaentry] for every haplotype, so locations are duplicated
     """
-    vcf_fn, sample, prefix = data
+    vcf_fn, sample, prefix, hap = data
     prefix = 'p:' if prefix else ''
-    ret = []
-    cmd = "-H{{hap}} --sample {sample} --prefix {prefix}{sample}_{{hap}}_ -f {ref} {vcf}"
-    cmd = cmd.format(sample=sample, prefix = prefix, ref=ref_fn, vcf=vcf_fn)
-    for i in [1, 2]:
-        ret.extend(fasta_reader(bcftools.consensus(*cmd.format(hap=i).split(' '))))
-    return ret
+    cmd = f"-H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ -f {ref_fn} {vcf_fn}".split(' ')
+    # Can't return generator from process
+    return [_ for _ in fasta_reader(bcftools.consensus(*cmd))]
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
@@ -354,6 +352,9 @@ def check_params(args):
     if not args.output.endswith(".vcf.gz"):
         logging.error("Output file must be a '.vcf.gz', got %s", args.output)
         check_fail = True
+    if os.path.exists(args.output):
+        logging.error("Output file already exists")
+        check_fail =True
     if args.comp is not None and not os.path.exists(args.comp):
         logging.error("File %s does not exist", args.comp)
         check_fail = True
