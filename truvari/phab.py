@@ -93,7 +93,7 @@ def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
         for hap in [1, 2]:
             ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps, hap)
                         for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
-    samp_names = sorted([('p:' if prefix else '') + samp for _, samp, prefix, _ in ret][::2])
+    samp_names = sorted(list(set([('p:' if prefix else '') + samp for _, samp, prefix, _ in ret])))
     return ret, samp_names
 
 def fasta_reader(fa_str, name_entries=True):
