@@ -303,6 +303,19 @@ class StatsBox(OrderedDict):
         if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
+    def clean_out(self):
+        """
+        When reusing a StatsBox (typically inside refine), gt/weight numbers
+        are typically invalidated. This removes those numbers from self to make
+        a cleaner report
+        """
+        del self["TP-comp_TP-gt"]
+        del self["TP-comp_FP-gt"]
+        del self["TP-base_TP-gt"]
+        del self["TP-base_FP-gt"]
+        del self["gt_concordance"]
+        del self["gt_matrix"]
+        del self["weighted"]
 
     def write_json(self, out_name):
         """
@@ -598,14 +611,16 @@ class Bench():
         """
         has_unmatched = False
         pos = []
+        chrom = None
         for match in result:
             has_unmatched |= not match.state
             if match.base is not None:
+                chrom = match.base.chrom
                 pos.extend(truvari.entry_boundaries(match.base))
             if match.comp is not None:
+                chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
         if has_unmatched and pos: # I don't think I need to confirm pos, but unsure
-            chrom = result[0].base.chrom or result[0].comp.chrom
             self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 
