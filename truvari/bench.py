@@ -527,7 +527,7 @@ class Bench():
                 match.comp = None
             output.write_match(match)
 
-        with open(os.path.join(self.m_bench.outdir, 'candidate.refine.bed'), 'w') as fout:
+        with open(os.path.join(self.outdir, 'candidate.refine.bed'), 'w') as fout:
             fout.write("\n".join(self.refine_candidates))
 
         output.close_outputs()
@@ -536,41 +536,13 @@ class Bench():
     def compare_chunk(self, chunk):
         """
         Given a filtered chunk, (from chunker) compare all of the calls
-
-        If this looked at the compared calls to see if there's >=1 FN/FP, it could
-        'save' that this is a chunk which might benefit from refinement. Could then 
-        write out that bed-file and it is input to the next step
         """
         chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
         result = self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
-        has_fp = False
-        has_fn = False
-        min_start = sys.maxsize
-        max_end = 0
-        chrom = None
-        for r in result:
-            if r.state:
-                continue
-            pos = []
-            if r.base is None:
-                has_fp = True
-            else:
-                chrom = r.base.chrom
-                pos.append(r.base.start)
-                pos.append(r.base.end)
-            if r.comp is None:
-                has_fn = True
-            else:
-                chrom = r.comp.chrom
-                pos.append(r.comp.start)
-                pos.append(r.comp.end)
-            min_start = min(min_start, *pos)
-            max_end = max(max_end, *pos)
-        if has_fn and has_fp:
-            self.refine_candidates.append(f"{chrom}\t{min_start}\t{max_end}")
-        return results
-       
+        self.check_refine_candidate(result)
+        return result
+
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
@@ -619,6 +591,22 @@ class Bench():
             match_matrix.append(base_matches)
 
         return np.array(match_matrix)
+
+    def check_refine_candidate(self, result):
+        """
+        Adds this region as a candidate for refinement if there are unmatched variants
+        """
+        has_unmatched = False
+        pos = []
+        for match in result:
+            has_unmatched |= not match.state
+            if match.base is not None:
+                pos.extend(truvari.entry_boundaries(match.base))
+            if match.comp is not None:
+                pos.extend(truvari.entry_boundaries(match.comp))
+        if has_unmatched and pos: # I don't think I need to confirm pos, but unsure
+            chrom = result[0].base.chrom or result[0].comp.chrom
+            self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 
 #################
