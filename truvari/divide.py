@@ -12,6 +12,7 @@ import pandas as pd
 
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -34,6 +35,7 @@ def parse_args(args):
     truvari.setup_logging(show_version=True)
     return args
 
+
 def flush_stack(in_vcf, stack, out_name, compress=True):
     """
     write the stack to out_name
@@ -45,6 +47,7 @@ def flush_stack(in_vcf, stack, out_name, compress=True):
     cur_out.close()
     if compress:
         truvari.compress_index_vcf(out_name)
+
 
 def divide_main(args):
     """
@@ -69,26 +72,29 @@ def divide_main(args):
     oname.pop(-1)
     oname = ".".join(oname)
 
-    out_name_template = os.path.join(args.output, oname) + "_{part_num:08d}.vcf"
+    out_name_template = os.path.join(
+        args.output, oname) + "_{part_num:08d}.vcf"
     cluster_counts = []
     stack = [next(in_vcf)]
 
     max_end = stack[0].stop
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers = args.threads) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
         futures = {}
         for entry in in_vcf:
             if entry.chrom != stack[0].chrom and len(stack) >= args.min:
                 m_name = out_name_template.format(part_num=len(cluster_counts))
-                futures[executor.submit(flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
-                #flush_stack(in_vcf, stack, m_name, args.no_compress)
+                futures[executor.submit(
+                    flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
+                # flush_stack(in_vcf, stack, m_name, args.no_compress)
                 cluster_counts.append(len(stack))
                 max_end = entry.stop
                 stack = [entry]
             elif entry.start >= max_end + args.buffer and len(stack) >= args.min:
                 m_name = out_name_template.format(part_num=len(cluster_counts))
-                futures[executor.submit(flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
-                #flush_stack(in_vcf, stack, m_name, args.no_compress)
+                futures[executor.submit(
+                    flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
+                # flush_stack(in_vcf, stack, m_name, args.no_compress)
                 cluster_counts.append(len(stack))
                 stack = [entry]
                 max_end = entry.stop
@@ -98,15 +104,16 @@ def divide_main(args):
 
         if stack:
             m_name = out_name_template.format(part_num=len(cluster_counts))
-            futures[executor.submit(flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
-            #flush_stack(in_vcf, stack, m_name, args.no_compress)
+            futures[executor.submit(
+                flush_stack, in_vcf, stack, m_name, args.no_compress)] = m_name
+            # flush_stack(in_vcf, stack, m_name, args.no_compress)
             cluster_counts.append(len(stack))
 
         for future in concurrent.futures.as_completed(futures):
             m_result = futures[future]
             try:
                 future.result()
-            except Exception as exc: # pylint: disable=broad-except
+            except Exception as exc:  # pylint: disable=broad-except
                 logging.error('%s generated an exception: %s', m_result, exc)
 
     cluster_counts = pd.Series(cluster_counts)

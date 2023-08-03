@@ -197,20 +197,24 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
         allele2 = entryB.alts[0]
         return seqsim(allele1, allele2)
 
-    a_seq = entryA.ref if entry_variant_type(entryA) == truvari.SV.DEL else entryA.alts[0]
-    b_seq = entryB.ref if entry_variant_type(entryB) == truvari.SV.DEL else entryB.alts[0]
+    a_seq = entryA.ref if entry_variant_type(
+        entryA) == truvari.SV.DEL else entryA.alts[0]
+    b_seq = entryB.ref if entry_variant_type(
+        entryB) == truvari.SV.DEL else entryB.alts[0]
     st_dist, ed_dist = entry_distance(entryA, entryB)
 
     if st_dist == 0 or ed_dist == 0:
         return seqsim(a_seq, b_seq)
 
     if ref is not None:
-        allele1, allele2 = entry_shared_ref_context(entryA, entryB, ref, min_len=min_len)
+        allele1, allele2 = entry_shared_ref_context(
+            entryA, entryB, ref, min_len=min_len)
         return seqsim(allele1, allele2)
 
     if st_dist > 0:
         return unroll_compare(a_seq, b_seq, st_dist % len(b_seq))
     return unroll_compare(b_seq, a_seq, st_dist % len(a_seq))
+
 
 def entry_reciprocal_overlap(entry1, entry2):
     """
@@ -324,7 +328,7 @@ def entry_size(entry):
         a_len = len(entry.alts[0]) if entry.alts is not None else 0
         if r_len == a_len:
             if r_len == 1:
-                size = 0 # SNPs are special
+                size = 0  # SNPs are special
             else:
                 size = r_len
         else:
@@ -356,6 +360,7 @@ def entry_size_similarity(entryA, entryB):
     sizeA = entry_size(entryA)
     sizeB = entry_size(entryB)
     return sizesim(sizeA, sizeB)
+
 
 def entry_to_hash(entry, hasher=hashlib.sha1):
     """

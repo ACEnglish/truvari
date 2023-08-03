@@ -13,6 +13,7 @@ import pandas as pd
 
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -35,6 +36,7 @@ def parse_args(args):
     truvari.setup_logging(args.debug, show_version=True)
     return args
 
+
 def count_entries(vcf, chroms, regions, within):
     """
     Count the number of variants per bed region a VCF
@@ -55,6 +57,7 @@ def count_entries(vcf, chroms, regions, within):
             counts[idx] += 1
     return counts
 
+
 def benchdir_count_entries(benchdir, regions, within=False, threads=4):
     """
     Count the number of variants per bed region in Truvari bench directory by state
@@ -67,15 +70,18 @@ def benchdir_count_entries(benchdir, regions, within=False, threads=4):
             os.path.join(benchdir, 'fn.vcf.gz'),
             os.path.join(benchdir, 'fp.vcf.gz')]
     if isinstance(regions, pd.DataFrame):
-        regions = regions.to_numpy().tolist() # the methods expect lists
+        regions = regions.to_numpy().tolist()  # the methods expect lists
     chroms = np.array([_[0] for _ in regions])
     intvs = np.array([[_[1], _[2]] for _ in regions])
-    method = partial(count_entries, chroms=chroms, regions=intvs, within=within)
+    method = partial(count_entries, chroms=chroms,
+                     regions=intvs, within=within)
     data = {}
-    with multiprocessing.Pool(threads) as pool: #, maxtasksperchild=1) as pool:
+    # , maxtasksperchild=1) as pool:
+    with multiprocessing.Pool(threads) as pool:
         for name, counts in zip(names, pool.map(method, vcfs)):
             data[name] = counts
     return pd.DataFrame(data)
+
 
 def stratify_main(cmdargs):
     """
@@ -84,13 +90,15 @@ def stratify_main(cmdargs):
     args = parse_args(cmdargs)
     read_header = 0 if args.header else None
     regions = pd.read_csv(args.regions, sep='\t', header=read_header)
-    r_list = regions.to_numpy().tolist() # the methods expect lists
+    r_list = regions.to_numpy().tolist()  # the methods expect lists
     if os.path.isdir(args.in_vcf):
-        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[["tpbase", "tp", "fn", "fp"]]
+        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[
+            ["tpbase", "tp", "fn", "fp"]]
     else:
         chroms = np.array([_[0] for _ in r_list])
         intvs = np.array([[_[1], _[2]] for _ in r_list])
-        counts = count_entries(pysam.VariantFile(args.in_vcf), chroms, intvs, args.within)
+        counts = count_entries(pysam.VariantFile(
+            args.in_vcf), chroms, intvs, args.within)
         counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)

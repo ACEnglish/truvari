@@ -9,6 +9,7 @@ POSIDX = 1
 REFIDX = 3
 ALTIDX = 4
 
+
 def decompose_variant(cur_variant):
     """
     Left trim and decompose (repl -> indel) variant
@@ -41,6 +42,7 @@ def decompose_variant(cur_variant):
     in_var[ALTIDX] = in_var[ALTIDX][1:]
     in_var[POSIDX] += len(cur_variant[REFIDX]) - 1
     return [var_to_str(del_var), var_to_str(in_var)]
+
 
 def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
     """
@@ -81,15 +83,15 @@ def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
             if not ref_base and not alt_base:
                 continue
 
-            if ref_base == alt_base: # No variant
-                if cur_variant and is_ref: # back to matching reference
+            if ref_base == alt_base:  # No variant
+                if cur_variant and is_ref:  # back to matching reference
                     for key in decompose_variant(cur_variant):
                         final_vars[key].append(cur_samp_hap)
                     cur_variant = []
             else:
                 if not cur_variant:
                     # -1 for the anchor base we're forcing on
-                    cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base, \
+                    cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base,
                                    anchor_base + alt_base, '.', '.', '.', 'GT']
                 else:
                     cur_variant[REFIDX] += ref_base
@@ -104,6 +106,7 @@ def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
         # End alignment
     sample_names = sorted(list(sample_names))
     return sample_names, final_vars
+
 
 def make_vcf(variants, sample_names):
     """
@@ -123,6 +126,7 @@ def make_vcf(variants, sample_names):
         out.write('\n')
     out.seek(0)
     return out.read()
+
 
 def msa2vcf(msa, anchor_base='N'):
     """
@@ -144,7 +148,8 @@ def msa2vcf(msa, anchor_base='N'):
     ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
     chrom, rest = ref_key[len("ref_"):].split(':')
     ref_seq = msa[ref_key].upper() if isinstance(msa[ref_key], str) else None
-    start_pos  = int(rest.split('-')[0])
+    start_pos = int(rest.split('-')[0])
 
-    sample_names, variants = msa_to_vars(msa, chrom, ref_seq, start_pos, anchor_base)
+    sample_names, variants = msa_to_vars(
+        msa, chrom, ref_seq, start_pos, anchor_base)
     return make_vcf(variants, sample_names)

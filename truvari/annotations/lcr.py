@@ -10,6 +10,7 @@ import pysam
 
 import truvari
 
+
 def sequence_to_repvec(sequence, N):
     """
     Computes the repetition vector (as seen in Wooton, 1993) from a
@@ -37,6 +38,7 @@ def sequence_to_repvec(sequence, N):
 
     return sorted(repvec, reverse=True)
 
+
 def sequence_entropy(sequence, N=4):
     """
     Computes the Shannon Entropy of a given sequence of a
@@ -54,6 +56,7 @@ def sequence_entropy(sequence, N=4):
 
     return entropy
 
+
 def edit_header(my_vcf):
     """
     Add INFO for new field to vcf
@@ -63,6 +66,7 @@ def edit_header(my_vcf):
                      'Description="Low complexity region entropy score">'))
     return header
 
+
 def add_lcr(vcf, n_header):
     """
     Adds LCR to each entry in VCF and yields them
@@ -70,11 +74,13 @@ def add_lcr(vcf, n_header):
     if not n_header:
         n_header = edit_header(vcf)
     for entry in vcf:
-        seq = entry.alts[0] if len(entry.alts[0]) > len(entry.ref) else entry.ref
+        seq = entry.alts[0] if len(entry.alts[0]) > len(
+            entry.ref) else entry.ref
         score = sequence_entropy(seq)
         entry.translate(n_header)
         entry.info["LCR"] = score
         yield entry
+
 
 def parse_args(args):
     """
@@ -88,6 +94,7 @@ def parse_args(args):
                         help="Output filename (stdout)")
     truvari.setup_logging(show_version=True)
     return parser.parse_args(args)
+
 
 def lcr_main(cmdargs):
     """

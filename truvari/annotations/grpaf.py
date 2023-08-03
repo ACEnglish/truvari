@@ -24,7 +24,7 @@ def parse_args(args):
                         help="Tab-delimited file of sample and group")
     parser.add_argument("-t", "--tags", type=str, default='all',
                         help=("Comma-separated list of tags to add "
-                        "from AF,MAF,ExcHet,HWE,MAC,AC,AN (%(default)s)"))
+                              "from AF,MAF,ExcHet,HWE,MAC,AC,AN (%(default)s)"))
     parser.add_argument("--strict", action="store_true",
                         help="Exit if sample listed in labels is not present in VCF (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -40,15 +40,23 @@ def edit_header(header, tags, groups):
     """
     tmpl = '##INFO=<ID={mid},Type={mty},Number={mnum},Description="{desc}">'
     tag_meta = {}
-    tag_meta["AF"] = ("Float", '1', "Allele Frequency on {count} {grp} samples")
-    tag_meta["AN"] = ("Integer", '1', "Total number of alleles in called genotypes on {count} {grp} samples")
-    tag_meta["MAF"] = ("Float", '1', "Minor Allele Frequency on {count} {grp} samples")
+    tag_meta["AF"] = (
+        "Float", '1', "Allele Frequency on {count} {grp} samples")
+    tag_meta["AN"] = (
+        "Integer", '1', "Total number of alleles in called genotypes on {count} {grp} samples")
+    tag_meta["MAF"] = (
+        "Float", '1', "Minor Allele Frequency on {count} {grp} samples")
     tag_meta["AC"] = ("Integer", 'A', "Allele Count on {count} {grp} samples")
-    tag_meta["MAC"] = ("Integer", 'A', "Minor Allele Count on {count} {grp} samples")
-    tag_meta["HWE"] = ("Float", '1', "HWE test (PMID:15789306) on {count} {grp} samples; 1=good, 0=bad")
-    tag_meta["ExcHet"] = ("Float", '1', "Test excess heterozygosity on {count} {grp} samples; 1=good, 0=bad")
-    tag_meta["N_HEMI"] = ("Integer", '1', "Number of partial genotypes (length of 1 or a single missing allele)")
-    tag_meta["N_MISS"] = ("Integer", '1', "Number of missing genotypes (all alleles missing)")
+    tag_meta["MAC"] = (
+        "Integer", 'A', "Minor Allele Count on {count} {grp} samples")
+    tag_meta["HWE"] = (
+        "Float", '1', "HWE test (PMID:15789306) on {count} {grp} samples; 1=good, 0=bad")
+    tag_meta["ExcHet"] = (
+        "Float", '1', "Test excess heterozygosity on {count} {grp} samples; 1=good, 0=bad")
+    tag_meta["N_HEMI"] = (
+        "Integer", '1', "Number of partial genotypes (length of 1 or a single missing allele)")
+    tag_meta["N_MISS"] = (
+        "Integer", '1', "Number of missing genotypes (all alleles missing)")
     tag_meta["N_HOMREF"] = ("Integer", '1', "Number of REF/REF genotypes")
     tag_meta["N_HET"] = ("Integer", '1', "Number of REF/ALT genotypes")
     tag_meta["N_HOMALT"] = ("Integer", '1', "Number of ALT/ALT genotypes")
@@ -63,6 +71,7 @@ def edit_header(header, tags, groups):
             header.add_line(m_line)
 
     return header
+
 
 def grpaf_main(cmd_args):
     """

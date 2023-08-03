@@ -123,7 +123,8 @@ class Remap():
             remap, hits = self.remap_entry(entry)
             entry.info["REMAP"] = remap
             if self.anno_hits and hits:
-                entry.info["REMAPHits"] = [_[1] for _ in hits[-self.anno_hits:]]
+                entry.info["REMAPHits"] = [_[1]
+                                           for _ in hits[-self.anno_hits:]]
         return entry
 
     def annotate_vcf(self):

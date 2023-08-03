@@ -9,6 +9,7 @@ from functools import total_ordering
 import pysam
 import truvari
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -151,7 +152,7 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and entry.alts is None: # ignore monomorphic reference
+        if self.params.check_monref and entry.alts is None:  # ignore monomorphic reference
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
@@ -231,7 +232,8 @@ class Matcher():
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.reference, self.params.minhaplen)
+            ret.seqsim = truvari.entry_seq_similarity(
+                base, comp, self.reference, self.params.minhaplen)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -248,6 +250,8 @@ class Matcher():
 ############################
 # Parsing and set building #
 ############################
+
+
 def file_zipper(*start_files):
     """
     Zip files to yield the entries in order.
@@ -258,7 +262,7 @@ def file_zipper(*start_files):
 
     yields key, pysam.VariantRecord
     """
-    markers = [] # list of lists: [name, file_handler, top_entry]
+    markers = []  # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()
     for name, i in start_files:
         try:
@@ -273,7 +277,7 @@ def file_zipper(*start_files):
         for idx, mk in enumerate(markers[1:]):
             idx += 1
             if mk[2].chrom < markers[first_idx][2].chrom or \
-              (mk[2].chrom == markers[first_idx][2].chrom and mk[2].start < markers[first_idx][2].start):
+                    (mk[2].chrom == markers[first_idx][2].chrom and mk[2].start < markers[first_idx][2].start):
                 first_idx = idx
         name, fh, entry = markers[first_idx]
         file_counts[name] += 1
@@ -284,7 +288,9 @@ def file_zipper(*start_files):
             # This file is done
             markers.pop(first_idx)
         yield name, entry
-    logging.info("Zipped %d variants %s", sum(file_counts.values()), file_counts)
+    logging.info("Zipped %d variants %s", sum(
+        file_counts.values()), file_counts)
+
 
 def chunker(matcher, *files):
     """
@@ -301,7 +307,8 @@ def chunker(matcher, *files):
     for key, entry in file_zipper(*files):
         if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
             if not unresolved_warned:
-                logging.warning("Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
+                logging.warning(
+                    "Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
                 unresolved_warned = True
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
@@ -325,5 +332,6 @@ def chunker(matcher, *files):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
     chunk_count += 1
-    logging.info("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
+    logging.info("%d chunks of %d variants %s", chunk_count,
+                 sum(call_counts.values()), call_counts)
     yield cur_chunk, chunk_count

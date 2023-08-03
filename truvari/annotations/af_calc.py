@@ -71,6 +71,7 @@ def calc_hwe(nref, nalt, nhet):
     p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
     return p_exc_het, 1 - p_hwe
 
+
 def calc_af(gts):
     """
     Calculate allele annotations for a list of genotypes
@@ -127,8 +128,10 @@ def calc_af(gts):
     ret["MAC"] = min(ret["AC"])
     ret["MAF"] = ret["MAC"] / ret["AN"]
 
-    ret["ExcHet"], ret["HWE"] = calc_hwe(ret["AC"][0], ret["AC"][1], ret["N_HET"])
+    ret["ExcHet"], ret["HWE"] = calc_hwe(
+        ret["AC"][0], ret["AC"][1], ret["N_HET"])
     return ret
+
 
 def allele_freq_annos(entry, samples=None):
     """

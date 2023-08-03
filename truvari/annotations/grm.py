@@ -32,7 +32,6 @@ except ModuleNotFoundError:
         return
 
 
-
 def make_kmers(ref, entry, kmer=25):
     """
     Make ref/alt kmers
@@ -317,7 +316,8 @@ def grm_main(cmdargs):
     grm_shared.kmersize = args.kmersize
     grm_shared.input = args.input
     grm_shared.min_size = args.min_size
-    m_process_entries = functools.partial(process_entries, grm_shared=grm_shared)
+    m_process_entries = functools.partial(
+        process_entries, grm_shared=grm_shared)
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:
         logging.info("Processing")
         chunks = pool.imap(m_process_entries, m_ranges)

@@ -6,6 +6,7 @@ import argparse
 
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -29,6 +30,7 @@ def get_idx(line):
         ret.append(line.index('\t', ret[-1] + 1))
     return ret
 
+
 def addid_main(cmdargs):
     """
     Main method
@@ -43,7 +45,7 @@ def addid_main(cmdargs):
                 fout.write(line)
                 continue
             tabs = get_idx(line)
-            new_id = line[:tabs[1]].replace('chr','') + hex(cnt)
+            new_id = line[:tabs[1]].replace('chr', '') + hex(cnt)
             fout.write(line[:tabs[2] + 1])
             fout.write(new_id)
             fout.write(line[tabs[3]:])

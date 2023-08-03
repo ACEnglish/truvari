@@ -12,6 +12,7 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.annotations import svinfo
 
+
 def parse_args(args):
     """
     Pull the command line parameters

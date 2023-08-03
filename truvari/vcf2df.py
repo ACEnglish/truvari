@@ -51,11 +51,11 @@ class SV(Enum):
     UNK = 6  # Unknown type
 
 
-
 SZBINS = ['SNP', '[1,5)', '[5,10)', '[10,15)', '[15,20)', '[20,30)', '[30,40)',
           '[40,50)', '[50,100)', '[100,200)', '[200,300)', '[300,400)',
           '[400,600)', '[600,800)', '[800,1k)', '[1k,2.5k)', '[2.5k,5k)', '>=5k']
-SZBINMAX = [1, 5, 10, 15, 20, 30, 40, 50, 100, 200, 300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
+SZBINMAX = [1, 5, 10, 15, 20, 30, 40, 50, 100, 200,
+            300, 400, 600, 800, 1000, 2500, 5000, sys.maxsize]
 QUALBINS = [f"[{x},{x+10})" for x in range(0, 100, 10)] + [">=100"]
 SZBINTYPE = pd.CategoricalDtype(categories=SZBINS, ordered=True)
 SVTYTYPE = pd.CategoricalDtype(categories=[_.name for _ in SV], ordered=True)
@@ -217,9 +217,10 @@ def tags_to_ops(items):
     ops = []
     for key, dat in items:
         num = dat.number
-        if num in [1, 'A', '.']: # 'A' should just pull first item...
+        if num in [1, 'A', '.']:  # 'A' should just pull first item...
             columns.append(key)
-            ops.append((key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [None]))
+            ops.append(
+                (key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [None]))
         elif num == 0:
             columns.append(key)
             ops.append((key, lambda dat, k: [k in dat]))
@@ -233,7 +234,8 @@ def tags_to_ops(items):
                 (key, lambda dat, k: dat[k] if pres_check(dat, k, True) else [None, None, None]))
         elif isinstance(num, int):
             columns.append(key)
-            ops.append((key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [()]))
+            ops.append(
+                (key, lambda dat, k: [dat[k]] if pres_check(dat, k) else [()]))
         else:
             logging.critical("Unknown Number (%s) for %s. Skipping.", num, key)
     return columns, ops
@@ -370,6 +372,7 @@ def optimize_df_memory(df):
     post_size = df.memory_usage().sum()
     return pre_size, post_size
 
+
 def bench_dir_to_df(dir_name, *args, **kwargs):
     """
     Parse a bench directory - same interface as vcf_to_df, except for first argument
@@ -385,6 +388,7 @@ def bench_dir_to_df(dir_name, *args, **kwargs):
         categories=['tpbase', 'fn', 'tp', 'fp'], ordered=True)
     out["state"] = out["state"].astype(state_type)
     return out
+
 
 def parse_args(args):
     """
@@ -431,9 +435,11 @@ def vcf2df_main(args):
 
     out = None
     if args.bench_dir:
-        out = bench_dir_to_df(args.vcf, args.info, args.format, args.sample, args.no_prefix)
+        out = bench_dir_to_df(args.vcf, args.info,
+                              args.format, args.sample, args.no_prefix)
     else:
-        out = vcf_to_df(args.vcf, args.info, args.format, args.sample, args.no_prefix)
+        out = vcf_to_df(args.vcf, args.info, args.format,
+                        args.sample, args.no_prefix)
 
     # compression -- this is not super important for most VCFs
     logging.info("Optimizing DataFrame memory")

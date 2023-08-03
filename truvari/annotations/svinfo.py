@@ -34,6 +34,7 @@ def edit_header(header):
         '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="SVLEN">')
     return header
 
+
 def add_svinfo(entry, min_size=0, n_header=None):
     """
     Add svinfo
@@ -46,6 +47,7 @@ def add_svinfo(entry, min_size=0, n_header=None):
     svtype = truvari.entry_variant_type(entry)
     entry.info["SVTYPE"] = svtype.name
     entry.info["SVLEN"] = sz
+
 
 def svinfo_main(cmdargs):
     """

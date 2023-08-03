@@ -17,6 +17,7 @@ import pysam
 import truvari
 import truvari.bench as trubench
 
+
 def collapse_chunk(chunk, matcher):
     """
     For calls in a chunk, separate which ones should be kept from collapsed
@@ -42,7 +43,8 @@ def collapse_chunk(chunk, matcher):
         if matcher.chain and keep_key in chain_lookup:
             keep_key = chain_lookup[keep_key]
         else:  # otherwise, this is assumed to be a keep call
-            ret[keep_key] = [cur_keep_candidate, [], f'{chunk_id}.{call_id}', 0]
+            ret[keep_key] = [cur_keep_candidate,
+                             [], f'{chunk_id}.{call_id}', 0]
 
         # Separate calls collapsing with this keep from the rest
         remaining_calls = []
@@ -76,7 +78,8 @@ def collapse_chunk(chunk, matcher):
 
     if matcher.no_consolidate:
         for val in ret.values():
-            edited_entry, collapse_cnt = collapse_into_entry(val[0], val[1], matcher.hap)
+            edited_entry, collapse_cnt = collapse_into_entry(
+                val[0], val[1], matcher.hap)
             val[0] = edited_entry
             val[3] = collapse_cnt
 
@@ -108,14 +111,14 @@ def collapse_into_entry(entry, others, hap_mode=False):
     for sample in entry.samples:
         m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
         if m_gt not in replace_gts:
-            continue # already set
+            continue  # already set
         n_idx = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
             if o_gt not in replace_gts:
                 n_idx = pos
-                break # this is the first other that's set
+                break  # this is the first other that's set
         # consolidate
         if hap_mode and m_gt == "HET":
             entry.samples[sample]["GT"] = (1, 1)
@@ -128,9 +131,12 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
                     # Happens for things like PL when one is null but its expecting a tuple
-                    logging.debug("Unable to set FORMAT %s for sample %s", key, sample)
-                    logging.debug("Kept entry: %s:%d %s", entry.chrom, entry.pos, entry.id)
-                    logging.debug("Colap entry: %s:%d %s", o_entry.chrom, o_entry.pos, o_entry.id)
+                    logging.debug(
+                        "Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.debug("Kept entry: %s:%d %s",
+                                  entry.chrom, entry.pos, entry.id)
+                    logging.debug("Colap entry: %s:%d %s",
+                                  o_entry.chrom, o_entry.pos, o_entry.id)
                 except KeyError:
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
@@ -152,6 +158,7 @@ def hap_resolve(entryA, entryB):
         return False
     return True
 
+
 def sort_length(b1, b2):
     """
     Order entries from longest to shortest SVLEN, ties are by alphanumeric of REF
@@ -167,6 +174,7 @@ def sort_length(b1, b2):
     if b1.ref > b2.ref:
         return -1
     return 0
+
 
 def sort_first(b1, b2):
     """
@@ -201,6 +209,7 @@ def sort_common(b1, b2):
     if mac1 > mac2:
         return -1
     return sort_first(b1, b2)
+
 
 SORTS = {'first': cmp_to_key(sort_first),
          'maxqual': cmp_to_key(sort_maxqual),
@@ -344,6 +353,7 @@ def build_collapse_matcher(args):
 
     return matcher
 
+
 def setup_outputs(args):
     """
     Makes all of the output files for collapse
@@ -367,7 +377,8 @@ def setup_outputs(args):
                                               header=outputs["o_header"])
     outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
                                               header=outputs["c_header"])
-    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0, "out_cnt": 0, "consol_cnt": 0}
+    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
+                            "out_cnt": 0, "consol_cnt": 0}
     return outputs
 
 
@@ -401,6 +412,7 @@ def close_outputs(outputs):
     outputs["output_vcf"].close()
     outputs["collap_vcf"].close()
 
+
 def collapse_main(args):
     """
     Main
@@ -424,5 +436,6 @@ def collapse_main(args):
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
     logging.info("%d variants collapsed into %d variants", outputs["stats_box"]["collap_cnt"],
                  outputs["stats_box"]["kept_cnt"])
-    logging.info("%d samples' FORMAT fields consolidated", outputs["stats_box"]["consol_cnt"])
+    logging.info("%d samples' FORMAT fields consolidated",
+                 outputs["stats_box"]["consol_cnt"])
     logging.info("Finished collapse")

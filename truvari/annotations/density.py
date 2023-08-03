@@ -11,6 +11,7 @@ from intervaltree import IntervalTree
 
 import truvari
 
+
 def parse_args(args):
     """
     Parse arguments
@@ -32,6 +33,7 @@ def parse_args(args):
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args
+
 
 def density_main(args):
     """
@@ -60,7 +62,8 @@ def density_main(args):
     for chrom in tree:
         for intv in tree[chrom]:
             for i in range(intv.begin, intv.end, args.windowsize):
-                new_tree[chrom].addi(i, min(intv.end, i + args.windowsize), data=cnt)
+                new_tree[chrom].addi(
+                    i, min(intv.end, i + args.windowsize), data=cnt)
                 cnt += 1
     logging.info("Made %d %dbp windows", cnt, args.windowsize)
     tree = new_tree
@@ -85,11 +88,13 @@ def density_main(args):
     desc = data["count"].describe()
     logging.info("Summary\n%s", str(desc))
     hs_threshold = desc["mean"] + (args.threshold * desc["std"])
-    logging.info("Setting threshold %f * SD = %f", args.threshold, hs_threshold)
+    logging.info("Setting threshold %f * SD = %f",
+                 args.threshold, hs_threshold)
 
     data["anno"] = None
     data.loc[data["count"] == 0, "anno"] = "sparse"
     data.loc[data["count"] > hs_threshold, "anno"] = "dense"
-    logging.info("Density Counts\n%s", str(data["anno"].value_counts(dropna=False)))
+    logging.info("Density Counts\n%s", str(
+        data["anno"].value_counts(dropna=False)))
 
     joblib.dump(data, args.output)
