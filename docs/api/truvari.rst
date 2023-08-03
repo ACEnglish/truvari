@@ -206,10 +206,6 @@ setup_logging
 ^^^^^^^^^^^^^
 .. autofunction:: setup_logging
 
-setup_progressbar
-^^^^^^^^^^^^^^^^^
-.. autofunction:: setup_progressbar
-
 vcf_to_df
 ^^^^^^^^^
 .. autofunction:: vcf_to_df
