@@ -1,5 +1,5 @@
 """
-Wrapper around MAFFT and other tools to perform an MSA comparison of phased variants
+Wrapper around MAFFT and other tools to harmonize phased variants
 """
 import os
 import re
