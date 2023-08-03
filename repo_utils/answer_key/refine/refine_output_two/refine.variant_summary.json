@@ -7,11 +7,5 @@
     "recall": 1.0,
     "f1": 0.9866342648845686,
     "base cnt": 406,
-    "comp cnt": 417,
-    "TP-comp_TP-gt": 0,
-    "TP-comp_FP-gt": 0,
-    "TP-base_TP-gt": 0,
-    "TP-base_FP-gt": 0,
-    "gt_concordance": 0,
-    "gt_matrix": {}
+    "comp cnt": 417
 }

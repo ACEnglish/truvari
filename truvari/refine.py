@@ -141,7 +141,8 @@ def recount_variant_report(orig_dir, phab_dir, regions):
         return count
 
     summary = truvari.StatsBox()
-    summary.update(json.load(open(os.path.join(phab_dir, "summary.json"))))
+    with open(os.path.join(phab_dir, "summary.json")) as fh:
+        summary.update(json.load(fh))
     # if the variant starts in a refined region, skip it
     no_count = regions[regions["refined"]].copy().set_index('chrom')
     no_count['start'] -= PHAB_BUFFER

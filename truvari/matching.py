@@ -297,7 +297,15 @@ def chunker(matcher, *files):
     cur_chrom = None
     cur_end = None
     cur_chunk = defaultdict(list)
+    unresolved_warned = False
     for key, entry in file_zipper(*files):
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+            if not unresolved_warned:
+                logging.warning("Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
+                unresolved_warned = True
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
