@@ -223,6 +223,11 @@ BenchOutput
 .. autoclass:: BenchOutput
    :members:
 
+StatsBox
+^^^^^^^^
+.. autoclass:: StatsBox
+   :members:
+
 GT
 ^^
 .. autoclass:: GT
