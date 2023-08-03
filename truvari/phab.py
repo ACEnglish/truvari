@@ -15,10 +15,11 @@ from collections import defaultdict
 import pysam
 from pysam import bcftools, samtools
 from intervaltree import IntervalTree
-from pywfa.align import WavefrontAligner # pylint: disable=no-name-in-module
+from pywfa.align import WavefrontAligner  # pylint: disable=no-name-in-module
 import truvari
 
-DEFAULT_MAFFT_PARAM="--auto --thread 1"
+DEFAULT_MAFFT_PARAM = "--auto --thread 1"
+
 
 def parse_regions(argument):
     """
@@ -34,7 +35,7 @@ def parse_regions(argument):
                 chrom, start, end = i.strip().split('\t')[:3]
                 start = int(start)
                 end = int(end)
-            except Exception: #pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except
                 logging.error("Unable to parse bed line %s", i)
                 sys.exit(1)
             ret.append((chrom, start, end))
@@ -49,6 +50,7 @@ def parse_regions(argument):
                 sys.exit(1)
             ret.append((chrom, start, end))
     return ret
+
 
 def merged_region_file(regions, buff=100):
     """
@@ -68,6 +70,7 @@ def merged_region_file(regions, buff=100):
                 fout.write(f"{chrom}:{i.begin}-{i.end}\n")
     return out_file_name
 
+
 def extract_reference(reg_fn, ref_fn):
     """
     Pull the reference
@@ -76,6 +79,7 @@ def extract_reference(reg_fn, ref_fn):
     with open(out_fn, 'w') as fout:
         fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
     return out_fn
+
 
 def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
     """
@@ -93,8 +97,10 @@ def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
         for hap in [1, 2]:
             ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps, hap)
                         for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
-    samp_names = sorted({('p:' if prefix else '') + samp for _, samp, prefix, _ in ret})
+    samp_names = sorted({('p:' if prefix else '') + samp
+                          for _, samp, prefix, _ in ret})
     return ret, samp_names
+
 
 def fasta_reader(fa_str, name_entries=True):
     """
@@ -121,6 +127,7 @@ def fasta_reader(fa_str, name_entries=True):
     cur_entry.seek(0)
     yield cur_name, cur_entry.read()
 
+
 def extract_haplotypes(data, ref_fn):
     """
     Given a data tuple of VCF, sample name, and prefix bool
@@ -130,9 +137,11 @@ def extract_haplotypes(data, ref_fn):
     """
     vcf_fn, sample, prefix, hap = data
     prefix = 'p:' if prefix else ''
-    cmd = f"-H{hap} --sample {sample} --prefix {prefix}{sample}_{hap}_ -f {ref_fn} {vcf_fn}".split(' ')
+    cmd = (f"--sample {sample} --prefix {prefix}{sample}_{hap}_ "
+           f"-H{hap} -f {ref_fn} {vcf_fn}").split(' ')
     # Can't return generator from process
     return list(fasta_reader(bcftools.consensus(*cmd)))
+
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
@@ -147,15 +156,18 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
         pool.join()
     return all_haps
 
+
 def consolidate_haplotypes_with_reference(all_haps, ref_haps_fn):
     """
     Generator for putting the reference into the haplotypes
     """
     m_ref = pysam.FastaFile(ref_haps_fn)
     for location in list(m_ref.references):
-        all_haps[location].write(f">ref_{location}\n{m_ref[location]}\n".encode())
+        all_haps[location].write(
+            f">ref_{location}\n{m_ref[location]}\n".encode())
         all_haps[location].seek(0)
         yield all_haps[location].read()
+
 
 def expand_cigar(seq, ref, cigar):
     """
@@ -179,16 +191,19 @@ def expand_cigar(seq, ref, cigar):
             ref_pos += span
     return "".join(ref), "".join(seq)
 
+
 def wfa_to_vars(seq_bytes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
     """
-    fasta = {k:v.decode() for k,v in fasta_reader(seq_bytes.decode(), name_entries=False)}
+    fasta = {k: v.decode() for k, v in fasta_reader(
+        seq_bytes.decode(), name_entries=False)}
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
 
-    aligner = WavefrontAligner(reference, span="end-to-end", heuristic="adaptive")
+    aligner = WavefrontAligner(
+        reference, span="end-to-end", heuristic="adaptive")
     for haplotype in fasta:
         if haplotype == ref_key:
             continue
@@ -198,6 +213,7 @@ def wfa_to_vars(seq_bytes):
         fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
     return truvari.msa2vcf(fasta)
 
+
 def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
@@ -205,7 +221,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     # Dev only method for overwriting test answers - don't use until code is good
     dev_name = None
     if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
-        import hashlib # pylint: disable=import-outside-toplevel
+        import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes).hexdigest()
 
     cmd = f"mafft --quiet {params} -"
@@ -224,6 +240,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         fasta[name] = sequence.decode()
     return truvari.msa2vcf(fasta)
 
+
 def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method="mafft"):
     """
     Parallel processing of variants to harmonize. Writes to output
@@ -234,7 +251,8 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
         align_method = wfa_to_vars
 
     with open(output_fn[:-len(".gz")], 'w') as fout:
-        fout.write('##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
+        fout.write(
+            '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
         for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
@@ -249,7 +267,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
 
-#pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
          mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
@@ -287,17 +305,21 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
-    hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
+    hap_jobs, samp_names = make_haplotype_jobs(
+        base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
     sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
     harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
 
     logging.info("Harmonizing variants")
-    harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method)
-#pylint: enable=too-many-arguments
+    harmonize_variants(harm_jobs, mafft_params, base_vcf,
+                       samp_names, output_fn, threads, method)
+# pylint: enable=too-many-arguments
 
 ######
 # UI #
 ######
+
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -331,6 +353,7 @@ def parse_args(args):
     args = parser.parse_args(args)
     return args
 
+
 def check_requirements(align):
     """
     ensure external programs are in PATH
@@ -342,6 +365,7 @@ def check_requirements(align):
             check_fail = True
     return check_fail
 
+
 def check_params(args):
     """
     Ensure files are okay to use
@@ -352,7 +376,7 @@ def check_params(args):
         check_fail = True
     if os.path.exists(args.output):
         logging.error("Output file already exists")
-        check_fail =True
+        check_fail = True
     if args.comp is not None and not os.path.exists(args.comp):
         logging.error("File %s does not exist", args.comp)
         check_fail = True
@@ -380,6 +404,7 @@ def check_params(args):
         check_fail = True
 
     return check_fail
+
 
 def phab_main(cmdargs):
     """

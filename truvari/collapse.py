@@ -131,8 +131,8 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     entry.samples[sample][key] = o_entry.samples[sample][key]
                 except TypeError:
                     # Happens for things like PL when one is null but its expecting a tuple
-                    logging.debug(
-                        "Unable to set FORMAT %s for sample %s", key, sample)
+                    logging.debug("Unable to set FORMAT %s for sample %s",
+                                  key, sample)
                     logging.debug("Kept entry: %s:%d %s",
                                   entry.chrom, entry.pos, entry.id)
                     logging.debug("Colap entry: %s:%d %s",
@@ -317,12 +317,12 @@ def check_params(args):
         logging.error("File %s does not exist", args.input)
     if not args.input.endswith(".gz"):
         check_fail = True
-        logging.error(
-            "Input vcf %s does not end with .gz. Must be bgzip'd", args.input)
+        logging.error("Input vcf %s does not end with .gz. Must be bgzip'd",
+                      args.input)
     if not os.path.exists(args.input + '.tbi'):
         check_fail = True
-        logging.error(
-            "Input vcf index %s.tbi does not exist. Must be indexed", args.input)
+        logging.error("Input vcf index %s.tbi does not exist. Must be indexed",
+                      args.input)
     if args.hap and args.chain:
         check_fail = True
         logging.error("Cannot specify both --hap and --chain")
@@ -434,8 +434,8 @@ def collapse_main(args):
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
-    logging.info("%d variants collapsed into %d variants", outputs["stats_box"]["collap_cnt"],
-                 outputs["stats_box"]["kept_cnt"])
+    logging.info("%d variants collapsed into %d variants",
+                 outputs["stats_box"]["collap_cnt"], outputs["stats_box"]["kept_cnt"])
     logging.info("%d samples' FORMAT fields consolidated",
                  outputs["stats_box"]["consol_cnt"])
     logging.info("Finished collapse")

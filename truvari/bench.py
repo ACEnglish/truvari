@@ -125,20 +125,20 @@ def check_params(args):
         logging.error("File %s does not exist", args.base)
         check_fail = True
     if not args.comp.endswith(".gz"):
-        logging.error(
-            "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
+        logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd",
+                      args.comp)
         check_fail = True
     if not os.path.exists(args.comp + '.tbi'):
-        logging.error(
-            "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+        logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed",
+                      args.comp)
         check_fail = True
     if not args.base.endswith(".gz"):
-        logging.error(
-            "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
+        logging.error("Base vcf %s does not end with .gz. Must be bgzip'd",
+                      args.base)
         check_fail = True
     if not os.path.exists(args.base + '.tbi'):
-        logging.error(
-            "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+        logging.error("Base vcf index %s.tbi does not exist. Must be indexed",
+                      args.base)
         check_fail = True
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
