@@ -303,6 +303,20 @@ class StatsBox(OrderedDict):
         if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
+    def clean_out(self):
+        """
+        When reusing a StatsBox (typically inside refine), gt/weight numbers
+        are typically invalidated. This removes those numbers from self to make
+        a cleaner report
+        """
+        del self["TP-comp_TP-gt"]
+        del self["TP-comp_FP-gt"]
+        del self["TP-base_TP-gt"]
+        del self["TP-base_FP-gt"]
+        del self["gt_concordance"]
+        del self["gt_matrix"]
+        if "weighted" in self:
+            del self["weighted"]
 
     def write_json(self, out_name):
         """
@@ -355,7 +369,8 @@ class BenchOutput():
             self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
-        self.wt_stats_box = WeightedStatsBox()
+        self.wt_seq_stats_box = WeightedStatsBox()
+        self.wt_size_stats_box = WeightedStatsBox()
 
     def write_match(self, match):
         """
@@ -364,7 +379,6 @@ class BenchOutput():
         Writer is responsible for handling FPs between sizefilt-sizemin
         """
         box = self.stats_box
-        wt_box = self.wt_stats_box
         skip = False
         if match.base:
             box["base cnt"] += 1
@@ -407,11 +421,14 @@ class BenchOutput():
 
         # This is convoluted
         if match.base and match.comp:
-            wt_box.add(match.base.info["PctSeqSimilarity"], 0)
+            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 0)
+            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 0)
         elif match.base and not match.comp:
-            wt_box.add(match.base.info["PctSeqSimilarity"], 1)
+            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 1)
+            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 1)
         elif not match.base and match.comp:
-            wt_box.add(match.comp.info["PctSeqSimilarity"], 2)
+            self.wt_seq_stats_box.add(match.comp.info["PctSeqSimilarity"], 2)
+            self.wt_size_stats_box.add(match.comp.info["PctSizeSimilarity"], 2)
 
 
     def close_outputs(self):
@@ -425,8 +442,10 @@ class BenchOutput():
             truvari.compress_index_vcf(i)
 
         self.stats_box.calc_performance()
-        self.wt_stats_box.calc_performance()
-        self.stats_box["weighted"] = dict(self.wt_stats_box)
+        self.wt_seq_stats_box.calc_performance()
+        self.wt_size_stats_box.calc_performance()
+        self.stats_box["weighted"] = {'sequence': dict(self.wt_seq_stats_box),
+                                      'size': dict(self.wt_size_stats_box)}
         self.stats_box.write_json(os.path.join(self.m_bench.outdir, "summary.json"))
 
 
@@ -485,6 +504,7 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
+        self.refine_candidates = []
 
     def param_dict(self):
         """
@@ -526,6 +546,9 @@ class Bench():
                 match.comp = None
             output.write_match(match)
 
+        with open(os.path.join(self.outdir, 'candidate.refine.bed'), 'w') as fout:
+            fout.write("\n".join(self.refine_candidates))
+
         output.close_outputs()
         return output
 
@@ -535,7 +558,9 @@ class Bench():
         """
         chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
-        return self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        result = self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        self.check_refine_candidate(result)
+        return result
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
@@ -585,6 +610,24 @@ class Bench():
             match_matrix.append(base_matches)
 
         return np.array(match_matrix)
+
+    def check_refine_candidate(self, result):
+        """
+        Adds this region as a candidate for refinement if there are unmatched variants
+        """
+        has_unmatched = False
+        pos = []
+        chrom = None
+        for match in result:
+            has_unmatched |= not match.state
+            if match.base is not None:
+                chrom = match.base.chrom
+                pos.extend(truvari.entry_boundaries(match.base))
+            if match.comp is not None:
+                chrom = match.comp.chrom
+                pos.extend(truvari.entry_boundaries(match.comp))
+        if has_unmatched and pos: # I don't think I need to confirm pos, but unsure
+            self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 
 #################
@@ -678,6 +721,7 @@ def pick_single_matches(match_matrix):
     top_hit_idx = len(hit_order) - 1
 
     mask = np.ones(match_matrix.shape, dtype='bool') # True = can use
+    ret = []
 
     used_pairs = []
     while top_hit_idx >= 0 and mask.any():
@@ -686,7 +730,7 @@ def pick_single_matches(match_matrix):
             mask[idx[0], :] = False
             mask[:, idx[1]] = False
             used_pairs.append(idx)
-            yield match_matrix[idx]
+            ret.append(match_matrix[idx])
         top_hit_idx -= 1
 
     used_base, used_comp = zip(*used_pairs) if used_pairs else ([],[])
@@ -697,7 +741,7 @@ def pick_single_matches(match_matrix):
         to_process.comp = None # The comp will be written elsewhere
         to_process.multi = to_process.state
         to_process.state = False
-        yield to_process
+        ret.append(to_process)
 
     # FPs
     for comp_col in set(range(match_matrix.shape[1])) - set(used_comp):
@@ -706,7 +750,8 @@ def pick_single_matches(match_matrix):
         to_process.base = None # The base will be written elsewhere
         to_process.multi = to_process.state
         to_process.state = False
-        yield to_process
+        ret.append(to_process)
+    return ret
 
 PICKERS = {"single": pick_single_matches,
            "ac": pick_ac_matches,

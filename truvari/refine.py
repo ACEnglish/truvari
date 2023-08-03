@@ -11,6 +11,7 @@ import multiprocessing as mp
 from argparse import Namespace
 from collections import defaultdict
 
+import pysam
 import pandas as pd
 from pysam import bcftools
 from intervaltree import IntervalTree
@@ -18,6 +19,7 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.phab import check_requirements as phab_check_requirements
 
+PHAB_BUFFER = 100 # hard-coded parameter :(
 def read_json(fn):
     """
     Parse json and return dict
@@ -121,6 +123,46 @@ def make_variant_report(regions):
     summary.calc_performance()
     return summary
 
+def recount_variant_report(orig_dir, phab_dir, regions):
+    """
+    Count original variants not in refined regions and
+    consolidate with the refined counts.
+    """
+    def falls_in_count(fn, no_count):
+        """ count number of variants that don't start in no_count """
+        vcf = pysam.VariantFile(fn)
+        count = 0
+        for entry in vcf:
+            if entry.chrom in no_count.index:
+                chrom = no_count.loc[entry.chrom]
+                if ((chrom['start'] <= entry.start) & (entry.start <= chrom['end'])).any():
+                    continue
+            count += 1
+        return count
+
+    summary = truvari.StatsBox()
+    with open(os.path.join(phab_dir, "summary.json")) as fh:
+        summary.update(json.load(fh))
+    # if the variant starts in a refined region, skip it
+    no_count = regions[regions["refined"]].copy().set_index('chrom')
+    no_count['start'] -= PHAB_BUFFER
+    no_count['end'] += PHAB_BUFFER
+
+    tpb = falls_in_count(os.path.join(orig_dir, 'tp-base.vcf.gz'), no_count)
+    summary["TP-base"] += tpb
+    tpc = falls_in_count(os.path.join(orig_dir, 'tp-comp.vcf.gz'), no_count)
+    summary["TP-comp"] += tpc
+    fp = falls_in_count(os.path.join(orig_dir, 'fp.vcf.gz'), no_count)
+    summary["FP"] += fp
+    fn = falls_in_count(os.path.join(orig_dir, 'fn.vcf.gz'), no_count)
+    summary["FN"] += fn
+
+    summary["comp cnt"] += tpc + fp
+    summary["base cnt"] += tpb + fn
+    summary.calc_performance()
+    return summary
+
+
 def make_region_report(data):
     """
     Given a refine counts DataFrame, calculate the performance of
@@ -205,6 +247,9 @@ def parse_args(args):
                         help="Use original input VCFs instead of filtered tp/fn/fps")
     parser.add_argument("-U", "--use-region-coords", action="store_true",
                         help="When subsetting the includebed with regions, use region coordinates")
+    parser.add_argument("-R", "--recount", action="store_true",
+                        help=("Recount all variants for refine.variant_summary instead of only "
+                              "those in analyzed regions"))
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
@@ -341,7 +386,7 @@ def refine_main(cmdargs):
     # Send the vcfs to phab
     phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
     to_eval_coords = regions[regions["refined"]][["chrom", "start", "end"]].to_numpy().tolist()
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=100, comp_vcf=comp_vcf,
+    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER, comp_vcf=comp_vcf,
                  prefix_comp=True, threads=args.threads, method=args.align)
 
     # Now run bench on the phab harmonized variants
@@ -354,7 +399,8 @@ def refine_main(cmdargs):
 
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
 
-    summary = make_variant_report(regions)
+    summary = recount_variant_report(args.benchdir, outdir, regions) if args.recount else make_variant_report(regions)
+    summary.clean_out()
     summary.write_json(os.path.join(args.benchdir, 'refine.variant_summary.json'))
 
     report = make_region_report(regions)
