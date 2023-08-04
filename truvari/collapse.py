@@ -10,6 +10,7 @@ import json
 import logging
 import argparse
 import itertools
+import statistics
 from functools import cmp_to_key, partial
 
 import pysam
@@ -219,7 +220,7 @@ SORTS = {'first': cmp_to_key(sort_first),
 #######
 # VCF #
 #######
-def edit_header(my_vcf):
+def edit_header(my_vcf, median_info=False):
     """
     Add INFO for new fields to vcf
     """
@@ -230,17 +231,26 @@ def edit_header(my_vcf):
                      'Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">'))
     header.add_line(('##INFO=<ID=NumConsolidated,Number=1,Type=Integer,'
                      'Description="Number of samples consolidated into this call by truvari">'))
+    if median_info:
+        header.add_line(('##INFO=<ID=CollapseStart,Number=1,Type=Integer,'
+                        'Description="Median start positions of collapsed variants">'))
+        header.add_line(('##INFO=<ID=CollapseEnd,Number=1,Type=Integer,'
+                        'Description="Median end positions of collapsed variants">'))
+        header.add_line(('##INFO=<ID=CollapseSize,Number=1,Type=Integer,'
+                        'Description="Median size of collapsed variants">'))
     return header
 
 
-def annotate_entry(entry, num_collapsed, num_consolidate, match_id, header):
+def annotate_entry(entry, n_collap, n_consol, match_id, med_info, header):
     """
     Edit an entry that's going to be collapsed into another entry
     """
     entry.translate(header)
-    entry.info["NumCollapsed"] = num_collapsed
-    entry.info["NumConsolidated"] = num_consolidate
+    entry.info["NumCollapsed"] = n_collap
+    entry.info["NumConsolidated"] = n_consol
     entry.info["CollapseId"] = match_id
+    if med_info:
+        entry.info["CollapseStart"], entry.info["CollapseEnd"], entry.info["CollapseSize"] = med_info
 
 
 ##################
@@ -262,6 +272,8 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("--median-info", action="store_true",
+                        help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -366,7 +378,7 @@ def setup_outputs(args):
     outputs = {}
 
     in_vcf = pysam.VariantFile(args.input)
-    outputs["o_header"] = edit_header(in_vcf)
+    outputs["o_header"] = edit_header(in_vcf, args.median_info)
     outputs["c_header"] = trubench.edit_header(in_vcf)
     num_samps = len(outputs["o_header"].samples)
     if args.hap and num_samps != 1:
@@ -382,7 +394,25 @@ def setup_outputs(args):
     return outputs
 
 
-def output_writer(to_collapse, outputs):
+def calc_median_sizepos(entry, collapsed):
+    """
+    Given a set of variants, calculate the median start, end, and size
+    """
+    st, en = truvari.entry_boundaries(entry)
+    sz = truvari.entry_size(entry)
+    starts = [st]
+    ends = [en]
+    sizes = [sz]
+    for i in collapsed:
+        st, en = truvari.entry_boundaries(i.comp)
+        sz = truvari.entry_size(i.comp)
+        starts.append(st)
+        ends.append(en)
+        sizes.append(sz)
+    return int(statistics.median(starts)), int(statistics.median(ends)), int(statistics.median(sizes))
+
+
+def output_writer(to_collapse, outputs, median_info=False):
     """
     Annotate and write kept/collapsed calls to appropriate files
     """
@@ -393,8 +423,9 @@ def output_writer(to_collapse, outputs):
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    annotate_entry(entry, len(collapsed), consol_cnt,
-                   match_id, outputs["o_header"])
+    med_info = calc_median_sizepos(entry, collapsed) if median_info else None
+    annotate_entry(entry, len(collapsed), consol_cnt, match_id,
+                   med_info, outputs["o_header"])
     outputs["output_vcf"].write(entry)
     outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
@@ -430,7 +461,7 @@ def collapse_main(args):
     chunks = truvari.chunker(matcher, ('base', base))
     m_colap = partial(collapse_chunk, matcher=matcher)
     for call in itertools.chain.from_iterable(map(m_colap, chunks)):
-        output_writer(call, outputs)
+        output_writer(call, outputs, args.median_info)
 
     close_outputs(outputs)
     logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
