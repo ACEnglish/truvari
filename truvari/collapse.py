@@ -233,9 +233,9 @@ def edit_header(my_vcf, median_info=False):
                      'Description="Number of samples consolidated into this call by truvari">'))
     if median_info:
         header.add_line(('##INFO=<ID=CollapseStart,Number=1,Type=Integer,'
-                        'Description="Median start positions of collapsed variants">'))
+                        'Description="Median start position of collapsed variants">'))
         header.add_line(('##INFO=<ID=CollapseEnd,Number=1,Type=Integer,'
-                        'Description="Median end positions of collapsed variants">'))
+                        'Description="Median end position of collapsed variants">'))
         header.add_line(('##INFO=<ID=CollapseSize,Number=1,Type=Integer,'
                         'Description="Median size of collapsed variants">'))
     return header
