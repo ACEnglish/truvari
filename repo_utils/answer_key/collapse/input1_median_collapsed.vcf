@@ -39,8 +39,8 @@
 ##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
 ##INFO=<ID=CollapseId,Number=1,Type=String,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
 ##INFO=<ID=NumConsolidated,Number=1,Type=Integer,Description="Number of samples consolidated into this call by truvari">
-##INFO=<ID=CollapseStart,Number=1,Type=Integer,Description="Median start positions of collapsed variants">
-##INFO=<ID=CollapseEnd,Number=1,Type=Integer,Description="Median end positions of collapsed variants">
+##INFO=<ID=CollapseStart,Number=1,Type=Integer,Description="Median start position of collapsed variants">
+##INFO=<ID=CollapseEnd,Number=1,Type=Integer,Description="Median end position of collapsed variants">
 ##INFO=<ID=CollapseSize,Number=1,Type=Integer,Description="Median size of collapsed variants">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA24385
 chr20	66235	.	C	CGACTCCACTCCATT	60	.	QNAME=HG002-S9-H1-000001F;QSTART=45138;QSTRAND=+	GT:PL:DP	1|1:8,5,9:29,41
