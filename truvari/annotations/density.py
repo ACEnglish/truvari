@@ -28,6 +28,8 @@ def parse_args(args):
                         help="Mask bed file")
     parser.add_argument("-w", "--windowsize", type=truvari.restricted_int, default=10000,
                         help="Window size (%(default)s)")
+    parser.add_argument("-s", "--stepsize", type=truvari.restricted_int, default=10000,
+                        help="Window step size (%(default)s)")
     parser.add_argument("-t", "--threshold", type=float, default=3,
                         help="std for identifying 'dense' regions (%(default)s)")
     args = parser.parse_args(args)
@@ -61,7 +63,7 @@ def density_main(args):
     cnt = 0
     for chrom in tree:
         for intv in tree[chrom]:
-            for i in range(intv.begin, intv.end, args.windowsize):
+            for i in range(intv.begin, intv.end, args.stepsize):
                 new_tree[chrom].addi(
                     i, min(intv.end, i + args.windowsize), data=cnt)
                 cnt += 1
