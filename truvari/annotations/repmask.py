@@ -67,8 +67,7 @@ class RepMask():
         Create the fasta file of all the sequences
         Returns the fasta file name
         """
-        ret = tempfile.NamedTemporaryFile(
-            mode='w', delete=False)  # pylint: disable=consider-using-with
+        ret = tempfile.NamedTemporaryFile(mode='w', delete=False)  # pylint: disable=consider-using-with
         tot_cnt = 0
         cnt = 0
         cntbp = 0
