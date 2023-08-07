@@ -5,12 +5,5 @@ that easy to install, especially on the instances that the github actions run on
 
 This works by saving real mafft results and using this fake mafft to simply lookup what the correct result should be.
 
-Build the results by first soft-linking the directory where the phab results sit with `ln -s`
-
-Next, run `python make_fake_mafft_results.py soft-link-dir/haps.fa soft-link-dir/*/haps.fa <etc> > mafft_results.json`
-
-This script will warn you when there are conflicting hashes. I assume that's okay because identical inputs make
-identical outputs? 
-
-Also, be sure in the ssshtest to update the $PATH to point to this directory so that `mafft` is found in the
-environment. See `sub_tests/phab.sh` for an example
+Build the results by running the ssshtest by setting the environment variable `PHAB_WRITE_MAFFT=1`. 
+This will make files named `fm_<md5sum>.msa` into `repo_utils/test_files/external/fake_mafft/lookup/`.

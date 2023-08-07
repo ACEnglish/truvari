@@ -7,13 +7,15 @@ import sys
 import json
 import hashlib
 
-fn = sys.argv[-1]
-sys.stderr.write(f"Running fake MAFFT for {fn}\n")
+sys.stderr.write(f"Running fake MAFFT\n")
 m_dir = os.path.dirname(os.path.realpath(__file__))
 
-lookup = json.load(open(os.path.join(m_dir, "mafft_results.json"), 'r'))
-with open(fn, 'r') as fh:
-    data = fh.read()
-    m_key = hashlib.md5(data.encode('utf-8')).hexdigest()
-    with open(os.path.join(m_dir, lookup[m_key])) as result:
-        sys.stdout.write(result.read())
+stdin = sys.stdin.read()
+md5sum = hashlib.md5(stdin.encode()).hexdigest()
+fn = os.path.join(m_dir, f"lookup/fm_{md5sum}.msa")
+
+#if not os.path.exists(fn):
+#    with open("delme.txt", 'w') as fout:
+#        fout.write(stdin)
+with open(fn) as result:
+    sys.stdout.write(result.read())

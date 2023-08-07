@@ -9,6 +9,7 @@ import argparse
 import pysam
 import truvari
 
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -34,11 +35,13 @@ def edit_header(my_vcf, bins, add_ad=False):
     Add INFO for new field to vcf
     """
     header = my_vcf.header.copy()
-    desc = 'Description="Count of samples with >= ' + ",".join([f"{_}x" for _ in bins][:-1]) + '">'
+    desc = 'Description="Count of samples with >= ' + \
+        ",".join([f"{_}x" for _ in bins][:-1]) + '">'
     header.add_line('##INFO=<ID=DPCNT,Number=.,Type=Integer,' + desc)
     if add_ad:
         header.add_line('##INFO=<ID=ADCNT,Number=.,Type=Integer,' + desc)
     return header
+
 
 def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False, present=False):
     """
@@ -73,6 +76,7 @@ def add_dpcnt(vcf, n_header=None, bins=None, add_ad=False, present=False):
         if add_ad:
             entry.info["ADCNT"] = dat_ad
         yield entry
+
 
 def dpcnt_main(cmdargs):
     """

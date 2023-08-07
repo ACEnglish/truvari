@@ -11,6 +11,7 @@ from intervaltree import IntervalTree
 
 import truvari
 
+
 def parse_args(args):
     """
     Parse arguments
@@ -27,11 +28,14 @@ def parse_args(args):
                         help="Mask bed file")
     parser.add_argument("-w", "--windowsize", type=truvari.restricted_int, default=10000,
                         help="Window size (%(default)s)")
+    parser.add_argument("-s", "--stepsize", type=truvari.restricted_int, default=10000,
+                        help="Window step size (%(default)s)")
     parser.add_argument("-t", "--threshold", type=float, default=3,
                         help="std for identifying 'dense' regions (%(default)s)")
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args
+
 
 def density_main(args):
     """
@@ -59,8 +63,9 @@ def density_main(args):
     cnt = 0
     for chrom in tree:
         for intv in tree[chrom]:
-            for i in range(intv.begin, intv.end, args.windowsize):
-                new_tree[chrom].addi(i, min(intv.end, i + args.windowsize), data=cnt)
+            for i in range(intv.begin, intv.end, args.stepsize):
+                new_tree[chrom].addi(
+                    i, min(intv.end, i + args.windowsize), data=cnt)
                 cnt += 1
     logging.info("Made %d %dbp windows", cnt, args.windowsize)
     tree = new_tree
@@ -85,11 +90,13 @@ def density_main(args):
     desc = data["count"].describe()
     logging.info("Summary\n%s", str(desc))
     hs_threshold = desc["mean"] + (args.threshold * desc["std"])
-    logging.info("Setting threshold %f * SD = %f", args.threshold, hs_threshold)
+    logging.info("Setting threshold %f * SD = %f",
+                 args.threshold, hs_threshold)
 
     data["anno"] = None
     data.loc[data["count"] == 0, "anno"] = "sparse"
     data.loc[data["count"] > hs_threshold, "anno"] = "dense"
-    logging.info("Density Counts\n%s", str(data["anno"].value_counts(dropna=False)))
+    logging.info("Density Counts\n%s", str(
+        data["anno"].value_counts(dropna=False)))
 
     joblib.dump(data, args.output)

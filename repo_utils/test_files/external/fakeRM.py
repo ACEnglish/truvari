@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 import sys
 ans = """  bit   perc perc perc  query     position in query    matching   repeat          position in repeat
 score   div. del. ins.  sequence  begin end   (left)   repeat     class/family  begin  end    (left) 

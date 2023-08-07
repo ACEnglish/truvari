@@ -40,7 +40,7 @@ def add_gtcnt(vcf, n_header=None):
         n_header = edit_header(vcf)
     for entry in vcf:
         cnt = [0, 0, 0, 0]
-        #cnt = {"UNK": 0, "REF": 0, "HET": 0, "HOM": 0}
+        # cnt = {"UNK": 0, "REF": 0, "HET": 0, "HOM": 0}
         for sample in entry.samples:
             gt = entry.samples[sample]["GT"]
             if None in gt or len(gt) != 2:

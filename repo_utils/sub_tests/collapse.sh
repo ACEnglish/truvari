@@ -73,3 +73,13 @@ run test_collapse_badparams $truv collapse -i nofile.vcf -c nofile.aga -f notref
 if [ $test_collapse_badparams ]; then
     assert_exit_code 100
 fi
+
+run test_collapse_median $truv collapse -f $INDIR/references/reference.fa \
+                   -i $INDIR/variants/input1.vcf.gz \
+                   -o $OD/input1_median_collapsed.vcf \
+                   -c $OD/input1_median_removed.vcf \
+                   --median-info
+if [ $test_collapse_median ]; then
+    collapse_assert 1_median
+fi
+

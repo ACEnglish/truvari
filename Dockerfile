@@ -2,13 +2,9 @@ FROM ubuntu:22.04
 
 RUN apt-get -qq update \
   && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
-  bcftools \
   curl \
   python3-dev \
   python3-pip \
-  samtools \
-  tabix \
-  vcftools \
   wget \
   && \
   rm -rf /var/lib/apt/lists/*

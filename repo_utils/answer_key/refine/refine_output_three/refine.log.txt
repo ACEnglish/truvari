@@ -1,0 +1,25 @@
+2023-08-03 02:10:18,586 [INFO] Truvari v4.1.0.dev0+562b4d7
+2023-08-03 02:10:18,587 [INFO] Command /data/truvari/__main__.py refine --recount -U -r test_results/refine_output_three/candidate.refine.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_three
+2023-08-03 02:10:18,588 [INFO] Params:
+{
+    "benchdir": "test_results/refine_output_three",
+    "reference": "repo_utils/test_files/refine_data/chr20.fa.gz",
+    "regions": "test_results/refine_output_three/candidate.refine.bed",
+    "use_original_vcfs": false,
+    "use_region_coords": true,
+    "recount": true,
+    "threads": 4,
+    "align": "mafft",
+    "debug": false
+}
+2023-08-03 02:10:18,589 [INFO] Setting up regions
+2023-08-03 02:10:18,638 [INFO] 92 --regions reduced to 92 after intersecting with 225 from --includebed
+2023-08-03 02:10:19,017 [INFO] 41 regions to be refined
+2023-08-03 02:10:19,025 [INFO] Preparing regions
+2023-08-03 02:10:19,030 [INFO] Extracting haplotypes
+2023-08-03 02:10:19,530 [INFO] Harmonizing variants
+2023-08-03 02:10:32,062 [INFO] Running bench
+2023-08-03 02:10:32,115 [INFO] Including 41 bed regions
+2023-08-03 02:10:32,538 [INFO] Zipped 2824 variants Counter({'base': 1412, 'comp': 1412})
+2023-08-03 02:10:32,540 [INFO] 35 chunks of 2824 variants Counter({'__filtered': 2573, 'base': 136, 'comp': 115})
+2023-08-03 02:10:34,176 [INFO] Finished refine

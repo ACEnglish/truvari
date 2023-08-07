@@ -1,17 +1,11 @@
 {
-    "TP-base": 598,
-    "TP-comp": 598,
-    "FP": 15,
+    "TP-base": 593,
+    "TP-comp": 593,
+    "FP": 16,
     "FN": 2,
-    "precision": 0.9755301794453507,
-    "recall": 0.9966666666666667,
-    "f1": 0.9859851607584501,
-    "base cnt": 600,
-    "comp cnt": 613,
-    "TP-comp_TP-gt": 0,
-    "TP-comp_FP-gt": 0,
-    "TP-base_TP-gt": 0,
-    "TP-base_FP-gt": 0,
-    "gt_concordance": 0,
-    "gt_matrix": {}
+    "precision": 0.9737274220032841,
+    "recall": 0.9966386554621849,
+    "f1": 0.9850498338870433,
+    "base cnt": 595,
+    "comp cnt": 609
 }

@@ -65,6 +65,7 @@ def bpovl_main(cmdargs):
     in_vcf = pysam.VariantFile(args.input)
     anno_tree, anno_cnt = truvari.build_anno_tree(args.anno, *args.anno_psets)
     logging.info("Loaded %d annotations", anno_cnt)
+
     def _transform():
         hit_cnt = 0
         for entry in in_vcf:

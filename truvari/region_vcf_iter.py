@@ -48,7 +48,8 @@ class RegionVCFIterator():
             name = vcfA.header.contigs[contig].name
             length = vcfA.header.contigs[contig].length
             if not length:
-                logging.error("Contig %s has no length definition. Fix header.", name)
+                logging.error(
+                    "Contig %s has no length definition. Fix header.", name)
                 sys.exit(10)
             all_regions[name].addi(0, length + 1)
         return all_regions
@@ -67,7 +68,7 @@ class RegionVCFIterator():
                 chr_with_overlaps.append(i)
         if chr_with_overlaps:
             logging.info("Found %d chromosomes with overlapping regions",
-                     len(chr_with_overlaps))
+                         len(chr_with_overlaps))
             logging.debug("CHRs: %s", chr_with_overlaps)
 
     def iterate(self, vcf_file):
@@ -81,7 +82,8 @@ class RegionVCFIterator():
                         if self.includebed is None or self.include(entry):
                             yield entry
                 except ValueError:
-                    logging.warning("Unable to fetch %s from %s", chrom, vcf_file.filename)
+                    logging.warning("Unable to fetch %s from %s",
+                                    chrom, vcf_file.filename)
 
     def include(self, entry):
         """
@@ -110,10 +112,12 @@ class RegionVCFIterator():
         ret = copy.deepcopy(self)
 
         for chrom in ret.tree:
-            ret.tree[chrom] = IntervalTree.from_tuples(((max(0, i.begin - pad), i.end + pad)) for i in ret.tree[chrom])
+            ret.tree[chrom] = IntervalTree.from_tuples(
+                ((max(0, i.begin - pad), i.end + pad)) for i in ret.tree[chrom])
 
         ret.merge_overlaps()
         return ret
+
 
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """

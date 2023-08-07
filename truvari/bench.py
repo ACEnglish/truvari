@@ -20,6 +20,8 @@ import truvari
 ##############
 # Parameters #
 ##############
+
+
 def parse_args(args):
     """
     Pull the command line parameters
@@ -58,7 +60,6 @@ def parse_args(args):
     thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
                         help="Min haplotype sequence length to create (%(default)s)")
 
-
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
                         help="Baseline calls' sample to use (first)")
@@ -94,8 +95,10 @@ def parse_args(args):
     # Setup abspaths
     args.base = os.path.abspath(args.base)
     args.comp = os.path.abspath(args.comp)
-    args.includebed = os.path.abspath(args.includebed) if args.includebed else args.includebed
-    args.reference = os.path.abspath(args.reference) if args.reference else args.reference
+    args.includebed = os.path.abspath(
+        args.includebed) if args.includebed else args.includebed
+    args.reference = os.path.abspath(
+        args.reference) if args.reference else args.reference
 
     return args
 
@@ -122,20 +125,20 @@ def check_params(args):
         logging.error("File %s does not exist", args.base)
         check_fail = True
     if not args.comp.endswith(".gz"):
-        logging.error(
-            "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
+        logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd",
+                      args.comp)
         check_fail = True
     if not os.path.exists(args.comp + '.tbi'):
-        logging.error(
-            "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+        logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed",
+                      args.comp)
         check_fail = True
     if not args.base.endswith(".gz"):
-        logging.error(
-            "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
+        logging.error("Base vcf %s does not end with .gz. Must be bgzip'd",
+                      args.base)
         check_fail = True
     if not os.path.exists(args.base + '.tbi'):
-        logging.error(
-            "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+        logging.error("Base vcf index %s.tbi does not exist. Must be indexed",
+                      args.base)
         check_fail = True
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
@@ -210,9 +213,12 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
-    entry.info["PctSeqSimilarity"] = round(match.seqsim, 4) if match.seqsim is not None else None
-    entry.info["PctSizeSimilarity"] = round(match.sizesim, 4) if match.sizesim is not None else None
-    entry.info["PctRecOverlap"] = round(match.ovlpct, 4) if match.ovlpct is not None else None
+    entry.info["PctSeqSimilarity"] = round(
+        match.seqsim, 4) if match.seqsim is not None else None
+    entry.info["PctSizeSimilarity"] = round(
+        match.sizesim, 4) if match.sizesim is not None else None
+    entry.info["PctRecOverlap"] = round(
+        match.ovlpct, 4) if match.ovlpct is not None else None
     entry.info["SizeDiff"] = match.sizediff
     entry.info["StartDistance"] = match.st_dist
     entry.info["EndDistance"] = match.ed_dist
@@ -225,6 +231,47 @@ def annotate_entry(entry, match, header):
 #############
 # Core code #
 #############
+class WeightedStatsBox(OrderedDict):
+    """
+    Make a blank stats box for counting variant pairs as TP/FP/FN, but weighted by match similarity
+    """
+
+    def __init__(self):
+        super().__init__()
+        self["TP"] = 0
+        self["FP"] = 0
+        self["FN"] = 0
+        self["precision"] = 0
+        self["recall"] = 0
+        self["f1"] = 0
+        self["total"] = 0
+
+    def add(self, score, which):
+        """
+        The score is how much credit to give to TP.
+        If score is None, set it to 0
+        To avoid double counting, specify has_comp=True, which means a separate call to `.add` will be made
+        The score is always added to
+        is_base will figure out if 1-score
+        should be applied to both FN/FP (true) or FP only
+        """
+        if score is None:
+            score = 0
+        self['total'] += 1
+        self["TP"] += score
+        if which != 2:
+            self["FN"] += 1 - score
+        if which != 1:
+            self["FP"] += 1 - score
+
+    def calc_performance(self):
+        """
+        Calculate metrics
+        """
+        self["precision"], self["recall"], self["f1"] = truvari.performance_metrics(
+            self["TP"], self["TP"], self["FN"], self["FP"])
+
+
 class StatsBox(OrderedDict):
     """
     Make a blank stats box for counting TP/FP/FN and calculating performance
@@ -257,7 +304,8 @@ class StatsBox(OrderedDict):
         elif self["TP-comp"] == 0 and self["FP"] == 0:
             logging.warning("No TP or FP calls in comp!")
 
-        precision, recall, f1 = truvari.performance_metrics(self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
+        precision, recall, f1 = truvari.performance_metrics(
+            self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
 
         self["precision"] = precision
         self["recall"] = recall
@@ -265,6 +313,21 @@ class StatsBox(OrderedDict):
         if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
+
+    def clean_out(self):
+        """
+        When reusing a StatsBox (typically inside refine), gt/weight numbers
+        are typically invalidated. This removes those numbers from self to make
+        a cleaner report
+        """
+        del self["TP-comp_TP-gt"]
+        del self["TP-comp_FP-gt"]
+        del self["TP-base_TP-gt"]
+        del self["TP-base_FP-gt"]
+        del self["gt_concordance"]
+        del self["gt_matrix"]
+        if "weighted" in self:
+            del self["weighted"]
 
     def write_json(self, out_name):
         """
@@ -282,6 +345,7 @@ class BenchOutput():
     for true positive base/comp vcf filename and fn, fp. The variable `stats_box` holds
     a :class:`StatsBox`.
     """
+
     def __init__(self, bench, matcher):
         """
         initialize
@@ -303,8 +367,8 @@ class BenchOutput():
 
         b_vcf = pysam.VariantFile(self.m_bench.base_vcf)
         c_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
-        self.n_headers = {'b':edit_header(b_vcf),
-                          'c':edit_header(c_vcf)}
+        self.n_headers = {'b': edit_header(b_vcf),
+                          'c': edit_header(c_vcf)}
 
         self.vcf_filenames = {'tpb': os.path.join(self.m_bench.outdir, "tp-base.vcf"),
                               'tpc': os.path.join(self.m_bench.outdir, "tp-comp.vcf"),
@@ -312,11 +376,15 @@ class BenchOutput():
                               'fp': os.path.join(self.m_bench.outdir, "fp.vcf")}
         self.out_vcfs = {}
         for key in ['tpb', 'fn']:
-            self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
+            self.out_vcfs[key] = pysam.VariantFile(
+                self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
         for key in ['tpc', 'fp']:
-            self.out_vcfs[key] = pysam.VariantFile(self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
+            self.out_vcfs[key] = pysam.VariantFile(
+                self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
+        self.wt_seq_stats_box = WeightedStatsBox()
+        self.wt_size_stats_box = WeightedStatsBox()
 
     def write_match(self, match):
         """
@@ -325,6 +393,7 @@ class BenchOutput():
         Writer is responsible for handling FPs between sizefilt-sizemin
         """
         box = self.stats_box
+        skip = False
         if match.base:
             box["base cnt"] += 1
             annotate_entry(match.base, match, self.n_headers['b'])
@@ -358,6 +427,22 @@ class BenchOutput():
                 box["comp cnt"] += 1
                 box["FP"] += 1
                 self.out_vcfs["fp"].write(match.comp)
+            else:
+                skip = True
+
+        if skip:  # don't count partial credit to sizefilt-sizemin FPs
+            return
+
+        # This is convoluted
+        if match.base and match.comp:
+            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 0)
+            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 0)
+        elif match.base and not match.comp:
+            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 1)
+            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 1)
+        elif not match.base and match.comp:
+            self.wt_seq_stats_box.add(match.comp.info["PctSeqSimilarity"], 2)
+            self.wt_size_stats_box.add(match.comp.info["PctSizeSimilarity"], 2)
 
     def close_outputs(self):
         """
@@ -370,7 +455,12 @@ class BenchOutput():
             truvari.compress_index_vcf(i)
 
         self.stats_box.calc_performance()
-        self.stats_box.write_json(os.path.join(self.m_bench.outdir, "summary.json"))
+        self.wt_seq_stats_box.calc_performance()
+        self.wt_size_stats_box.calc_performance()
+        self.stats_box["weighted"] = {'sequence': dict(self.wt_seq_stats_box),
+                                      'size': dict(self.wt_size_stats_box)}
+        self.stats_box.write_json(os.path.join(
+            self.m_bench.outdir, "summary.json"))
 
 
 class Bench():
@@ -415,8 +505,9 @@ class Bench():
     Note that running on files must write to an output directory and is the only way to use things like 'includebed'.
     However, the returned `BenchOutput` has attributes pointing to all the results.
     """
+
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False , do_logging=False):
+                 includebed=None, extend=0, debug=False, do_logging=False):
         """
         Initilize
         """
@@ -428,6 +519,7 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
+        self.refine_candidates = []
 
     def param_dict(self):
         """
@@ -445,7 +537,8 @@ class Bench():
         Runs bench and returns the resulting :class:`truvari.BenchOutput`
         """
         if self.base_vcf is None or self.comp_vcf is None or self.outdir is None:
-            raise RuntimeError("Cannot call Bench.run without base/comp vcf filenames and outdir")
+            raise RuntimeError(
+                "Cannot call Bench.run without base/comp vcf filenames and outdir")
 
         output = BenchOutput(self, self.matcher)
 
@@ -456,18 +549,23 @@ class Bench():
                                             self.includebed,
                                             self.matcher.params.sizemax)
         regions.merge_overlaps()
-        regions_extended = regions.extend(self.extend) if self.extend else regions
+        regions_extended = regions.extend(
+            self.extend) if self.extend else regions
 
         base_i = regions.iterate(base)
         comp_i = regions_extended.iterate(comp)
 
-        chunks = truvari.chunker(self.matcher, ('base', base_i), ('comp', comp_i))
+        chunks = truvari.chunker(
+            self.matcher, ('base', base_i), ('comp', comp_i))
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
             if self.extend and match.comp is not None and not match.state and not regions.include(match.comp):
                 match.comp = None
             output.write_match(match)
+
+        with open(os.path.join(self.outdir, 'candidate.refine.bed'), 'w') as fout:
+            fout.write("\n".join(self.refine_candidates))
 
         output.close_outputs()
         return output
@@ -476,9 +574,12 @@ class Bench():
         """
         Given a filtered chunk, (from chunker) compare all of the calls
         """
-        _, chunk_dict, chunk_id = chunk
+        chunk_dict, chunk_id = chunk
         logging.debug("Comparing chunk %s", chunk_id)
-        return self.compare_calls(chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        result = self.compare_calls(
+            chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        self.check_refine_candidate(result)
+        return result
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
@@ -507,7 +608,8 @@ class Bench():
                 fns.append(ret)
             return fns
 
-        match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id)
+        match_matrix = self.build_matrix(
+            base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
@@ -517,17 +619,37 @@ class Bench():
         Builds MatchResults, returns them as a numpy matrix
         """
         if not base_variants or not comp_variants:
-            raise RuntimeError("Expected at least one base and one comp variant")
+            raise RuntimeError(
+                "Expected at least one base and one comp variant")
         match_matrix = []
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = self.matcher.build_match(b, c, f"{chunk_id}.{bid}.{cid}", skip_gt)
+                mat = self.matcher.build_match(
+                    b, c, f"{chunk_id}.{bid}.{cid}", skip_gt)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
 
         return np.array(match_matrix)
+
+    def check_refine_candidate(self, result):
+        """
+        Adds this region as a candidate for refinement if there are unmatched variants
+        """
+        has_unmatched = False
+        pos = []
+        chrom = None
+        for match in result:
+            has_unmatched |= not match.state
+            if match.base is not None:
+                chrom = match.base.chrom
+                pos.extend(truvari.entry_boundaries(match.base))
+            if match.comp is not None:
+                chrom = match.comp.chrom
+                pos.extend(truvari.entry_boundaries(match.comp))
+        if has_unmatched and pos:  # I don't think I need to confirm pos, but unsure
+            self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 
 #################
@@ -549,6 +671,7 @@ def pick_multi_matches(match_matrix):
         c_max.base = None
         ret.append(c_max)
     return ret
+
 
 def pick_ac_matches(match_matrix):
     """
@@ -577,7 +700,7 @@ def pick_ac_matches(match_matrix):
             to_process.multi = to_process.state
             to_process.state = False
             comp_cnt -= 1
-            if used_comp[c_key] == 0: # Only write as F if it hasn't been a T
+            if used_comp[c_key] == 0:  # Only write as F if it hasn't been a T
                 ret.append(to_process)
             used_comp[c_key] = 9
         # Only write the base (FN)
@@ -587,7 +710,7 @@ def pick_ac_matches(match_matrix):
             to_process.multi = to_process.state
             to_process.state = False
             base_cnt -= 1
-            if used_base[b_key] == 0: # Only write as F if it hasn't been a T
+            if used_base[b_key] == 0:  # Only write as F if it hasn't been a T
                 ret.append(to_process)
             used_base[b_key] = 9
         # Write both (any state)
@@ -612,15 +735,18 @@ def pick_ac_matches(match_matrix):
                 ret.append(to_process)
     return ret
 
+
 def pick_single_matches(match_matrix):
     """
     Given a numpy array of MatchResults, find the single best match for calls
     Once all best pairs yielded, the unpaired calls are set to FP/FN and yielded
     """
-    hit_order = np.array(np.unravel_index(np.argsort(match_matrix, axis=None), match_matrix.shape)).T
+    hit_order = np.array(np.unravel_index(np.argsort(
+        match_matrix, axis=None), match_matrix.shape)).T
     top_hit_idx = len(hit_order) - 1
 
-    mask = np.ones(match_matrix.shape, dtype='bool') # True = can use
+    mask = np.ones(match_matrix.shape, dtype='bool')  # True = can use
+    ret = []
 
     used_pairs = []
     while top_hit_idx >= 0 and mask.any():
@@ -629,27 +755,29 @@ def pick_single_matches(match_matrix):
             mask[idx[0], :] = False
             mask[:, idx[1]] = False
             used_pairs.append(idx)
-            yield match_matrix[idx]
+            ret.append(match_matrix[idx])
         top_hit_idx -= 1
 
-    used_base, used_comp = zip(*used_pairs) if used_pairs else ([],[])
+    used_base, used_comp = zip(*used_pairs) if used_pairs else ([], [])
     # FNs
     for base_col in set(range(match_matrix.shape[0])) - set(used_base):
         comp_col = match_matrix[base_col].argmax()
         to_process = copy.copy(match_matrix[base_col, comp_col])
-        to_process.comp = None # The comp will be written elsewhere
+        to_process.comp = None  # The comp will be written elsewhere
         to_process.multi = to_process.state
         to_process.state = False
-        yield to_process
+        ret.append(to_process)
 
     # FPs
     for comp_col in set(range(match_matrix.shape[1])) - set(used_comp):
         base_col = match_matrix[:, comp_col].argmax()
         to_process = copy.copy(match_matrix[base_col, comp_col])
-        to_process.base = None # The base will be written elsewhere
+        to_process.base = None  # The base will be written elsewhere
         to_process.multi = to_process.state
         to_process.state = False
-        yield to_process
+        ret.append(to_process)
+    return ret
+
 
 PICKERS = {"single": pick_single_matches,
            "ac": pick_ac_matches,
@@ -669,7 +797,8 @@ def bench_main(cmdargs):
 
     matcher = truvari.Matcher(args)
 
-    m_bench = Bench(matcher, args.base, args.comp, args.output, args.includebed, args.extend, args.debug, True)
+    m_bench = Bench(matcher, args.base, args.comp, args.output,
+                    args.includebed, args.extend, args.debug, True)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

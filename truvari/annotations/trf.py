@@ -7,19 +7,16 @@ import os
 import sys
 import json
 import math
-import types
 import shutil
 import logging
 import argparse
+import functools
 import multiprocessing
 from io import StringIO
-from functools import cmp_to_key
 
 import pysam
 import tabix
 import truvari
-
-trfshared = types.SimpleNamespace()
 
 try:
     from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
@@ -27,6 +24,7 @@ except ModuleNotFoundError:
     def setproctitle(_):
         """ dummy function """
         return
+
 
 def compare_scores(a, b):
     """
@@ -50,7 +48,10 @@ def compare_scores(a, b):
         elif aspan < bspan:
             ret = -1
     return ret
-score_sorter = cmp_to_key(compare_scores)
+
+
+score_sorter = functools.cmp_to_key(compare_scores)
+
 
 class TRFAnno():
     """
@@ -63,7 +64,8 @@ class TRFAnno():
         self.region = region
         self.reference = reference
         self.motif_similarity = motif_similarity
-        self.known_motifs = {_["repeat"]:_["copies"] for _ in self.region["annos"]}
+        self.known_motifs = {_["repeat"]: _["copies"]
+                             for _ in self.region["annos"]}
         self.buffer = buf
 
     def make_seq(self, entry, svtype):
@@ -75,8 +77,8 @@ class TRFAnno():
         v_start = entry.start - self.region["start"]
         v_end = entry.stop - self.region["start"]
 
-        #if substr is None:
-            #substr = (0, len(self.reference))
+        # if substr is None:
+        # substr = (0, len(self.reference))
         up_seq = self.reference[:v_start]
         dn_seq = self.reference[v_end:]
         if svtype == "INS":
@@ -93,7 +95,8 @@ class TRFAnno():
         Scores the annotation. Addes fields in place.
         if is_new, we calculate the diff
         """
-        ovl_pct = truvari.overlap_percent(var_start, var_end, anno["start"] - self.buffer, anno["end"] + self.buffer)
+        ovl_pct = truvari.overlap_percent(
+            var_start, var_end, anno["start"] - self.buffer, anno["end"] + self.buffer)
         # has to have overlap
         if ovl_pct == 0:
             return None
@@ -108,7 +111,8 @@ class TRFAnno():
             for known in self.region["annos"]:
                 if truvari.sizesim(len(known["repeat"]), motif_len)[0] < self.motif_similarity:
                     continue
-                sq = truvari.unroll_compare(known["repeat"], anno["repeat"], anno["start"] - known["start"])
+                sq = truvari.unroll_compare(
+                    known["repeat"], anno["repeat"], anno["start"] - known["start"])
                 if sq >= self.motif_similarity and sq > best_score:
                     best_score = sq
                     best_pos = known
@@ -129,8 +133,8 @@ class TRFAnno():
         scores = []
         for anno in self.region["annos"]:
             # + 1 for anchor base
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
-                                anno["start"] - self.buffer, anno["end"] + self.buffer)
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop,
+                                              anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
             m_sc = dict(anno)
@@ -208,8 +212,8 @@ class TRFAnno():
         scores = []
         best_score = {}
         for anno in self.region["annos"]:
-            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop, \
-                            anno["start"] - self.buffer, anno["end"] + self.buffer)
+            ovl_pct = truvari.overlap_percent(entry.start + 1, entry.stop,
+                                              anno["start"] - self.buffer, anno["end"] + self.buffer)
             if ovl_pct == 0:
                 continue
 
@@ -219,7 +223,8 @@ class TRFAnno():
             partial = int(copy_diff % 1 * anno["period"])
             if partial:
                 faux_seq += anno["repeat"][:partial]
-            sim = truvari.unroll_compare(faux_seq, entry.alts[0][1:], entry.start - anno["start"])
+            sim = truvari.unroll_compare(
+                faux_seq, entry.alts[0][1:], entry.start - anno["start"])
 
             if sim < self.motif_similarity:
                 continue
@@ -240,6 +245,7 @@ class TRFAnno():
             return best_score
         return scores
 
+
 def parse_trf_output(fn):
     """
     Parse the outputs from TRF
@@ -251,19 +257,19 @@ def parse_trf_output(fn):
                 ("period", int),
                 ("copies", float),
                 ("consize", int),
-                ("pctmat", None), # int
-                ("pctindel", None), # int
+                ("pctmat", None),  # int
+                ("pctindel", None),  # int
                 ("score", int),
-                ("A", None), # int
-                ("C", None), # int
-                ("G", None), # int
-                ("T",  None), # int
+                ("A", None),  # int
+                ("C", None),  # int
+                ("G", None),  # int
+                ("T",  None),  # int
                 ("entropy", float),
                 ("repeat", str),
-                ("unk1", None), # str
-                ("unk2", None), # str
-                ("unk3", None) # str
-            ]
+                ("unk1", None),  # str
+                ("unk2", None),  # str
+                ("unk3", None)  # str
+                ]
 
     ret = {}
     with open(fn, 'r') as fh:
@@ -275,7 +281,8 @@ def parse_trf_output(fn):
                 ret[var_key] = []
                 continue
 
-            data = {x[0]: x[1](y) for x, y in zip(trf_cols, line.split(' ')) if x[1]}
+            data = {x[0]: x[1](y) for x, y in zip(
+                trf_cols, line.split(' ')) if x[1]}
             # correction to 0-based
             data["start"] -= 1
             ret[var_key].append(data)
@@ -311,6 +318,7 @@ def run_trf(fa_fn, executable="trf409.linux64",
 
     return parse_trf_output(tr_fn)
 
+
 class AnnoStack():
     """
     Treat a list like a stack
@@ -318,6 +326,7 @@ class AnnoStack():
     We can pop from the stack based on vcf entry coordinates
     which will update self.tanno
     """
+
     def __init__(self, annos, ref, motif_sim):
         self.annos = annos
         self.ref = ref
@@ -340,11 +349,12 @@ class AnnoStack():
             self.tanno = None
             return
         cur_anno = self.annos.pop(0)
-        ref_seq = self.ref.fetch(cur_anno["chrom"], cur_anno["start"], cur_anno["end"])
+        ref_seq = self.ref.fetch(
+            cur_anno["chrom"], cur_anno["start"], cur_anno["end"])
         self.tanno = TRFAnno(cur_anno, ref_seq, self.motif_sim)
 
 
-def process_ref_region(region):
+def process_ref_region(region, args):
     """
     Process a section of the reference.
     Tries to run TRF only once
@@ -352,10 +362,11 @@ def process_ref_region(region):
     region = {"chrom": region[0],
               "start": region[1],
               "end": region[2]}
-    logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(
+        f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    vcf = pysam.VariantFile(trfshared.args.input)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -365,11 +376,10 @@ def process_ref_region(region):
         logging.debug("Skipping VCF fetch %s", e)
         return None
 
-
-    m_stack = AnnoStack(list(iter_tr_regions(trfshared.args.repeats,
+    m_stack = AnnoStack(list(iter_tr_regions(args.repeats,
                              (region["chrom"], region["start"], region["end"]))),
-                        pysam.FastaFile(trfshared.args.reference),
-                        trfshared.args.motif_similarity)
+                        pysam.FastaFile(args.reference),
+                        args.motif_similarity)
 
     batch = []
     fa_fn = truvari.make_temp_filename(suffix=".fa")
@@ -382,14 +392,14 @@ def process_ref_region(region):
             m_stack.pop(entry)
             # If we're out of annotations, ou not inside an annotation
             if m_stack.tanno is None or \
-            not (entry.start >= m_stack.tanno.region["start"] \
-                 and entry.stop < m_stack.tanno.region["end"]):
+                not (entry.start >= m_stack.tanno.region["start"]
+                     and entry.stop < m_stack.tanno.region["end"]):
                 out.write(str(entry))
                 continue
 
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
+            if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
@@ -397,15 +407,17 @@ def process_ref_region(region):
                 m_anno = m_stack.tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == truvari.SV.INS:
-                m_anno = m_stack.tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
+                m_anno = m_stack.tanno.ins_estimate_anno(
+                    entry) if not args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
                     batch.append((entry, m_stack.tanno))
-                    fa_out.write(f">{len(batch) - 1}\n{m_stack.tanno.make_seq(entry, 'INS')}\n")
+                    fa_out.write(
+                        f">{len(batch) - 1}\n{m_stack.tanno.make_seq(entry, 'INS')}\n")
 
     if batch:
-        annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
+        annotations = run_trf(fa_fn, args.executable, args.trf_params)
         for key, (entry, tanno) in enumerate(batch):
             key = str(key)
             m_anno = None
@@ -417,20 +429,23 @@ def process_ref_region(region):
 
     out.seek(0)
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
-    logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(
+        f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
 
-def process_tr_region(region):
+
+def process_tr_region(region, args):
     """
     Process vcf lines from a tr reference section
     """
-    logging.debug(f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(
+        f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    ref = pysam.FastaFile(trfshared.args.reference)
+    ref = pysam.FastaFile(args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
-    tanno = TRFAnno(region, ref_seq, trfshared.args.motif_similarity, trfshared.args.buffer)
-    vcf = pysam.VariantFile(trfshared.args.input)
+    tanno = TRFAnno(region, ref_seq, args.motif_similarity, args.buffer)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -448,7 +463,7 @@ def process_tr_region(region):
                 continue
             svtype = truvari.entry_variant_type(entry)
             svlen = truvari.entry_size(entry)
-            if svlen < trfshared.args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
+            if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
 
@@ -456,7 +471,8 @@ def process_tr_region(region):
                 m_anno = tanno.del_annotate(entry, svlen)
                 out.write(str(edit_entry(entry, m_anno, new_header)))
             elif svtype == truvari.SV.INS:
-                m_anno = tanno.ins_estimate_anno(entry) if not trfshared.args.no_estimate else None
+                m_anno = tanno.ins_estimate_anno(
+                    entry) if not args.no_estimate else None
                 if m_anno:
                     out.write(str(edit_entry(entry, m_anno, new_header)))
                 else:
@@ -465,7 +481,7 @@ def process_tr_region(region):
                     fa_out.write(f">{len(batch) - 1}\n{seq}\n")
 
     if batch:
-        annotations = run_trf(fa_fn, trfshared.args.executable, trfshared.args.trf_params)
+        annotations = run_trf(fa_fn, args.executable, args.trf_params)
         for key, entry in enumerate(batch):
             key = str(key)
             m_anno = None
@@ -477,8 +493,10 @@ def process_tr_region(region):
 
     out.seek(0)
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
-    logging.debug(f"Done region {region['chrom']}:{region['start']}-{region['end']}")
+    logging.debug(
+        f"Done region {region['chrom']}:{region['start']}-{region['end']}")
     return out.read()
+
 
 def iter_tr_regions(fn, region=None):
     """
@@ -509,6 +527,7 @@ def iter_tr_regions(fn, region=None):
                "end": end,
                "annos": annos}
 
+
 def edit_header(header):
     """
     New VCF INFO fields
@@ -538,6 +557,7 @@ def edit_header(header):
                      'Description="Similarity of ALT sequence to generated motif faux sequence">'))
     return header
 
+
 def edit_entry(entry, repeat, new_header):
     """
     places the INFO fields into the entry
@@ -560,6 +580,7 @@ def edit_entry(entry, repeat, new_header):
             entry.info["TRFsim"] = round(repeat["similarity"], 3)
 
     return entry
+
 
 def parse_args(args):
     """
@@ -590,7 +611,7 @@ def parse_args(args):
     parser.add_argument("--no-estimate", action="store_true",
                         help="Skip INS estimation procedure and run everything through TRF. (%(default)s)")
     parser.add_argument("-C", "--chunk-size", type=int, default=5,
-                            help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
+                        help="Size (in mbs) of reference chunks for parallelization (%(default)s)")
     parser.add_argument("-t", "--threads", type=truvari.restricted_int, default=1,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -599,6 +620,7 @@ def parse_args(args):
     args = parser.parse_args(args)
     truvari.setup_logging(args.debug, show_version=True)
     return args
+
 
 def check_params(args):
     """
@@ -630,24 +652,24 @@ def check_params(args):
         logging.error("Please fix parameters")
         sys.exit(1)
 
+
 def trf_main(cmdargs):
     """ TRF annotation """
     args = parse_args(cmdargs)
     check_params(args)
-    trfshared.args = args
 
     m_regions = None
     m_process = None
     if args.regions_only:
         m_regions = iter_tr_regions(args.repeats)
-        m_process = process_tr_region
+        m_process = functools.partial(process_tr_region, args=args)
     else:
         # refactor. need streaming mode
-        m_regions = truvari.ref_ranges(args.reference, chunk_size=int(args.chunk_size * 1e6))
-        m_process = process_ref_region
+        m_regions = truvari.ref_ranges(
+            args.reference, chunk_size=int(args.chunk_size * 1e6))
+        m_process = functools.partial(process_ref_region, args=args)
 
-
-    vcf = pysam.VariantFile(trfshared.args.input)
+    vcf = pysam.VariantFile(args.input)
     new_header = edit_header(vcf.header)
 
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:

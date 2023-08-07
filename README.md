@@ -2,11 +2,11 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v3.5.0)](https://github.com/ACEnglish/truvari/compare/v3.5.0...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.0.0)](https://github.com/ACEnglish/truvari/compare/v4.0.0...develop)
 [![Downloads](https://pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
-Toolkit for benchmarking, merging, and annotating Structrual Variants
+Toolkit for benchmarking, merging, and annotating Structural Variants
 
 📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
 📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  

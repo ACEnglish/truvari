@@ -24,6 +24,7 @@ import truvari
 HEADERMAT = re.compile(
     r"##\w+=<ID=(?P<name>\w+),Number=(?P<num>[\.01AGR]),Type=(?P<type>\w+)")
 
+
 def restricted_float(x):
     """
     Restrict float to range (0,1). Raises argparse.ArgumentTypeError if float is out of range
@@ -48,6 +49,7 @@ def restricted_float(x):
         raise argparse.ArgumentTypeError(
             f"{x} not in range (0, 1)")
     return x
+
 
 def restricted_int(x):
     """
@@ -142,13 +144,15 @@ def alarm_handler(signum, frame=None):
     raise Alarm
 
 
-def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
+def cmd_exe(cmd, stdin=None, timeout=-1, cap_stderr=True, pipefail=False):
     """
     Executes a command through the shell and captures the output while enabling
     process handling with timeouts and keyboard interrupts.
 
     :param `cmd`: The command to be executed.
     :type `cmd`: string
+    :param `stdin`: stdinput to pipe to command
+    :type `stdin`: bytes
     :param `timeout`: Timeout for the command in minutes. So 1440 means 24 hours. -1 means never
     :type `timeout`: int
     :param `cap_stderr`: If True, capture the stderr and return it as part of the returned cmd_results.
@@ -182,14 +186,15 @@ def cmd_exe(cmd, timeout=-1, cap_stderr=True, pipefail=False):
     if pipefail:
         cmd = f"set -o pipefail; {cmd}"
     # pylint: disable=consider-using-with
+    m_in = sys.stdin if stdin is None else subprocess.PIPE
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                            stdin=sys.stdin, stderr=stderr, close_fds=True,
+                            stdin=m_in, stderr=stderr, close_fds=True,
                             start_new_session=True, executable="/bin/bash")
     if timeout > 0:
         signal.signal(signal.SIGALRM, alarm_handler)
         signal.alarm(int(timeout * 60))
     try:
-        stdoutVal, stderrVal = proc.communicate()
+        stdoutVal, stderrVal = proc.communicate(input=stdin)
         signal.alarm(0)  # reset the alarm
     except Alarm:
         logging.error(("Command was taking too long. "
@@ -273,6 +278,7 @@ def bed_ranges(bed, chunk_size=10000000):
                 stop += chunk_size
             yield data[0], start, final_stop
 
+
 def vcf_ranges(vcf, min_dist=1000):
     """
     Chunk vcf into discrete pieces. Useful for multiprocessing.
@@ -316,6 +322,7 @@ def vcf_ranges(vcf, min_dist=1000):
 
     yield cur_chrom, min_start, max_end
 
+
 def opt_gz_open(in_fn):
     """
     Chooses file handler for plain-text files or `*.gz` files.
@@ -337,14 +344,16 @@ def opt_gz_open(in_fn):
 
     return fh_hdlr(in_fn)
 
+
 def make_temp_filename(tmpdir=None, suffix=""):
     """
     Get a random filename in a tmpdir with an optional extension
     """
     if tmpdir is None:
-        tmpdir = tempfile._get_default_tempdir() # pylint: disable=protected-access
-    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix # pylint: disable=protected-access
+        tmpdir = tempfile._get_default_tempdir()  # pylint: disable=protected-access
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix  # pylint: disable=protected-access
     return fn
+
 
 def help_unknown_cmd(user_cmd, avail_cmds, threshold=0.8):
     """
@@ -377,6 +386,7 @@ def help_unknown_cmd(user_cmd, avail_cmds, threshold=0.8):
         return None
     return guesses[-1][1]
 
+
 def performance_metrics(tpbase, tp, fn, fp):
     """
     Calculates precision, recall, and f1 given counts by state
@@ -404,6 +414,7 @@ def performance_metrics(tpbase, tp, fn, fp):
     denom = recall + precision
     f1 = 2 * (neum / denom) if denom != 0 else None
     return precision, recall, f1
+
 
 def compress_index_vcf(fn, fout=None, remove=True):
     """

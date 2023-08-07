@@ -128,10 +128,6 @@ phab
 ^^^^
 .. autofunction:: phab
 
-phab_multi
-^^^^^^^^^^
-.. autofunction:: phab_multi
-
 reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: reciprocal_overlap
@@ -170,17 +166,9 @@ cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
 
-consolidate_phab_vcfs
-^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: consolidate_phab_vcfs
-
 count_entries
 ^^^^^^^^^^^^^
 .. autofunction:: count_entries
-
-fchain
-^^^^^^
-.. autofunction:: fchain
 
 file_zipper
 ^^^^^^^^^^^
@@ -218,10 +206,6 @@ setup_logging
 ^^^^^^^^^^^^^
 .. autofunction:: setup_logging
 
-setup_progressbar
-^^^^^^^^^^^^^^^^^
-.. autofunction:: setup_progressbar
-
 vcf_to_df
 ^^^^^^^^^
 .. autofunction:: vcf_to_df
@@ -237,6 +221,11 @@ Bench
 BenchOutput
 ^^^^^^^^^^^
 .. autoclass:: BenchOutput
+   :members:
+
+StatsBox
+^^^^^^^^
+.. autoclass:: StatsBox
    :members:
 
 GT

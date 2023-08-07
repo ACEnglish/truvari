@@ -38,7 +38,6 @@ Extra methods:
 :meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`phab`
-:meth:`phab_multi`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
 :meth:`seqsim`
@@ -53,7 +52,6 @@ Dev methods:
 :meth:`cmd_exe`
 :meth:`consolidate_phab_vcfs`
 :meth:`count_entries`
-:meth:`fchain`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
 :meth:`make_temp_filename`
@@ -87,7 +85,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.0.0'
+__version__ = '4.1.0'
 
 
 from truvari.annotations.af_calc import (
@@ -133,18 +131,12 @@ from truvari.matching import (
     file_zipper
 )
 
-from truvari.msa2vcf import (
+from truvari.msatovcf import (
     msa2vcf
-)
-
-from truvari.pipeline import (
-    fchain
 )
 
 from truvari.phab import (
     phab,
-    phab_multi,
-    consolidate_phab_vcfs
 )
 
 from truvari.region_vcf_iter import (

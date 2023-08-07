@@ -9,6 +9,7 @@ from functools import total_ordering
 import pysam
 import truvari
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -114,6 +115,8 @@ class Matcher():
         params.passonly = False
         params.no_ref = False
         params.pick = 'single'
+        params.ignore_monref = True
+        params.check_multi = True
         return params
 
     @staticmethod
@@ -140,6 +143,8 @@ class Matcher():
         ret.passonly = args.passonly
         ret.no_ref = args.no_ref
         ret.pick = args.pick if "pick" in args else "single"
+        ret.check_monref = True
+        ret.check_multi = True
         return ret
 
     def filter_call(self, entry, base=False):
@@ -147,17 +152,21 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
+        if self.params.check_monref and entry.alts is None:  # ignore monomorphic reference
+            return True
+
+        if self.params.check_multi and len(entry.alts) > 1:
+            logging.error("Cannot compare multi-allelic records. Please split")
+            logging.error("line %s", str(entry))
+            sys.exit(10)
+
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
 
         size = truvari.entry_size(entry)
-        if size > self.params.sizemax:
-            return True
-
-        if base and size < self.params.sizemin:
-            return True
-
-        if not base and size < self.params.sizefilt:
+        if (size > self.params.sizemax) \
+           or (base and size < self.params.sizemin) \
+           or (not base and size < self.params.sizefilt):
             return True
 
         samp = self.params.bSample if base else self.params.cSample
@@ -223,7 +232,8 @@ class Matcher():
 
         ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.reference, self.params.minhaplen)
+            ret.seqsim = truvari.entry_seq_similarity(
+                base, comp, self.reference, self.params.minhaplen)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -240,6 +250,8 @@ class Matcher():
 ############################
 # Parsing and set building #
 ############################
+
+
 def file_zipper(*start_files):
     """
     Zip files to yield the entries in order.
@@ -250,7 +262,7 @@ def file_zipper(*start_files):
 
     yields key, pysam.VariantRecord
     """
-    markers = [] # list of lists: [name, file_handler, top_entry]
+    markers = []  # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()
     for name, i in start_files:
         try:
@@ -265,7 +277,7 @@ def file_zipper(*start_files):
         for idx, mk in enumerate(markers[1:]):
             idx += 1
             if mk[2].chrom < markers[first_idx][2].chrom or \
-              (mk[2].chrom == markers[first_idx][2].chrom and mk[2].start < markers[first_idx][2].start):
+                    (mk[2].chrom == markers[first_idx][2].chrom and mk[2].start < markers[first_idx][2].start):
                 first_idx = idx
         name, fh, entry = markers[first_idx]
         file_counts[name] += 1
@@ -276,34 +288,36 @@ def file_zipper(*start_files):
             # This file is done
             markers.pop(first_idx)
         yield name, entry
-    logging.info("Zipped %d variants %s", sum(file_counts.values()), file_counts)
+    logging.info("Zipped %d variants %s", sum(
+        file_counts.values()), file_counts)
+
 
 def chunker(matcher, *files):
     """
     Given a Matcher and multiple files, zip them and create chunks
 
-    Yields tuple of the matcher, the chunk of calls, and an identifier of the chunk
+    Yields tuple of the chunk of calls, and an identifier of the chunk
     """
     call_counts = Counter()
     chunk_count = 0
     cur_chrom = None
     cur_end = None
     cur_chunk = defaultdict(list)
+    unresolved_warned = False
     for key, entry in file_zipper(*files):
-        if len(entry.alts) > 1:
-            logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("%s file - line %s", key, str(entry))
-            sys.exit(10)
-        if entry.alts is None: # ignore monomorphic reference
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+            if not unresolved_warned:
+                logging.warning(
+                    "Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
+                unresolved_warned = True
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
-            cur_chrom = entry.chrom
             continue
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
-            yield matcher, cur_chunk, chunk_count
+            yield cur_chunk, chunk_count
             # Reset
             cur_chrom = None
             cur_end = None
@@ -311,7 +325,6 @@ def chunker(matcher, *files):
 
         cur_chrom = entry.chrom
         if not matcher.filter_call(entry, key == 'base'):
-            logging.debug(f"Adding to {key} -> {entry}")
             cur_end = entry.stop
             cur_chunk[key].append(entry)
             call_counts[key] += 1
@@ -319,5 +332,6 @@ def chunker(matcher, *files):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
     chunk_count += 1
-    logging.info("%d chunks of %d variants %s", chunk_count, sum(call_counts.values()), call_counts)
-    yield matcher, cur_chunk, chunk_count
+    logging.info("%d chunks of %d variants %s", chunk_count,
+                 sum(call_counts.values()), call_counts)
+    yield cur_chunk, chunk_count
