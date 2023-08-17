@@ -305,7 +305,7 @@ def chunker(matcher, *files):
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
-        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+        if matcher.params.pctseq != 0 and (entry.alts and entry.alts[0].startswith('<')):
             if not unresolved_warned:
                 logging.warning(
                     "Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
