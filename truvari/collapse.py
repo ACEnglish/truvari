@@ -3,7 +3,6 @@ Structural variant collapser
 
 Will collapse all variants within sizemin/max that match over thresholds
 """
-
 import os
 import sys
 import json
@@ -11,6 +10,7 @@ import logging
 import argparse
 import itertools
 import statistics
+from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
 import pysam
@@ -19,75 +19,116 @@ import truvari
 import truvari.bench as trubench
 
 
-def collapse_chunk(chunk, matcher):
+@dataclass
+class CollapsedCalls():
     """
-    For calls in a chunk, separate which ones should be kept from collapsed
+    Holds all relevant information for a set of collapsed calls
     """
-    chunk_dict, chunk_id = chunk
-    calls = chunk_dict['base']
-    logging.debug("Collapsing chunk %d", chunk_id)
-    # Need to add a deterministic sort here...
-    calls.sort(key=matcher.sorter)
+    entry: None
+    match_id: str
+    matches: list = field(default_factory=list)
+    gt_consolidate_count: int = 0
 
-    # keep_key : [keep entry, [collap matches], match_id, gt_consolidate_count]
-    ret = {}
-    # collap_key : keep_key
-    chain_lookup = {}
+    def combine(self, other):
+        """
+        Put other's entries into this' collapsed_entries
+        """
+        self.matches.append(other.entry)
+        self.matches.extend(other.matches)
 
-    call_id = -1
-    while calls:
-        call_id += 1
-        # Take the first variant
-        cur_keep_candidate = calls.pop(0)
-        keep_key = truvari.entry_to_key(cur_keep_candidate)
-        # if chain, any matches we find will be added to a previous keep
-        if matcher.chain and keep_key in chain_lookup:
-            keep_key = chain_lookup[keep_key]
-        else:  # otherwise, this is assumed to be a keep call
-            ret[keep_key] = [cur_keep_candidate,
-                             [], f'{chunk_id}.{call_id}', 0]
+    def calc_median_sizepos(self):
+        """
+        Given a set of variants, calculate the median start, end, and size
+        """
+        st, en = truvari.entry_boundaries(self.entry)
+        sz = truvari.entry_size(self.entry)
+        starts = [st]
+        ends = [en]
+        sizes = [sz]
+        for i in self.matches:
+            st, en = truvari.entry_boundaries(i.comp)
+            sz = truvari.entry_size(i.comp)
+            starts.append(st)
+            ends.append(en)
+            sizes.append(sz)
+        return int(statistics.median(starts)), int(statistics.median(ends)), int(statistics.median(sizes))
 
-        # Separate calls collapsing with this keep from the rest
-        remaining_calls = []
-        for cur_collapse_candidate in calls:
-            mat = matcher.build_match(cur_keep_candidate,
-                                      cur_collapse_candidate,
-                                      ret[keep_key][2],
+    def annotate_entry(self, header, med_info):
+        """
+        Edit an entry that's going to be collapsed into another entry
+        """
+        self.entry.translate(header)
+        self.entry.info["NumCollapsed"] = len(self.matches)
+        self.entry.info["NumConsolidated"] = self.gt_consolidate_count
+        self.entry.info["CollapseId"] = self.match_id
+        if med_info:
+            self.entry.info["CollapseStart"], self.entry.info["CollapseEnd"], self.entry.info["CollapseSize"] = self.calc_median_sizepos()
+
+
+def chain_collapse(cur_collapse, all_collapse, matcher):
+    """
+    Perform transitive matching of cur_collapse to all_collapse
+    """
+    for m_collap in all_collapse:
+        for other in m_collap.matches:
+            mat = matcher.build_match(cur_collapse.entry,
+                                      other.base,
+                                      m_collap.match_id,
                                       skip_gt=True,
                                       short_circuit=True)
-            if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
-                mat.state = False
-            # to collapse
             if mat.state:
-                if matcher.chain:
-                    # need to record for downstream
-                    collap_key = truvari.entry_to_key(cur_collapse_candidate)
-                    chain_lookup[collap_key] = keep_key
-                    remaining_calls.append(cur_collapse_candidate)
-                ret[keep_key][1].append(mat)
+                m_collap.consolidate(cur_collapse)
+                return True  # you can just ignore it later
+    return False  # You'll have to add it to your set of collapsed calls
+
+
+def collapse_chunk(chunk, matcher):
+    """
+    Returns a list of lists with [keep entry, collap matches, match_id, gt_consolidate_count]
+    """
+    chunk_dict, chunk_id = chunk
+    remaining_calls = sorted(chunk_dict['base'], key=matcher.sorter)
+
+    remaining_calls.sort(key=matcher.sorter)
+    call_id = -1
+    ret = []  # list of Collapses
+    while remaining_calls:
+        call_id += 1
+        m_collap = CollapsedCalls(remaining_calls.pop(0), f'{chunk_id}.{call_id}')
+        unmatched = []
+        for candidate in remaining_calls:
+            mat = matcher.build_match(m_collap.entry,
+                                      candidate,
+                                      m_collap.match_id,
+                                      skip_gt=True,
+                                      short_circuit=True)
+            if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
+                mat.state = False
+            if mat.state:
+                m_collap.matches.append(mat)
             else:
-                remaining_calls.append(cur_collapse_candidate)
+                unmatched.append(candidate)
 
-        # Only put in the single best match
-        # Leave the others to be handled later
-        if matcher.hap and ret[keep_key][1]:
-            mats = sorted(ret[keep_key][1], reverse=True)
-            ret[keep_key][1] = [mats.pop(0)]
+        # Does this collap need to go into a previous collap?
+        if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
+            ret.append(m_collap)
+
+        remaining_calls = unmatched
+        # If hap, only allow the best match
+        if matcher.hap and m_collap.matches:
+            mats = sorted(m_collap.matches, reverse=True)
+            m_collap.matches = [mats.pop(0)]
             remaining_calls.extend(mat.comp for mat in mats)
-
-        calls = remaining_calls
-
     if matcher.no_consolidate:
-        for val in ret.values():
+        for val in ret:
             edited_entry, collapse_cnt = collapse_into_entry(
-                val[0], val[1], matcher.hap)
-            val[0] = edited_entry
-            val[3] = collapse_cnt
+                val.entry, val.matches, matcher.hap)
+            val.entry = edited_entry
+            val.gt_consolidate_count = collapse_cnt
 
-    ret = list(ret.values())
     for i in chunk_dict['__filtered']:
-        ret.append([i, None, None, 0])
-    ret.sort(key=cmp_to_key(lambda x, y: x[0].pos - y[0].pos))
+        ret.append(CollapsedCalls(i, None))
+    ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
 
@@ -241,18 +282,6 @@ def edit_header(my_vcf, median_info=False):
     return header
 
 
-def annotate_entry(entry, n_collap, n_consol, match_id, med_info, header):
-    """
-    Edit an entry that's going to be collapsed into another entry
-    """
-    entry.translate(header)
-    entry.info["NumCollapsed"] = n_collap
-    entry.info["NumConsolidated"] = n_consol
-    entry.info["CollapseId"] = match_id
-    if med_info:
-        entry.info["CollapseStart"], entry.info["CollapseEnd"], entry.info["CollapseSize"] = med_info
-
-
 ##################
 # Args & Outputs #
 ##################
@@ -394,43 +423,24 @@ def setup_outputs(args):
     return outputs
 
 
-def calc_median_sizepos(entry, collapsed):
-    """
-    Given a set of variants, calculate the median start, end, and size
-    """
-    st, en = truvari.entry_boundaries(entry)
-    sz = truvari.entry_size(entry)
-    starts = [st]
-    ends = [en]
-    sizes = [sz]
-    for i in collapsed:
-        st, en = truvari.entry_boundaries(i.comp)
-        sz = truvari.entry_size(i.comp)
-        starts.append(st)
-        ends.append(en)
-        sizes.append(sz)
-    return int(statistics.median(starts)), int(statistics.median(ends)), int(statistics.median(sizes))
-
-
-def output_writer(to_collapse, outputs, median_info=False):
+def output_writer(collap, outputs, median_info=False):
     """
     Annotate and write kept/collapsed calls to appropriate files
+    colap is a CollapsedCalls
     """
-    entry, collapsed, match_id, consol_cnt = to_collapse
-    # Save copying time
-    if not collapsed:
-        outputs["output_vcf"].write(entry)
+    # Nothing collapsed, no need to annotate
+    if not collap.matches:
+        outputs["output_vcf"].write(collap.entry)
         outputs["stats_box"]["out_cnt"] += 1
         return
 
-    med_info = calc_median_sizepos(entry, collapsed) if median_info else None
-    annotate_entry(entry, len(collapsed), consol_cnt, match_id,
-                   med_info, outputs["o_header"])
-    outputs["output_vcf"].write(entry)
+    collap.annotate_entry(outputs["o_header"], median_info)
+
+    outputs["output_vcf"].write(collap.entry)
     outputs["stats_box"]["out_cnt"] += 1
     outputs["stats_box"]["kept_cnt"] += 1
-    outputs["stats_box"]["consol_cnt"] += consol_cnt
-    for match in collapsed:
+    outputs["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
+    for match in collap.matches:
         trubench.annotate_entry(match.comp, match, outputs["c_header"])
         outputs["collap_vcf"].write(match.comp)
         outputs['stats_box']["collap_cnt"] += 1
@@ -459,8 +469,8 @@ def collapse_main(args):
     base = pysam.VariantFile(args.input)
 
     chunks = truvari.chunker(matcher, ('base', base))
-    m_colap = partial(collapse_chunk, matcher=matcher)
-    for call in itertools.chain.from_iterable(map(m_colap, chunks)):
+    m_collap = partial(collapse_chunk, matcher=matcher)
+    for call in itertools.chain.from_iterable(map(m_collap, chunks)):
         output_writer(call, outputs, args.median_info)
 
     close_outputs(outputs)
