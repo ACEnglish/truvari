@@ -7,7 +7,7 @@ Remap VCF'S alleles sequence to the reference to annotate REMAP
 - partial : Allele only has partial hit(s) less than --threshold
 
 Which alleles and alignments to consider can be altered with:
-- --minlength : minimum SV length to considred (50)
+- --minlength : minimum SV length to be remapped (50)
 - --dist : For deletion SVs, do not consider alignments that hit within Nbp of the SV's position
 (a.k.a. alignments back to the source sequence) (10)
 - --threshold : Minimum percent of allele's sequence used by alignment to be considered (.8)
