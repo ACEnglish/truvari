@@ -89,16 +89,19 @@ def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
     """
     ret = []
     if bSamples is None:
-        for hap in [1, 2]:
-            ret.extend([(base_vcf, samp, False, hap)
-                        for samp in list(pysam.VariantFile(base_vcf).header.samples)])
+        bSamples = list(pysam.VariantFile(base_vcf).header.samples)
     if comp_vcf and cSamples is None:
-        bsamps = list(pysam.VariantFile(base_vcf).header.samples)
+        cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
+
+    for hap in [1, 2]:
+        ret.extend([(base_vcf, samp, False, hap) for samp in bSamples])
+    if comp_vcf:
         for hap in [1, 2]:
-            ret.extend([(comp_vcf, samp, prefix_comp or samp in bsamps, hap)
-                        for samp in list(pysam.VariantFile(comp_vcf).header.samples)])
+            ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples, hap)
+                        for samp in cSamples])
+
     samp_names = sorted({('p:' if prefix else '') + samp
-                          for _, samp, prefix, _ in ret})
+                         for _, samp, prefix, _ in ret})
     return ret, samp_names
 
 
@@ -305,8 +308,9 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
-    hap_jobs, samp_names = make_haplotype_jobs(
-        base_vcf, bSamples, comp_vcf, cSamples, prefix_comp)
+    hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
+                                               comp_vcf, cSamples,
+                                               prefix_comp)
     sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
     harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
 
