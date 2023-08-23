@@ -81,7 +81,7 @@ def extract_reference(reg_fn, ref_fn):
     return out_fn
 
 
-def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
+def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
     """
     Sets up sample parameters for extract haplotypes
     returns list of tuple of (VCF, sample_name, should_prefix, haplotype_number) and the sample names
@@ -90,12 +90,12 @@ def make_haplotype_jobs(base_vcf, bSamples, comp_vcf, cSamples, prefix_comp):
     ret = []
     if bSamples is None:
         bSamples = list(pysam.VariantFile(base_vcf).header.samples)
-    if comp_vcf and cSamples is None:
-        cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
-
     for hap in [1, 2]:
         ret.extend([(base_vcf, samp, False, hap) for samp in bSamples])
+
     if comp_vcf:
+        if cSamples is None:
+            cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
         for hap in [1, 2]:
             ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples, hap)
                         for samp in cSamples])
@@ -152,7 +152,8 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
     all_haps = defaultdict(BytesIO)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        for haplotype in pool.imap(partial(extract_haplotypes, ref_fn=ref_haps_fn), hap_jobs):
+        to_call = partial(extract_haplotypes, ref_fn=ref_haps_fn)
+        for haplotype in pool.imap(, hap_jobs):
             for location, fasta_entry in haplotype:
                 all_haps[location].write(fasta_entry)
         pool.close()
@@ -200,13 +201,12 @@ def wfa_to_vars(seq_bytes):
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
     """
-    fasta = {k: v.decode() for k, v in fasta_reader(
-        seq_bytes.decode(), name_entries=False)}
+    fasta = {k: v.decode() for k, v in fasta_reader(seq_bytes.decode(), False)}
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
 
-    aligner = WavefrontAligner(
-        reference, span="end-to-end", heuristic="adaptive")
+    aligner = WavefrontAligner(reference, span="end-to-end",
+                               heuristic="adaptive")
     for haplotype in fasta:
         if haplotype == ref_key:
             continue
