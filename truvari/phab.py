@@ -153,7 +153,7 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     all_haps = defaultdict(BytesIO)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
         to_call = partial(extract_haplotypes, ref_fn=ref_haps_fn)
-        for haplotype in pool.imap(, hap_jobs):
+        for haplotype in pool.imap(to_call, hap_jobs):
             for location, fasta_entry in haplotype:
                 all_haps[location].write(fasta_entry)
         pool.close()
