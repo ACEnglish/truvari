@@ -94,7 +94,8 @@ def collapse_chunk(chunk, matcher):
     ret = []  # list of Collapses
     while remaining_calls:
         call_id += 1
-        m_collap = CollapsedCalls(remaining_calls.pop(0), f'{chunk_id}.{call_id}')
+        m_collap = CollapsedCalls(remaining_calls.pop(0),
+                                  f'{chunk_id}.{call_id}')
         unmatched = []
         for candidate in remaining_calls:
             mat = matcher.build_match(m_collap.entry,
@@ -373,11 +374,83 @@ def check_params(args):
     return check_fail
 
 
-def build_collapse_matcher(args):
+def CollapseOutput(dict):
     """
-    The matcher collapse needs isn't 100% identical to bench
-    So set it up for us here
+    Output writer for collapse
     """
+
+    def __init__(self, args):
+        """
+        Makes all of the output files for collapse
+        """
+        truvari.setup_logging(args.debug, show_version=True)
+        logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+
+        in_vcf = pysam.VariantFile(args.input)
+        self["o_header"] = edit_header(in_vcf, args.median_info)
+        self["c_header"] = trubench.edit_header(in_vcf)
+        num_samps = len(self["o_header"].samples)
+        if args.hap and num_samps != 1:
+            logging.error(
+                "--hap mode requires exactly one sample. Found %d", num_samps)
+            sys.exit(100)
+        self["output_vcf"] = pysam.VariantFile(args.output, 'w',
+                                               header=self["o_header"])
+        self["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
+                                               header=self["c_header"])
+        self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
+                             "out_cnt": 0, "consol_cnt": 0}
+
+    def write(self, collap, median_info=False):
+        """
+        Annotate and write kept/collapsed calls to appropriate files
+        colap is a CollapsedCalls
+        """
+        self["stats_box"]["out_cnt"] += 1
+        # Nothing collapsed, no need to annotate
+        if not collap.matches:
+            self["output_vcf"].write(collap.entry)
+            return
+
+        collap.annotate_entry(self["o_header"], median_info)
+
+        self["output_vcf"].write(collap.entry)
+        self["stats_box"]["kept_cnt"] += 1
+        self["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
+        for match in collap.matches:
+            trubench.annotate_entry(match.comp, match, self["c_header"])
+            self["collap_vcf"].write(match.comp)
+            self['stats_box']["collap_cnt"] += 1
+
+    def close(self):
+        """
+        Close all the files
+        """
+        self["output_vcf"].close()
+        self["collap_vcf"].close()
+
+    def dump_log(self):
+        """
+        Log information collected during collapse
+        """
+        logging.info("Wrote %d Variants", self["stats_box"]["out_cnt"])
+        logging.info("%d variants collapsed into %d variants",
+                     self["stats_box"]["collap_cnt"], self["stats_box"]["kept_cnt"])
+        logging.info("%d samples' FORMAT fields consolidated",
+                     self["stats_box"]["consol_cnt"])
+
+
+def collapse_main(args):
+    """
+    Main
+    """
+    args = parse_args(args)
+
+    if check_params(args):
+        sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
+        sys.exit(100)
+    # The matcher collapse needs isn't 100% identical to bench
+    # So we set it up here
     args.chunksize = args.refdist
     args.bSample = None
     args.cSample = None
@@ -392,91 +465,14 @@ def build_collapse_matcher(args):
     matcher.no_consolidate = args.no_consolidate
     matcher.picker = 'single'
 
-    return matcher
-
-
-def setup_outputs(args):
-    """
-    Makes all of the output files for collapse
-
-    returns a dictionary holding outputs
-    """
-    truvari.setup_logging(args.debug, show_version=True)
-    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
-
-    outputs = {}
-
-    in_vcf = pysam.VariantFile(args.input)
-    outputs["o_header"] = edit_header(in_vcf, args.median_info)
-    outputs["c_header"] = trubench.edit_header(in_vcf)
-    num_samps = len(outputs["o_header"].samples)
-    if args.hap and num_samps != 1:
-        logging.error(
-            "--hap mode requires exactly one sample. Found %d", num_samps)
-        sys.exit(100)
-    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                              header=outputs["o_header"])
-    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
-                                              header=outputs["c_header"])
-    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
-                            "out_cnt": 0, "consol_cnt": 0}
-    return outputs
-
-
-def output_writer(collap, outputs, median_info=False):
-    """
-    Annotate and write kept/collapsed calls to appropriate files
-    colap is a CollapsedCalls
-    """
-    # Nothing collapsed, no need to annotate
-    if not collap.matches:
-        outputs["output_vcf"].write(collap.entry)
-        outputs["stats_box"]["out_cnt"] += 1
-        return
-
-    collap.annotate_entry(outputs["o_header"], median_info)
-
-    outputs["output_vcf"].write(collap.entry)
-    outputs["stats_box"]["out_cnt"] += 1
-    outputs["stats_box"]["kept_cnt"] += 1
-    outputs["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
-    for match in collap.matches:
-        trubench.annotate_entry(match.comp, match, outputs["c_header"])
-        outputs["collap_vcf"].write(match.comp)
-        outputs['stats_box']["collap_cnt"] += 1
-
-
-def close_outputs(outputs):
-    """
-    Close all the files
-    """
-    outputs["output_vcf"].close()
-    outputs["collap_vcf"].close()
-
-
-def collapse_main(args):
-    """
-    Main
-    """
-    args = parse_args(args)
-
-    if check_params(args):
-        sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
-        sys.exit(100)
-
-    matcher = build_collapse_matcher(args)
-    outputs = setup_outputs(args)
     base = pysam.VariantFile(args.input)
+    outputs = CollapseOutput(args)
 
     chunks = truvari.chunker(matcher, ('base', base))
     m_collap = partial(collapse_chunk, matcher=matcher)
     for call in itertools.chain.from_iterable(map(m_collap, chunks)):
-        output_writer(call, outputs, args.median_info)
+        outputs.write(call, args.median_info)
 
-    close_outputs(outputs)
-    logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
-    logging.info("%d variants collapsed into %d variants",
-                 outputs["stats_box"]["collap_cnt"], outputs["stats_box"]["kept_cnt"])
-    logging.info("%d samples' FORMAT fields consolidated",
-                 outputs["stats_box"]["consol_cnt"])
+    outputs.close()
+    outputs.dump_log()
     logging.info("Finished collapse")
