@@ -374,7 +374,7 @@ def check_params(args):
     return check_fail
 
 
-def CollapseOutput(dict):
+class CollapseOutput(dict):
     """
     Output writer for collapse
     """
@@ -383,6 +383,7 @@ def CollapseOutput(dict):
         """
         Makes all of the output files for collapse
         """
+        super().__init__()
         truvari.setup_logging(args.debug, show_version=True)
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
