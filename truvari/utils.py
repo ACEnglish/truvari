@@ -433,7 +433,7 @@ def compress_index_vcf(fn, fout=None, remove=True):
     with open(m_tmp, 'w') as out_hdlr:
         out_hdlr.write(bcftools.sort(fn))
     pysam.tabix_compress(m_tmp, fout)
-    pysam.tabix_index(fout, preset="vcf")
+    pysam.tabix_index(fout, force=True, preset="vcf")
     if remove:
         os.remove(fn)
     os.remove(m_tmp)
