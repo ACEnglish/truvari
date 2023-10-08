@@ -18,6 +18,7 @@ from intervaltree import IntervalTree
 
 import truvari
 from truvari.phab import check_requirements as phab_check_requirements
+from truvari.phab import DEFAULT_MAFFT_PARAM
 
 PHAB_BUFFER = 100  # hard-coded parameter :(
 
@@ -306,8 +307,10 @@ def parse_args(args):
                               "those in analyzed regions"))
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa"], default="mafft",
                         help="Alignment method for phab (%(default)s)")
+    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -404,10 +407,12 @@ def refine_main(cmdargs):
 
     # Send the vcfs to phab
     phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
-    to_eval_coords = regions[regions["refined"]][[
-        "chrom", "start", "end"]].to_numpy().tolist()
+    to_eval_coords = (regions[regions["refined"]][["chrom", "start", "end"]]
+                      .to_numpy()
+                      .tolist())
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER,
-                 comp_vcf=comp_vcf, prefix_comp=True, threads=args.threads, method=args.align)
+                 mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
+                 threads=args.threads, method=args.align)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")

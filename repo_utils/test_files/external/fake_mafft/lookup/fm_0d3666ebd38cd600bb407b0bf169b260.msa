@@ -1,7 +1,7 @@
 >syndip_1_chr20:56280441-56282014
 aaaaaggtaacatccatatacagatataatatctataacatatatagatatatggatata
 acatccatatatagatatatctatatatctatctatagctac------------------
-----------------------------------------------atctacagatatct
+--------------atctacagatatctatagctacatctacagatatctacagatatct
 atagctacatctacagatatctatagctacatctacagatatctacagatatctacagct
 acatctacagatatctatagatatctatagctatatctacagatatctatcgatagatat
 atctatcgatagatatatccacatagatatctagatatatatggatatatctatagatat
@@ -78,8 +78,8 @@ c-----------------------------------------------------------
 -----------------------------
 >p:HG002_1_chr20:56280441-56282014
 aaaaaggtaacatccatatacagatataatatctataacatatatagatatatggatata
-acatccatatatagatatatctatatatctatctatagctacatctacagatatctatag
-ctacatctacagatatctacagatatctatagctacatctacagatatctacagatatct
+acatccatatatagatatatctatatatctatctatagctac------------------
+--------------atctacagatatctatagctacatctacagatatctacagatatct
 atagctacatctacagatatctatagctacatctacagatatctacagatatctacagct
 acatctacagatatctatagatatctatagctatatctacagatatctatcgatagatat
 atctatcgatagatatatccacatagatatctagatatatatggatatatctatagatat
