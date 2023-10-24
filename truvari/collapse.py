@@ -145,25 +145,25 @@ def collapse_into_entry(entry, others, hap_mode=False):
     # We'll populate with the most similar, first
     others.sort(reverse=True)
     # I have a special case of --hap. I need to allow hets
-    replace_gts = ["UNK", "REF", "NON"]
+    replace_gts = [truvari.GT.REF, truvari.GT.NON, truvari.GT.UNK]
     if hap_mode:
-        replace_gts.append("HET")
+        replace_gts.insert(1, truvari.GT.HET)
 
     # Each sample of this entry needs to be checked/set
     n_consolidate = 0
     for sample in entry.samples:
-        m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
+        m_gt = truvari.get_gt(entry.samples[sample]["GT"])
         if m_gt not in replace_gts:
             continue  # already set
         n_idx = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
-            o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
+            o_gt = truvari.get_gt(o_entry.samples[sample]["GT"])
             if o_gt not in replace_gts:
                 n_idx = pos
                 break  # this is the first other that's set
         # consolidate
-        if hap_mode and m_gt == "HET":
+        if hap_mode and m_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
         elif n_idx is not None:
@@ -184,6 +184,8 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
                                   o_entry.pos, o_entry.id)
+            # pass along phase
+            entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
 
