@@ -172,7 +172,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
         if hap_mode and m_gt == truvari.GT.HET and o_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
-            entry.samples[sample].phased = o_entry.samples[sample].phased
+            entry.samples[sample].phased = others[n_idx].comp.samples[sample].phased
         elif n_idx is not None:
             n_consolidate += 1
             o_entry = others[n_idx].comp
@@ -196,7 +196,10 @@ def collapse_into_entry(entry, others, hap_mode=False):
     return entry, n_consolidate
 
 def get_ac(gt):
-    return sum([1 for _ in gt if _ == 1])
+    """
+    Helper method to get allele count. assumes only 1s as ALT
+    """
+    return sum(1 for _ in gt if _ == 1)
 
 def get_none(entry, key):
     """
@@ -276,7 +279,7 @@ def hap_resolve(entryA, entryB):
 def gt_resolve(entryA, entryB):
     """
     Returns true if the calls' genotypes suggest it shouldn't be collapsed
-    i.e. if either call is HOM, they can't 
+    i.e. if both are HOM
     """
     def compat_phase(a, b):
         if None in a or None in b:
@@ -284,14 +287,14 @@ def gt_resolve(entryA, entryB):
         if a == b: # can't collapse same phase
             return True
         return False
-        
+
     for sample in entryA.samples:
         gtA = entryA.samples[sample]["GT"]
         gtB = entryB.samples[sample]["GT"]
         if (gtA == (1, 1) and None not in gtB) \
         or (gtB == (1, 1) and None not in gtA):
             return False
-        elif entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
+        if entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
             return False
     return True
 

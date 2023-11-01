@@ -1,6 +1,6 @@
-2023-08-03 02:10:18,586 [INFO] Truvari v4.1.0.dev0+562b4d7
-2023-08-03 02:10:18,587 [INFO] Command /data/truvari/__main__.py refine --recount -U -r test_results/refine_output_three/candidate.refine.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_three
-2023-08-03 02:10:18,588 [INFO] Params:
+2023-11-01 14:06:22,093 [INFO] Truvari v4.1.1.dev0+a08d9a7.uc
+2023-11-01 14:06:22,094 [INFO] Command /data/truvari/__main__.py refine --recount -U -r test_results/refine_output_three/candidate.refine.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_three
+2023-11-01 14:06:22,095 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_three",
     "reference": "repo_utils/test_files/refine_data/chr20.fa.gz",
@@ -10,16 +10,17 @@
     "recount": true,
     "threads": 4,
     "align": "mafft",
+    "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2023-08-03 02:10:18,589 [INFO] Setting up regions
-2023-08-03 02:10:18,638 [INFO] 92 --regions reduced to 92 after intersecting with 225 from --includebed
-2023-08-03 02:10:19,017 [INFO] 41 regions to be refined
-2023-08-03 02:10:19,025 [INFO] Preparing regions
-2023-08-03 02:10:19,030 [INFO] Extracting haplotypes
-2023-08-03 02:10:19,530 [INFO] Harmonizing variants
-2023-08-03 02:10:32,062 [INFO] Running bench
-2023-08-03 02:10:32,115 [INFO] Including 41 bed regions
-2023-08-03 02:10:32,538 [INFO] Zipped 2824 variants Counter({'base': 1412, 'comp': 1412})
-2023-08-03 02:10:32,540 [INFO] 35 chunks of 2824 variants Counter({'__filtered': 2573, 'base': 136, 'comp': 115})
-2023-08-03 02:10:34,176 [INFO] Finished refine
+2023-11-01 14:06:22,096 [INFO] Setting up regions
+2023-11-01 14:06:22,144 [INFO] 92 --regions reduced to 92 after intersecting with 225 from --includebed
+2023-11-01 14:06:22,523 [INFO] 41 regions to be refined
+2023-11-01 14:06:22,532 [INFO] Preparing regions
+2023-11-01 14:06:22,537 [INFO] Extracting haplotypes
+2023-11-01 14:06:23,106 [INFO] Harmonizing variants
+2023-11-01 14:06:24,655 [INFO] Running bench
+2023-11-01 14:06:24,706 [INFO] Including 41 bed regions
+2023-11-01 14:06:25,093 [INFO] Zipped 2844 variants Counter({'base': 1422, 'comp': 1422})
+2023-11-01 14:06:25,094 [INFO] 35 chunks of 2844 variants Counter({'__filtered': 2595, 'base': 136, 'comp': 113})
+2023-11-01 14:06:26,429 [INFO] Finished refine
