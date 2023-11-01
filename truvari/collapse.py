@@ -172,7 +172,6 @@ def collapse_into_entry(entry, others, hap_mode=False):
         if hap_mode and m_gt == truvari.GT.HET and o_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
-            entry.samples[sample].phased = others[n_idx].comp.samples[sample].phased
         elif n_idx is not None:
             n_consolidate += 1
             o_entry = others[n_idx].comp
