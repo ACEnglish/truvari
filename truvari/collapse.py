@@ -105,6 +105,8 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
+            if matcher.gt and not gt_resolve(m_collap.entry, candidate):
+                mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
             else:
@@ -122,8 +124,11 @@ def collapse_chunk(chunk, matcher):
             remaining_calls.extend(mat.comp for mat in mats)
     if matcher.no_consolidate:
         for val in ret:
-            edited_entry, collapse_cnt = collapse_into_entry(
-                val.entry, val.matches, matcher.hap)
+            if matcher.gt:
+                edited_entry, collapse_cnt = super_consolidate(val.entry, val.matches)
+            else:
+                edited_entry, collapse_cnt = collapse_into_entry(
+                    val.entry, val.matches, matcher.hap)
             val.entry = edited_entry
             val.gt_consolidate_count = collapse_cnt
 
@@ -156,6 +161,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
         if m_gt not in replace_gts:
             continue  # already set
         n_idx = None
+        o_gt = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"])
@@ -163,9 +169,10 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 n_idx = pos
                 break  # this is the first other that's set
         # consolidate
-        if hap_mode and m_gt == truvari.GT.HET:
+        if hap_mode and m_gt == truvari.GT.HET and o_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
+            entry.samples[sample].phased = o_entry.samples[sample].phased
         elif n_idx is not None:
             n_consolidate += 1
             o_entry = others[n_idx].comp
@@ -188,6 +195,69 @@ def collapse_into_entry(entry, others, hap_mode=False):
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
+def get_ac(gt):
+    return sum([1 for _ in gt if _ == 1])
+
+def get_none(entry, key):
+    """
+    Make a none_tuple for stuff
+    """
+    cnt = entry.header.formats[key].number
+    if cnt in [1, 'A', '.']:
+        return None
+    if cnt == 'R':
+        return (None, None)
+    return (None, None, None)
+
+def get_out(value):
+    """
+    If they're all none, I return a simple None
+    """
+    if isinstance(value, tuple):
+        for i in value:
+            if i is not None:
+                return value
+        return None
+    return value
+
+def super_consolidate(entry, others):
+    """
+    All formats are consolidated (first one taken)
+    And two hets consolidated become hom
+    Phase is lost
+    """
+    if not others:
+        return entry, 0
+    all_fmts = set(entry.samples[0].keys())
+    for i in others:
+        all_fmts.update(i.comp.samples[0].keys())
+    all_fmts.remove('GT')
+    n_consolidated = 0
+    for sample in entry.samples:
+        new_fmts = {"GT":0}
+        new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
+        for k in all_fmts:
+            new_fmts[k] = None if k not in entry.samples.keys() else entry.samples[sample][k]
+        for o in others:
+            o = o.comp
+            n_c = get_ac(o.samples[sample]['GT'])
+            n_consolidated += 1 if n_c != 0 else 0
+            new_fmts['GT'] += n_c
+            for k in all_fmts:
+                rpl_val = None if k not in o.samples[sample] else get_out(o.samples[sample][k])
+                if not (k in new_fmts and new_fmts[k] is not None)  and rpl_val:
+                    new_fmts[k] = o.samples[sample][k]
+        if new_fmts['GT'] == 0:
+            new_fmts['GT'] = (0, 0)
+        elif new_fmts['GT'] == 1:
+            new_fmts['GT'] = (0, 1)
+        else:
+            new_fmts['GT'] = (1, 1)
+        for key, val in new_fmts.items():
+            if val is None:
+                val = get_none(entry, key)
+            entry.samples[sample][key] = val
+    return entry, n_consolidated
 
 def hap_resolve(entryA, entryB):
     """
@@ -202,6 +272,29 @@ def hap_resolve(entryA, entryB):
     if gtA == gtB:
         return False
     return True
+
+def gt_resolve(entryA, entryB):
+    """
+    Returns true if the calls' genotypes suggest it shouldn't be collapsed
+    i.e. if either call is HOM, they can't 
+    """
+    def compat_phase(a, b):
+        if None in a or None in b:
+            return False # nothing preventing it
+        if a == b: # can't collapse same phase
+            return True
+        return False
+        
+    for sample in entryA.samples:
+        gtA = entryA.samples[sample]["GT"]
+        gtB = entryB.samples[sample]["GT"]
+        if (gtA == (1, 1) and None not in gtB) \
+        or (gtB == (1, 1) and None not in gtA):
+            return False
+        elif entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
+            return False
+    return True
+
 
 
 def sort_length(b1, b2):
@@ -304,6 +397,8 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("--gt", action="store_true",
+                        help="Disallow intra-sample homozygous events to collapse (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -463,6 +558,7 @@ def collapse_main(args):
     matcher.params.includebed = None
     matcher.keep = args.keep
     matcher.hap = args.hap
+    matcher.gt = args.gt
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
     matcher.no_consolidate = args.no_consolidate
