@@ -5,6 +5,7 @@ Will collapse all variants within sizemin/max that match over thresholds
 """
 import os
 import sys
+import gzip
 import json
 import logging
 import argparse
@@ -105,6 +106,8 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
+            if matcher.gt and not gt_resolve(m_collap.entry, candidate):
+                mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
             else:
@@ -122,8 +125,11 @@ def collapse_chunk(chunk, matcher):
             remaining_calls.extend(mat.comp for mat in mats)
     if matcher.no_consolidate:
         for val in ret:
-            edited_entry, collapse_cnt = collapse_into_entry(
-                val.entry, val.matches, matcher.hap)
+            if matcher.gt:
+                edited_entry, collapse_cnt = super_consolidate(val.entry, val.matches)
+            else:
+                edited_entry, collapse_cnt = collapse_into_entry(
+                    val.entry, val.matches, matcher.hap)
             val.entry = edited_entry
             val.gt_consolidate_count = collapse_cnt
 
@@ -156,6 +162,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
         if m_gt not in replace_gts:
             continue  # already set
         n_idx = None
+        o_gt = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
             o_gt = truvari.get_gt(o_entry.samples[sample]["GT"])
@@ -163,7 +170,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
                 n_idx = pos
                 break  # this is the first other that's set
         # consolidate
-        if hap_mode and m_gt == truvari.GT.HET:
+        if hap_mode and m_gt == truvari.GT.HET and o_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
         elif n_idx is not None:
@@ -188,6 +195,74 @@ def collapse_into_entry(entry, others, hap_mode=False):
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
+def get_ac(gt):
+    """
+    Helper method to get allele count. assumes only 1s as ALT
+    """
+    return sum(1 for _ in gt if _ == 1)
+
+def get_none(entry, key):
+    """
+    Make a none_tuple for a format
+    """
+    cnt = entry.header.formats[key].number
+    if cnt in [1, 'A', '.']:
+        return None
+    if cnt == 'R':
+        return (None, None)
+    return (None, None, None)
+
+def fmt_none(value):
+    """
+    Checks all values in a format field for nones
+    """
+    if isinstance(value, tuple):
+        for i in value:
+            if i is not None:
+                return value
+        return None
+    return value
+
+def super_consolidate(entry, others):
+    """
+    All formats are consolidated (first one taken)
+    And two hets consolidated become hom
+    Phase is lost
+    """
+    if not others:
+        return entry, 0
+    all_fmts = set(entry.samples[0].keys())
+    for i in others:
+        all_fmts.update(i.comp.samples[0].keys())
+    all_fmts.remove('GT')
+    all_fmts = sorted(list(all_fmts))
+    n_consolidated = 0
+    for sample in entry.samples:
+        new_fmts = {"GT":0}
+        new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
+        for k in all_fmts:
+            new_fmts[k] = None if k not in entry.samples.keys() else entry.samples[sample][k]
+        for o in others:
+            o = o.comp
+            n_c = get_ac(o.samples[sample]['GT'])
+            n_consolidated += 1 if n_c != 0 else 0
+            new_fmts['GT'] += n_c
+            for k in all_fmts:
+                rpl_val = None if k not in o.samples[sample] else fmt_none(o.samples[sample][k])
+                if not (k in new_fmts and new_fmts[k] is not None)  and rpl_val:
+                    new_fmts[k] = o.samples[sample][k]
+        if new_fmts['GT'] == 0:
+            new_fmts['GT'] = (0, 0)
+        elif new_fmts['GT'] == 1:
+            new_fmts['GT'] = (0, 1)
+        else:
+            new_fmts['GT'] = (1, 1)
+        for key in all_fmts:
+            val = new_fmts[key]
+            if val is None:
+                val = get_none(entry, key)
+            entry.samples[sample][key] = val
+    return entry, n_consolidated
 
 def hap_resolve(entryA, entryB):
     """
@@ -202,6 +277,29 @@ def hap_resolve(entryA, entryB):
     if gtA == gtB:
         return False
     return True
+
+def gt_resolve(entryA, entryB):
+    """
+    Returns true if the calls' genotypes suggest it shouldn't be collapsed
+    i.e. if both are HOM
+    """
+    def compat_phase(a, b):
+        if None in a or None in b:
+            return False # nothing preventing it
+        if a == b: # can't collapse same phase
+            return True
+        return False
+
+    for sample in entryA.samples:
+        gtA = entryA.samples[sample]["GT"]
+        gtB = entryB.samples[sample]["GT"]
+        if (gtA == (1, 1) and None not in gtB) \
+        or (gtB == (1, 1) and None not in gtA):
+            return False
+        if entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
+            return False
+    return True
+
 
 
 def sort_length(b1, b2):
@@ -304,6 +402,10 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("--gt", action="store_true",
+                        help="Disallow intra-sample homozygous events to collapse (%(default)s)")
+    parser.add_argument("--intra", action="store_true",
+                        help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -375,6 +477,77 @@ def check_params(args):
         logging.error("Using --hap must use --keep first")
     return check_fail
 
+class IntraMergeOutput():
+    """
+    Output writer that consolidates into the first sample
+    """
+    def __init__(self, fn, header):
+        self.fn = fn
+        self.header = header
+        if self.fn.endswith(".gz"):
+            self.fh = gzip.GzipFile(self.fn, 'wb')
+            self.isgz = True
+        else:
+            self.fh = open(self.fn, 'w') #pylint: disable=consider-using-with
+            self.isgz = False
+
+        self.make_header()
+
+    def make_header(self):
+        """
+        Writes intramerge header
+        """
+        self.header.add_line('##FORMAT=<ID=SUPP,Number=1,Type=Integer,Description="Truvari collapse support flag">')
+        for line in str(self.header).strip().split('\n'):
+            if line.startswith("##"):
+                self.write(line + '\n')
+            elif line.startswith("#"):
+                # new format and sample change
+                data = line.strip().split('\t')[:10]
+                self.write("\t".join(data) + '\n')
+
+    def consolidate(self, entry):
+        """
+        Consolidate information into the first sample
+        Returns a string
+        """
+        flag = 0
+        found_gt = False
+        needs_fill = set()
+        for k, v in entry.samples[0].items():
+            if fmt_none(v) is None:
+                needs_fill.add(k)
+        for idx, sample in enumerate(entry.samples):
+            fmt = entry.samples[sample]
+            if 1 in fmt['GT']:
+                if not found_gt:
+                    entry.samples[0]['GT'] = fmt['GT']
+                flag |= 2 ** idx
+            was_filled = set()
+            for k in needs_fill:
+                if fmt_none(fmt[k]) is not None:
+                    entry.samples[0][k] = fmt[k]
+                    was_filled.add(k)
+            needs_fill -= was_filled
+        entry.translate(self.header)
+        entry.samples[0]['SUPP'] = flag
+        return "\t".join(str(entry).split('\t')[:10]) + '\n'
+
+    def write(self, entry):
+        """
+        Writes header (str) or entries (VariantRecords)
+        """
+        if isinstance(entry, pysam.VariantRecord):
+            entry = self.consolidate(entry)
+        if self.isgz:
+            entry = entry.encode()
+        self.fh.write(entry)
+
+    def close(self):
+        """
+        Close the file handle
+        """
+        self.fh.close()
 
 class CollapseOutput(dict):
     """
@@ -397,8 +570,11 @@ class CollapseOutput(dict):
             logging.error(
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
-        self["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                               header=self["o_header"])
+        if args.intra:
+            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
+        else:
+            self["output_vcf"] = pysam.VariantFile(args.output, 'w',
+                                                   header=self["o_header"])
         self["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
                                                header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
@@ -463,6 +639,7 @@ def collapse_main(args):
     matcher.params.includebed = None
     matcher.keep = args.keep
     matcher.hap = args.hap
+    matcher.gt = args.gt
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
     matcher.no_consolidate = args.no_consolidate
