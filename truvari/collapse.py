@@ -203,7 +203,7 @@ def get_ac(gt):
 
 def get_none(entry, key):
     """
-    Make a none_tuple for stuff
+    Make a none_tuple for a format
     """
     cnt = entry.header.formats[key].number
     if cnt in [1, 'A', '.']:
@@ -212,9 +212,9 @@ def get_none(entry, key):
         return (None, None)
     return (None, None, None)
 
-def get_out(value):
+def fmt_none(value):
     """
-    If they're all none, I return a simple None
+    Checks all values in a format field for nones
     """
     if isinstance(value, tuple):
         for i in value:
@@ -235,6 +235,7 @@ def super_consolidate(entry, others):
     for i in others:
         all_fmts.update(i.comp.samples[0].keys())
     all_fmts.remove('GT')
+    all_fmts = sorted(list(all_fmts))
     n_consolidated = 0
     for sample in entry.samples:
         new_fmts = {"GT":0}
@@ -247,7 +248,7 @@ def super_consolidate(entry, others):
             n_consolidated += 1 if n_c != 0 else 0
             new_fmts['GT'] += n_c
             for k in all_fmts:
-                rpl_val = None if k not in o.samples[sample] else get_out(o.samples[sample][k])
+                rpl_val = None if k not in o.samples[sample] else fmt_none(o.samples[sample][k])
                 if not (k in new_fmts and new_fmts[k] is not None)  and rpl_val:
                     new_fmts[k] = o.samples[sample][k]
         if new_fmts['GT'] == 0:
@@ -256,7 +257,8 @@ def super_consolidate(entry, others):
             new_fmts['GT'] = (0, 1)
         else:
             new_fmts['GT'] = (1, 1)
-        for key, val in new_fmts.items():
+        for key in all_fmts:
+            val = new_fmts[key]
             if val is None:
                 val = get_none(entry, key)
             entry.samples[sample][key] = val
@@ -513,7 +515,7 @@ class IntraMergeOutput():
         found_gt = False
         needs_fill = set()
         for k, v in entry.samples[0].items():
-            if get_out(v) is None:
+            if fmt_none(v) is None:
                 needs_fill.add(k)
         for idx, sample in enumerate(entry.samples):
             fmt = entry.samples[sample]
@@ -523,7 +525,7 @@ class IntraMergeOutput():
                 flag |= 2 ** idx
             was_filled = set()
             for k in needs_fill:
-                if get_out(fmt[k]) is not None:
+                if fmt_none(fmt[k]) is not None:
                     entry.samples[0][k] = fmt[k]
                     was_filled.add(k)
             needs_fill -= was_filled
