@@ -5,6 +5,7 @@ Will collapse all variants within sizemin/max that match over thresholds
 """
 import os
 import sys
+import gzip
 import json
 import logging
 import argparse
@@ -401,6 +402,8 @@ def parse_args(args):
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--gt", action="store_true",
                         help="Disallow intra-sample homozygous events to collapse (%(default)s)")
+    parser.add_argument("--intra", action="store_true",
+                        help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -472,6 +475,77 @@ def check_params(args):
         logging.error("Using --hap must use --keep first")
     return check_fail
 
+class IntraMergeOutput():
+    """
+    Output writer that consolidates into the first sample
+    """
+    def __init__(self, fn, header):
+        self.fn = fn
+        self.header = header
+        if self.fn.endswith(".gz"):
+            self.fh = gzip.GzipFile(self.fn, 'wb')
+            self.isgz = True
+        else:
+            self.fh = open(self.fn, 'w') #pylint: disable=consider-using-with
+            self.isgz = False
+
+        self.make_header()
+
+    def make_header(self):
+        """
+        Writes intramerge header
+        """
+        self.header.add_line('##FORMAT=<ID=SUPP,Number=1,Type=Integer,Description="Truvari collapse support flag">')
+        for line in str(self.header).strip().split('\n'):
+            if line.startswith("##"):
+                self.write(line + '\n')
+            elif line.startswith("#"):
+                # new format and sample change
+                data = line.strip().split('\t')[:10]
+                self.write("\t".join(data) + '\n')
+
+    def consolidate(self, entry):
+        """
+        Consolidate information into the first sample
+        Returns a string
+        """
+        flag = 0
+        found_gt = False
+        needs_fill = set()
+        for k, v in entry.samples[0].items():
+            if get_out(v) is None:
+                needs_fill.add(k)
+        for idx, sample in enumerate(entry.samples):
+            fmt = entry.samples[sample]
+            if 1 in fmt['GT']:
+                if not found_gt:
+                    entry.samples[0]['GT'] = fmt['GT']
+                flag |= 2 ** idx
+            was_filled = set()
+            for k in needs_fill:
+                if get_out(fmt[k]) is not None:
+                    entry.samples[0][k] = fmt[k]
+                    was_filled.add(k)
+            needs_fill -= was_filled
+        entry.translate(self.header)
+        entry.samples[0]['SUPP'] = flag
+        return "\t".join(str(entry).split('\t')[:10]) + '\n'
+
+    def write(self, entry):
+        """
+        Writes header (str) or entries (VariantRecords)
+        """
+        if isinstance(entry, pysam.VariantRecord):
+            entry = self.consolidate(entry)
+        if self.isgz:
+            entry = entry.encode()
+        self.fh.write(entry)
+
+    def close(self):
+        """
+        Close the file handle
+        """
+        self.fh.close()
 
 class CollapseOutput(dict):
     """
@@ -494,8 +568,11 @@ class CollapseOutput(dict):
             logging.error(
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
-        self["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                               header=self["o_header"])
+        if args.intra:
+            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
+        else:
+            self["output_vcf"] = pysam.VariantFile(args.output, 'w',
+                                                   header=self["o_header"])
         self["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
                                                header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
