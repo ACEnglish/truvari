@@ -211,9 +211,11 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
             entryA, entryB, ref, min_len=min_len)
         return seqsim(allele1, allele2)
 
-    if st_dist > 0:
-        return unroll_compare(a_seq, b_seq, st_dist % len(b_seq))
-    return unroll_compare(b_seq, a_seq, st_dist % len(a_seq))
+    if st_dist < 0:
+        # Should entertain this idea. Not always the case that shifted svs are rollable
+        # return max(seqsim(a_seq, b_seq), unroll_compare(a_seq, b_seq, st_dist % len(b_seq)))
+        return unroll_compare(a_seq, b_seq, -st_dist)
+    return unroll_compare(b_seq, a_seq, st_dist)
 
 
 def entry_reciprocal_overlap(entry1, entry2):

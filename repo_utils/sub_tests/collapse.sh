@@ -83,3 +83,10 @@ if [ $test_collapse_median ]; then
     collapse_assert 1_median
 fi
 
+run test_collapse_intragt $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
+                        -o $OD/inputintragt_collapsed.vcf \
+                        -c $OD/inputintragt_removed.vcf \
+                        --intra --gt --keep maxqual
+if [ $test_collapse_intragt ]; then
+    collapse_assert intragt
+fi

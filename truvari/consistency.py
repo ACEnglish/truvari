@@ -44,8 +44,11 @@ def read_files(allVCFs):
     n_calls_per_vcf = [0] * len(allVCFs)
     for i, vcf in enumerate(allVCFs):
         for key in parse_vcf(vcf):
-            n_calls_per_vcf[i] += 1
-            all_presence[key] |= (1 << (n_vcfs - i - 1))
+            flag = 1 << (n_vcfs - i - 1)
+            # Don't allow duplicates to contribute to the count
+            if not all_presence[key] & flag:
+                n_calls_per_vcf[i] += 1
+                all_presence[key] |= (1 << (n_vcfs - i - 1))
 
     # We don't care about the calls anyway for stats
     # Then this becomes a list of integers, which will save memory

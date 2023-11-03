@@ -1,6 +1,6 @@
-2023-08-03 02:10:15,271 [INFO] Truvari v4.1.0.dev0+562b4d7
-2023-08-03 02:10:15,272 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_three
-2023-08-03 02:10:15,273 [INFO] Params:
+2023-11-01 14:06:18,612 [INFO] Truvari v4.1.1.dev0+a08d9a7.uc
+2023-11-01 14:06:18,613 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_three
+2023-11-01 14:06:18,614 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
@@ -28,33 +28,33 @@
     "check_monref": true,
     "check_multi": true
 }
-2023-08-03 02:10:15,338 [INFO] Including 225 bed regions
-2023-08-03 02:10:16,797 [INFO] Zipped 7158 variants Counter({'comp': 5303, 'base': 1855})
-2023-08-03 02:10:16,798 [INFO] 212 chunks of 7158 variants Counter({'__filtered': 6120, 'base': 587, 'comp': 451})
-2023-08-03 02:10:16,977 [INFO] Stats: {
-    "TP-base": 386,
-    "TP-comp": 386,
-    "FP": 65,
-    "FN": 201,
-    "precision": 0.8558758314855875,
-    "recall": 0.6575809199318569,
-    "f1": 0.7437379576107899,
+2023-11-01 14:06:18,683 [INFO] Including 225 bed regions
+2023-11-01 14:06:20,271 [INFO] Zipped 7158 variants Counter({'comp': 5303, 'base': 1855})
+2023-11-01 14:06:20,272 [INFO] 212 chunks of 7158 variants Counter({'__filtered': 6120, 'base': 587, 'comp': 451})
+2023-11-01 14:06:20,478 [INFO] Stats: {
+    "TP-base": 387,
+    "TP-comp": 387,
+    "FP": 64,
+    "FN": 200,
+    "precision": 0.8580931263858093,
+    "recall": 0.6592844974446337,
+    "f1": 0.745664739884393,
     "base cnt": 587,
     "comp cnt": 451,
-    "TP-comp_TP-gt": 381,
+    "TP-comp_TP-gt": 382,
     "TP-comp_FP-gt": 5,
-    "TP-base_TP-gt": 381,
+    "TP-base_TP-gt": 382,
     "TP-base_FP-gt": 5,
-    "gt_concordance": 0.9870466321243523,
+    "gt_concordance": 0.9870801033591732,
     "gt_matrix": {
         "(1, 0)": {
-            "(0, 1)": 202,
-            "(1, 0)": 14,
+            "(0, 1)": 203,
+            "(1, 0)": 13,
             "(1, 1)": 1
         },
         "(0, 1)": {
-            "(1, 0)": 144,
-            "(0, 1)": 12
+            "(1, 0)": 146,
+            "(0, 1)": 11
         },
         "(1, 1)": {
             "(1, 1)": 9,
@@ -64,23 +64,23 @@
     },
     "weighted": {
         "sequence": {
-            "TP": 499.5751000037417,
-            "FP": 40.96859994530678,
-            "FN": 88.45089998934418,
-            "precision": 0.9242085330951624,
-            "recall": 0.849579950562757,
-            "f1": 0.8853243180804102,
+            "TP": 500.5166001608595,
+            "FP": 39.91689974069595,
+            "FN": 87.50939983222634,
+            "precision": 0.9261391091633528,
+            "recall": 0.8511810705083529,
+            "f1": 0.88707942147253,
             "total": 604
         },
         "size": {
-            "TP": 485.18840003572404,
-            "FP": 44.582299776375294,
-            "FN": 102.36709996499121,
-            "precision": 0.9158460447280533,
-            "recall": 0.8257745864605699,
-            "f1": 0.8684812011335767,
+            "TP": 485.1211999114603,
+            "FP": 44.722199864685535,
+            "FN": 102.43430008925498,
+            "precision": 0.9155935510689002,
+            "recall": 0.8256602140748741,
+            "f1": 0.8683044166382059,
             "total": 604
         }
     }
 }
-2023-08-03 02:10:16,978 [INFO] Finished bench
+2023-11-01 14:06:20,479 [INFO] Finished bench

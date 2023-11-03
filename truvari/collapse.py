@@ -3,14 +3,15 @@ Structural variant collapser
 
 Will collapse all variants within sizemin/max that match over thresholds
 """
-
 import os
 import sys
+import gzip
 import json
 import logging
 import argparse
 import itertools
 import statistics
+from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
 import pysam
@@ -19,75 +20,122 @@ import truvari
 import truvari.bench as trubench
 
 
-def collapse_chunk(chunk, matcher):
+@dataclass
+class CollapsedCalls():
     """
-    For calls in a chunk, separate which ones should be kept from collapsed
+    Holds all relevant information for a set of collapsed calls
     """
-    chunk_dict, chunk_id = chunk
-    calls = chunk_dict['base']
-    logging.debug("Collapsing chunk %d", chunk_id)
-    # Need to add a deterministic sort here...
-    calls.sort(key=matcher.sorter)
+    entry: None
+    match_id: str
+    matches: list = field(default_factory=list)
+    gt_consolidate_count: int = 0
 
-    # keep_key : [keep entry, [collap matches], match_id, gt_consolidate_count]
-    ret = {}
-    # collap_key : keep_key
-    chain_lookup = {}
+    def combine(self, other):
+        """
+        Put other's entries into this' collapsed_entries
+        """
+        self.matches.append(other.entry)
+        self.matches.extend(other.matches)
 
-    call_id = -1
-    while calls:
-        call_id += 1
-        # Take the first variant
-        cur_keep_candidate = calls.pop(0)
-        keep_key = truvari.entry_to_key(cur_keep_candidate)
-        # if chain, any matches we find will be added to a previous keep
-        if matcher.chain and keep_key in chain_lookup:
-            keep_key = chain_lookup[keep_key]
-        else:  # otherwise, this is assumed to be a keep call
-            ret[keep_key] = [cur_keep_candidate,
-                             [], f'{chunk_id}.{call_id}', 0]
+    def calc_median_sizepos(self):
+        """
+        Given a set of variants, calculate the median start, end, and size
+        """
+        st, en = truvari.entry_boundaries(self.entry)
+        sz = truvari.entry_size(self.entry)
+        starts = [st]
+        ends = [en]
+        sizes = [sz]
+        for i in self.matches:
+            st, en = truvari.entry_boundaries(i.comp)
+            sz = truvari.entry_size(i.comp)
+            starts.append(st)
+            ends.append(en)
+            sizes.append(sz)
+        return int(statistics.median(starts)), int(statistics.median(ends)), int(statistics.median(sizes))
 
-        # Separate calls collapsing with this keep from the rest
-        remaining_calls = []
-        for cur_collapse_candidate in calls:
-            mat = matcher.build_match(cur_keep_candidate,
-                                      cur_collapse_candidate,
-                                      ret[keep_key][2],
+    def annotate_entry(self, header, med_info):
+        """
+        Edit an entry that's going to be collapsed into another entry
+        """
+        self.entry.translate(header)
+        self.entry.info["NumCollapsed"] = len(self.matches)
+        self.entry.info["NumConsolidated"] = self.gt_consolidate_count
+        self.entry.info["CollapseId"] = self.match_id
+        if med_info:
+            self.entry.info["CollapseStart"], self.entry.info["CollapseEnd"], self.entry.info["CollapseSize"] = self.calc_median_sizepos()
+
+
+def chain_collapse(cur_collapse, all_collapse, matcher):
+    """
+    Perform transitive matching of cur_collapse to all_collapse
+    """
+    for m_collap in all_collapse:
+        for other in m_collap.matches:
+            mat = matcher.build_match(cur_collapse.entry,
+                                      other.base,
+                                      m_collap.match_id,
                                       skip_gt=True,
                                       short_circuit=True)
-            if matcher.hap and not hap_resolve(cur_keep_candidate, cur_collapse_candidate):
-                mat.state = False
-            # to collapse
             if mat.state:
-                if matcher.chain:
-                    # need to record for downstream
-                    collap_key = truvari.entry_to_key(cur_collapse_candidate)
-                    chain_lookup[collap_key] = keep_key
-                    remaining_calls.append(cur_collapse_candidate)
-                ret[keep_key][1].append(mat)
+                m_collap.consolidate(cur_collapse)
+                return True  # you can just ignore it later
+    return False  # You'll have to add it to your set of collapsed calls
+
+
+def collapse_chunk(chunk, matcher):
+    """
+    Returns a list of lists with [keep entry, collap matches, match_id, gt_consolidate_count]
+    """
+    chunk_dict, chunk_id = chunk
+    remaining_calls = sorted(chunk_dict['base'], key=matcher.sorter)
+
+    remaining_calls.sort(key=matcher.sorter)
+    call_id = -1
+    ret = []  # list of Collapses
+    while remaining_calls:
+        call_id += 1
+        m_collap = CollapsedCalls(remaining_calls.pop(0),
+                                  f'{chunk_id}.{call_id}')
+        unmatched = []
+        for candidate in remaining_calls:
+            mat = matcher.build_match(m_collap.entry,
+                                      candidate,
+                                      m_collap.match_id,
+                                      skip_gt=True,
+                                      short_circuit=True)
+            if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
+                mat.state = False
+            if matcher.gt and not gt_resolve(m_collap.entry, candidate):
+                mat.state = False
+            if mat.state:
+                m_collap.matches.append(mat)
             else:
-                remaining_calls.append(cur_collapse_candidate)
+                unmatched.append(candidate)
 
-        # Only put in the single best match
-        # Leave the others to be handled later
-        if matcher.hap and ret[keep_key][1]:
-            mats = sorted(ret[keep_key][1], reverse=True)
-            ret[keep_key][1] = [mats.pop(0)]
+        # Does this collap need to go into a previous collap?
+        if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
+            ret.append(m_collap)
+
+        remaining_calls = unmatched
+        # If hap, only allow the best match
+        if matcher.hap and m_collap.matches:
+            mats = sorted(m_collap.matches, reverse=True)
+            m_collap.matches = [mats.pop(0)]
             remaining_calls.extend(mat.comp for mat in mats)
-
-        calls = remaining_calls
-
     if matcher.no_consolidate:
-        for val in ret.values():
-            edited_entry, collapse_cnt = collapse_into_entry(
-                val[0], val[1], matcher.hap)
-            val[0] = edited_entry
-            val[3] = collapse_cnt
+        for val in ret:
+            if matcher.gt:
+                edited_entry, collapse_cnt = super_consolidate(val.entry, val.matches)
+            else:
+                edited_entry, collapse_cnt = collapse_into_entry(
+                    val.entry, val.matches, matcher.hap)
+            val.entry = edited_entry
+            val.gt_consolidate_count = collapse_cnt
 
-    ret = list(ret.values())
     for i in chunk_dict['__filtered']:
-        ret.append([i, None, None, 0])
-    ret.sort(key=cmp_to_key(lambda x, y: x[0].pos - y[0].pos))
+        ret.append(CollapsedCalls(i, None))
+    ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
 
@@ -103,25 +151,26 @@ def collapse_into_entry(entry, others, hap_mode=False):
     # We'll populate with the most similar, first
     others.sort(reverse=True)
     # I have a special case of --hap. I need to allow hets
-    replace_gts = ["UNK", "REF", "NON"]
+    replace_gts = [truvari.GT.REF, truvari.GT.NON, truvari.GT.UNK]
     if hap_mode:
-        replace_gts.append("HET")
+        replace_gts.insert(1, truvari.GT.HET)
 
     # Each sample of this entry needs to be checked/set
     n_consolidate = 0
     for sample in entry.samples:
-        m_gt = truvari.get_gt(entry.samples[sample]["GT"]).name
+        m_gt = truvari.get_gt(entry.samples[sample]["GT"])
         if m_gt not in replace_gts:
             continue  # already set
         n_idx = None
+        o_gt = None
         for pos, o_entry in enumerate(others):
             o_entry = o_entry.comp
-            o_gt = truvari.get_gt(o_entry.samples[sample]["GT"]).name
+            o_gt = truvari.get_gt(o_entry.samples[sample]["GT"])
             if o_gt not in replace_gts:
                 n_idx = pos
                 break  # this is the first other that's set
         # consolidate
-        if hap_mode and m_gt == "HET":
+        if hap_mode and m_gt == truvari.GT.HET and o_gt == truvari.GT.HET:
             entry.samples[sample]["GT"] = (1, 1)
             n_consolidate += 1
         elif n_idx is not None:
@@ -142,8 +191,78 @@ def collapse_into_entry(entry, others, hap_mode=False):
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
                                   o_entry.pos, o_entry.id)
+            # pass along phase
+            entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
+def get_ac(gt):
+    """
+    Helper method to get allele count. assumes only 1s as ALT
+    """
+    return sum(1 for _ in gt if _ == 1)
+
+def get_none(entry, key):
+    """
+    Make a none_tuple for a format
+    """
+    cnt = entry.header.formats[key].number
+    if cnt in [1, 'A', '.']:
+        return None
+    if cnt == 'R':
+        return (None, None)
+    return (None, None, None)
+
+def fmt_none(value):
+    """
+    Checks all values in a format field for nones
+    """
+    if isinstance(value, tuple):
+        for i in value:
+            if i is not None:
+                return value
+        return None
+    return value
+
+def super_consolidate(entry, others):
+    """
+    All formats are consolidated (first one taken)
+    And two hets consolidated become hom
+    Phase is lost
+    """
+    if not others:
+        return entry, 0
+    all_fmts = set(entry.samples[0].keys())
+    for i in others:
+        all_fmts.update(i.comp.samples[0].keys())
+    all_fmts.remove('GT')
+    all_fmts = sorted(list(all_fmts))
+    n_consolidated = 0
+    for sample in entry.samples:
+        new_fmts = {"GT":0}
+        new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
+        for k in all_fmts:
+            new_fmts[k] = None if k not in entry.samples.keys() else entry.samples[sample][k]
+        for o in others:
+            o = o.comp
+            n_c = get_ac(o.samples[sample]['GT'])
+            n_consolidated += 1 if n_c != 0 else 0
+            new_fmts['GT'] += n_c
+            for k in all_fmts:
+                rpl_val = None if k not in o.samples[sample] else fmt_none(o.samples[sample][k])
+                if not (k in new_fmts and new_fmts[k] is not None)  and rpl_val:
+                    new_fmts[k] = o.samples[sample][k]
+        if new_fmts['GT'] == 0:
+            new_fmts['GT'] = (0, 0)
+        elif new_fmts['GT'] == 1:
+            new_fmts['GT'] = (0, 1)
+        else:
+            new_fmts['GT'] = (1, 1)
+        for key in all_fmts:
+            val = new_fmts[key]
+            if val is None:
+                val = get_none(entry, key)
+            entry.samples[sample][key] = val
+    return entry, n_consolidated
 
 def hap_resolve(entryA, entryB):
     """
@@ -158,6 +277,29 @@ def hap_resolve(entryA, entryB):
     if gtA == gtB:
         return False
     return True
+
+def gt_resolve(entryA, entryB):
+    """
+    Returns true if the calls' genotypes suggest it shouldn't be collapsed
+    i.e. if both are HOM
+    """
+    def compat_phase(a, b):
+        if None in a or None in b:
+            return False # nothing preventing it
+        if a == b: # can't collapse same phase
+            return True
+        return False
+
+    for sample in entryA.samples:
+        gtA = entryA.samples[sample]["GT"]
+        gtB = entryB.samples[sample]["GT"]
+        if (gtA == (1, 1) and None not in gtB) \
+        or (gtB == (1, 1) and None not in gtA):
+            return False
+        if entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
+            return False
+    return True
+
 
 
 def sort_length(b1, b2):
@@ -241,18 +383,6 @@ def edit_header(my_vcf, median_info=False):
     return header
 
 
-def annotate_entry(entry, n_collap, n_consol, match_id, med_info, header):
-    """
-    Edit an entry that's going to be collapsed into another entry
-    """
-    entry.translate(header)
-    entry.info["NumCollapsed"] = n_collap
-    entry.info["NumConsolidated"] = n_consol
-    entry.info["CollapseId"] = match_id
-    if med_info:
-        entry.info["CollapseStart"], entry.info["CollapseEnd"], entry.info["CollapseSize"] = med_info
-
-
 ##################
 # Args & Outputs #
 ##################
@@ -272,6 +402,10 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("--gt", action="store_true",
+                        help="Disallow intra-sample homozygous events to collapse (%(default)s)")
+    parser.add_argument("--intra", action="store_true",
+                        help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -343,105 +477,146 @@ def check_params(args):
         logging.error("Using --hap must use --keep first")
     return check_fail
 
-
-def build_collapse_matcher(args):
+class IntraMergeOutput():
     """
-    The matcher collapse needs isn't 100% identical to bench
-    So set it up for us here
+    Output writer that consolidates into the first sample
     """
-    args.chunksize = args.refdist
-    args.bSample = None
-    args.cSample = None
-    args.sizefilt = args.sizemin
-    args.no_ref = False
-    matcher = truvari.Matcher(args=args)
-    matcher.params.includebed = None
-    matcher.keep = args.keep
-    matcher.hap = args.hap
-    matcher.chain = args.chain
-    matcher.sorter = SORTS[args.keep]
-    matcher.no_consolidate = args.no_consolidate
-    matcher.picker = 'single'
+    def __init__(self, fn, header):
+        self.fn = fn
+        self.header = header
+        if self.fn.endswith(".gz"):
+            self.fh = gzip.GzipFile(self.fn, 'wb')
+            self.isgz = True
+        else:
+            self.fh = open(self.fn, 'w') #pylint: disable=consider-using-with
+            self.isgz = False
 
-    return matcher
+        self.make_header()
 
+    def make_header(self):
+        """
+        Writes intramerge header
+        """
+        self.header.add_line('##FORMAT=<ID=SUPP,Number=1,Type=Integer,Description="Truvari collapse support flag">')
+        for line in str(self.header).strip().split('\n'):
+            if line.startswith("##"):
+                self.write(line + '\n')
+            elif line.startswith("#"):
+                # new format and sample change
+                data = line.strip().split('\t')[:10]
+                self.write("\t".join(data) + '\n')
 
-def setup_outputs(args):
+    def consolidate(self, entry):
+        """
+        Consolidate information into the first sample
+        Returns a string
+        """
+        flag = 0
+        found_gt = False
+        needs_fill = set()
+        for k, v in entry.samples[0].items():
+            if fmt_none(v) is None:
+                needs_fill.add(k)
+        for idx, sample in enumerate(entry.samples):
+            fmt = entry.samples[sample]
+            if 1 in fmt['GT']:
+                if not found_gt:
+                    entry.samples[0]['GT'] = fmt['GT']
+                flag |= 2 ** idx
+            was_filled = set()
+            for k in needs_fill:
+                if fmt_none(fmt[k]) is not None:
+                    entry.samples[0][k] = fmt[k]
+                    was_filled.add(k)
+            needs_fill -= was_filled
+        entry.translate(self.header)
+        entry.samples[0]['SUPP'] = flag
+        return "\t".join(str(entry).split('\t')[:10]) + '\n'
+
+    def write(self, entry):
+        """
+        Writes header (str) or entries (VariantRecords)
+        """
+        if isinstance(entry, pysam.VariantRecord):
+            entry = self.consolidate(entry)
+        if self.isgz:
+            entry = entry.encode()
+        self.fh.write(entry)
+
+    def close(self):
+        """
+        Close the file handle
+        """
+        self.fh.close()
+
+class CollapseOutput(dict):
     """
-    Makes all of the output files for collapse
-
-    returns a dictionary holding outputs
+    Output writer for collapse
     """
-    truvari.setup_logging(args.debug, show_version=True)
-    logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
-    outputs = {}
+    def __init__(self, args):
+        """
+        Makes all of the output files for collapse
+        """
+        super().__init__()
+        truvari.setup_logging(args.debug, show_version=True)
+        logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
-    in_vcf = pysam.VariantFile(args.input)
-    outputs["o_header"] = edit_header(in_vcf, args.median_info)
-    outputs["c_header"] = trubench.edit_header(in_vcf)
-    num_samps = len(outputs["o_header"].samples)
-    if args.hap and num_samps != 1:
-        logging.error(
-            "--hap mode requires exactly one sample. Found %d", num_samps)
-        sys.exit(100)
-    outputs["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                              header=outputs["o_header"])
-    outputs["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
-                                              header=outputs["c_header"])
-    outputs["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
-                            "out_cnt": 0, "consol_cnt": 0}
-    return outputs
+        in_vcf = pysam.VariantFile(args.input)
+        self["o_header"] = edit_header(in_vcf, args.median_info)
+        self["c_header"] = trubench.edit_header(in_vcf)
+        num_samps = len(self["o_header"].samples)
+        if args.hap and num_samps != 1:
+            logging.error(
+                "--hap mode requires exactly one sample. Found %d", num_samps)
+            sys.exit(100)
+        if args.intra:
+            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
+        else:
+            self["output_vcf"] = pysam.VariantFile(args.output, 'w',
+                                                   header=self["o_header"])
+        self["collap_vcf"] = pysam.VariantFile(args.collapsed_output, 'w',
+                                               header=self["c_header"])
+        self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
+                             "out_cnt": 0, "consol_cnt": 0}
 
+    def write(self, collap, median_info=False):
+        """
+        Annotate and write kept/collapsed calls to appropriate files
+        colap is a CollapsedCalls
+        """
+        self["stats_box"]["out_cnt"] += 1
+        # Nothing collapsed, no need to annotate
+        if not collap.matches:
+            self["output_vcf"].write(collap.entry)
+            return
 
-def calc_median_sizepos(entry, collapsed):
-    """
-    Given a set of variants, calculate the median start, end, and size
-    """
-    st, en = truvari.entry_boundaries(entry)
-    sz = truvari.entry_size(entry)
-    starts = [st]
-    ends = [en]
-    sizes = [sz]
-    for i in collapsed:
-        st, en = truvari.entry_boundaries(i.comp)
-        sz = truvari.entry_size(i.comp)
-        starts.append(st)
-        ends.append(en)
-        sizes.append(sz)
-    return int(statistics.median(starts)), int(statistics.median(ends)), int(statistics.median(sizes))
+        collap.annotate_entry(self["o_header"], median_info)
 
+        self["output_vcf"].write(collap.entry)
+        self["stats_box"]["kept_cnt"] += 1
+        self["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
+        for match in collap.matches:
+            trubench.annotate_entry(match.comp, match, self["c_header"])
+            self["collap_vcf"].write(match.comp)
+            self['stats_box']["collap_cnt"] += 1
 
-def output_writer(to_collapse, outputs, median_info=False):
-    """
-    Annotate and write kept/collapsed calls to appropriate files
-    """
-    entry, collapsed, match_id, consol_cnt = to_collapse
-    # Save copying time
-    if not collapsed:
-        outputs["output_vcf"].write(entry)
-        outputs["stats_box"]["out_cnt"] += 1
-        return
+    def close(self):
+        """
+        Close all the files
+        """
+        self["output_vcf"].close()
+        self["collap_vcf"].close()
 
-    med_info = calc_median_sizepos(entry, collapsed) if median_info else None
-    annotate_entry(entry, len(collapsed), consol_cnt, match_id,
-                   med_info, outputs["o_header"])
-    outputs["output_vcf"].write(entry)
-    outputs["stats_box"]["out_cnt"] += 1
-    outputs["stats_box"]["kept_cnt"] += 1
-    outputs["stats_box"]["consol_cnt"] += consol_cnt
-    for match in collapsed:
-        trubench.annotate_entry(match.comp, match, outputs["c_header"])
-        outputs["collap_vcf"].write(match.comp)
-        outputs['stats_box']["collap_cnt"] += 1
-
-
-def close_outputs(outputs):
-    """
-    Close all the files
-    """
-    outputs["output_vcf"].close()
-    outputs["collap_vcf"].close()
+    def dump_log(self):
+        """
+        Log information collected during collapse
+        """
+        logging.info("Wrote %d Variants", self["stats_box"]["out_cnt"])
+        logging.info("%d variants collapsed into %d variants",
+                     self["stats_box"]["collap_cnt"], self["stats_box"]["kept_cnt"])
+        logging.info("%d samples' FORMAT fields consolidated",
+                     self["stats_box"]["consol_cnt"])
 
 
 def collapse_main(args):
@@ -453,20 +628,31 @@ def collapse_main(args):
     if check_params(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
+    # The matcher collapse needs isn't 100% identical to bench
+    # So we set it up here
+    args.chunksize = args.refdist
+    args.bSample = None
+    args.cSample = None
+    args.sizefilt = args.sizemin
+    args.no_ref = False
+    matcher = truvari.Matcher(args=args)
+    matcher.params.includebed = None
+    matcher.keep = args.keep
+    matcher.hap = args.hap
+    matcher.gt = args.gt
+    matcher.chain = args.chain
+    matcher.sorter = SORTS[args.keep]
+    matcher.no_consolidate = args.no_consolidate
+    matcher.picker = 'single'
 
-    matcher = build_collapse_matcher(args)
-    outputs = setup_outputs(args)
     base = pysam.VariantFile(args.input)
+    outputs = CollapseOutput(args)
 
     chunks = truvari.chunker(matcher, ('base', base))
-    m_colap = partial(collapse_chunk, matcher=matcher)
-    for call in itertools.chain.from_iterable(map(m_colap, chunks)):
-        output_writer(call, outputs, args.median_info)
+    m_collap = partial(collapse_chunk, matcher=matcher)
+    for call in itertools.chain.from_iterable(map(m_collap, chunks)):
+        outputs.write(call, args.median_info)
 
-    close_outputs(outputs)
-    logging.info("Wrote %d Variants", outputs["stats_box"]["out_cnt"])
-    logging.info("%d variants collapsed into %d variants",
-                 outputs["stats_box"]["collap_cnt"], outputs["stats_box"]["kept_cnt"])
-    logging.info("%d samples' FORMAT fields consolidated",
-                 outputs["stats_box"]["consol_cnt"])
+    outputs.close()
+    outputs.dump_log()
     logging.info("Finished collapse")

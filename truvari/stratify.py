@@ -92,8 +92,7 @@ def stratify_main(cmdargs):
     regions = pd.read_csv(args.regions, sep='\t', header=read_header)
     r_list = regions.to_numpy().tolist()  # the methods expect lists
     if os.path.isdir(args.in_vcf):
-        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)[
-            ["tpbase", "tp", "fn", "fp"]]
+        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)
     else:
         chroms = np.array([_[0] for _ in r_list])
         intvs = np.array([[_[1], _[2]] for _ in r_list])

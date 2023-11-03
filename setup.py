@@ -64,7 +64,7 @@ setup(
         "pywfa>=0.5.1",
         "rich>=12.5.1",
         "edlib>=1.3.9",
-        "pysam>=0.15.2",
+        "pysam>=0.22",
         "intervaltree>=3.0.2",
         "joblib>=1.2.0",
         "numpy>=1.23.3",
