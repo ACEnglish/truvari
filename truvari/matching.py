@@ -117,6 +117,7 @@ class Matcher():
         params.pick = 'single'
         params.ignore_monref = True
         params.check_multi = True
+        params.check_monref = True
         return params
 
     @staticmethod
