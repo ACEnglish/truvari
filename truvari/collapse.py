@@ -239,7 +239,18 @@ def super_consolidate(entry, others):
     n_consolidated = 0
     for sample in entry.samples:
         new_fmts = {"GT":0}
+        # Need to consolidate in non-none GT if it isn't present here
+        if None in entry.samples[sample]['GT']:
+            o_gt = None
+            i = 0
+            while o_gt is None and i < len(others):
+                replace_gt = others[i].comp.samples[sample]['GT']
+                if None not in replace_gt:
+                    o_gt = replace_gt
+                i += 1
+            entry.samples[sample]['GT'] = o_gt
         new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
+        # consolidate format fields
         for k in all_fmts:
             new_fmts[k] = None if k not in entry.samples.keys() else entry.samples[sample][k]
         for o in others:

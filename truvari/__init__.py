@@ -85,7 +85,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.2.0-rc'
+__version__ = '4.2.0-rc1'
 
 
 from truvari.annotations.af_calc import (
