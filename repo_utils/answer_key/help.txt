@@ -1,6 +1,6 @@
 usage: truvari [-h] CMD ...
 
-Truvari v4.2.0-rc Structural Variant Benchmarking and Annotation
+Truvari v4.2.0-rc1 Structural Variant Benchmarking and Annotation
 
 Available commands:
     bench         Performance metrics from comparison of two VCFs
