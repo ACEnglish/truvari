@@ -93,6 +93,7 @@ def incorporate(consensus_sequence, entry, correction):
     consensus_sequence[position:position + ref_len] = list(entry.alts[0])
     return correction + (alt_len - ref_len)
 
+
 def make_consensus(data, ref_fn):
     """
     Creates consensus sequence from variants
@@ -120,9 +121,9 @@ def make_consensus(data, ref_fn):
                 # Checks - doesn't overlap previous position
                 correction[1] = incorporate(haps[1], entry, correction[1])
         # turn into fasta.
-        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode()
+        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode(
+        )
     return ret
-
 
 
 def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
@@ -171,22 +172,6 @@ def fasta_reader(fa_str, name_entries=True):
     cur_entry.write(b'\n')
     cur_entry.seek(0)
     yield cur_name, cur_entry.read()
-
-
-def extract_haplotypes(data, ref_fn):
-    """
-    Deprecated - bcftools consensus isn't great
-    Given a data tuple of VCF, sample name, and prefix bool
-    Call bcftools consensus
-    Returns list of tuples [location, fastaentry] for every haplotype,
-    so locations are duplicated
-    """
-    vcf_fn, sample, prefix, hap = data
-    prefix = 'p:' if prefix else ''
-    cmd = (f"--sample {sample} --prefix {prefix}{sample}_{hap}_ "
-           f"-H{hap} -f {ref_fn} {vcf_fn}").split(' ')
-    # Can't return generator from process
-    return list(fasta_reader(bcftools.consensus(*cmd)))
 
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
