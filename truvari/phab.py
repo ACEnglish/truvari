@@ -81,27 +81,70 @@ def extract_reference(reg_fn, ref_fn):
     return out_fn
 
 
+def incorporate(consensus_sequence, entry, correction):
+    """
+    Incorporate a variant into a haplotype returning the new correction field
+    """
+    ref_len = len(entry.ref)
+    alt_len = len(entry.alts[0]) if entry.alts else 0
+    if entry.alts[0] == '*':
+        return correction
+    position = entry.pos + correction
+    consensus_sequence[position:position + ref_len] = list(entry.alts[0])
+    return correction + (alt_len - ref_len)
+
+
+def make_consensus(data, ref_fn):
+    """
+    Creates consensus sequence from variants
+    """
+    vcf_fn, sample, prefix = data
+    reference = pysam.FastaFile(ref_fn)
+    vcf = pysam.VariantFile(vcf_fn)
+    o_samp = 'p:' + sample if prefix else sample
+    ret = {}
+    for ref in list(reference.references):
+        chrom, start, end = re.split(':|-', ref)
+        start = int(start)
+        end = int(end)
+        sequence = reference.fetch(ref)
+        haps = (list(sequence), list(sequence))
+        correction = [-start, -start]
+        for entry in vcf.fetch(chrom, start, end):
+            # Variant must be within boundaries
+            if entry.start < start or entry.stop > end:
+                continue
+            if entry.samples[sample]['GT'][0] == 1:
+                # Checks - doesn't overlap previous position
+                correction[0] = incorporate(haps[0], entry, correction[0])
+            if entry.samples[sample]['GT'][1] == 1:
+                # Checks - doesn't overlap previous position
+                correction[1] = incorporate(haps[1], entry, correction[1])
+        # turn into fasta.
+        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode(
+        )
+    return ret
+
+
 def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
     """
     Sets up sample parameters for extract haplotypes
-    returns list of tuple of (VCF, sample_name, should_prefix, haplotype_number) and the sample names
+    returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
     to expect in the haplotypes' fasta
     """
     ret = []
     if bSamples is None:
         bSamples = list(pysam.VariantFile(base_vcf).header.samples)
-    for hap in [1, 2]:
-        ret.extend([(base_vcf, samp, False, hap) for samp in bSamples])
+    ret.extend([(base_vcf, samp, False) for samp in bSamples])
 
     if comp_vcf:
         if cSamples is None:
             cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
-        for hap in [1, 2]:
-            ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples, hap)
-                        for samp in cSamples])
+        ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples)
+                    for samp in cSamples])
 
     samp_names = sorted({('p:' if prefix else '') + samp
-                         for _, samp, prefix, _ in ret})
+                         for _, samp, prefix in ret})
     return ret, samp_names
 
 
@@ -131,30 +174,15 @@ def fasta_reader(fa_str, name_entries=True):
     yield cur_name, cur_entry.read()
 
 
-def extract_haplotypes(data, ref_fn):
-    """
-    Given a data tuple of VCF, sample name, and prefix bool
-    Call bcftools consensus
-    Returns list of tuples [location, fastaentry] for every haplotype,
-    so locations are duplicated
-    """
-    vcf_fn, sample, prefix, hap = data
-    prefix = 'p:' if prefix else ''
-    cmd = (f"--sample {sample} --prefix {prefix}{sample}_{hap}_ "
-           f"-H{hap} -f {ref_fn} {vcf_fn}").split(' ')
-    # Can't return generator from process
-    return list(fasta_reader(bcftools.consensus(*cmd)))
-
-
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
     Calls extract haplotypes for every hap_job
     """
     all_haps = defaultdict(BytesIO)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        to_call = partial(extract_haplotypes, ref_fn=ref_haps_fn)
-        for haplotype in pool.imap(to_call, hap_jobs):
-            for location, fasta_entry in haplotype:
+        to_call = partial(make_consensus, ref_fn=ref_haps_fn)
+        for haplotypes in pool.imap(to_call, hap_jobs):
+            for location, fasta_entry in haplotypes.items():
                 all_haps[location].write(fasta_entry)
         pool.close()
         pool.join()
@@ -308,10 +336,13 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
+    # Haplotype jobs is now simplier (1 and 2 are made together)
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
+    # and all of this can be simplified
     sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
+    # and I can actually probably not double dip in the reference sequence?
     harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
 
     logging.info("Harmonizing variants")

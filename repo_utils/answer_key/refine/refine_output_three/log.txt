@@ -1,6 +1,6 @@
-2023-11-01 14:06:18,612 [INFO] Truvari v4.1.1.dev0+a08d9a7.uc
-2023-11-01 14:06:18,613 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_three
-2023-11-01 14:06:18,614 [INFO] Params:
+2023-12-19 15:34:12,422 [INFO] Truvari v4.2.0rc1
+2023-12-19 15:34:12,423 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_three
+2023-12-19 15:34:12,425 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
@@ -28,10 +28,10 @@
     "check_monref": true,
     "check_multi": true
 }
-2023-11-01 14:06:18,683 [INFO] Including 225 bed regions
-2023-11-01 14:06:20,271 [INFO] Zipped 7158 variants Counter({'comp': 5303, 'base': 1855})
-2023-11-01 14:06:20,272 [INFO] 212 chunks of 7158 variants Counter({'__filtered': 6120, 'base': 587, 'comp': 451})
-2023-11-01 14:06:20,478 [INFO] Stats: {
+2023-12-19 15:34:12,508 [INFO] Including 225 bed regions
+2023-12-19 15:34:14,248 [INFO] Zipped 7158 variants Counter({'comp': 5303, 'base': 1855})
+2023-12-19 15:34:14,250 [INFO] 212 chunks of 7158 variants Counter({'__filtered': 6120, 'base': 587, 'comp': 451})
+2023-12-19 15:34:14,462 [INFO] Stats: {
     "TP-base": 387,
     "TP-comp": 387,
     "FP": 64,
@@ -83,4 +83,4 @@
         }
     }
 }
-2023-11-01 14:06:20,479 [INFO] Finished bench
+2023-12-19 15:34:14,463 [INFO] Finished bench
