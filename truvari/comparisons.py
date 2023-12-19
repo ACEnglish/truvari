@@ -199,8 +199,10 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
 
     a_seq = entryA.ref if entry_variant_type(
         entryA) == truvari.SV.DEL else entryA.alts[0]
+    a_seq = a_seq.upper()
     b_seq = entryB.ref if entry_variant_type(
         entryB) == truvari.SV.DEL else entryB.alts[0]
+    b_seq = b_seq.upper()
     st_dist, ed_dist = entry_distance(entryA, entryB)
 
     if st_dist == 0 or ed_dist == 0:
