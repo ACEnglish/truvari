@@ -106,7 +106,7 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
-            if matcher.gt and not gt_resolve(m_collap.entry, candidate):
+            if mat.state and matcher.gt and not gt_resolve(m_collap.entry, candidate):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -302,8 +302,8 @@ def gt_resolve(entryA, entryB):
         return False
 
     for sample in entryA.samples:
-        gtA = entryA.samples[sample]["GT"]
-        gtB = entryB.samples[sample]["GT"]
+        gtA = entryA.samples[sample].allele_indices
+        gtB = entryB.samples[sample].allele_indices
         if (gtA == (1, 1) and None not in gtB) \
         or (gtB == (1, 1) and None not in gtA):
             return False

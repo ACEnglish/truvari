@@ -13,7 +13,7 @@ from functools import partial
 from collections import defaultdict
 
 import pysam
-from pysam import bcftools, samtools
+from pysam import samtools
 from intervaltree import IntervalTree
 from pywfa.align import WavefrontAligner  # pylint: disable=no-name-in-module
 import truvari
