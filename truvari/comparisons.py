@@ -213,11 +213,15 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
             entryA, entryB, ref, min_len=min_len)
         return seqsim(allele1, allele2)
 
+    # Directionality of rolling makes a difference
     if st_dist < 0:
-        # Should entertain this idea. Not always the case that shifted svs are rollable
-        # return max(seqsim(a_seq, b_seq), unroll_compare(a_seq, b_seq, st_dist % len(b_seq)))
-        return unroll_compare(a_seq, b_seq, -st_dist)
-    return unroll_compare(b_seq, a_seq, st_dist)
+        st_dist *= -1
+    else:
+        a_seq, b_seq = b_seq, a_seq
+    
+    # Roll both ends and compute direct similarity
+    # Whichever is highest is how similar these sequences can be
+    return max(unroll_compare(a_seq, b_seq, st_dist), unroll_compare(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
 
 
 def entry_reciprocal_overlap(entry1, entry2):
@@ -570,11 +574,11 @@ def unroll_compare(seqA, seqB, p):
     Unroll two sequences and compare.
     See https://gist.github.com/ACEnglish/1e7421c46ee10c71bee4c03982e5df6c for details
 
-    :param `seqA`: sequence
+    :param `seqA`: sequence upstream sequence
     :type `seqA`: string
-    :param `seqB`: sequence
+    :param `seqB`: sequence downstream sequence
     :type `seqB`: string
-    :param `p`: positional difference of A from B
+    :param `p`: how many bases upstream seqA is from seqB
     :type `p`: integer
 
     :return: sequence similarity of seqA vs seqB after unrolling
