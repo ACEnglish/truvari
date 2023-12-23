@@ -302,7 +302,7 @@ def chunker(matcher, *files):
     call_counts = Counter()
     chunk_count = 0
     cur_chrom = None
-    cur_end = None
+    cur_end = 0
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
@@ -321,12 +321,12 @@ def chunker(matcher, *files):
             yield cur_chunk, chunk_count
             # Reset
             cur_chrom = None
-            cur_end = None
+            cur_end = 0
             cur_chunk = defaultdict(list)
 
         cur_chrom = entry.chrom
         if not matcher.filter_call(entry, key == 'base'):
-            cur_end = entry.stop
+            cur_end = max(entry.stop, cur_end)
             cur_chunk[key].append(entry)
             call_counts[key] += 1
         else:

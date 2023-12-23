@@ -218,7 +218,7 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
         st_dist *= -1
     else:
         a_seq, b_seq = b_seq, a_seq
-    
+
     # Roll both ends and compute direct similarity
     # Whichever is highest is how similar these sequences can be
     return max(unroll_compare(a_seq, b_seq, st_dist), unroll_compare(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))

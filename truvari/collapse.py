@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
 import pysam
+from intervaltree import IntervalTree
 
 import truvari
 import truvari.bench as trubench
@@ -629,6 +630,24 @@ class CollapseOutput(dict):
         logging.info("%d samples' FORMAT fields consolidated",
                      self["stats_box"]["consol_cnt"])
 
+def tree_chunker(matcher, chunks):
+    """
+    If there are too many variants, try to break them apart
+    Needs to return the same thing as a chunker
+    """
+    chunk_count =  0
+    for chunk, _ in chunks:
+        tree = IntervalTree()
+        yield {'__filtered': chunk['__filtered'], 'base':[]}, chunk_count
+        for entry in chunk['base']:
+            # How much smaller/larger would be in sizesim?
+            sz = truvari.entry_size(entry)
+            diff = sz * (1 - matcher.params.pctsize)
+            tree.addi(sz - diff, sz + diff, data=[entry])
+        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+        for intv in tree:
+            chunk_count += 1
+            yield {'base':intv.data, '__filtered':[]}, chunk_count
 
 def collapse_main(args):
     """
@@ -660,8 +679,9 @@ def collapse_main(args):
     outputs = CollapseOutput(args)
 
     chunks = truvari.chunker(matcher, ('base', base))
+    smaller_chunks = tree_chunker(matcher, chunks)
     m_collap = partial(collapse_chunk, matcher=matcher)
-    for call in itertools.chain.from_iterable(map(m_collap, chunks)):
+    for call in itertools.chain.from_iterable(map(m_collap, smaller_chunks)):
         outputs.write(call, args.median_info)
 
     outputs.close()
