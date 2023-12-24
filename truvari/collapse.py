@@ -414,6 +414,8 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
+    parser.add_argument("--bed", type=str, default=None,
+                        help="Bed file of regions to analyze")
     parser.add_argument("--gt", action="store_true",
                         help="Disallow intra-sample homozygous events to collapse (%(default)s)")
     parser.add_argument("--intra", action="store_true",
@@ -571,7 +573,6 @@ class CollapseOutput(dict):
         Makes all of the output files for collapse
         """
         super().__init__()
-        truvari.setup_logging(args.debug, show_version=True)
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
         in_vcf = pysam.VariantFile(args.input)
@@ -630,20 +631,50 @@ class CollapseOutput(dict):
         logging.info("%d samples' FORMAT fields consolidated",
                      self["stats_box"]["consol_cnt"])
 
-def tree_chunker(matcher, chunks):
+def tree_size_chunker(matcher, chunks):
     """
-    If there are too many variants, try to break them apart
+    To reduce the number of variants in a chunk try to sub-chunk by size-similarity before hand
     Needs to return the same thing as a chunker
     """
     chunk_count =  0
     for chunk, _ in chunks:
+        if len(chunk['base']) < 100: # fewer than 100 is fine
+            chunk_count += 1
+            yield chunk, chunk_count
+            continue
         tree = IntervalTree()
         yield {'__filtered': chunk['__filtered'], 'base':[]}, chunk_count
         for entry in chunk['base']:
             # How much smaller/larger would be in sizesim?
             sz = truvari.entry_size(entry)
             diff = sz * (1 - matcher.params.pctsize)
+            if not matcher.params.typeignore:
+                sz *= -1 if truvari.entry_variant_type(entry) == truvari.SV.DEL else 1
             tree.addi(sz - diff, sz + diff, data=[entry])
+        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+        for intv in tree:
+            chunk_count += 1
+            yield {'base':intv.data, '__filtered':[]}, chunk_count
+
+def tree_dist_chunker(matcher, chunks):
+    """
+    To reduce the number of variants in a chunk try to sub-chunk by reference distance before hand
+    Needs to return the same thing as a chunker
+
+    """
+    chunk_count =  0
+    for chunk, _ in chunks:
+        if len(chunk['base']) < 100: # fewer than 100 is fine
+            chunk_count += 1
+            yield chunk, chunk_count
+            continue
+        tree = IntervalTree()
+        yield {'__filtered': chunk['__filtered'], 'base':[]}, chunk_count
+        for entry in chunk['base']:
+            st, ed = truvari.entry_boundaries(entry)
+            st -= matcher.params.refdist
+            ed += matcher.params.refdist
+            tree.addi(st, ed, data=[entry])
         tree.merge_overlaps(data_reducer=lambda x, y: x + y)
         for intv in tree:
             chunk_count += 1
@@ -658,6 +689,8 @@ def collapse_main(args):
     if check_params(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
+
+    truvari.setup_logging(args.debug, show_version=True)
     # The matcher collapse needs isn't 100% identical to bench
     # So we set it up here
     args.chunksize = args.refdist
@@ -676,12 +709,18 @@ def collapse_main(args):
     matcher.picker = 'single'
 
     base = pysam.VariantFile(args.input)
+    regions = truvari.RegionVCFIterator(base, includebed=args.bed)
+    regions.merge_overlaps()
+    base_i = regions.iterate(base)
     outputs = CollapseOutput(args)
 
-    chunks = truvari.chunker(matcher, ('base', base))
-    smaller_chunks = tree_chunker(matcher, chunks)
+
+    chunks = truvari.chunker(matcher, ('base', base_i))
+    smaller_chunks = tree_size_chunker(matcher, chunks)
+    even_smaller_chunks = tree_dist_chunker(matcher, smaller_chunks)
+
     m_collap = partial(collapse_chunk, matcher=matcher)
-    for call in itertools.chain.from_iterable(map(m_collap, smaller_chunks)):
+    for call in itertools.chain.from_iterable(map(m_collap, even_smaller_chunks)):
         outputs.write(call, args.median_info)
 
     outputs.close()
