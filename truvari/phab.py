@@ -117,7 +117,7 @@ def make_consensus(data, ref_fn):
             if entry.samples[sample]['GT'][0] == 1:
                 # Checks - doesn't overlap previous position
                 correction[0] = incorporate(haps[0], entry, correction[0])
-            if entry.samples[sample]['GT'][1] == 1:
+            if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
                 # Checks - doesn't overlap previous position
                 correction[1] = incorporate(haps[1], entry, correction[1])
         # turn into fasta.
