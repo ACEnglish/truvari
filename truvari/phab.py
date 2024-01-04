@@ -62,12 +62,17 @@ def merged_region_file(regions, buff=100):
         m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
 
     out_file_name = truvari.make_temp_filename()
+    n_reg = 0
     with open(out_file_name, 'w') as fout:
         for chrom in sorted(m_dict.keys()):
             intvs = IntervalTree.from_tuples(m_dict[chrom])
             intvs.merge_overlaps()
             for i in sorted(intvs):
                 fout.write(f"{chrom}:{i.begin}-{i.end}\n")
+                n_reg += 1
+    if n_reg == 0:
+        logging.critical("No regions to be refined. Exiting")
+        sys.exit(0)
     return out_file_name
 
 
