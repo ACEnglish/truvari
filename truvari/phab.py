@@ -94,6 +94,7 @@ def incorporate(consensus_sequence, entry, correction):
     alt_len = len(entry.alts[0]) if entry.alts else 0
     if entry.alts[0] == '*':
         return correction
+    # Need to check it doesn't overlap previous position
     position = entry.pos + correction
     consensus_sequence[position:position + ref_len] = list(entry.alts[0])
     return correction + (alt_len - ref_len)
@@ -120,14 +121,11 @@ def make_consensus(data, ref_fn):
             if entry.start < start or entry.stop > end:
                 continue
             if entry.samples[sample]['GT'][0] == 1:
-                # Checks - doesn't overlap previous position
                 correction[0] = incorporate(haps[0], entry, correction[0])
             if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
-                # Checks - doesn't overlap previous position
                 correction[1] = incorporate(haps[1], entry, correction[1])
         # turn into fasta.
-        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode(
-        )
+        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode()
     return ret
 
 

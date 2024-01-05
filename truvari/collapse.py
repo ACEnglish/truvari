@@ -127,7 +127,7 @@ def collapse_chunk(chunk, matcher):
     if matcher.no_consolidate:
         for val in ret:
             if matcher.gt:
-                edited_entry, collapse_cnt = super_consolidate(
+                edited_entry, collapse_cnt = gt_aware_consolidate(
                     val.entry, val.matches)
             else:
                 edited_entry, collapse_cnt = collapse_into_entry(
@@ -229,7 +229,7 @@ def fmt_none(value):
     return value
 
 
-def super_consolidate(entry, others):
+def gt_aware_consolidate(entry, others):
     """
     All formats are consolidated (first one taken)
     And two hets consolidated become hom
@@ -729,12 +729,12 @@ def collapse_main(args):
     regions = truvari.RegionVCFIterator(base, includebed=args.bed)
     regions.merge_overlaps()
     base_i = regions.iterate(base)
-    outputs = CollapseOutput(args)
 
     chunks = truvari.chunker(matcher, ('base', base_i))
     smaller_chunks = tree_size_chunker(matcher, chunks)
     even_smaller_chunks = tree_dist_chunker(matcher, smaller_chunks)
 
+    outputs = CollapseOutput(args)
     m_collap = partial(collapse_chunk, matcher=matcher)
     for call in itertools.chain.from_iterable(map(m_collap, even_smaller_chunks)):
         outputs.write(call, args.median_info)
