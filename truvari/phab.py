@@ -125,7 +125,8 @@ def make_consensus(data, ref_fn):
             if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
                 correction[1] = incorporate(haps[1], entry, correction[1])
         # turn into fasta.
-        ret[ref] = f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n>{o_samp}_2_{ref}\n{''.join(haps[1])}\n".encode()
+        ret[ref] = (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
+                    f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
     return ret
 
 
@@ -179,29 +180,23 @@ def fasta_reader(fa_str, name_entries=True):
 
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
-    Calls extract haplotypes for every hap_job
+    Calls extract haplotypes for every hap_job and the reference sequence
     """
     all_haps = defaultdict(BytesIO)
+    m_ref = pysam.FastaFile(ref_haps_fn)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
         to_call = partial(make_consensus, ref_fn=ref_haps_fn)
-        for haplotypes in pool.imap(to_call, hap_jobs):
+        for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
             for location, fasta_entry in haplotypes.items():
-                all_haps[location].write(fasta_entry)
+                cur = all_haps[location]
+                cur.write(fasta_entry)
+                if pos == len(hap_jobs) - 1: # ref/seek/read on last hap
+                    cur.write(f">ref_{location}\n{m_ref[location]}\n".encode())
+                    cur.seek(0)
+                    all_haps[location] = cur.read()
         pool.close()
         pool.join()
-    return all_haps
-
-
-def consolidate_haplotypes_with_reference(all_haps, ref_haps_fn):
-    """
-    Generator for putting the reference into the haplotypes
-    """
-    m_ref = pysam.FastaFile(ref_haps_fn)
-    for location in list(m_ref.references):
-        all_haps[location].write(
-            f">ref_{location}\n{m_ref[location]}\n".encode())
-        all_haps[location].seek(0)
-        yield all_haps[location].read()
+    return all_haps.values()
 
 
 def expand_cigar(seq, ref, cigar):
@@ -343,13 +338,10 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
-    # and all of this can be simplified
-    sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
-    # and I can actually probably not double dip in the reference sequence?
-    harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
+    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
 
     logging.info("Harmonizing variants")
-    harmonize_variants(harm_jobs, mafft_params, base_vcf,
+    harmonize_variants(haplotypes, mafft_params, base_vcf,
                        samp_names, output_fn, threads, method)
 # pylint: enable=too-many-arguments
 
