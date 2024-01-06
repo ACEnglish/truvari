@@ -13,6 +13,7 @@ from functools import partial
 from collections import defaultdict
 
 import pysam
+import pyabpoa
 from pysam import samtools
 from intervaltree import IntervalTree
 from pywfa.align import WavefrontAligner  # pylint: disable=no-name-in-module
@@ -269,6 +270,20 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         fasta[name] = sequence.decode()
     return truvari.msa2vcf(fasta)
 
+def poa_to_vars(seq_bytes):
+    """
+    Run partial order alignment to create msa
+    """
+    parts = []
+    for k,v in fasta_reader(seq_bytes.decode(), False):
+        s = v.decode().strip()
+        parts.append((len(s), s, k))
+    parts.sort()
+    _, seqs, names = zip(*parts)
+    aligner = pyabpoa.msa_aligner()
+    aln_result = aligner.msa(seqs, False, True)
+    return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
+
 
 def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method="mafft"):
     """
@@ -276,6 +291,8 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     """
     if method == "mafft":
         align_method = partial(mafft_to_vars, params=mafft_params)
+    elif method == "poa":
+        align_method = poa_to_vars
     else:
         align_method = wfa_to_vars
 
@@ -334,7 +351,6 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Extracting haplotypes")
     ref_haps_fn = extract_reference(region_fn, ref_fn)
-    # Haplotype jobs is now simplier (1 and 2 are made together)
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
@@ -374,8 +390,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
-                        help="Alignment method accurate (mafft) or fast (wfa) (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
+                        help="Alignment method accurate (mafft), fast (wfa), medium (poa) (%(default)s)")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
