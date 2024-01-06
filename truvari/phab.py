@@ -291,7 +291,7 @@ def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn,
     """
     if method == "mafft":
         align_method = partial(mafft_to_vars, params=mafft_params)
-    if method == "poa":
+    elif method == "poa":
         align_method = poa_to_vars
     else:
         align_method = wfa_to_vars
