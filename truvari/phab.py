@@ -274,10 +274,15 @@ def poa_to_vars(seq_bytes):
     """
     Run partial order alignment to create msa
     """
-    fasta = {k: v.decode() for k, v in fasta_reader(seq_bytes.decode(), False)}
+    parts = sorted(list(fasta_reader(seq_bytes.decode(), False)))
+    names = []
+    seqs = []
+    for k,v in parts:
+        names.append(k)
+        seqs.append(v.decode().strip())
     aligner = pyabpoa.msa_aligner()
-    aln_result = aligner.msa(fasta.values(), False, True)
-    return truvari.msa2vcf(dict(zip(fasta.keys(), aln_result.msa_seq)))
+    aln_result = aligner.msa(seqs, False, True)
+    return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
 
 
 def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method="mafft"):
