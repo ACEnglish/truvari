@@ -391,7 +391,7 @@ def entry_to_key(entry, prefix="", bounds=False):
     VCF when consolidating multiple files' calls. If bounds: call entry_boundaries for start/stop.
 
     .. warning::
-        If a caller redundantly calls a variant exactly the same. It will not have a unique key
+        If a caller redundantly calls a variant exactly the same it will not have a unique key
 
     :param `entry`: entry to stringify
     :type `entry`: :class:`pysam.VariantRecord`

@@ -70,6 +70,7 @@ setup(
         "numpy>=1.23.3",
         "pytabix>=0.1",
         "bwapy>=0.1.4",
-        "pandas>=1.4.4"
+        "pandas>=1.4.4",
+        "pyabpoa>=1.4.3",
     ],
 )
