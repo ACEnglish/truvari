@@ -144,7 +144,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> msa_dir = "repo_utils/test_files/external/fake_mafft/lookup/"
         >>> msa_file = "fm_ca43b50e2a5d770bb34202d8a7b62421.msa"
         >>> seqs = open(msa_dir + msa_file).read()
-        >>> fasta = {n:s.decode() for n, s in fasta_reader(seqs, False)}
+        >>> fasta = dict(fasta_reader(seqs))
         >>> m_entries_str = truvari.msa2vcf(fasta)
     """
     ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
