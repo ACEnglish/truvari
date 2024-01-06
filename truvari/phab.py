@@ -274,12 +274,12 @@ def poa_to_vars(seq_bytes):
     """
     Run partial order alignment to create msa
     """
-    parts = sorted(list(fasta_reader(seq_bytes.decode(), False)))
-    names = []
-    seqs = []
-    for k,v in parts:
-        names.append(k)
-        seqs.append(v.decode().strip())
+    parts = []
+    for k,v in fasta_reader(seq_bytes.decode(), False):
+        s = v.decode().strip()
+        parts.append((len(s), s, k))
+    parts.sort()
+    _, seqs, names = zip(*parts)
     aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, False, True)
     return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
