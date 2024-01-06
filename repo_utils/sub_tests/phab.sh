@@ -19,8 +19,7 @@ run test_phab_wfa $truv phab -o $OD/phab_result_wfa.vcf.gz \
                          -r chr1:700-900 --align wfa
 if [ $test_phab_wfa ]; then
     assert_exit_code 0
-    # poa isn't deterministic
-    #assert_equal $(fn_md5 $ANSDIR/phab/phab_result_wfa.vcf.gz) $(fn_md5 $OD/phab_result_wfa.vcf.gz)
+    assert_equal $(fn_md5 $ANSDIR/phab/phab_result_wfa.vcf.gz) $(fn_md5 $OD/phab_result_wfa.vcf.gz)
 fi
 
 run test_phab_poa $truv phab -o $OD/phab_result_poa.vcf.gz \
@@ -30,7 +29,8 @@ run test_phab_poa $truv phab -o $OD/phab_result_poa.vcf.gz \
                          -r chr1:700-900 --align poa
 if [ $test_phab_poa ]; then
     assert_exit_code 0
-    assert_equal $(fn_md5 $ANSDIR/phab/phab_result_poa.vcf.gz) $(fn_md5 $OD/phab_result_poa.vcf.gz)
+    # poa isn't deterministic
+    #assert_equal $(fn_md5 $ANSDIR/phab/phab_result_poa.vcf.gz) $(fn_md5 $OD/phab_result_poa.vcf.gz)
 fi
 
 
