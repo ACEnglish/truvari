@@ -8,8 +8,8 @@ import shutil
 import logging
 import argparse
 import multiprocessing
-from io import BytesIO, StringIO
 from functools import partial
+from io import BytesIO, StringIO
 from collections import defaultdict
 
 import pysam
@@ -184,7 +184,7 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
             for location, fasta_entry in haplotypes.items():
                 cur = all_haps[location]
                 cur.write(fasta_entry)
-                if pos == len(hap_jobs) - 1: # ref/seek/read on last hap
+                if pos == len(hap_jobs) - 1:  # ref/seek/read on last hap
                     cur.write(f">ref_{location}\n{m_ref[location]}\n".encode())
                     cur.seek(0)
                     all_haps[location] = cur.read()
@@ -216,7 +216,7 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
-def wfa_to_vars(seq_bytes):
+def run_wfa(seq_bytes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
@@ -224,7 +224,6 @@ def wfa_to_vars(seq_bytes):
     fasta = dict(fasta_reader(seq_bytes.decode()))
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
-
     aligner = WavefrontAligner(reference, span="end-to-end",
                                heuristic="adaptive")
     for haplotype in fasta:
@@ -232,12 +231,11 @@ def wfa_to_vars(seq_bytes):
             continue
         seq = fasta[haplotype]
         aligner.wavefront_align(seq)
-        assert aligner.status == 0
         fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
     return truvari.msa2vcf(fasta)
 
 
-def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
+def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
     """
@@ -247,8 +245,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes).hexdigest()
 
-    cmd = f"mafft --quiet {params} -"
-    ret = truvari.cmd_exe(cmd, stdin=seq_bytes)
+    ret = truvari.cmd_exe(f"mafft --quiet {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
@@ -261,12 +258,13 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     fasta = dict(fasta_reader(ret.stdout))
     return truvari.msa2vcf(fasta)
 
-def poa_to_vars(seq_bytes):
+
+def run_poa(seq_bytes):
     """
     Run partial order alignment to create msa
     """
     parts = []
-    for k,v in fasta_reader(seq_bytes.decode()):
+    for k, v in fasta_reader(seq_bytes.decode()):
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
     _, seqs, names = zip(*parts)
@@ -320,11 +318,11 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Harmonizing variants")
     if method == "mafft":
-        align_method = partial(mafft_to_vars, params=mafft_params)
+        align_method = partial(run_mafft, params=mafft_params)
     elif method == "wfa":
-        align_method = wfa_to_vars
+        align_method = run_wfa
     else:
-        align_method = poa_to_vars
+        align_method = run_poa
 
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
@@ -358,22 +356,22 @@ def parse_args(args):
                         help="Bed filename or comma-separated list of chrom:start-end regions to process")
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline vcf to MSA")
-    parser.add_argument("-c", "--comp", type=str, default=None,
-                        help="Comparison vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
-    parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
     parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
                         help="Output VCF")
-    parser.add_argument("--bSamples", type=str, default=None,
-                        help="Subset of samples to MSA from base-VCF")
-    parser.add_argument("--cSamples", type=str, default=None,
-                        help="Subset of samples to MSA from comp-VCF")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
-                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("--buffer", type=int, default=100,
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
     parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
                         help="Alignment method accurate (mafft), fast (wfa), medium (poa) (%(default)s)")
+    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("--bSamples", type=str, default=None,
+                        help="Subset of samples to MSA from base-VCF")
+    parser.add_argument("-c", "--comp", type=str, default=None,
+                        help="Comparison vcf to MSA")
+    parser.add_argument("--cSamples", type=str, default=None,
+                        help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
