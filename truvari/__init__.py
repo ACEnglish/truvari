@@ -51,6 +51,7 @@ Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
 :meth:`consolidate_phab_vcfs`
+:meth:`coord_distance`
 :meth:`count_entries`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
@@ -101,6 +102,7 @@ from truvari.bench import (
 )
 
 from truvari.comparisons import (
+    coord_distance,
     create_pos_haplotype,
     entry_boundaries,
     entry_distance,

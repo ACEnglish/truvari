@@ -82,8 +82,13 @@ def entry_distance(entryA, entryB):
     """
     astart, aend = entry_boundaries(entryA)
     bstart, bend = entry_boundaries(entryB)
-    return astart - bstart, aend - bend
+    return coord_distance(astart, aend, bstart, bend)
 
+def coord_distance(astart, aend, bstart, bend):
+    """
+    Return start and end distances
+    """
+    return astart - bstart, aend - bend
 
 def entry_gt_comp(entryA, entryB, sampleA=None, sampleB=None):
     """

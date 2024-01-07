@@ -223,7 +223,7 @@ class Matcher():
                 ret.comp_gt_count = sum(1 for _ in ret.comp_gt if _ == 1)
             ret.gt_match = abs(ret.base_gt_count - ret.comp_gt_count)
 
-        ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
+        ret.ovlpct = truvari.reciprocal_overlap(bstart, bend, cstart, cend)
         if ret.ovlpct < self.params.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
@@ -231,7 +231,6 @@ class Matcher():
             if short_circuit:
                 return ret
 
-        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
             ret.seqsim = truvari.entry_seq_similarity(
                 base, comp, self.reference, self.params.minhaplen)
@@ -244,6 +243,7 @@ class Matcher():
         else:
             ret.seqsim = 0
 
+        ret.st_dist, ret.ed_dist = truvari.coord_distance(bstart, bend, cstart, cend)
         ret.calc_score()
 
         return ret
