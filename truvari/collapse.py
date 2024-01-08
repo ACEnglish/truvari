@@ -107,7 +107,8 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
-            if mat.state and matcher.gt and not gt_resolve(m_collap.entry, candidate):
+            if mat.state and matcher.gt and not gt_compatible(m_collap.entry, candidate):
+                logging.debug("uncompat GT")
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -299,25 +300,15 @@ def hap_resolve(entryA, entryB):
     return True
 
 
-def gt_resolve(entryA, entryB):
+def gt_compatible(entryA, entryB):
     """
-    Returns true if the calls' genotypes suggest it shouldn't be collapsed
+    Returns false if the calls' genotypes suggest it shouldn't be collapsed
     i.e. if both are HOM
     """
-    def compat_phase(a, b):
-        if None in a or None in b:
-            return False  # nothing preventing it
-        if a == b:  # can't collapse same phase
-            return True
-        return False
-
     for sample in entryA.samples:
         gtA = entryA.samples[sample].allele_indices
         gtB = entryB.samples[sample].allele_indices
-        if (gtA == (1, 1) and None not in gtB) \
-                or (gtB == (1, 1) and None not in gtA):
-            return False
-        if entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
+        if 1 in gtA and 1 in gtB: # present in both, can't merge
             return False
     return True
 
@@ -425,7 +416,7 @@ def parse_args(args):
     parser.add_argument("--bed", type=str, default=None,
                         help="Bed file of regions to analyze")
     parser.add_argument("--gt", action="store_true",
-                        help="Disallow intra-sample homozygous events to collapse (%(default)s)")
+                        help="Disallow intra-sample events to collapse (%(default)s)")
     parser.add_argument("--intra", action="store_true",
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
