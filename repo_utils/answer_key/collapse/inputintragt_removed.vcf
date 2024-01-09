@@ -105,7 +105,7 @@
 ##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
 ##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
 ##INFO=<ID=GTMatch,Number=1,Type=Integer,Description="Base/Comparison genotypes AC difference">
-##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=MatchId,Number=.,Type=String,Description="Tuple of base and comparison call ids which were matched">
 ##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA24385	2:NA24385	3:NA24385
 chr18	79321	Sniffles2.DEL.22CS11	TACCTTAGCCCAGAGCTGTCCCTGAACCTCCACCCTGCTGTCCCCGGAGCTGCCCCTGAGCCTCCACCCTTAC	T	0	PASS	PRECISE;SVTYPE=DEL;SVLEN=-72;SUPPORT=2;COVERAGE=5,5,5,5,5;STRAND=+-;AF=0.4;STDEV_LEN=0;STDEV_POS=0;AC=1;PctSeqSimilarity=0.9932;PctSizeSimilarity=1;PctRecOverlap=0.9863;SizeDiff=0;StartDistance=-1;EndDistance=-1;GTMatch=.;TruScore=99;MatchId=6.1	GT:GQ:DR:DV	./.:.:.:.	0/1:11:3:2	./.:.:.:.

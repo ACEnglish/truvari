@@ -1,52 +1,51 @@
-2022-12-01 18:26:04,018 [INFO] Truvari v4.0.0.dev0+detached
-2022-12-01 18:26:04,019 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/beds/include.bed --extend 500
-2022-12-01 18:26:04,021 [INFO] Params:
+2024-01-09 03:55:00,430 [INFO] Truvari v4.2.0rc1
+2024-01-09 03:55:00,435 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13_extend/ --includebed repo_utils/test_files/beds/include.bed --extend 500
+2024-01-09 03:55:00,440 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
     "output": "test_results/bench13_extend/",
-    "reference": "/data/repo_utils/test_files/references/reference.fa",
+    "includebed": "/data/repo_utils/test_files/beds/include.bed",
+    "extend": 500,
     "debug": false,
-    "prog": false,
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
     "refdist": 500,
-    "pctsim": 0.7,
+    "pctseq": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
-    "dup_to_ins": false,
-    "use_lev": false,
     "chunksize": 1000,
-    "gtcomp": false,
     "bSample": "NA24385",
     "cSample": "HG00733",
+    "dup_to_ins": false,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
     "passonly": false,
     "no_ref": false,
-    "includebed": "/data/repo_utils/test_files/beds/include.bed",
-    "extend": 500,
-    "multimatch": false
+    "pick": "single",
+    "check_monref": true,
+    "check_multi": true
 }
-2022-12-01 18:26:04,070 [INFO] Including 11 bed regions
-2022-12-01 18:26:04,072 [INFO] Found 1 chromosomes with overlapping regions
-2022-12-01 18:26:04,072 [INFO] Extending the regions by 500 bases
-2022-12-01 18:26:04,075 [INFO] Found 1 chromosomes with overlapping regions
-2022-12-01 18:26:04,200 [INFO] Zipped 2050 variants Counter({'base': 1130, 'comp': 920})
-2022-12-01 18:26:04,201 [INFO] 11 chunks of 2050 variants Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
-2022-12-01 18:26:04,206 [INFO] Stats: {
+2024-01-09 03:55:00,493 [INFO] Including 11 bed regions
+2024-01-09 03:55:00,495 [INFO] Found 1 chromosomes with overlapping regions
+2024-01-09 03:55:00,495 [INFO] Extending the regions by 500 bases
+2024-01-09 03:55:00,498 [INFO] Found 1 chromosomes with overlapping regions
+2024-01-09 03:55:00,630 [INFO] Zipped 2050 variants Counter({'base': 1130, 'comp': 920})
+2024-01-09 03:55:00,631 [INFO] 11 chunks of 2050 variants Counter({'__filtered': 2025, 'comp': 15, 'base': 10})
+2024-01-09 03:55:00,739 [INFO] Stats: {
     "TP-base": 6,
-    "TP-call": 6,
+    "TP-comp": 6,
     "FP": 4,
     "FN": 4,
     "precision": 0.6,
     "recall": 0.6,
     "f1": 0.6,
     "base cnt": 10,
-    "call cnt": 10,
-    "TP-call_TP-gt": 4,
-    "TP-call_FP-gt": 2,
+    "comp cnt": 10,
+    "TP-comp_TP-gt": 4,
+    "TP-comp_FP-gt": 2,
     "TP-base_TP-gt": 4,
     "TP-base_FP-gt": 2,
     "gt_concordance": 0.6666666666666666,
@@ -62,6 +61,26 @@
         "(1, 0)": {
             "(1, 0)": 1
         }
+    },
+    "weighted": {
+        "sequence": {
+            "TP": 10.379399999976158,
+            "FP": 0.7681999802589417,
+            "FN": 1.355300024151802,
+            "precision": 0.9310883076517839,
+            "recall": 0.8845049280028342,
+            "f1": 0.9071990139100594,
+            "total": 12
+        },
+        "size": {
+            "TP": 9.563300028443336,
+            "FP": 1.6322999596595764,
+            "FN": 1.990599974989891,
+            "precision": 0.8542016540967744,
+            "recall": 0.827711857087357,
+            "f1": 0.840748151124317,
+            "total": 12
+        }
     }
 }
-2022-12-01 18:26:04,309 [INFO] Finished bench
+2024-01-09 03:55:00,741 [INFO] Finished bench

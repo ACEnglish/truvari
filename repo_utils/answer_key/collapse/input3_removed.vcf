@@ -43,7 +43,7 @@
 ##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
 ##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
 ##INFO=<ID=GTMatch,Number=1,Type=Integer,Description="Base/Comparison genotypes AC difference">
-##INFO=<ID=MatchId,Number=1,Type=String,Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">
+##INFO=<ID=MatchId,Number=.,Type=String,Description="Tuple of base and comparison call ids which were matched">
 ##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00733
 chr20	149073	.	G	GAATCCTGACCCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCA	60	.	QNAME=cluster23_scaffold_2;QSTART=25547471;QSTRAND=-;SVTYPE=INS;SVLEN=69;PctSeqSimilarity=0.9962;PctSizeSimilarity=1;PctRecOverlap=0.1304;SizeDiff=0;StartDistance=-60;EndDistance=-60;GTMatch=.;TruScore=70;MatchId=1.0	GT	0/1

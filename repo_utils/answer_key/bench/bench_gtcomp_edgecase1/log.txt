@@ -1,49 +1,48 @@
-2022-12-02 00:27:35,835 [INFO] Truvari v4.0.0.dev0+detached
-2022-12-02 00:27:35,836 [INFO] Command /usr/local/bin/truvari bench -b problem1_base.vcf.gz -c problem1_comp.vcf.gz --gtcomp -o bench/
-2022-12-02 00:27:35,837 [INFO] Params:
+2024-01-09 03:55:06,577 [INFO] Truvari v4.2.0rc1
+2024-01-09 03:55:06,578 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/gtcomp_problem1_base.vcf.gz -c repo_utils/test_files/variants/gtcomp_problem1_comp.vcf.gz --pick ac -o test_results/bench_gtcomp_edgecase1/
+2024-01-09 03:55:06,579 [INFO] Params:
 {
-    "base": "/data/temp/problem1_base.vcf.gz",
-    "comp": "/data/temp/problem1_comp.vcf.gz",
-    "output": "bench/",
-    "reference": null,
+    "base": "/data/repo_utils/test_files/variants/gtcomp_problem1_base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/gtcomp_problem1_comp.vcf.gz",
+    "output": "test_results/bench_gtcomp_edgecase1/",
+    "includebed": null,
+    "extend": 0,
     "debug": false,
-    "prog": false,
+    "reference": null,
     "refdist": 500,
-    "pctsim": 0.7,
+    "pctseq": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
-    "dup_to_ins": false,
-    "use_lev": false,
     "chunksize": 1000,
-    "gtcomp": true,
     "bSample": "HG002",
     "cSample": "HG002_30x.GRCh38.deepvariant.haplotagged",
+    "dup_to_ins": false,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
     "passonly": false,
     "no_ref": false,
-    "includebed": null,
-    "extend": 0,
-    "multimatch": false
+    "pick": "ac",
+    "check_monref": true,
+    "check_multi": true
 }
-2022-12-02 00:27:35,879 [WARNING] Excluding 171 contigs present in comparison calls header but not base calls.
-2022-12-02 00:27:35,920 [INFO] Zipped 4 variants Counter({'base': 2, 'comp': 2})
-2022-12-02 00:27:35,921 [INFO] 1 chunks of 4 variants Counter({'base': 2, 'comp': 2})
-2022-12-02 00:27:35,930 [INFO] Stats: {
+2024-01-09 03:55:06,627 [WARNING] Excluding 171 contigs present in comparison calls header but not baseline calls.
+2024-01-09 03:55:06,632 [INFO] Zipped 4 variants Counter({'base': 2, 'comp': 2})
+2024-01-09 03:55:06,632 [INFO] 1 chunks of 4 variants Counter({'base': 2, 'comp': 2})
+2024-01-09 03:55:06,749 [INFO] Stats: {
     "TP-base": 1,
-    "TP-call": 1,
+    "TP-comp": 1,
     "FP": 1,
     "FN": 1,
     "precision": 0.5,
     "recall": 0.5,
     "f1": 0.5,
     "base cnt": 2,
-    "call cnt": 2,
-    "TP-call_TP-gt": 0,
-    "TP-call_FP-gt": 1,
+    "comp cnt": 2,
+    "TP-comp_TP-gt": 0,
+    "TP-comp_FP-gt": 1,
     "TP-base_TP-gt": 0,
     "TP-base_FP-gt": 1,
     "gt_concordance": 0.0,
@@ -51,6 +50,26 @@
         "(1, 1)": {
             "(1, 0)": 1
         }
+    },
+    "weighted": {
+        "sequence": {
+            "TP": 1.4081999957561493,
+            "FP": 0.5918000042438507,
+            "FN": 0.5918000042438507,
+            "precision": 0.7040999978780746,
+            "recall": 0.7040999978780746,
+            "f1": 0.7040999978780746,
+            "total": 2
+        },
+        "size": {
+            "TP": 1.5,
+            "FP": 0.5,
+            "FN": 0.5,
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "total": 2
+        }
     }
 }
-2022-12-02 00:27:36,039 [INFO] Finished bench
+2024-01-09 03:55:06,750 [INFO] Finished bench

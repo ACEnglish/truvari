@@ -16,7 +16,7 @@ fi
 run test_vcf2df_dir $truv vcf2df -f -i -b -n $ANSDIR/bench/bench23/ $OD/truv2df.jl
 if [ $test_vcf2df_dir ]; then
     assert_exit_code 0
-    df_check test_vcf2df_dif $ANSDIR/vcf2df/truv2df.jl $OD/truv2df.jl
+    df_check test_vcf2df_dir $ANSDIR/vcf2df/truv2df.jl $OD/truv2df.jl
 fi
 
 run test_vcf2df_single $truv vcf2df -f -i -s NA12878 $INDIR/variants/input2.vcf.gz $OD/single_vcf2df.jl

@@ -1,6 +1,6 @@
-2023-12-23 20:12:24,236 [INFO] Truvari v4.2.0rc1
-2023-12-23 20:12:24,237 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/real_small_base.vcf.gz -c repo_utils/test_files/variants/real_small_comp.vcf.gz -o test_results/bench_unroll/
-2023-12-23 20:12:24,239 [INFO] Params:
+2024-01-09 03:55:02,460 [INFO] Truvari v4.2.0rc1
+2024-01-09 03:55:02,461 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/real_small_base.vcf.gz -c repo_utils/test_files/variants/real_small_comp.vcf.gz -o test_results/bench_unroll/
+2024-01-09 03:55:02,462 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/real_small_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/real_small_comp.vcf.gz",
@@ -28,9 +28,9 @@
     "check_monref": true,
     "check_multi": true
 }
-2023-12-23 20:12:24,328 [INFO] Zipped 71 variants Counter({'base': 43, 'comp': 28})
-2023-12-23 20:12:24,330 [INFO] 45 chunks of 71 variants Counter({'base': 43, 'comp': 28})
-2023-12-23 20:12:24,466 [INFO] Stats: {
+2024-01-09 03:55:02,537 [INFO] Zipped 71 variants Counter({'base': 43, 'comp': 28})
+2024-01-09 03:55:02,538 [INFO] 45 chunks of 71 variants Counter({'base': 43, 'comp': 28})
+2024-01-09 03:55:02,791 [INFO] Stats: {
     "TP-base": 18,
     "TP-comp": 18,
     "FP": 1,
@@ -77,4 +77,4 @@
         }
     }
 }
-2023-12-23 20:12:24,467 [INFO] Finished bench
+2024-01-09 03:55:02,791 [INFO] Finished bench

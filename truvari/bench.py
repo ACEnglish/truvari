@@ -201,8 +201,8 @@ def edit_header(my_vcf):
                      'Description="Difference in size of base and comp calls">'))
     header.add_line(('##INFO=<ID=GTMatch,Number=1,Type=Integer,'
                      'Description="Base/Comparison genotypes AC difference">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
-                     'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
+    header.add_line(('##INFO=<ID=MatchId,Number=.,Type=String,'
+                     'Description="Tuple of base and comparison call ids which were matched">'))
     header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
                      'Description="Call is false due to non-multimatching">'))
     return header
@@ -592,7 +592,7 @@ class Bench():
             for cid, c in enumerate(comp_variants):
                 ret = truvari.MatchResult()
                 ret.comp = c
-                ret.matid = f"{chunk_id}._.{cid}"
+                ret.matid = ["", f"{chunk_id}.{cid}"]
                 fps.append(ret)
                 logging.debug("All FP -> %s", ret)
             return fps
@@ -603,7 +603,7 @@ class Bench():
             for bid, b in enumerate(base_variants):
                 ret = truvari.MatchResult()
                 ret.base = b
-                ret.matid = f"{chunk_id}.{bid}._"
+                ret.matid = [f"{chunk_id}.{bid}", ""]
                 logging.debug("All FN -> %s", ret)
                 fns.append(ret)
             return fns
@@ -626,7 +626,7 @@ class Bench():
             base_matches = []
             for cid, c in enumerate(comp_variants):
                 mat = self.matcher.build_match(
-                    b, c, f"{chunk_id}.{bid}.{cid}", skip_gt)
+                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
