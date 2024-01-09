@@ -144,9 +144,11 @@ def entry_is_filtered(entry, values=None):
     return len(set(values).intersection(set(entry.filter))) == 0
 
 
-def entry_is_present(entry, sample=None):
+def entry_is_present(entry, sample=None, allow_missing=True):
     """
     Checks if entry's sample genotype is present and is heterozygous or homozygous (a.k.a. present)
+    If allow_missing, just check for a 1 in the genotype. Otherwise, a missing ('.') genotype isn't 
+    considered present
 
     :param `entry`: entry to check
     :type `entry`: :class:`pysam.VariantRecord`
@@ -165,6 +167,8 @@ def entry_is_present(entry, sample=None):
     """
     if sample is None:
         sample = entry.samples.keys()[0]
+    if allow_missing:
+        return 1 in entry.samples[sample]["GT"]
     return "GT" in entry.samples[sample] and \
            truvari.get_gt(entry.samples[sample]["GT"]) in [
         truvari.GT.HET, truvari.GT.HOM]

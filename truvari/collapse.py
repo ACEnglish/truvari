@@ -77,7 +77,8 @@ def chain_collapse(cur_collapse, all_collapse, matcher):
                                       other.base,
                                       m_collap.match_id,
                                       skip_gt=True,
-                                      short_circuit=True)
+                                      short_circuit=True,
+                                      gt_compat=matcher.gt)
             if mat.state:
                 m_collap.consolidate(cur_collapse)
                 return True  # you can just ignore it later
@@ -104,11 +105,9 @@ def collapse_chunk(chunk, matcher):
                                       candidate,
                                       m_collap.match_id,
                                       skip_gt=True,
-                                      short_circuit=True)
+                                      short_circuit=True,
+                                      gt_compat=matcher.gt)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
-                mat.state = False
-            if mat.state and matcher.gt and not gt_compatible(m_collap.entry, candidate):
-                logging.debug("uncompat GT")
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -246,7 +245,7 @@ def gt_aware_consolidate(entry, others):
     n_consolidated = 0
     for sample in entry.samples:
         new_fmts = {"GT": 0}
-        # Need to consolidate in non-none GT if it isn't present here
+        # Need to consolidate non-none GT if it isn't present here
         if None in entry.samples[sample]['GT']:
             o_gt = None
             i = 0
@@ -297,19 +296,6 @@ def hap_resolve(entryA, entryB):
         return False
     if gtA == gtB:
         return False
-    return True
-
-
-def gt_compatible(entryA, entryB):
-    """
-    Returns false if the calls' genotypes suggest it shouldn't be collapsed
-    i.e. if both are HOM
-    """
-    for sample in entryA.samples:
-        gtA = entryA.samples[sample].allele_indices
-        gtB = entryB.samples[sample].allele_indices
-        if 1 in gtA and 1 in gtB: # present in both, can't merge
-            return False
     return True
 
 
@@ -537,7 +523,10 @@ class IntraMergeOutput():
             fmt = entry.samples[sample]
             if 1 in fmt['GT']:
                 if not found_gt:
+                    phased = entry.samples[idx].phased
                     entry.samples[0]['GT'] = fmt['GT']
+                    entry.samples[0].phased = phased
+                    found_gt = True
                 flag |= 2 ** idx
             was_filled = set()
             for k in needs_fill:

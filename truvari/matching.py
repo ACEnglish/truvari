@@ -172,16 +172,19 @@ class Matcher():
 
         samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') and not truvari.entry_is_present(entry, samp):
+        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') \
+                and not truvari.entry_is_present(entry, samp):
             return True
 
         return False
 
-    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
+    # pylint: disable=too-many-statements
+    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False, gt_compat=False):
         """
         Build a MatchResult
         if skip_gt, don't do genotype comparison
         if short_circuit, return after first failure
+        if gt_compat, check that all genotypes are compatible for merging
         """
         ret = MatchResult()
         ret.base = base
@@ -243,10 +246,24 @@ class Matcher():
         else:
             ret.seqsim = 0
 
+        if gt_compat:
+            i = 0
+            samps = list(base.samples)
+            while i < len(samps) and ret.state:
+                sample = samps[i]
+                gtA = base.samples[sample].allele_indices
+                gtB = comp.samples[sample].allele_indices
+                if 1 in gtA and 1 in gtB:
+                    logging.debug("%s and %s have incompatible GTs",
+                                  str(base), str(comp))
+                    ret.state = False
+                i += 1
+
         ret.st_dist, ret.ed_dist = bstart - cstart, bend - cend
         ret.calc_score()
 
         return ret
+    # pylint: enable=too-many-statements
 
 ############################
 # Parsing and set building #
