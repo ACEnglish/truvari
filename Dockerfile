@@ -9,7 +9,9 @@ RUN apt-get -qq update \
   && \
   rm -rf /var/lib/apt/lists/*
 
-ADD . /opt/truvari-source
+RUN mkdir -p /opt/truvari-source/truvari/
+COPY setup.py README.md /opt/truvari-source
+COPY truvari/ /opt/truvari-source/truvari/
 WORKDIR /opt/truvari-source
 
 RUN wget https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb \
