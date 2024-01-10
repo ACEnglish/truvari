@@ -39,8 +39,10 @@ def add_svinfo(entry, min_size=0, n_header=None):
     """
     Add svinfo
     """
-    del entry.info['SVTYPE']
-    del entry.info['SVLEN']
+    if "SVTYPE" in entry.info:
+        del entry.info['SVTYPE']
+    if "SVLEN" in entry.info:
+        del entry.info['SVLEN']
     sz = truvari.entry_size(entry)
     if sz < min_size:
         return
