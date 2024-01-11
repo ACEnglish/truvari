@@ -24,7 +24,7 @@ def parse_vcf(fn, no_dups=False):
         is_dup = key in seen
         if no_dups and is_dup:
             continue
-        elif is_dup:
+        if is_dup:
             key += f".{str(seen[key])}"
         seen[key] += 1
         yield key

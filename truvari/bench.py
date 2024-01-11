@@ -348,7 +348,6 @@ class BenchOutput():
         Writer is responsible for handling FPs between sizefilt-sizemin
         """
         box = self.stats_box
-        skip = False
         if match.base:
             box["base cnt"] += 1
             annotate_entry(match.base, match, self.n_headers['b'])
