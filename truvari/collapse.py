@@ -77,8 +77,7 @@ def chain_collapse(cur_collapse, all_collapse, matcher):
                                       other.base,
                                       m_collap.match_id,
                                       skip_gt=True,
-                                      short_circuit=True,
-                                      gt_compat=matcher.gt)
+                                      short_circuit=True)
             if mat.state:
                 m_collap.consolidate(cur_collapse)
                 return True  # you can just ignore it later
@@ -100,14 +99,17 @@ def collapse_chunk(chunk, matcher):
         m_collap = CollapsedCalls(remaining_calls.pop(0),
                                   f'{chunk_id}.{call_id}')
         unmatched = []
+        # Sort based on size difference of current call
+        remaining_calls.sort(key=partial(relative_size_sorter, m_collap.entry))
         for candidate in remaining_calls:
             mat = matcher.build_match(m_collap.entry,
                                       candidate,
                                       m_collap.match_id,
                                       skip_gt=True,
-                                      short_circuit=True,
-                                      gt_compat=matcher.gt)
+                                      short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
+                mat.state = False
+            if mat.state and gt_conflict(m_collap, candidate, matcher.gt):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -124,9 +126,13 @@ def collapse_chunk(chunk, matcher):
             mats = sorted(m_collap.matches, reverse=True)
             m_collap.matches = [mats.pop(0)]
             remaining_calls.extend(mat.comp for mat in mats)
+
+        # Sort based on the desired sorting to choose the next one
+        remaining_calls.sort(key=matcher.sorter)
+
     if matcher.no_consolidate:
         for val in ret:
-            if matcher.gt:
+            if matcher.gt != 'off':
                 edited_entry, collapse_cnt = gt_aware_consolidate(
                     val.entry, val.matches)
             else:
@@ -140,6 +146,11 @@ def collapse_chunk(chunk, matcher):
     ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
+def relative_size_sorter(base, comp):
+    """
+    Sort calls based on the absolute size difference of base and comp
+    """
+    return abs(truvari.entry_size(base) - truvari.entry_size(comp))
 
 def collapse_into_entry(entry, others, hap_mode=False):
     """
@@ -197,6 +208,42 @@ def collapse_into_entry(entry, others, hap_mode=False):
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
+
+def gt_conflict(cur_collapse, entry, which_gt):
+    """
+    Return true if entry's genotypes conflict with any of the current collapse
+    which_gt all prevents variants present in the same sample from being collapsed
+    which_gt het only prevents two het variants from being collapsed.
+    """
+    if which_gt == 'off':
+        return False
+
+    def checker(base, comp):
+        """
+        Return true if a conflict
+        """
+        i = 0
+        samps = list(base.samples)
+        while i < len(samps):
+            sample = samps[i]
+            gtA = base.samples[sample].allele_indices
+            gtB = comp.samples[sample].allele_indices
+            if which_gt == 'all':
+                if 1 in gtA and 1 in gtB:
+                    return True
+            elif gtA.count(1) == 1 and gtB.count(1) == 1:
+                return True
+            i += 1
+        return False
+    # Need to check the kept entry
+    if checker(cur_collapse.entry, entry):
+        return True
+    # And all removed entries
+    for mat in cur_collapse.matches:
+        if checker(entry, mat.comp):
+            return True
+
+    return False
 
 def get_ac(gt):
     """
@@ -401,8 +448,8 @@ def parse_args(args):
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--bed", type=str, default=None,
                         help="Bed file of regions to analyze")
-    parser.add_argument("--gt", action="store_true",
-                        help="Disallow intra-sample events to collapse (%(default)s)")
+    parser.add_argument("--gt", type=str, choices=['off', 'all', 'het'], default='off',
+                        help="Disallow intra-sample events to collapse for genotypes (%(default)s)")
     parser.add_argument("--intra", action="store_true",
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
@@ -682,12 +729,12 @@ def collapse_main(args):
     Main
     """
     args = parse_args(args)
+    truvari.setup_logging(args.debug, show_version=True)
 
     if check_params(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    truvari.setup_logging(args.debug, show_version=True)
     # The matcher collapse needs isn't 100% identical to bench
     # So we set it up here
     args.chunksize = args.refdist
