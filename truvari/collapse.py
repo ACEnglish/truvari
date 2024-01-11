@@ -470,8 +470,6 @@ def parse_args(args):
                         help="Min pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-    thresg.add_argument("--use-lev", action="store_true",
-                        help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
