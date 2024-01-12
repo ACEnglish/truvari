@@ -1,8 +1,7 @@
 """
 Over multiple vcfs, calculate their intersection/consistency.
 
-Calls will match between VCFs if they have a matching key of:
-    CHROM:POS ID REF ALT
+Calls will match between VCFs if they have a matching key of `CHROM POS ID REF ALT`
 """
 import json
 import argparse
@@ -60,7 +59,7 @@ def read_files(allVCFs, no_dups=False):
 
     # We don't care about the calls anyway for stats
     # Then this becomes a list of integers, which will save memory
-    return all_presence.values(), n_calls_per_vcf
+    return all_presence, n_calls_per_vcf
 
 
 def parse_args(args):
@@ -71,6 +70,8 @@ def parse_args(args):
                         help="Disallow duplicate SVs")
     parser.add_argument("-j", "--json", action='store_true',
                         help="Output report in json format")
+    parser.add_argument("-o", "--output", default=None, type=str,
+                        help="Write tsv of variant keys and their flag")
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
     args = parser.parse_args(args)
@@ -160,7 +161,7 @@ def consistency_main(args):
     args = parse_args(args)
 
     all_presence, n_calls_per_vcf = read_files(args.allVCFs, args.no_dups)
-    data = make_report(args.allVCFs, all_presence, n_calls_per_vcf)
+    data = make_report(args.allVCFs, all_presence.values(), n_calls_per_vcf)
     if args.json:
         for grp in data['detailed']:
             # rename to file
@@ -171,3 +172,7 @@ def consistency_main(args):
         print(json.dumps(data, indent=4))
     else:
         write_report(data)
+    if args.output:
+        with open(args.output, 'w') as fout:
+            for k,v in all_presence.items():
+                fout.write(f"{k}\t{v}\n")

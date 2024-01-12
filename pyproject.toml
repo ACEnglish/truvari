@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools >= 69.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "truvari"
+authors = [
+    {name = "ACEnglish", email="acenglish@gmail.com"}
+]
+description = "Structural variant comparison tool for VCFs"
+readme = "README.md"
+license = { text = "MIT" }
+dynamic = ["version"]
+requires-python = ">=3.8"
+dependencies = [
+    "pywfa>=0.5.1",
+    "rich>=12.5.1",
+    "edlib>=1.3.9",
+    "pysam>=0.22",
+    "intervaltree>=3.1",
+    "joblib>=1.2.0",
+    "numpy>=1.24.4",
+    "pytabix>=0.1",
+    "bwapy>=0.1.4",
+    "pandas>=1.5.3",
+    "pyabpoa>=1.4.3",
+]
+
+[project.scripts]
+truvari = "truvari.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ACEnglish/truvari"
+Documentation = "https://truvari.readthedocs.io/en/latest/"
+Issues = "https://github.com/ACEnglish/truvari/issues"
+Changelog = "https://github.com/ACEnglish/truvari/wiki/Updates"
+
+[tool.setuptools]
+packages = ["truvari", "truvari.annotations"]

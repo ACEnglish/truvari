@@ -295,13 +295,17 @@ def gt_aware_consolidate(entry, others):
         # Need to consolidate non-none GT if it isn't present here
         if None in entry.samples[sample]['GT']:
             o_gt = None
+            i_phased = False
             i = 0
             while o_gt is None and i < len(others):
-                replace_gt = others[i].comp.samples[sample]['GT']
-                if None not in replace_gt:
-                    o_gt = replace_gt
+                m_fmt = others[i].comp.samples[sample]
+                if None not in m_fmt['GT']:
+                    i_phased = m_fmt.phased
+                    o_gt = m_fmt['GT']
                 i += 1
-            entry.samples[sample]['GT'] = o_gt
+            if o_gt:
+                entry.samples[sample]['GT'] = o_gt
+                entry.samples[sample].phased = i_phased
         new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
         # consolidate format fields
         for k in all_fmts:
