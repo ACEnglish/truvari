@@ -172,10 +172,12 @@ class Matcher():
 
         samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') and not truvari.entry_is_present(entry, samp):
+        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') \
+                and not truvari.entry_is_present(entry, samp):
             return True
 
         return False
+
 
     def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
@@ -231,7 +233,6 @@ class Matcher():
             if short_circuit:
                 return ret
 
-        ret.st_dist, ret.ed_dist = truvari.entry_distance(base, comp)
         if self.params.pctseq > 0:
             ret.seqsim = truvari.entry_seq_similarity(
                 base, comp, self.reference, self.params.minhaplen)
@@ -244,6 +245,7 @@ class Matcher():
         else:
             ret.seqsim = 0
 
+        ret.st_dist, ret.ed_dist = bstart - cstart, bend - cend
         ret.calc_score()
 
         return ret
@@ -302,7 +304,7 @@ def chunker(matcher, *files):
     call_counts = Counter()
     chunk_count = 0
     cur_chrom = None
-    cur_end = None
+    cur_end = 0
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
@@ -321,12 +323,12 @@ def chunker(matcher, *files):
             yield cur_chunk, chunk_count
             # Reset
             cur_chrom = None
-            cur_end = None
+            cur_end = 0
             cur_chunk = defaultdict(list)
 
         cur_chrom = entry.chrom
         if not matcher.filter_call(entry, key == 'base'):
-            cur_end = entry.stop
+            cur_end = max(entry.stop, cur_end)
             cur_chunk[key].append(entry)
             call_counts[key] += 1
         else:

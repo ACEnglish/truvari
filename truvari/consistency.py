@@ -1,8 +1,7 @@
 """
 Over multiple vcfs, calculate their intersection/consistency.
 
-Calls will match between VCFs if they have a matching key of:
-    CHROM:POS ID REF ALT
+Calls will match between VCFs if they have a matching key of `CHROM POS ID REF ALT`
 """
 import json
 import argparse
@@ -10,19 +9,27 @@ from collections import defaultdict, Counter
 
 import truvari
 
-def parse_vcf(fn):
+def parse_vcf(fn, no_dups=False):
     """
     Simple vcf reader
     """
     fh = truvari.opt_gz_open(fn)
+    seen = Counter()
     for line in fh:
         if line.startswith("#"):
             continue
         # Only keep the first 5 fields, and use them as key
-        yield "\t".join(line.split("\t")[:5])
+        key = "\t".join(line.split("\t")[:5])
+        is_dup = key in seen
+        if no_dups and is_dup:
+            continue
+        if is_dup:
+            key += f".{str(seen[key])}"
+        seen[key] += 1
+        yield key
 
 
-def read_files(allVCFs):
+def read_files(allVCFs, no_dups=False):
     """
     Read all VCFs and mark all (union) calls for their presence
 
@@ -43,8 +50,8 @@ def read_files(allVCFs):
     all_presence = defaultdict(lambda: 0)
     n_calls_per_vcf = [0] * len(allVCFs)
     for i, vcf in enumerate(allVCFs):
-        for key in parse_vcf(vcf):
-            flag = 1 << (n_vcfs - i - 1)
+        flag = 1 << (n_vcfs - i - 1)
+        for key in parse_vcf(vcf, no_dups):
             # Don't allow duplicates to contribute to the count
             if not all_presence[key] & flag:
                 n_calls_per_vcf[i] += 1
@@ -52,15 +59,19 @@ def read_files(allVCFs):
 
     # We don't care about the calls anyway for stats
     # Then this becomes a list of integers, which will save memory
-    return all_presence.values(), n_calls_per_vcf
+    return all_presence, n_calls_per_vcf
 
 
 def parse_args(args):
     """ parse args """
     parser = argparse.ArgumentParser(prog="consistency", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-d", "--no-dups", action="store_false",
+                        help="Disallow duplicate SVs")
     parser.add_argument("-j", "--json", action='store_true',
                         help="Output report in json format")
+    parser.add_argument("-o", "--output", default=None, type=str,
+                        help="Write tsv of variant keys and their flag")
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
     args = parser.parse_args(args)
@@ -149,8 +160,8 @@ def consistency_main(args):
     """
     args = parse_args(args)
 
-    all_presence, n_calls_per_vcf = read_files(args.allVCFs)
-    data = make_report(args.allVCFs, all_presence, n_calls_per_vcf)
+    all_presence, n_calls_per_vcf = read_files(args.allVCFs, args.no_dups)
+    data = make_report(args.allVCFs, all_presence.values(), n_calls_per_vcf)
     if args.json:
         for grp in data['detailed']:
             # rename to file
@@ -161,3 +172,7 @@ def consistency_main(args):
         print(json.dumps(data, indent=4))
     else:
         write_report(data)
+    if args.output:
+        with open(args.output, 'w') as fout:
+            for k,v in all_presence.items():
+                fout.write(f"{k}\t{v}\n")

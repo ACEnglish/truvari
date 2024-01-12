@@ -29,8 +29,6 @@ def edit_header(my_vcf):
     """
     Add INFO for new fields to vcf
     """
-    # Update header
-    # Edit Header
     header = my_vcf.header.copy()
     header.add_line(('##INFO=<ID=GCPCT,Number=1,Type=Integer,'
                      'Description="GC Percent of the reference call range or alt sequence (whichever is longer)">'))

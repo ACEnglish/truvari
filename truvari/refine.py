@@ -307,7 +307,7 @@ def parse_args(args):
                               "those in analyzed regions"))
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
-    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa"], default="mafft",
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
                         help="Alignment method for phab (%(default)s)")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")

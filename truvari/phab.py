@@ -8,14 +8,15 @@ import shutil
 import logging
 import argparse
 import multiprocessing
-from io import BytesIO
 from functools import partial
+from io import BytesIO, StringIO
 from collections import defaultdict
 
 import pysam
-from pysam import bcftools, samtools
+import pyabpoa
+from pysam import samtools
 from intervaltree import IntervalTree
-from pywfa.align import WavefrontAligner  # pylint: disable=no-name-in-module
+from pywfa.align import WavefrontAligner
 import truvari
 
 DEFAULT_MAFFT_PARAM = "--auto --thread 1"
@@ -62,12 +63,17 @@ def merged_region_file(regions, buff=100):
         m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
 
     out_file_name = truvari.make_temp_filename()
+    n_reg = 0
     with open(out_file_name, 'w') as fout:
         for chrom in sorted(m_dict.keys()):
             intvs = IntervalTree.from_tuples(m_dict[chrom])
             intvs.merge_overlaps()
             for i in sorted(intvs):
                 fout.write(f"{chrom}:{i.begin}-{i.end}\n")
+                n_reg += 1
+    if n_reg == 0:
+        logging.critical("No regions to be refined. Exiting")
+        sys.exit(0)
     return out_file_name
 
 
@@ -81,96 +87,110 @@ def extract_reference(reg_fn, ref_fn):
     return out_fn
 
 
+def incorporate(consensus_sequence, entry, correction):
+    """
+    Incorporate a variant into a haplotype returning the new correction field
+    """
+    ref_len = len(entry.ref)
+    alt_len = len(entry.alts[0]) if entry.alts else 0
+    if entry.alts[0] == '*':
+        return correction
+    # Need to check it doesn't overlap previous position
+    position = entry.pos + correction
+    consensus_sequence[position:position + ref_len] = list(entry.alts[0])
+    return correction + (alt_len - ref_len)
+
+
+def make_consensus(data, ref_fn):
+    """
+    Creates consensus sequence from variants
+    """
+    vcf_fn, sample, prefix = data
+    reference = pysam.FastaFile(ref_fn)
+    vcf = pysam.VariantFile(vcf_fn)
+    o_samp = 'p:' + sample if prefix else sample
+    ret = {}
+    for ref in list(reference.references):
+        chrom, start, end = re.split(':|-', ref)
+        start = int(start)
+        end = int(end)
+        sequence = reference.fetch(ref)
+        haps = (list(sequence), list(sequence))
+        correction = [-start, -start]
+        for entry in vcf.fetch(chrom, start, end):
+            # Variant must be within boundaries
+            if entry.start < start or entry.stop > end:
+                continue
+            if entry.samples[sample]['GT'][0] == 1:
+                correction[0] = incorporate(haps[0], entry, correction[0])
+            if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
+                correction[1] = incorporate(haps[1], entry, correction[1])
+        # turn into fasta.
+        ret[ref] = (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
+                    f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
+    return ret
+
+
 def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
     """
     Sets up sample parameters for extract haplotypes
-    returns list of tuple of (VCF, sample_name, should_prefix, haplotype_number) and the sample names
+    returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
     to expect in the haplotypes' fasta
     """
     ret = []
     if bSamples is None:
         bSamples = list(pysam.VariantFile(base_vcf).header.samples)
-    for hap in [1, 2]:
-        ret.extend([(base_vcf, samp, False, hap) for samp in bSamples])
+    ret.extend([(base_vcf, samp, False) for samp in bSamples])
 
     if comp_vcf:
         if cSamples is None:
             cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
-        for hap in [1, 2]:
-            ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples, hap)
-                        for samp in cSamples])
+        ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples)
+                    for samp in cSamples])
 
     samp_names = sorted({('p:' if prefix else '') + samp
-                         for _, samp, prefix, _ in ret})
+                         for _, samp, prefix in ret})
     return ret, samp_names
 
 
-def fasta_reader(fa_str, name_entries=True):
+def fasta_reader(fa_str):
     """
     Parses a fasta file as a string and yields tuples of (location, entry)
-    if name_entries, the entry names are written to the value and location is honored
     """
     cur_name = None
-    cur_entry = BytesIO()
+    cur_entry = StringIO()
     for i in fa_str.split('\n'):
         if not i.startswith(">"):
-            cur_entry.write(i.encode())
+            cur_entry.write(i)
             continue
         if cur_name is not None:
-            cur_entry.write(b'\n')
             cur_entry.seek(0)
             yield cur_name, cur_entry.read()
         cur_name = i[1:]
-        cur_entry = BytesIO()
-        if name_entries:
-            cur_name = cur_name.split('_')[-1]
-            cur_entry.write((i + '\n').encode())
-
-    cur_entry.write(b'\n')
+        cur_entry = StringIO()
     cur_entry.seek(0)
     yield cur_name, cur_entry.read()
 
 
-def extract_haplotypes(data, ref_fn):
-    """
-    Given a data tuple of VCF, sample name, and prefix bool
-    Call bcftools consensus
-    Returns list of tuples [location, fastaentry] for every haplotype,
-    so locations are duplicated
-    """
-    vcf_fn, sample, prefix, hap = data
-    prefix = 'p:' if prefix else ''
-    cmd = (f"--sample {sample} --prefix {prefix}{sample}_{hap}_ "
-           f"-H{hap} -f {ref_fn} {vcf_fn}").split(' ')
-    # Can't return generator from process
-    return list(fasta_reader(bcftools.consensus(*cmd)))
-
-
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
     """
-    Calls extract haplotypes for every hap_job
+    Calls extract haplotypes for every hap_job and the reference sequence
     """
     all_haps = defaultdict(BytesIO)
+    m_ref = pysam.FastaFile(ref_haps_fn)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        to_call = partial(extract_haplotypes, ref_fn=ref_haps_fn)
-        for haplotype in pool.imap(to_call, hap_jobs):
-            for location, fasta_entry in haplotype:
-                all_haps[location].write(fasta_entry)
+        to_call = partial(make_consensus, ref_fn=ref_haps_fn)
+        for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
+            for location, fasta_entry in haplotypes.items():
+                cur = all_haps[location]
+                cur.write(fasta_entry)
+                if pos == len(hap_jobs) - 1:  # ref/seek/read on last hap
+                    cur.write(f">ref_{location}\n{m_ref[location]}\n".encode())
+                    cur.seek(0)
+                    all_haps[location] = cur.read()
         pool.close()
         pool.join()
-    return all_haps
-
-
-def consolidate_haplotypes_with_reference(all_haps, ref_haps_fn):
-    """
-    Generator for putting the reference into the haplotypes
-    """
-    m_ref = pysam.FastaFile(ref_haps_fn)
-    for location in list(m_ref.references):
-        all_haps[location].write(
-            f">ref_{location}\n{m_ref[location]}\n".encode())
-        all_haps[location].seek(0)
-        yield all_haps[location].read()
+    return all_haps.values()
 
 
 def expand_cigar(seq, ref, cigar):
@@ -196,15 +216,14 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
-def wfa_to_vars(seq_bytes):
+def run_wfa(seq_bytes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
     """
-    fasta = {k: v.decode() for k, v in fasta_reader(seq_bytes.decode(), False)}
+    fasta = dict(fasta_reader(seq_bytes.decode()))
     ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
     reference = fasta[ref_key]
-
     aligner = WavefrontAligner(reference, span="end-to-end",
                                heuristic="adaptive")
     for haplotype in fasta:
@@ -212,12 +231,11 @@ def wfa_to_vars(seq_bytes):
             continue
         seq = fasta[haplotype]
         aligner.wavefront_align(seq)
-        assert aligner.status == 0
         fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
     return truvari.msa2vcf(fasta)
 
 
-def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
+def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
     """
@@ -227,8 +245,7 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes).hexdigest()
 
-    cmd = f"mafft --quiet {params} -"
-    ret = truvari.cmd_exe(cmd, stdin=seq_bytes)
+    ret = truvari.cmd_exe(f"mafft --quiet {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
         logging.error(ret.stderr)
@@ -238,39 +255,25 @@ def mafft_to_vars(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + dev_name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
 
-    fasta = {}
-    for name, sequence in fasta_reader(ret.stdout, name_entries=False):
-        fasta[name] = sequence.decode()
+    fasta = dict(fasta_reader(ret.stdout))
     return truvari.msa2vcf(fasta)
 
 
-def harmonize_variants(harm_jobs, mafft_params, base_vcf, samp_names, output_fn, threads, method="mafft"):
+def run_poa(seq_bytes):
     """
-    Parallel processing of variants to harmonize. Writes to output
+    Run partial order alignment to create msa
     """
-    if method == "mafft":
-        align_method = partial(mafft_to_vars, params=mafft_params)
-    else:
-        align_method = wfa_to_vars
-
-    with open(output_fn[:-len(".gz")], 'w') as fout:
-        fout.write(
-            '##fileformat=VCFv4.1\n##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n')
-        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
-            fout.write(str(ctg.header_record))
-        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
-        fout.write("\t".join(samp_names) + "\n")
-
-        with multiprocessing.Pool(threads) as pool:
-            for result in pool.imap_unordered(align_method, harm_jobs):
-                fout.write(result)
-            pool.close()
-            pool.join()
-
-    truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
+    parts = []
+    for k, v in fasta_reader(seq_bytes.decode()):
+        parts.append((len(v), v, k))
+    parts.sort(reverse=True)
+    _, seqs, names = zip(*parts)
+    aligner = pyabpoa.msa_aligner()
+    aln_result = aligner.msa(seqs, False, True)
+    return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments, too-many-locals
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
          mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
@@ -311,13 +314,32 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
-    sample_haps = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
-    harm_jobs = consolidate_haplotypes_with_reference(sample_haps, ref_haps_fn)
+    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
 
     logging.info("Harmonizing variants")
-    harmonize_variants(harm_jobs, mafft_params, base_vcf,
-                       samp_names, output_fn, threads, method)
-# pylint: enable=too-many-arguments
+    if method == "mafft":
+        align_method = partial(run_mafft, params=mafft_params)
+    elif method == "wfa":
+        align_method = run_wfa
+    else:
+        align_method = run_poa
+
+    with open(output_fn[:-len(".gz")], 'w') as fout:
+        fout.write(('##fileformat=VCFv4.1\n'
+                    '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
+        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
+            fout.write(str(ctg.header_record))
+        fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
+        fout.write("\t".join(samp_names) + "\n")
+
+        with multiprocessing.Pool(threads) as pool:
+            for result in pool.imap_unordered(align_method, haplotypes):
+                fout.write(result)
+            pool.close()
+            pool.join()
+
+    truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
+# pylint: enable=too-many-arguments, too-many-locals
 
 ######
 # UI #
@@ -334,22 +356,22 @@ def parse_args(args):
                         help="Bed filename or comma-separated list of chrom:start-end regions to process")
     parser.add_argument("-b", "--base", type=str, required=True,
                         help="Baseline vcf to MSA")
-    parser.add_argument("-c", "--comp", type=str, default=None,
-                        help="Comparison vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
-    parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
     parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
                         help="Output VCF")
-    parser.add_argument("--bSamples", type=str, default=None,
-                        help="Subset of samples to MSA from base-VCF")
-    parser.add_argument("--cSamples", type=str, default=None,
-                        help="Subset of samples to MSA from comp-VCF")
+    parser.add_argument("--buffer", type=int, default=100,
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
+                        help="Alignment method accurate (mafft), fast (wfa), medium (poa) (%(default)s)")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa"], default="mafft",
-                        help="Alignment method accurate (mafft) or fast (wfa) (%(default)s)")
+    parser.add_argument("--bSamples", type=str, default=None,
+                        help="Subset of samples to MSA from base-VCF")
+    parser.add_argument("-c", "--comp", type=str, default=None,
+                        help="Comparison vcf to MSA")
+    parser.add_argument("--cSamples", type=str, default=None,
+                        help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",

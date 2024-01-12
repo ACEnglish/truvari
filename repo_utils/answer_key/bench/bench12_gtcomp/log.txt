@@ -1,48 +1,47 @@
-2022-12-01 18:26:08,784 [INFO] Truvari v4.0.0.dev0+detached
-2022-12-01 18:26:08,785 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input2.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench12_gtcomp/ --gtcomp
-2022-12-01 18:26:08,786 [INFO] Params:
+2024-01-09 03:55:04,513 [INFO] Truvari v4.2.0rc1
+2024-01-09 03:55:04,514 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input2.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench12_gtcomp/ --pick ac
+2024-01-09 03:55:04,515 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input2.vcf.gz",
     "output": "test_results/bench12_gtcomp/",
-    "reference": "/data/repo_utils/test_files/references/reference.fa",
+    "includebed": null,
+    "extend": 0,
     "debug": false,
-    "prog": false,
+    "reference": "/data/repo_utils/test_files/references/reference.fa",
     "refdist": 500,
-    "pctsim": 0.7,
+    "pctseq": 0.7,
     "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
-    "dup_to_ins": false,
-    "use_lev": false,
     "chunksize": 1000,
-    "gtcomp": true,
     "bSample": "NA24385",
     "cSample": "NA12878",
+    "dup_to_ins": false,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
     "passonly": false,
     "no_ref": false,
-    "includebed": null,
-    "extend": 0,
-    "multimatch": false
+    "pick": "ac",
+    "check_monref": true,
+    "check_multi": true
 }
-2022-12-01 18:26:08,975 [INFO] Zipped 3934 variants Counter({'base': 2151, 'comp': 1783})
-2022-12-01 18:26:08,976 [INFO] 13 chunks of 3934 variants Counter({'__filtered': 3904, 'base': 16, 'comp': 14})
-2022-12-01 18:26:08,981 [INFO] Stats: {
+2024-01-09 03:55:04,725 [INFO] Zipped 3934 variants Counter({'base': 2151, 'comp': 1783})
+2024-01-09 03:55:04,726 [INFO] 13 chunks of 3934 variants Counter({'__filtered': 3904, 'base': 16, 'comp': 14})
+2024-01-09 03:55:04,843 [INFO] Stats: {
     "TP-base": 9,
-    "TP-call": 8,
+    "TP-comp": 8,
     "FP": 3,
     "FN": 7,
     "precision": 0.7272727272727273,
     "recall": 0.5625,
     "f1": 0.6343612334801763,
     "base cnt": 16,
-    "call cnt": 11,
-    "TP-call_TP-gt": 4,
-    "TP-call_FP-gt": 4,
+    "comp cnt": 11,
+    "TP-comp_TP-gt": 4,
+    "TP-comp_FP-gt": 4,
     "TP-base_TP-gt": 4,
     "TP-base_FP-gt": 5,
     "gt_concordance": 0.5,
@@ -60,6 +59,26 @@
         "(1, 0)": {
             "(1, 1)": 1
         }
+    },
+    "weighted": {
+        "sequence": {
+            "TP": 12.533399924635887,
+            "FP": 1.6414000391960144,
+            "FN": 4.268600061535835,
+            "precision": 0.8842029486564768,
+            "recall": 0.7459469072105135,
+            "f1": 0.8092120519139951,
+            "total": 18
+        },
+        "size": {
+            "TP": 10.914199993014336,
+            "FP": 2.0859000086784363,
+            "FN": 5.752500012516975,
+            "precision": 0.8395473874503406,
+            "recall": 0.6548506896621499,
+            "f1": 0.7357854564939021,
+            "total": 18
+        }
     }
 }
-2022-12-01 18:26:09,088 [INFO] Finished bench
+2024-01-09 03:55:04,844 [INFO] Finished bench

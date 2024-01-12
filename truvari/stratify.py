@@ -76,7 +76,6 @@ def benchdir_count_entries(benchdir, regions, within=False, threads=4):
     method = partial(count_entries, chroms=chroms,
                      regions=intvs, within=within)
     data = {}
-    # , maxtasksperchild=1) as pool:
     with multiprocessing.Pool(threads) as pool:
         for name, counts in zip(names, pool.map(method, vcfs)):
             data[name] = counts

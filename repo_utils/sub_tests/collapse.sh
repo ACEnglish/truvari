@@ -86,7 +86,15 @@ fi
 run test_collapse_intragt $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
                         -o $OD/inputintragt_collapsed.vcf \
                         -c $OD/inputintragt_removed.vcf \
-                        --intra --gt --keep maxqual
+                        --intra --gt all --keep maxqual
 if [ $test_collapse_intragt ]; then
     collapse_assert intragt
+fi
+
+run test_collapse_intragth $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
+                        -o $OD/inputintragth_collapsed.vcf \
+                        -c $OD/inputintragth_removed.vcf \
+                        --intra --gt het --keep maxqual
+if [ $test_collapse_intragth ]; then
+    collapse_assert intragth
 fi

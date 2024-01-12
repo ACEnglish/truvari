@@ -201,8 +201,8 @@ def edit_header(my_vcf):
                      'Description="Difference in size of base and comp calls">'))
     header.add_line(('##INFO=<ID=GTMatch,Number=1,Type=Integer,'
                      'Description="Base/Comparison genotypes AC difference">'))
-    header.add_line(('##INFO=<ID=MatchId,Number=1,Type=String,'
-                     'Description="Id to help tie base/comp calls together {chunkid}.{baseid}.{compid}">'))
+    header.add_line(('##INFO=<ID=MatchId,Number=.,Type=String,'
+                     'Description="Tuple of base and comparison call ids which were matched">'))
     header.add_line(('##INFO=<ID=Multi,Number=0,Type=Flag,'
                      'Description="Call is false due to non-multimatching">'))
     return header
@@ -231,47 +231,6 @@ def annotate_entry(entry, match, header):
 #############
 # Core code #
 #############
-class WeightedStatsBox(OrderedDict):
-    """
-    Make a blank stats box for counting variant pairs as TP/FP/FN, but weighted by match similarity
-    """
-
-    def __init__(self):
-        super().__init__()
-        self["TP"] = 0
-        self["FP"] = 0
-        self["FN"] = 0
-        self["precision"] = 0
-        self["recall"] = 0
-        self["f1"] = 0
-        self["total"] = 0
-
-    def add(self, score, which):
-        """
-        The score is how much credit to give to TP.
-        If score is None, set it to 0
-        To avoid double counting, specify has_comp=True, which means a separate call to `.add` will be made
-        The score is always added to
-        is_base will figure out if 1-score
-        should be applied to both FN/FP (true) or FP only
-        """
-        if score is None:
-            score = 0
-        self['total'] += 1
-        self["TP"] += score
-        if which != 2:
-            self["FN"] += 1 - score
-        if which != 1:
-            self["FP"] += 1 - score
-
-    def calc_performance(self):
-        """
-        Calculate metrics
-        """
-        self["precision"], self["recall"], self["f1"] = truvari.performance_metrics(
-            self["TP"], self["TP"], self["FN"], self["FP"])
-
-
 class StatsBox(OrderedDict):
     """
     Make a blank stats box for counting TP/FP/FN and calculating performance
@@ -316,7 +275,7 @@ class StatsBox(OrderedDict):
 
     def clean_out(self):
         """
-        When reusing a StatsBox (typically inside refine), gt/weight numbers
+        When reusing a StatsBox (typically inside refine), gt numbers
         are typically invalidated. This removes those numbers from self to make
         a cleaner report
         """
@@ -326,8 +285,6 @@ class StatsBox(OrderedDict):
         del self["TP-base_FP-gt"]
         del self["gt_concordance"]
         del self["gt_matrix"]
-        if "weighted" in self:
-            del self["weighted"]
 
     def write_json(self, out_name):
         """
@@ -383,8 +340,6 @@ class BenchOutput():
                 self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
-        self.wt_seq_stats_box = WeightedStatsBox()
-        self.wt_size_stats_box = WeightedStatsBox()
 
     def write_match(self, match):
         """
@@ -393,7 +348,6 @@ class BenchOutput():
         Writer is responsible for handling FPs between sizefilt-sizemin
         """
         box = self.stats_box
-        skip = False
         if match.base:
             box["base cnt"] += 1
             annotate_entry(match.base, match, self.n_headers['b'])
@@ -427,22 +381,8 @@ class BenchOutput():
                 box["comp cnt"] += 1
                 box["FP"] += 1
                 self.out_vcfs["fp"].write(match.comp)
-            else:
-                skip = True
 
-        if skip:  # don't count partial credit to sizefilt-sizemin FPs
-            return
 
-        # This is convoluted
-        if match.base and match.comp:
-            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 0)
-            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 0)
-        elif match.base and not match.comp:
-            self.wt_seq_stats_box.add(match.base.info["PctSeqSimilarity"], 1)
-            self.wt_size_stats_box.add(match.base.info["PctSizeSimilarity"], 1)
-        elif not match.base and match.comp:
-            self.wt_seq_stats_box.add(match.comp.info["PctSeqSimilarity"], 2)
-            self.wt_size_stats_box.add(match.comp.info["PctSizeSimilarity"], 2)
 
     def close_outputs(self):
         """
@@ -455,10 +395,6 @@ class BenchOutput():
             truvari.compress_index_vcf(i)
 
         self.stats_box.calc_performance()
-        self.wt_seq_stats_box.calc_performance()
-        self.wt_size_stats_box.calc_performance()
-        self.stats_box["weighted"] = {'sequence': dict(self.wt_seq_stats_box),
-                                      'size': dict(self.wt_size_stats_box)}
         self.stats_box.write_json(os.path.join(
             self.m_bench.outdir, "summary.json"))
 
@@ -592,7 +528,7 @@ class Bench():
             for cid, c in enumerate(comp_variants):
                 ret = truvari.MatchResult()
                 ret.comp = c
-                ret.matid = f"{chunk_id}._.{cid}"
+                ret.matid = ["", f"{chunk_id}.{cid}"]
                 fps.append(ret)
                 logging.debug("All FP -> %s", ret)
             return fps
@@ -603,7 +539,7 @@ class Bench():
             for bid, b in enumerate(base_variants):
                 ret = truvari.MatchResult()
                 ret.base = b
-                ret.matid = f"{chunk_id}.{bid}._"
+                ret.matid = [f"{chunk_id}.{bid}", ""]
                 logging.debug("All FN -> %s", ret)
                 fns.append(ret)
             return fns
@@ -626,7 +562,7 @@ class Bench():
             base_matches = []
             for cid, c in enumerate(comp_variants):
                 mat = self.matcher.build_match(
-                    b, c, f"{chunk_id}.{bid}.{cid}", skip_gt)
+                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)

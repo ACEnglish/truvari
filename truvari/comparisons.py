@@ -144,9 +144,11 @@ def entry_is_filtered(entry, values=None):
     return len(set(values).intersection(set(entry.filter))) == 0
 
 
-def entry_is_present(entry, sample=None):
+def entry_is_present(entry, sample=None, allow_missing=True):
     """
     Checks if entry's sample genotype is present and is heterozygous or homozygous (a.k.a. present)
+    If allow_missing, just check for a 1 in the genotype. Otherwise, a missing ('.') genotype isn't
+    considered present
 
     :param `entry`: entry to check
     :type `entry`: :class:`pysam.VariantRecord`
@@ -165,6 +167,8 @@ def entry_is_present(entry, sample=None):
     """
     if sample is None:
         sample = entry.samples.keys()[0]
+    if allow_missing:
+        return 1 in entry.samples[sample]["GT"]
     return "GT" in entry.samples[sample] and \
            truvari.get_gt(entry.samples[sample]["GT"]) in [
         truvari.GT.HET, truvari.GT.HOM]
@@ -199,8 +203,10 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
 
     a_seq = entryA.ref if entry_variant_type(
         entryA) == truvari.SV.DEL else entryA.alts[0]
+    a_seq = a_seq.upper()
     b_seq = entryB.ref if entry_variant_type(
         entryB) == truvari.SV.DEL else entryB.alts[0]
+    b_seq = b_seq.upper()
     st_dist, ed_dist = entry_distance(entryA, entryB)
 
     if st_dist == 0 or ed_dist == 0:
@@ -211,11 +217,15 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
             entryA, entryB, ref, min_len=min_len)
         return seqsim(allele1, allele2)
 
+    # Directionality of rolling makes a difference
     if st_dist < 0:
-        # Should entertain this idea. Not always the case that shifted svs are rollable
-        # return max(seqsim(a_seq, b_seq), unroll_compare(a_seq, b_seq, st_dist % len(b_seq)))
-        return unroll_compare(a_seq, b_seq, -st_dist)
-    return unroll_compare(b_seq, a_seq, st_dist)
+        st_dist *= -1
+    else:
+        a_seq, b_seq = b_seq, a_seq
+
+    # Roll both ends and compute direct similarity
+    # Whichever is highest is how similar these sequences can be
+    return max(unroll_compare(a_seq, b_seq, st_dist), unroll_compare(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
 
 
 def entry_reciprocal_overlap(entry1, entry2):
@@ -385,7 +395,7 @@ def entry_to_key(entry, prefix="", bounds=False):
     VCF when consolidating multiple files' calls. If bounds: call entry_boundaries for start/stop.
 
     .. warning::
-        If a caller redundantly calls a variant exactly the same. It will not have a unique key
+        If a caller redundantly calls a variant exactly the same it will not have a unique key
 
     :param `entry`: entry to stringify
     :type `entry`: :class:`pysam.VariantRecord`
@@ -568,11 +578,11 @@ def unroll_compare(seqA, seqB, p):
     Unroll two sequences and compare.
     See https://gist.github.com/ACEnglish/1e7421c46ee10c71bee4c03982e5df6c for details
 
-    :param `seqA`: sequence
+    :param `seqA`: sequence upstream sequence
     :type `seqA`: string
-    :param `seqB`: sequence
+    :param `seqB`: sequence downstream sequence
     :type `seqB`: string
-    :param `p`: positional difference of A from B
+    :param `p`: how many bases upstream seqA is from seqB
     :type `p`: integer
 
     :return: sequence similarity of seqA vs seqB after unrolling

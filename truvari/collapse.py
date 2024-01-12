@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
 import pysam
+from intervaltree import IntervalTree
 
 import truvari
 import truvari.bench as trubench
@@ -98,6 +99,8 @@ def collapse_chunk(chunk, matcher):
         m_collap = CollapsedCalls(remaining_calls.pop(0),
                                   f'{chunk_id}.{call_id}')
         unmatched = []
+        # Sort based on size difference of current call
+        remaining_calls.sort(key=partial(relative_size_sorter, m_collap.entry))
         for candidate in remaining_calls:
             mat = matcher.build_match(m_collap.entry,
                                       candidate,
@@ -106,7 +109,7 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
-            if matcher.gt and not gt_resolve(m_collap.entry, candidate):
+            if mat.state and gt_conflict(m_collap, candidate, matcher.gt):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -123,10 +126,15 @@ def collapse_chunk(chunk, matcher):
             mats = sorted(m_collap.matches, reverse=True)
             m_collap.matches = [mats.pop(0)]
             remaining_calls.extend(mat.comp for mat in mats)
+
+        # Sort based on the desired sorting to choose the next one
+        remaining_calls.sort(key=matcher.sorter)
+
     if matcher.no_consolidate:
         for val in ret:
-            if matcher.gt:
-                edited_entry, collapse_cnt = super_consolidate(val.entry, val.matches)
+            if matcher.gt != 'off':
+                edited_entry, collapse_cnt = gt_aware_consolidate(
+                    val.entry, val.matches)
             else:
                 edited_entry, collapse_cnt = collapse_into_entry(
                     val.entry, val.matches, matcher.hap)
@@ -138,6 +146,11 @@ def collapse_chunk(chunk, matcher):
     ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
+def relative_size_sorter(base, comp):
+    """
+    Sort calls based on the absolute size difference of base and comp
+    """
+    return abs(truvari.entry_size(base) - truvari.entry_size(comp))
 
 def collapse_into_entry(entry, others, hap_mode=False):
     """
@@ -195,11 +208,49 @@ def collapse_into_entry(entry, others, hap_mode=False):
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
 
+
+def gt_conflict(cur_collapse, entry, which_gt):
+    """
+    Return true if entry's genotypes conflict with any of the current collapse
+    which_gt all prevents variants present in the same sample from being collapsed
+    which_gt het only prevents two het variants from being collapsed.
+    """
+    if which_gt == 'off':
+        return False
+
+    def checker(base, comp):
+        """
+        Return true if a conflict
+        """
+        i = 0
+        samps = list(base.samples)
+        while i < len(samps):
+            sample = samps[i]
+            gtA = base.samples[sample].allele_indices
+            gtB = comp.samples[sample].allele_indices
+            if which_gt == 'all':
+                if 1 in gtA and 1 in gtB:
+                    return True
+            elif gtA.count(1) == 1 and gtB.count(1) == 1:
+                return True
+            i += 1
+        return False
+    # Need to check the kept entry
+    if checker(cur_collapse.entry, entry):
+        return True
+    # And all removed entries
+    for mat in cur_collapse.matches:
+        if checker(entry, mat.comp):
+            return True
+
+    return False
+
 def get_ac(gt):
     """
     Helper method to get allele count. assumes only 1s as ALT
     """
     return sum(1 for _ in gt if _ == 1)
+
 
 def get_none(entry, key):
     """
@@ -212,6 +263,7 @@ def get_none(entry, key):
         return (None, None)
     return (None, None, None)
 
+
 def fmt_none(value):
     """
     Checks all values in a format field for nones
@@ -223,7 +275,8 @@ def fmt_none(value):
         return None
     return value
 
-def super_consolidate(entry, others):
+
+def gt_aware_consolidate(entry, others):
     """
     All formats are consolidated (first one taken)
     And two hets consolidated become hom
@@ -238,29 +291,35 @@ def super_consolidate(entry, others):
     all_fmts = sorted(list(all_fmts))
     n_consolidated = 0
     for sample in entry.samples:
-        new_fmts = {"GT":0}
-        # Need to consolidate in non-none GT if it isn't present here
+        new_fmts = {"GT": 0}
+        # Need to consolidate non-none GT if it isn't present here
         if None in entry.samples[sample]['GT']:
             o_gt = None
+            i_phased = False
             i = 0
             while o_gt is None and i < len(others):
-                replace_gt = others[i].comp.samples[sample]['GT']
-                if None not in replace_gt:
-                    o_gt = replace_gt
+                m_fmt = others[i].comp.samples[sample]
+                if None not in m_fmt['GT']:
+                    i_phased = m_fmt.phased
+                    o_gt = m_fmt['GT']
                 i += 1
-            entry.samples[sample]['GT'] = o_gt
+            if o_gt:
+                entry.samples[sample]['GT'] = o_gt
+                entry.samples[sample].phased = i_phased
         new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
         # consolidate format fields
         for k in all_fmts:
-            new_fmts[k] = None if k not in entry.samples.keys() else entry.samples[sample][k]
+            new_fmts[k] = None if k not in entry.samples.keys(
+            ) else entry.samples[sample][k]
         for o in others:
             o = o.comp
             n_c = get_ac(o.samples[sample]['GT'])
             n_consolidated += 1 if n_c != 0 else 0
             new_fmts['GT'] += n_c
             for k in all_fmts:
-                rpl_val = None if k not in o.samples[sample] else fmt_none(o.samples[sample][k])
-                if not (k in new_fmts and new_fmts[k] is not None)  and rpl_val:
+                rpl_val = None if k not in o.samples[sample] else fmt_none(
+                    o.samples[sample][k])
+                if not (k in new_fmts and new_fmts[k] is not None) and rpl_val:
                     new_fmts[k] = o.samples[sample][k]
         if new_fmts['GT'] == 0:
             new_fmts['GT'] = (0, 0)
@@ -275,6 +334,7 @@ def super_consolidate(entry, others):
             entry.samples[sample][key] = val
     return entry, n_consolidated
 
+
 def hap_resolve(entryA, entryB):
     """
     Returns true if the calls' genotypes suggest it can be collapsed
@@ -288,29 +348,6 @@ def hap_resolve(entryA, entryB):
     if gtA == gtB:
         return False
     return True
-
-def gt_resolve(entryA, entryB):
-    """
-    Returns true if the calls' genotypes suggest it shouldn't be collapsed
-    i.e. if both are HOM
-    """
-    def compat_phase(a, b):
-        if None in a or None in b:
-            return False # nothing preventing it
-        if a == b: # can't collapse same phase
-            return True
-        return False
-
-    for sample in entryA.samples:
-        gtA = entryA.samples[sample]["GT"]
-        gtB = entryB.samples[sample]["GT"]
-        if (gtA == (1, 1) and None not in gtB) \
-        or (gtB == (1, 1) and None not in gtA):
-            return False
-        if entryA.samples[sample].phased and entryB.samples[sample].phased and compat_phase(gtA, gtB):
-            return False
-    return True
-
 
 
 def sort_length(b1, b2):
@@ -413,8 +450,10 @@ def parse_args(args):
                         help="Indexed fasta used to call variants")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
-    parser.add_argument("--gt", action="store_true",
-                        help="Disallow intra-sample homozygous events to collapse (%(default)s)")
+    parser.add_argument("--bed", type=str, default=None,
+                        help="Bed file of regions to analyze")
+    parser.add_argument("--gt", type=str, choices=['off', 'all', 'het'], default='off',
+                        help="Disallow intra-sample events to collapse for genotypes (%(default)s)")
     parser.add_argument("--intra", action="store_true",
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
@@ -435,8 +474,6 @@ def parse_args(args):
                         help="Min pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-    thresg.add_argument("--use-lev", action="store_true",
-                        help="Use the Levenshtein distance ratio instead of edlib editDistance ratio (%(default)s)")
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
@@ -488,10 +525,12 @@ def check_params(args):
         logging.error("Using --hap must use --keep first")
     return check_fail
 
+
 class IntraMergeOutput():
     """
     Output writer that consolidates into the first sample
     """
+
     def __init__(self, fn, header):
         self.fn = fn
         self.header = header
@@ -499,7 +538,7 @@ class IntraMergeOutput():
             self.fh = gzip.GzipFile(self.fn, 'wb')
             self.isgz = True
         else:
-            self.fh = open(self.fn, 'w') #pylint: disable=consider-using-with
+            self.fh = open(self.fn, 'w')  # pylint: disable=consider-using-with
             self.isgz = False
 
         self.make_header()
@@ -508,7 +547,8 @@ class IntraMergeOutput():
         """
         Writes intramerge header
         """
-        self.header.add_line('##FORMAT=<ID=SUPP,Number=1,Type=Integer,Description="Truvari collapse support flag">')
+        self.header.add_line(
+            '##FORMAT=<ID=SUPP,Number=1,Type=Integer,Description="Truvari collapse support flag">')
         for line in str(self.header).strip().split('\n'):
             if line.startswith("##"):
                 self.write(line + '\n')
@@ -532,7 +572,10 @@ class IntraMergeOutput():
             fmt = entry.samples[sample]
             if 1 in fmt['GT']:
                 if not found_gt:
+                    phased = entry.samples[idx].phased
                     entry.samples[0]['GT'] = fmt['GT']
+                    entry.samples[0].phased = phased
+                    found_gt = True
                 flag |= 2 ** idx
             was_filled = set()
             for k in needs_fill:
@@ -560,6 +603,7 @@ class IntraMergeOutput():
         """
         self.fh.close()
 
+
 class CollapseOutput(dict):
     """
     Output writer for collapse
@@ -570,7 +614,6 @@ class CollapseOutput(dict):
         Makes all of the output files for collapse
         """
         super().__init__()
-        truvari.setup_logging(args.debug, show_version=True)
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
         in_vcf = pysam.VariantFile(args.input)
@@ -582,7 +625,8 @@ class CollapseOutput(dict):
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
         if args.intra:
-            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
+            self["output_vcf"] = IntraMergeOutput(
+                args.output, self["o_header"])
         else:
             self["output_vcf"] = pysam.VariantFile(args.output, 'w',
                                                    header=self["o_header"])
@@ -630,15 +674,69 @@ class CollapseOutput(dict):
                      self["stats_box"]["consol_cnt"])
 
 
+def tree_size_chunker(matcher, chunks):
+    """
+    To reduce the number of variants in a chunk try to sub-chunk by size-similarity before hand
+    Needs to return the same thing as a chunker
+    """
+    chunk_count = 0
+    for chunk, _ in chunks:
+        if len(chunk['base']) < 100:  # fewer than 100 is fine
+            chunk_count += 1
+            yield chunk, chunk_count
+            continue
+        tree = IntervalTree()
+        yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
+        for entry in chunk['base']:
+            # How much smaller/larger would be in sizesim?
+            sz = truvari.entry_size(entry)
+            diff = sz * (1 - matcher.params.pctsize)
+            if not matcher.params.typeignore:
+                sz *= - \
+                    1 if truvari.entry_variant_type(
+                        entry) == truvari.SV.DEL else 1
+            tree.addi(sz - diff, sz + diff, data=[entry])
+        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+        for intv in tree:
+            chunk_count += 1
+            yield {'base': intv.data, '__filtered': []}, chunk_count
+
+
+def tree_dist_chunker(matcher, chunks):
+    """
+    To reduce the number of variants in a chunk try to sub-chunk by reference distance before hand
+    Needs to return the same thing as a chunker
+    """
+    chunk_count = 0
+    for chunk, _ in chunks:
+        if len(chunk['base']) < 100:  # fewer than 100 is fine
+            chunk_count += 1
+            yield chunk, chunk_count
+            continue
+        tree = IntervalTree()
+        yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
+        for entry in chunk['base']:
+            st, ed = truvari.entry_boundaries(entry)
+            st -= matcher.params.refdist
+            ed += matcher.params.refdist
+            tree.addi(st, ed, data=[entry])
+        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+        for intv in tree:
+            chunk_count += 1
+            yield {'base': intv.data, '__filtered': []}, chunk_count
+
+
 def collapse_main(args):
     """
     Main
     """
     args = parse_args(args)
+    truvari.setup_logging(args.debug, show_version=True)
 
     if check_params(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
+
     # The matcher collapse needs isn't 100% identical to bench
     # So we set it up here
     args.chunksize = args.refdist
@@ -657,11 +755,17 @@ def collapse_main(args):
     matcher.picker = 'single'
 
     base = pysam.VariantFile(args.input)
-    outputs = CollapseOutput(args)
+    regions = truvari.RegionVCFIterator(base, includebed=args.bed)
+    regions.merge_overlaps()
+    base_i = regions.iterate(base)
 
-    chunks = truvari.chunker(matcher, ('base', base))
+    chunks = truvari.chunker(matcher, ('base', base_i))
+    smaller_chunks = tree_size_chunker(matcher, chunks)
+    even_smaller_chunks = tree_dist_chunker(matcher, smaller_chunks)
+
+    outputs = CollapseOutput(args)
     m_collap = partial(collapse_chunk, matcher=matcher)
-    for call in itertools.chain.from_iterable(map(m_collap, chunks)):
+    for call in itertools.chain.from_iterable(map(m_collap, even_smaller_chunks)):
         outputs.write(call, args.median_info)
 
     outputs.close()

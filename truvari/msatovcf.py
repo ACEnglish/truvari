@@ -44,15 +44,52 @@ def decompose_variant(cur_variant):
     return [var_to_str(del_var), var_to_str(in_var)]
 
 
+def aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
+    """
+    Zip the bases of an alignment and turn into variants
+    """
+    cur_variant = []
+    cur_pos = start_pos
+    # This is too long. need to have a separate zip method
+    for ref_base, alt_base in zip(ref_seq, alt_seq):
+        is_ref = ref_base != '-'
+        if ref_base == '-':
+            ref_base = ""
+        if alt_base == '-':
+            alt_base = ""
+
+        # gap on gap
+        if not ref_base and not alt_base:
+            continue
+
+        if ref_base == alt_base:  # No variant
+            if cur_variant and is_ref:  # back to matching reference
+                for variant in decompose_variant(cur_variant):
+                    yield variant
+                cur_variant = []
+        else:
+            if not cur_variant:
+                # -1 for the anchor base we're forcing on
+                cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base,
+                               anchor_base + alt_base, '.', '.', '.', 'GT']
+            else:
+                cur_variant[REFIDX] += ref_base
+                cur_variant[ALTIDX] += alt_base
+        if is_ref:
+            cur_pos += 1
+            anchor_base = ref_base
+    # End Zipping
+    if cur_variant:
+        for variant in decompose_variant(cur_variant):
+            yield variant
+
 def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
     """
     Turn MSA into VCF entries and their presence in samples
     returns list of sample names parsed and dictionary of variant : samples containing the variant
     """
     sample_names = set()
-
     final_vars = defaultdict(list)
-
     for alt_key in msa.keys():
         if alt_key.startswith("ref_"):
             continue
@@ -68,44 +105,9 @@ def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
             alt_seq = msa[alt_key].upper()
 
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
-
-        cur_variant = []
-        cur_pos = start_pos
-        # This is too long. need to have a separate zip method
-        for ref_base, alt_base in zip(ref_seq, alt_seq):
-            is_ref = ref_base != '-'
-            if ref_base == '-':
-                ref_base = ""
-            if alt_base == '-':
-                alt_base = ""
-
-            # nothing to compare
-            if not ref_base and not alt_base:
-                continue
-
-            if ref_base == alt_base:  # No variant
-                if cur_variant and is_ref:  # back to matching reference
-                    for key in decompose_variant(cur_variant):
-                        final_vars[key].append(cur_samp_hap)
-                    cur_variant = []
-            else:
-                if not cur_variant:
-                    # -1 for the anchor base we're forcing on
-                    cur_variant = [chrom, cur_pos - 1, '.', anchor_base + ref_base,
-                                   anchor_base + alt_base, '.', '.', '.', 'GT']
-                else:
-                    cur_variant[REFIDX] += ref_base
-                    cur_variant[ALTIDX] += alt_base
-            if is_ref:
-                cur_pos += 1
-                anchor_base = ref_base
-        # End Zipping
-        if cur_variant:
-            for key in decompose_variant(cur_variant):
-                final_vars[key].append(cur_samp_hap)
-        # End alignment
-    sample_names = sorted(list(sample_names))
-    return sample_names, final_vars
+        for variant in aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
+            final_vars[variant].append(cur_samp_hap)
+    return sorted(list(sample_names)), final_vars
 
 
 def make_vcf(variants, sample_names):
@@ -142,7 +144,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> msa_dir = "repo_utils/test_files/external/fake_mafft/lookup/"
         >>> msa_file = "fm_ca43b50e2a5d770bb34202d8a7b62421.msa"
         >>> seqs = open(msa_dir + msa_file).read()
-        >>> fasta = {n:s.decode() for n, s in fasta_reader(seqs, False)}
+        >>> fasta = dict(fasta_reader(seqs))
         >>> m_entries_str = truvari.msa2vcf(fasta)
     """
     ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
