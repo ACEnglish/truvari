@@ -35,8 +35,8 @@ jobs:
           python -m pip install .
       - name: Build the release tarball
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python setup.py sdist bdist_wheel
+          python -m pip install --upgrade pip setuptools wheel build
+          python3 -m build --wheel --sdist
       - name: Publish distribution 📦 to Test PyPI
         if: github.event.inputs.skip_test != 'skip'
         uses: pypa/gh-action-pypi-publish@master
@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: release-tarball
-          path: dist/Truvari*.tar.gz
+          path: dist/truvari*.tar.gz
           # if-no-files-found: ignore
       - name: Publish distribution 📦 to PyPI
         if: github.event.inputs.official == 'PUBLISH TO PYPI'
