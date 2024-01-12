@@ -2,7 +2,7 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.1.0)](https://github.com/ACEnglish/truvari/compare/v4.1.0...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.2.0)](https://github.com/ACEnglish/truvari/compare/v4.2.0...develop)
 [![Downloads](https://static.pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
@@ -10,7 +10,7 @@ Toolkit for benchmarking, merging, and annotating Structural Variants
 
 📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
 📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
-📝 Read our [Paper](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6) to learn more.
+📝 Read our Papers ([#1](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6), [#2](https://www.biorxiv.org/content/10.1101/2023.10.29.564632v1)) to learn more.
 
 ## 💻 Installation
 Truvari uses Python 3.6+ and can be installed with pip:
