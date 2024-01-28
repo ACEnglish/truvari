@@ -1,9 +1,7 @@
+use edlib_rs::edlibrs::{edlibAlignRs, EdlibAlignConfigRs};
 use noodles_vcf::{
-    self as vcf,
-    record::alternate_bases::allele,
-    record::genotypes::sample::value::Genotype,
-    record::info::field,
-    record::Filters,
+    self as vcf, record::alternate_bases::allele, record::genotypes::sample::value::Genotype,
+    record::info::field, record::Filters,
 };
 use std::str::FromStr;
 
@@ -252,24 +250,82 @@ pub fn entry_is_present(entry: &vcf::Record, sample: usize) -> bool {
             .expect("Unable to parse genotype")
             .unwrap(),
     );
-    return (gt == Gt::Het) || (gt == Gt::Hom)
+    return (gt == Gt::Het) || (gt == Gt::Hom);
 }
 
 pub fn entry_is_filtered(entry: &vcf::Record) -> bool {
     // Filter is None or PASS not in filter
     match entry.filters() {
         Some(map) => *map != Filters::Pass,
-        None => false
+        None => false,
     }
 }
 
+pub fn seqsim(seq_a: &String, seq_b: &String) -> f32 {
+    let align_res = edlibAlignRs(
+        seq_a.as_bytes(),
+        seq_b.as_bytes(),
+        &EdlibAlignConfigRs::default(),
+    );
+    let totlen: f32 = (seq_a.len() + seq_b.len()) as f32;
+    (totlen - align_res.editDistance as f32) / totlen
+}
+
+pub fn entry_seq_similarity(entry_a: &vcf::Record, entry_b: &vcf::Record) -> f32 {
+    let mut a_seq = match entry_variant_type(entry_a) {
+        Svtype::Del => entry_a.reference_bases().to_string(),
+        _ => entry_a
+            .alternate_bases()
+            .first()
+            .expect("Should only be called on sequence resolved alts")
+            .to_string(),
+    };
+    let mut b_seq = match entry_variant_type(entry_b) {
+        Svtype::Del => entry_b.reference_bases().to_string(),
+        _ => entry_b
+            .alternate_bases()
+            .first()
+            .expect("Should only be called on sequence resolved alts")
+            .to_string(),
+    };
+
+    let (mut st_dist, mut ed_dist) = entry_distance(&entry_a, &entry_b);
+    if (st_dist == 0) || (ed_dist == 0) {
+        return seqsim(&a_seq, &b_seq);
+    }
+    if st_dist < 0 {
+        st_dist *= -1
+    } else {
+        std::mem::swap(&mut a_seq, &mut b_seq);
+    }
+
+    seqsim(&a_seq, &b_seq)
+        .max(unroll_compare(&a_seq, &b_seq, st_dist as usize, true))
+        .max(unroll_compare(&b_seq, &a_seq, st_dist as usize, false))
+}
+
+pub fn unroll_compare(a_seq: &String, b_seq: &String, p: usize, up: bool) -> f32 {
+    let b_len = b_seq.len() as usize;
+    let f = p % b_len;
+    let position = (b_len - f) as usize; // I'm worried about signs here
+    if position >= b_len {
+        return 0.0 // should never be called unless Symbolic alts are present, in which case we
+                   // can't compare
+    }
+    // If up, a_seq is upstream of b_seq
+    let rolled = match up {
+        true => format!("{}{}", &b_seq[position..], &b_seq[..position]),
+        false => format!("{}{}", &b_seq[..position], &b_seq[position..])
+    };
+    seqsim(&a_seq, &rolled)
+}
+
 /* TODO
- *
-def create_pos_haplotype(a1, a2, ref, min_len=0):
-def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
-def entry_shared_ref_context(entryA, entryB, ref, use_ref_seq=False, min_len=0):
+Only if we're doing vcf2df (probably not...?)
 def entry_to_hash(entry, hasher=hashlib.sha1):
 def entry_to_key(entry, prefix="", bounds=False):
-def seqsim(allele1, allele2):
-def unroll_compare(seqA, seqB, p):
+
+Deprecating reference context comparison
+def create_pos_haplotype(a1, a2, ref, min_len=0):
+def entry_shared_ref_context(entryA, entryB, ref, use_ref_seq=False, min_len=0):
  */

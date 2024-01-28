@@ -11,11 +11,11 @@ fn main() {
     reader
         .read_record(&header, &mut up_record)
         .expect("Unable to parse record");
-
     for result in reader.records(&header) {
         let dn_record = result.expect("Unable to parse record");
+        // Need to put a sequence resolved guard on seq_similarity
         println!(
-            "size={:?} type={:?} bound={:?} dist={:?} ovl={:?} szsim={:?} gtcmp={:?} pres={:?} filt={:?}",
+            "size={:?} type={:?} bound={:?} dist={:?} ovl={:?} szsim={:?} gtcmp={:?} pres={:?} filt={:?} sim={:?}",
             comparisons::entry_size(&dn_record),
             comparisons::entry_variant_type(&dn_record),
             comparisons::entry_boundaries(&dn_record, false),
@@ -25,6 +25,7 @@ fn main() {
             comparisons::entry_gt_comp(&up_record, &dn_record, 0, 0),
             comparisons::entry_is_present(&dn_record, 0),
             comparisons::entry_is_filtered(&dn_record),
+            comparisons::entry_seq_similarity(&up_record, &dn_record),
         );
         up_record = dn_record;
     }
