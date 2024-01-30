@@ -1,70 +1,9 @@
+use crate::types::{Gt, Svtype};
 use edlib_rs::edlibrs::{edlibAlignRs, EdlibAlignConfigRs};
 use noodles_vcf::{
-    self as vcf, record::alternate_bases::allele, record::genotypes::sample::value::Genotype,
-    record::info::field, record::Filters,
+    self as vcf, record::alternate_bases::allele, record::info::field, record::Filters,
 };
 use std::str::FromStr;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Svtype {
-    Ins,
-    Del,
-    Dup,
-    Inv,
-    Snp,
-    Unk,
-    //Repl should be one
-}
-
-impl FromStr for Svtype {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "DEL" => Ok(Svtype::Del),
-            "INS" => Ok(Svtype::Ins),
-            "DUP" => Ok(Svtype::Dup),
-            "INV" => Ok(Svtype::Inv),
-            "SNP" => Ok(Svtype::Snp),
-            _ => Ok(Svtype::Unk),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Gt {
-    Ref,
-    Het,
-    Hom,
-    Non,
-    Unk,
-    //Hemi should be a thing
-}
-
-impl Gt {
-    pub fn new(gt: Genotype) -> Self {
-        let g1 = match gt.first().unwrap().position() {
-            Some(g) => g.to_string().chars().next().unwrap(),
-            None => '.',
-        };
-        // This isn't going to work if its hemi?
-        let g2 = match gt.last().unwrap().position() {
-            Some(g) => g.to_string().chars().next().unwrap(),
-            None => '.',
-        };
-        if g1 == g2 {
-            match g1 {
-                '1' => Gt::Hom,
-                '0' => Gt::Ref,
-                '.' => Gt::Non,
-                _ => Gt::Unk,
-            }
-        } else if (g1 == '1') || (g2 == '1') {
-            Gt::Het
-        } else {
-            Gt::Unk
-        }
-    }
-}
 
 pub fn entry_boundaries(entry: &vcf::Record, ins_inflate: bool) -> (usize, usize) {
     let mut start = usize::from(entry.position()) - 1;
@@ -92,7 +31,8 @@ pub fn entry_size(entry: &vcf::Record) -> usize {
         Some(allele::Allele::Bases(alt)) => alt.len(),
         Some(allele::Allele::Symbol(_alt)) => {
             let (start, end) = entry_boundaries(entry, false);
-            start.abs_diff(end) + 1 // I don't understand why I have to add 1.
+            start.abs_diff(end) + 1 // I don't understand why I have to add 1 to match the
+                                    // python code.
         }
         _ => 0,
     };
@@ -309,13 +249,13 @@ pub fn unroll_compare(a_seq: &String, b_seq: &String, p: usize, up: bool) -> f32
     let f = p % b_len;
     let position = (b_len - f) as usize; // I'm worried about signs here
     if position >= b_len {
-        return 0.0 // should never be called unless Symbolic alts are present, in which case we
-                   // can't compare
+        return 0.0; // should never be called unless Symbolic alts are present, in which case we
+                    // can't compare
     }
     // If up, a_seq is upstream of b_seq
     let rolled = match up {
         true => format!("{}{}", &b_seq[position..], &b_seq[..position]),
-        false => format!("{}{}", &b_seq[..position], &b_seq[position..])
+        false => format!("{}{}", &b_seq[..position], &b_seq[position..]),
     };
     seqsim(&a_seq, &rolled)
 }

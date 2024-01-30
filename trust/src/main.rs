@@ -1,11 +1,26 @@
 use noodles_vcf::{self as vcf};
 mod comparisons;
+mod matching;
+mod types;
 
 fn main() {
     let mut reader = vcf::reader::Builder::default()
         .build_from_path("sample.vcf.gz")
         .expect("Unable to parse vcf");
     let header = reader.read_header().expect("Unable to parse header");
+    let mut mmatch1 = matching::MatchResult::new();
+    mmatch1.base_gt_count = 4;
+    mmatch1.score = Some(4.0);
+    let mut mmatch2 = matching::MatchResult::new();
+    mmatch2.score = Some(5.0);
+    let mut mmatch3 = matching::MatchResult::new();
+    mmatch3.state = true;
+    let mut parts = vec![mmatch1, mmatch2, mmatch3];
+    parts.sort();
+    parts.reverse();
+    for i in parts {
+        println!("{:?}", i);
+    }
 
     let mut up_record = vcf::Record::default();
     reader
