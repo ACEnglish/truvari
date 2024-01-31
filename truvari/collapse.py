@@ -130,10 +130,8 @@ def collapse_chunk(chunk, matcher):
         m_collap.genotype_mask = m_collap.make_genotype_mask(
             m_collap.entry, matcher.gt)
 
-        unmatched = []
-        # Sort based on size difference of current call
-        remaining_calls.sort(key=partial(relative_size_sorter, m_collap.entry))
-        for candidate in remaining_calls:
+        # Sort based on size difference to current call
+        for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
             mat = matcher.build_match(m_collap.entry,
                                       candidate,
                                       m_collap.match_id,
@@ -145,22 +143,18 @@ def collapse_chunk(chunk, matcher):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
-            else:
-                unmatched.append(candidate)
 
         # Does this collap need to go into a previous collap?
         if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
             ret.append(m_collap)
 
-        remaining_calls = unmatched
         # If hap, only allow the best match
         if matcher.hap and m_collap.matches:
             mats = sorted(m_collap.matches, reverse=True)
             m_collap.matches = [mats.pop(0)]
-            remaining_calls.extend(mat.comp for mat in mats)
 
-        # Sort based on the desired sorting to choose the next one
-        remaining_calls.sort(key=matcher.sorter)
+        # Remove everything that was used
+        remaining_calls = [_ for _ in remaining_calls if _ not in m_collap.matches]
 
     if matcher.no_consolidate:
         for val in ret:

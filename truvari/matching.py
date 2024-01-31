@@ -90,6 +90,7 @@ class Matcher():
 
         self.reference = None
         if self.params.reference is not None:
+            #logging.warning("`--reference` is being deprecated and is only
             self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod
