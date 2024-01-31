@@ -154,7 +154,7 @@ def collapse_chunk(chunk, matcher):
             m_collap.matches = [mats.pop(0)]
 
         # Remove everything that was used
-        remaining_calls = [_ for _ in remaining_calls if _ not in m_collap.matches]
+        remaining_calls = [_.comp for _ in remaining_calls if _.comp not in m_collap.matches]
 
     if matcher.no_consolidate:
         for val in ret:
