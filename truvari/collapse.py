@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
 import pysam
+import numpy as np
 from intervaltree import IntervalTree
 
 import truvari
@@ -30,6 +31,7 @@ class CollapsedCalls():
     match_id: str
     matches: list = field(default_factory=list)
     gt_consolidate_count: int = 0
+    genotype_mask: str = ""  # bad
 
     def combine(self, other):
         """
@@ -66,6 +68,32 @@ class CollapsedCalls():
         if med_info:
             self.entry.info["CollapseStart"], self.entry.info["CollapseEnd"], self.entry.info["CollapseSize"] = self.calc_median_sizepos()
 
+    @staticmethod
+    def make_genotype_mask(entry, gtmode):
+        """
+        Populate the genotype mask
+        """
+        if gtmode == 'off':
+            return
+        to_mask = (lambda x: 1 in x) if gtmode == 'all' else (
+            lambda x: x.count(1) == 1)
+        return np.array([to_mask(_.allele_indices) for _ in entry.samples.values()], dtype=bool)
+
+    def gt_conflict(self, other, which_gt):
+        """
+        Return true if entry's genotypes conflict with any of the current collapse
+        which_gt all prevents variants present in the same sample from being collapsed
+        which_gt het only prevents two het variants from being collapsed.
+        """
+        if which_gt == 'off':
+            return False
+
+        o_mask = self.make_genotype_mask(other, which_gt)
+        if (self.genotype_mask & o_mask).any():
+            return True
+        self.genotype_mask |= o_mask
+        return False
+
 
 def chain_collapse(cur_collapse, all_collapse, matcher):
     """
@@ -98,6 +126,10 @@ def collapse_chunk(chunk, matcher):
         call_id += 1
         m_collap = CollapsedCalls(remaining_calls.pop(0),
                                   f'{chunk_id}.{call_id}')
+        # quicker genotype comparison - needs to be refactored
+        m_collap.genotype_mask = m_collap.make_genotype_mask(
+            m_collap.entry, matcher.gt)
+
         unmatched = []
         # Sort based on size difference of current call
         remaining_calls.sort(key=partial(relative_size_sorter, m_collap.entry))
@@ -109,7 +141,7 @@ def collapse_chunk(chunk, matcher):
                                       short_circuit=True)
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
-            if mat.state and gt_conflict(m_collap, candidate, matcher.gt):
+            if mat.state and m_collap.gt_conflict(candidate, matcher.gt):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
@@ -146,11 +178,13 @@ def collapse_chunk(chunk, matcher):
     ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
+
 def relative_size_sorter(base, comp):
     """
     Sort calls based on the absolute size difference of base and comp
     """
     return abs(truvari.entry_size(base) - truvari.entry_size(comp))
+
 
 def collapse_into_entry(entry, others, hap_mode=False):
     """
@@ -214,6 +248,7 @@ def gt_conflict(cur_collapse, entry, which_gt):
     Return true if entry's genotypes conflict with any of the current collapse
     which_gt all prevents variants present in the same sample from being collapsed
     which_gt het only prevents two het variants from being collapsed.
+    Might be deprecated, now?
     """
     if which_gt == 'off':
         return False
@@ -244,6 +279,7 @@ def gt_conflict(cur_collapse, entry, which_gt):
             return True
 
     return False
+
 
 def get_ac(gt):
     """
