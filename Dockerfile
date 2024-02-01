@@ -10,7 +10,7 @@ RUN apt-get -qq update \
   rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/truvari-source/truvari/
-COPY setup.py README.md /opt/truvari-source
+COPY setup.py README.md /opt/truvari-source/
 COPY truvari/ /opt/truvari-source/truvari/
 WORKDIR /opt/truvari-source
 
