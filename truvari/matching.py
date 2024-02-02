@@ -170,8 +170,7 @@ class Matcher():
            or (not base and size < self.params.sizefilt):
             return True
 
-        samp = self.params.bSample if base else self.params.cSample
-        prefix = 'b' if base else 'c'
+        samp, prefix = (self.params.bSample, 'b') if base else (self.params.cSample, 'c')
         if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') \
                 and not truvari.entry_is_present(entry, samp):
             return True

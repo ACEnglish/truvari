@@ -21,7 +21,7 @@ fn main() {
     for i in parts {
         println!("{:?}", i);
     }
-
+    let mat = matching::Matcher::new();
     let mut up_record = vcf::Record::default();
     reader
         .read_record(&header, &mut up_record)
@@ -29,6 +29,10 @@ fn main() {
     for result in reader.records(&header) {
         let dn_record = result.expect("Unable to parse record");
         // Need to put a sequence resolved guard on seq_similarity
+        if mat.filter_call(&dn_record, false) {
+            println!("filtering {:?}", up_record);
+            continue;
+        }
         println!(
             "size={:?} type={:?} bound={:?} dist={:?} ovl={:?} szsim={:?} gtcmp={:?} pres={:?} filt={:?} sim={:?}",
             comparisons::entry_size(&dn_record),

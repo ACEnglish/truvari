@@ -1,4 +1,5 @@
 use crate::types::Gt;
+use crate::comparisons;
 use noodles_vcf::{self as vcf};
 use std::cmp::Ordering;
 
@@ -96,12 +97,44 @@ impl Eq for MatchResult {}
 #[derive(Debug)]
 pub struct Matcher {
     pub params: String, // This will be tricky? Maybe...
-    pub fn filter_call(entry: &vcf::Record, base: bool) {
 
-    }
 }
 
-impl Matcher (
+impl Matcher {
+    pub fn new() -> Self {
+        Matcher { params: "Wouldbeparams".to_string() }
+    }
+
+    pub fn filter_call(&self, entry: &vcf::Record, base: bool) -> bool {
+        // self.params.check_monref &  e
+        if entry.alternate_bases().len() == 0 {
+            return true;
+        }
+
+        // self.params.check_multi
+        if entry.alternate_bases().len() > 1 {
+            //panic and exit
+            return true;
+        }
+
+        // self.params.passonly
+        if comparisons::entry_is_filtered(&entry) {
+            return true;
+        }
+
+        let size = comparisons::entry_size(&entry);
+        //self.params.sizemax
+        //self.params.sizemin
+        //self.params.sizefilt
+        if (size > 1209) || (base & (size < 5)) || (!base & (size < 6)) {
+            return true;
+        }
+        //self.params.bSample / self.params.cSample
+        let (samp, prefix) = if base { (0, 'b') } else { (1, 'c') };
+        //if (self.params.no_ref..
+        false
+    }
+}
     //check_monref and alts is None
     //# check_multi and 
 /* TODO
