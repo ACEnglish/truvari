@@ -50,6 +50,10 @@ entry_size_similarity
 ^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_size_similarity
 
+entry_shared_ref_context
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: entry_shared_ref_context
+
 entry_to_hash
 ^^^^^^^^^^^^^
 .. autofunction:: entry_to_hash
@@ -62,9 +66,9 @@ entry_variant_type
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_variant_type
 
-entry_shared_ref_context
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_shared_ref_context
+entry_within
+^^^^^^^^^^^^
+..autofunction:: entry_within
 
 Extra Methods
 -------------
@@ -165,6 +169,14 @@ chunker
 cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
+
+consolidate_phab_vcfs
+^^^^^^^^^^^^^^^^^^^^^
+.. autofunction:: consolidate_phab_vcfs
+
+coords_within
+^^^^^^^^^^^^^
+.. autofunction:: coords_within
 
 count_entries
 ^^^^^^^^^^^^^

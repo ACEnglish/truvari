@@ -74,7 +74,7 @@ class CollapsedCalls():
         Populate the genotype mask
         """
         if gtmode == 'off':
-            return
+            return None
         to_mask = (lambda x: 1 in x) if gtmode == 'all' else (
             lambda x: x.count(1) == 1)
         return np.array([to_mask(_.allele_indices) for _ in entry.samples.values()], dtype=bool)

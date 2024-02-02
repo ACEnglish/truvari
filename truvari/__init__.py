@@ -19,6 +19,7 @@ VariantRecord methods:
 :meth:`entry_size_similarity`
 :meth:`entry_to_hash`
 :meth:`entry_to_key`
+:meth:`entry_within`
 :meth:`entry_variant_type`
 
 Extra methods:
@@ -51,6 +52,7 @@ Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
 :meth:`consolidate_phab_vcfs`
+:meth:`coords_within`
 :meth:`count_entries`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
@@ -101,6 +103,7 @@ from truvari.bench import (
 )
 
 from truvari.comparisons import (
+    coords_within,
     create_pos_haplotype,
     entry_boundaries,
     entry_distance,
@@ -116,6 +119,7 @@ from truvari.comparisons import (
     entry_to_hash,
     entry_to_key,
     entry_variant_type,
+    entry_within,
     overlap_percent,
     overlaps,
     reciprocal_overlap,
