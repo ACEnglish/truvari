@@ -93,9 +93,18 @@ impl PartialEq for MatchResult {
 
 impl Eq for MatchResult {}
 
-/* TODO
+#[derive(Debug)]
 pub struct Matcher {
+    pub params: String, // This will be tricky? Maybe...
+    pub fn filter_call(entry: &vcf::Record, base: bool) {
+
+    }
 }
+
+impl Matcher (
+    //check_monref and alts is None
+    //# check_multi and 
+/* TODO
 class Matcher():
     make_match_params with defaults...
     make_match_params_from_args with the thing
