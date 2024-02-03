@@ -206,6 +206,10 @@ performance_metrics
 ^^^^^^^^^^^^^^^^^^^
 .. autofunction:: performance_metrics
 
+region_filter
+^^^^^^^^^^^^^
+.. autofunction:: region_filter
+
 restricted_float
 ^^^^^^^^^^^^^^^^
 .. autofunction:: restricted_float

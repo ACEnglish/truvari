@@ -60,6 +60,7 @@ Dev methods:
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`performance_metrics`
+:meth:`region_filter`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
@@ -145,7 +146,8 @@ from truvari.phab import (
 
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
-    build_anno_tree
+    build_anno_tree,
+    region_filter,
 )
 
 from truvari.stratify import (

@@ -108,6 +108,8 @@ def make_consensus(data, ref_fn):
     vcf_fn, sample, prefix = data
     reference = pysam.FastaFile(ref_fn)
     vcf = pysam.VariantFile(vcf_fn)
+    # could swap these fors with data structures and more memory..
+    # or I could do the work to iter chroms and pretty much -T it
     o_samp = 'p:' + sample if prefix else sample
     ret = {}
     for ref in list(reference.references):
