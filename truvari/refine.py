@@ -169,21 +169,6 @@ def make_variant_report(regions):
     return summary
 
 
-def region_filter(vcf, tree, inside=True):
-    """
-    Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
-    """
-    for entry in vcf:
-        start, end = truvari.entry_boundaries(entry)
-        m_ovl = list(tree[entry.chrom].overlap(start, end))
-        if len(m_ovl) == 1:
-            end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
-            is_within = truvari.coords_within(start, end, m_ovl[0].begin, m_ovl[0].end - 1, end_within)
-            if is_within == inside:
-                yield entry
-        elif not inside:
-            yield entry
-
 def recount_variant_report(orig_dir, phab_dir, regions):
     """
     Count original variants not in refined regions and
@@ -201,19 +186,19 @@ def recount_variant_report(orig_dir, phab_dir, regions):
         summary.update(json.load(fh))
 
     vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
-    tpb = len(list(region_filter(vcf, tree, False)))
+    tpb = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-base"] += tpb
 
     vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
-    tpc = len(list(region_filter(vcf, tree, False)))
+    tpc = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-comp"] += tpc
 
     vcf = pysam.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
-    fp = len(list(region_filter(vcf, tree, False)))
+    fp = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FP"] += fp
 
     vcf = pysam.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
-    fn = len(list(region_filter(vcf, tree, False)))
+    fn = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp

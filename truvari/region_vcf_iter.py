@@ -9,7 +9,6 @@ from collections import defaultdict
 from intervaltree import IntervalTree
 import truvari
 
-
 class RegionVCFIterator():
     """
     Helper class to specify include regions of the genome when iterating a VCF
@@ -164,3 +163,18 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
         tree[chrom].addi(start, end + 1, data=m_idx)
         idx += 1
     return tree, idx
+
+def region_filter(vcf, tree, inside=True):
+    """
+    Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
+    """
+    for entry in vcf:
+        start, end = truvari.entry_boundaries(entry)
+        m_ovl = list(tree[entry.chrom].overlap(start, end))
+        if len(m_ovl) == 1:
+            end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+            is_within = truvari.coords_within(start, end, m_ovl[0].begin, m_ovl[0].end - 1, end_within)
+            if is_within == inside:
+                yield entry
+        elif not inside:
+            yield entry
