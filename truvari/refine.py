@@ -143,7 +143,8 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     """
     update regions in-place with the output variant counts
     """
-    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True, threads)
+    counts = truvari.benchdir_count_entries(
+        outdir, to_eval_coords, True, threads)
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
@@ -168,38 +169,51 @@ def make_variant_report(regions):
     return summary
 
 
+def region_filter(vcf, tree, inside=True):
+    """
+    Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
+    """
+    for entry in vcf:
+        start, end = truvari.entry_boundaries(entry)
+        m_ovl = list(tree[entry.chrom].overlap(start, end))
+        if len(m_ovl) == 1:
+            end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+            is_within = truvari.coords_within(start, end, m_ovl[0].begin, m_ovl[0].end - 1, end_within)
+            if is_within == inside:
+                yield entry
+        elif not inside:
+            yield entry
+
 def recount_variant_report(orig_dir, phab_dir, regions):
     """
     Count original variants not in refined regions and
     consolidate with the refined counts.
     """
-    def falls_in_count(fn, no_count):
-        """ count number of variants that don't start in no_count """
-        vcf = pysam.VariantFile(fn)
-        count = 0
-        for entry in vcf:
-            if entry.chrom in no_count.index:
-                chrom = no_count.loc[entry.chrom]
-                if ((chrom['start'] <= entry.start) & (entry.start <= chrom['end'])).any():
-                    continue
-            count += 1
-        return count
+    tree = defaultdict(IntervalTree)
+    n_regions = regions[regions["refined"]].copy()
+    n_regions['start'] -= PHAB_BUFFER
+    n_regions['end'] += PHAB_BUFFER
+    for _, row in n_regions.iterrows():
+        tree[row['chrom']].addi(row['start'], row['end'])
 
     summary = truvari.StatsBox()
     with open(os.path.join(phab_dir, "summary.json")) as fh:
         summary.update(json.load(fh))
-    # if the variant starts in a refined region, skip it
-    no_count = regions[regions["refined"]].copy().set_index('chrom')
-    no_count['start'] -= PHAB_BUFFER
-    no_count['end'] += PHAB_BUFFER
 
-    tpb = falls_in_count(os.path.join(orig_dir, 'tp-base.vcf.gz'), no_count)
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
+    tpb = len(list(region_filter(vcf, tree, False)))
     summary["TP-base"] += tpb
-    tpc = falls_in_count(os.path.join(orig_dir, 'tp-comp.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
+    tpc = len(list(region_filter(vcf, tree, False)))
     summary["TP-comp"] += tpc
-    fp = falls_in_count(os.path.join(orig_dir, 'fp.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
+    fp = len(list(region_filter(vcf, tree, False)))
     summary["FP"] += fp
-    fn = falls_in_count(os.path.join(orig_dir, 'fn.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
+    fn = len(list(region_filter(vcf, tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp
@@ -213,75 +227,75 @@ def make_region_report(data):
     Given a refine counts DataFrame, calculate the performance of
     PPV, TNR, etc. Also adds 'state' column to regions inplace
     """
-    false_pos = data['out_fp'] != 0
-    false_neg = data['out_fn'] != 0
-    any_false = false_pos | false_neg
+    false_pos=data['out_fp'] != 0
+    false_neg=data['out_fn'] != 0
+    any_false=false_pos | false_neg
 
-    true_positives = (data['out_tp'] != 0) & (
+    true_positives=(data['out_tp'] != 0) & (
         data['out_tpbase'] != 0) & ~any_false
 
-    true_negatives = (
+    true_negatives=(
         data[['out_tpbase', 'out_tp', 'out_fn', 'out_fp']] == 0).all(axis=1)
 
-    state_map = defaultdict(lambda: 'UNK')
+    state_map=defaultdict(lambda: 'UNK')
     state_map.update({(True, False, False, False): 'TP',
                       (False, True, False, False): 'TN',
                       (False, False, True, False): 'FP',
                       (False, False, False, True): 'FN',
                       (False, False, True, True): 'FN,FP'})
 
-    data['state'] = [state_map[_]
+    data['state']=[state_map[_]
                      for _ in zip(true_positives, true_negatives, false_pos, false_neg)]
 
-    tot = (true_positives + false_pos + false_neg + true_negatives).astype(int)
-    und = data.iloc[tot[tot != 1].index]
+    tot=(true_positives + false_pos + false_neg + true_negatives).astype(int)
+    und=data.iloc[tot[tot != 1].index]
 
-    result = {}
+    result={}
 
-    base = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
-    baseP = int(base.sum())
-    baseN = int((~base).sum())
-    comp = (data['out_tp'] != 0) | (data['out_fp'] != 0)
-    compP = int(comp.sum())
-    compN = int((~comp).sum())
+    base=(data['out_tpbase'] != 0) | (data['out_fn'] != 0)
+    baseP=int(base.sum())
+    baseN=int((~base).sum())
+    comp=(data['out_tp'] != 0) | (data['out_fp'] != 0)
+    compP=int(comp.sum())
+    compN=int((~comp).sum())
 
-    result["TP"] = int(true_positives.sum())
-    result["TN"] = int(true_negatives.sum())
-    result["FP"] = int(false_pos.sum())
-    result["FN"] = int(false_neg.sum())
-    result["base P"] = baseP
-    result["base N"] = baseN
-    result["comp P"] = compP
-    result["comp N"] = compN
+    result["TP"]=int(true_positives.sum())
+    result["TN"]=int(true_negatives.sum())
+    result["FP"]=int(false_pos.sum())
+    result["FN"]=int(false_neg.sum())
+    result["base P"]=baseP
+    result["base N"]=baseN
+    result["comp P"]=compP
+    result["comp N"]=compN
     # precision
-    result["PPV"] = result["TP"] / \
+    result["PPV"]=result["TP"] / \
         result["comp P"] if result["comp P"] != 0 else None
     # recall
-    result["TPR"] = result["TP"] / \
+    result["TPR"]=result["TP"] / \
         result["base P"] if result["base P"] != 0 else None
     # specificity
-    result["TNR"] = result["TN"] / \
+    result["TNR"]=result["TN"] / \
         result["base N"] if result["base N"] != 0 else None
     # negative predictive value
-    result["NPV"] = result["TN"] / \
+    result["NPV"]=result["TN"] / \
         result["comp N"] if result["comp N"] != 0 else None
     # accuracy
     if result["base P"] + result["base N"] != 0:
-        result["ACC"] = (result["TP"] + result["TN"]) / \
+        result["ACC"]=(result["TP"] + result["TN"]) / \
             (result["base P"] + result["base N"])
     else:
-        result["ACC"] = None
+        result["ACC"]=None
     if result["TPR"] is not None and result["TNR"] is not None:
-        result["BA"] = (result["TPR"] + result["TNR"]) / 2
+        result["BA"]=(result["TPR"] + result["TNR"]) / 2
     else:
-        result["BA"] = None
+        result["BA"]=None
 
     if result["PPV"] and result["TPR"]:
-        result["F1"] = 2 * ((result["PPV"] * result["TPR"]) /
+        result["F1"]=2 * ((result["PPV"] * result["TPR"]) /
                             (result["PPV"] + result["TPR"]))
     else:
-        result["F1"] = None
-    result["UND"] = len(und)
+        result["F1"]=None
+    result["UND"]=len(und)
 
     return result
 
@@ -290,7 +304,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    parser = argparse.ArgumentParser(prog="refine", description=__doc__,
+    parser=argparse.ArgumentParser(prog="refine", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
@@ -313,7 +327,7 @@ def parse_args(args):
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
-    args = parser.parse_args(args)
+    args=parser.parse_args(args)
     return args
 
 
@@ -323,45 +337,45 @@ def check_params(args):
 
     Returns as a Namespace
     """
-    check_fail = False
-    param_path = os.path.join(args.benchdir, "params.json")
+    check_fail=False
+    param_path=os.path.join(args.benchdir, "params.json")
     if not os.path.exists(param_path):
-        check_fail = True
+        check_fail=True
         logging.error(
             "Bench directory %s doesn't have params.json", param_path)
 
-    params = None
+    params=None
     with open(param_path, 'r') as fh:
-        params = json.load(fh)
+        params=json.load(fh)
 
-    p_file = os.path.join(args.benchdir, "phab.output.vcf.gz")
+    p_file=os.path.join(args.benchdir, "phab.output.vcf.gz")
     if os.path.exists(p_file):
-        check_fail = True
+        check_fail=True
         logging.error("Phab output file %s already exists", p_file)
 
     if params["reference"] is None and args.reference is None:
-        check_fail = True
+        check_fail=True
         logging.error(
             "Reference not in params.json or given as a parameter to refine")
     elif args.reference is None:
-        args.reference = params["reference"]
+        args.reference=params["reference"]
 
     if not os.path.exists(args.reference):
-        check_fail = True
+        check_fail=True
         logging.error("Reference %s does not exist", args.reference)
 
     # Setup prefix
-    params["cSample"] = "p:" + params["cSample"]
+    params["cSample"]="p:" + params["cSample"]
 
-    bhdir = os.path.join(args.benchdir, 'phab_bench')
+    bhdir=os.path.join(args.benchdir, 'phab_bench')
     if os.path.exists(bhdir):
-        check_fail = True
+        check_fail=True
         logging.error("Directory %s exists. Cannot run refine", bhdir)
 
     # Should check that bench dir has compressed/indexed vcfs for fetching
     for i in ["tp-base.vcf.gz", "tp-comp.vcf.gz", "fn.vcf.gz", "fp.vcf.gz"]:
         if not os.path.exists(os.path.join(args.benchdir, i)):
-            check_fail = True
+            check_fail=True
             logging.error("Benchdir doesn't have compressed/indexed %s", i)
 
     if check_fail:
@@ -375,12 +389,12 @@ def refine_main(cmdargs):
     """
     Main
     """
-    args = parse_args(cmdargs)
+    args=parse_args(cmdargs)
     if phab_check_requirements(args.align):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    params = check_params(args)
+    params=check_params(args)
     truvari.setup_logging(args.debug,
                           truvari.LogFileStderr(os.path.join(
                               args.benchdir, "refine.log.txt")),
@@ -388,26 +402,26 @@ def refine_main(cmdargs):
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
     # Stratify.
-    regions = initial_stratify(args.benchdir,
+    regions=initial_stratify(args.benchdir,
                                resolve_regions(params, args),
                                args.threads)
 
     # Figure out which to reevaluate
     if args.use_original_vcfs:
         base_vcf, comp_vcf = params.base, params.comp
-        regions["refined"] = original_stratify(base_vcf, comp_vcf, regions)
+        regions["refined"]=original_stratify(base_vcf, comp_vcf, regions)
     else:
-        base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
-        regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
+        base_vcf, comp_vcf=consolidate_bench_vcfs(args.benchdir)
+        regions["refined"]=(regions["in_fn"] > 0) & (regions["in_fp"] > 0)
     logging.info("%d regions to be refined", regions["refined"].sum())
 
-    reeval_bed = truvari.make_temp_filename(suffix=".bed")
+    reeval_bed=truvari.make_temp_filename(suffix=".bed")
     regions[regions["refined"]].to_csv(reeval_bed, sep='\t',
                                        header=False, index=False)
 
     # Send the vcfs to phab
-    phab_vcf = os.path.join(args.benchdir, "phab.output.vcf.gz")
-    to_eval_coords = (regions[regions["refined"]][["chrom", "start", "end"]]
+    phab_vcf=os.path.join(args.benchdir, "phab.output.vcf.gz")
+    to_eval_coords=(regions[regions["refined"]][["chrom", "start", "end"]]
                       .to_numpy()
                       .tolist())
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER,
@@ -416,21 +430,21 @@ def refine_main(cmdargs):
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
-    matcher = truvari.Matcher(params)
-    matcher.params.no_ref = 'a'
-    outdir = os.path.join(args.benchdir, "phab_bench")
-    m_bench = truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
+    matcher=truvari.Matcher(params)
+    matcher.params.no_ref='a'
+    outdir=os.path.join(args.benchdir, "phab_bench")
+    m_bench=truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
     m_bench.run()
 
-    regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
+    regions=refined_stratify(outdir, to_eval_coords, regions, args.threads)
 
-    summary = (recount_variant_report(args.benchdir, outdir, regions)
+    summary=(recount_variant_report(args.benchdir, outdir, regions)
                if args.recount else make_variant_report(regions))
     summary.clean_out()
     summary.write_json(os.path.join(
         args.benchdir, 'refine.variant_summary.json'))
 
-    report = make_region_report(regions)
+    report=make_region_report(regions)
     regions['end'] -= 1  # Undo IntervalTree's correction
     regions.to_csv(os.path.join(
         args.benchdir, 'refine.regions.txt'), sep='\t', index=False)

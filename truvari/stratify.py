@@ -50,10 +50,8 @@ def count_entries(vcf, chroms, regions, within):
         chrom, coords = row
         start, end = coords
         for entry in vcf.fetch(chrom, start, end):
-            if within:
-                ent_start, ent_end = truvari.entry_boundaries(entry)
-                if not (start <= ent_start and ent_end <= end):
-                    continue
+            if within and not truvari.entry_within(entry, start, end):
+                continue
             counts[idx] += 1
     return counts
 
