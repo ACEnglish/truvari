@@ -5,6 +5,11 @@ use noodles_vcf::{
 };
 use std::str::FromStr;
 
+pub fn coords_within(qstart: usize, qend: usize, rstart: usize, rend: usize, end_within: bool) -> bool {
+    let ending = if end_within { qend <= rend } else { qend < rend};
+    (qstart >= rstart) & ending
+}
+
 pub fn entry_boundaries(entry: &vcf::Record, ins_inflate: bool) -> (usize, usize) {
     let mut start = usize::from(entry.position()) - 1;
     let mut end = usize::from(entry.end().expect("No Variant End"));
@@ -135,6 +140,12 @@ pub fn sizesim(size_a: usize, size_b: usize) -> (f32, isize) {
         / std::cmp::max(std::cmp::max(size_a, size_b), 1) as f32;
     let diff = size_a as isize - size_b as isize;
     (pct, diff)
+}
+
+pub fn entry_within(entry: &vcf::Record, rstart: usize, rend: usize) -> bool {
+    let (qstart, qend) = entry_boundaries(&entry, false);
+    let end_within = entry_variant_type(&entry) != Svtype::Ins;
+    coords_within(qstart, qend, rstart, rend, end_within)
 }
 
 pub fn overlap_percent(astart: usize, aend: usize, bstart: usize, bend: usize) -> f32 {

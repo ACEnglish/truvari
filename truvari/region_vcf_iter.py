@@ -94,14 +94,13 @@ class RegionVCFIterator():
         # Filter these early so we don't have to keep checking overlaps
         if self.max_span is not None and aend - astart > self.max_span:
             return False
-        if astart == aend - 1:
-            return self.tree[entry.chrom].overlaps(astart)
+
         m_ovl = self.tree[entry.chrom].overlap(astart, aend)
         if len(m_ovl) != 1:
             return False
         m_ovl = list(m_ovl)[0]
-        # Edge case - the variant spans the entire include region
-        return astart >= m_ovl.begin and aend <= m_ovl.end
+        end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+        return truvari.coords_within(astart, aend, m_ovl.begin, m_ovl.end - 1, end_within)
 
     def extend(self, pad):
         """

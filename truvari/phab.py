@@ -119,7 +119,7 @@ def make_consensus(data, ref_fn):
         correction = [-start, -start]
         for entry in vcf.fetch(chrom, start, end):
             # Variant must be within boundaries
-            if entry.start < start or entry.stop > end:
+            if not truvari.entry_within(entry, start, end):
                 continue
             if entry.samples[sample]['GT'][0] == 1:
                 correction[0] = incorporate(haps[0], entry, correction[0])
