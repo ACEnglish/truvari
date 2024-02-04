@@ -1,5 +1,5 @@
 use crate::comparisons;
-use crate::types::Gt;
+use crate::types::{Gt, Pickers};
 use noodles_vcf::{self as vcf};
 use std::cmp::Ordering;
 
@@ -113,7 +113,7 @@ pub struct Matcher {
     pub sizemax: usize,
     pub passonly: bool,
     pub no_ref: char,
-    // pub pick // Picker Object
+    pub pick: Pickers,
     pub ignore_monref: bool,
     pub check_multi: bool,
     pub check_monref: bool,
@@ -137,7 +137,7 @@ impl Default for Matcher {
             sizemax: 50000,
             passonly: false,
             no_ref: 'o', // maybe should be some enum
-            // params.pick:  'single',
+            pick: Pickers::Single,
             ignore_monref: true,
             check_multi: true,
             check_monref: true,
@@ -172,8 +172,10 @@ impl Matcher {
         } else {
             (self.c_sample, 'c')
         };
-        if (self.no_ref == prefix) || (self.no_ref == 'a') {
-            // self.pick == 'ac'
+
+        if ((self.no_ref == prefix) || (self.no_ref == 'a') || (self.pick == Pickers::Ac))
+            & !comparisons::entry_is_present(entry, samp)
+        {
             return true;
         }
 
@@ -195,9 +197,7 @@ impl Matcher {
             ..Default::default()
         };
 
-        if !self.typeignore
-            & !comparisons::entry_same_variant_type(base, comp, self.dup_to_ins)
-        {
+        if !self.typeignore & !comparisons::entry_same_variant_type(base, comp, self.dup_to_ins) {
             ret.state = false;
             if short_circuit {
                 return ret;
@@ -209,12 +209,7 @@ impl Matcher {
         let (bstart, bend) = comparisons::entry_boundaries(base, false);
         let (cstart, cend) = comparisons::entry_boundaries(comp, false);
 
-        if !comparisons::overlaps(
-            bstart - self.refdist,
-            bend + self.refdist,
-            cstart,
-            cend,
-        ) {
+        if !comparisons::overlaps(bstart - self.refdist, bend + self.refdist, cstart, cend) {
             ret.state = false;
             if short_circuit {
                 return ret;
@@ -233,20 +228,20 @@ impl Matcher {
 
         if !skip_gt {
             ret.base_gt = Some(Gt::new(base, self.b_sample));
-            //ret.base_gt_count = 1;
+            ret.base_gt_count = ret.base_gt.as_ref().expect("").get_ac();
             ret.comp_gt = Some(Gt::new(comp, self.c_sample));
-            //ret.comp_gt_count = 1;
-            // ret.gt_match = ret.base_gt_count.abs_diff(ret.comp_gt_count)
+            ret.gt_match = Some(ret.base_gt == ret.comp_gt);
+            ret.comp_gt_count = ret.comp_gt.as_ref().expect("").get_ac();
         }
 
-        ret.ovlpct = Some(comparisons::reciprocal_overlap(bstart, bend, cstart, cend));
+        ret.ovlpct = Some(comparisons::entry_reciprocal_overlap(base, comp));
         if ret.ovlpct < Some(self.pctovl) {
             ret.state = false;
             if short_circuit {
                 return ret;
             }
         }
-       
+
         if self.pctseq > 0.0 {
             ret.seqsim = Some(comparisons::entry_seq_similarity(base, comp));
             if ret.seqsim < Some(self.pctseq) {

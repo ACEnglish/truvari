@@ -28,7 +28,7 @@ fn main() {
         println!("{:?}", i);
     }
 
-    let mat = matching::Matcher { 
+    let mat = matching::Matcher {
         ..Default::default()
     };
     let mut up_record = vcf::Record::default();

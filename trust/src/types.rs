@@ -67,4 +67,19 @@ impl Gt {
             Gt::Unk
         }
     }
+
+    pub fn get_ac(&self) -> u8 {
+         match self {
+            Gt::Hom => 2,
+            Gt::Het => 1,
+            _ => 0,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Pickers {
+    Single,
+    Ac,
+    Multi,
 }
