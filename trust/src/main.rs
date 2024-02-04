@@ -8,12 +8,12 @@ fn main() {
         .build_from_path("sample.vcf.gz")
         .expect("Unable to parse vcf");
     let header = reader.read_header().expect("Unable to parse header");
-    let mut mmatch1 = matching::MatchResult::new();
+    let mut mmatch1 = matching::MatchResult{ ..Default::default() };
     mmatch1.base_gt_count = 4;
     mmatch1.score = Some(4.0);
-    let mut mmatch2 = matching::MatchResult::new();
+    let mut mmatch2 = matching::MatchResult{ ..Default::default() };
     mmatch2.score = Some(5.0);
-    let mut mmatch3 = matching::MatchResult::new();
+    let mut mmatch3 = matching::MatchResult{ ..Default::default() };
     mmatch3.state = true;
     let mut parts = vec![mmatch1, mmatch2, mmatch3];
     parts.sort();
@@ -48,6 +48,8 @@ fn main() {
             comparisons::entry_is_filtered(&dn_record),
             comparisons::entry_seq_similarity(&up_record, &dn_record),
         );
+        let x = mat.build_match(&up_record, &dn_record, Some("".to_string()), false, false);
+        println!("{:?}", x);
         up_record = dn_record;
     }
 }

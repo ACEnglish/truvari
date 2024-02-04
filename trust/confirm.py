@@ -21,6 +21,7 @@ for entry in v:
                                         truvari.entry_is_filtered(entry),
                                         round(truvari.entry_seq_similarity(up_record, entry), 7),
                                         ))
+    x.build_match(up_record, entry)
     up_record = entry
 
 b = time.time()

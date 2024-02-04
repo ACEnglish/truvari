@@ -15,17 +15,17 @@ pub struct MatchResult {
     pub seqsim: Option<f32>,
     pub sizesim: Option<f32>,
     pub ovlpct: Option<f32>,
-    pub sizediff: Option<i64>,
-    pub st_dist: Option<i64>,
-    pub ed_dist: Option<i64>,
+    pub sizediff: Option<isize>,
+    pub st_dist: Option<isize>,
+    pub ed_dist: Option<isize>,
     pub gt_match: Option<bool>,
     pub multi: Option<bool>,
     pub score: Option<f32>,
     pub matid: Option<String>,
 }
 
-impl MatchResult {
-    pub fn new() -> Self {
+impl Default for MatchResult {
+    fn default() -> MatchResult {
         MatchResult {
             base: None,
             comp: None,
@@ -33,7 +33,7 @@ impl MatchResult {
             base_gt_count: 0,
             comp_gt: None,
             comp_gt_count: 0,
-            state: false,
+            state: true,
             seqsim: None,
             sizesim: None,
             ovlpct: None,
@@ -46,7 +46,9 @@ impl MatchResult {
             matid: None,
         }
     }
+}
 
+impl MatchResult {
     pub fn calc_score(mut self) {
         self.score = match (self.seqsim, self.sizesim, self.ovlpct) {
             (Some(seq), Some(size), Some(ovl)) => Some((seq + size + ovl) / 3.0 * 100.0),
@@ -178,6 +180,46 @@ impl Matcher {
         }
 
         false
+    }
+
+    pub fn build_match(&self, base: &vcf::Record, comp: &vcf::Record, matid: Option<String>, skip_gt: bool, short_circuit: bool) -> MatchResult {
+        let mut ret = MatchResult { base: Some(base.clone()), comp: Some(comp.clone()), matid: matid, ..Default::default() };
+
+        if !self.params.typeignore & !comparisons::entry_same_variant_type(base, comp, self.params.dup_to_ins) {
+            ret.state = false;
+            if short_circuit {
+                return ret
+            }
+        }
+    
+        // Don't want to call this twice, but also might want to add in insertion inflation...
+        // Revisit after the alpha
+        let (bstart, bend) = comparisons::entry_boundaries(base, false);
+        let (cstart, cend) = comparisons::entry_boundaries(comp, false);
+        // PctOvl...?
+        if !comparisons::overlaps(bstart - self.params.refdist, bend + self.params.refdist, cstart, cend) {
+            ret.state = false;
+            if short_circuit {
+                return ret
+            }
+        }
+
+        let (szsim, szdiff) =comparisons::entry_size_similarity(base, comp);
+        ret.sizesim = Some(szsim);
+        ret.sizediff = Some(szdiff);
+        if ret.sizesim < Some(self.params.pctsize) {
+            ret.state = false;
+            if short_circuit {
+                return ret
+            }
+        }
+
+        //if !skip_gt {
+            //ret.base_gt = Some(comp
+        //}
+
+        return ret
+        
     }
 }
     //check_monref and alts is None
