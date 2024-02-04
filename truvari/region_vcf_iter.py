@@ -4,7 +4,7 @@ Helper class to specify included regions of the genome when iterating events.
 import sys
 import copy
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from intervaltree import IntervalTree
 import truvari
@@ -168,13 +168,35 @@ def region_filter(vcf, tree, inside=True):
     """
     Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
     """
-    for entry in vcf:
-        start, end = truvari.entry_boundaries(entry)
-        m_ovl = list(tree[entry.chrom].overlap(start, end))
-        if len(m_ovl) == 1:
+    for chrom, cur_tree in tree.items():
+        cur_tree = deque(sorted(cur_tree))
+        try:
+            cur_intv = cur_tree.popleft()
+        except IndexError as e:
+            # region-less chromosome
+            continue
+
+        for entry in vcf.fetch(chrom):
+            start, end = truvari.entry_boundaries(entry)
+            # if start is after this interval, we need the next interval
+            if start > cur_intv.end - 1:
+                try:
+                    cur_intv = cur_tree.popleft()
+                except IndexError as e:
+                    if not inside:
+                        yield entry
+                        continue
+                    # next chromosome
+                    break 
+
+            # well before
+            if end < cur_intv.begin:
+                if not inside:
+                    yield entry
+                continue
+
             end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
-            is_within = truvari.coords_within(start, end, m_ovl[0].begin, m_ovl[0].end - 1, end_within)
+            is_within = truvari.coords_within(start, end, cur_intv.begin, cur_intv.end - 1, end_within)
             if is_within == inside:
                 yield entry
-        elif not inside:
-            yield entry
+
