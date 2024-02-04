@@ -172,7 +172,7 @@ def region_filter(vcf, tree, inside=True):
         cur_tree = deque(sorted(cur_tree))
         try:
             cur_intv = cur_tree.popleft()
-        except IndexError as e:
+        except IndexError:
             # region-less chromosome
             continue
 
@@ -182,12 +182,12 @@ def region_filter(vcf, tree, inside=True):
             if start > cur_intv.end - 1:
                 try:
                     cur_intv = cur_tree.popleft()
-                except IndexError as e:
+                except IndexError:
                     if not inside:
                         yield entry
                         continue
                     # next chromosome
-                    break 
+                    break
 
             # well before
             if end < cur_intv.begin:
@@ -199,4 +199,3 @@ def region_filter(vcf, tree, inside=True):
             is_within = truvari.coords_within(start, end, cur_intv.begin, cur_intv.end - 1, end_within)
             if is_within == inside:
                 yield entry
-
