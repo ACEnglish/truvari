@@ -95,43 +95,88 @@ impl PartialEq for MatchResult {
 impl Eq for MatchResult {}
 
 #[derive(Debug)]
+pub struct MatchParams {
+    pub reference: Option<String>,
+    pub refdist: usize ,
+    pub pctseq: f32,
+    pub pctsize: f32,
+    pub pctovl: f32,
+    pub typeignore: bool,
+    pub chunksize: usize,
+    pub bSample: usize,
+    pub cSample: usize,
+    pub dup_to_ins: bool,
+    pub sizemin: usize,
+    pub sizefilt: usize,
+    pub sizemax: usize,
+    pub passonly: bool,
+    pub no_ref: char,
+    // pub pick // Picker Object
+    pub ignore_monref: bool,
+    pub check_multi: bool,
+    pub check_monref: bool,
+}
+
+impl Default for MatchParams {
+    fn default() -> MatchParams {
+        MatchParams {
+            reference: None,
+            refdist: 500,
+            pctseq:  0.70,
+            pctsize:  0.70,
+            pctovl:  0.0,
+            typeignore:  false,
+            chunksize:  1000,
+            bSample:  0,
+            cSample:  0,
+            dup_to_ins:  false,
+            sizemin:  50,
+            sizefilt:  30,
+            sizemax:  50000,
+            passonly:  false,
+            no_ref:  'o', // maybe should be some enum
+            // params.pick:  'single',
+            ignore_monref: true,
+            check_multi:  true,
+            check_monref:  true,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Matcher {
-    pub params: String, // This will be tricky? Maybe...
+    pub params: MatchParams
 
 }
 
 impl Matcher {
-    pub fn new() -> Self {
-        Matcher { params: "Wouldbeparams".to_string() }
+    pub fn new(m_params: MatchParams) -> Self {
+        Matcher { params: m_params }
     }
 
     pub fn filter_call(&self, entry: &vcf::Record, base: bool) -> bool {
-        // self.params.check_monref &  e
-        if entry.alternate_bases().len() == 0 {
+        if self.params.check_monref & (entry.alternate_bases().len() == 0) {
             return true;
         }
 
-        // self.params.check_multi
-        if entry.alternate_bases().len() > 1 {
+        if self.params.check_multi & (entry.alternate_bases().len() > 1) {
             //panic and exit
             return true;
         }
 
-        // self.params.passonly
-        if comparisons::entry_is_filtered(&entry) {
+        if self.params.passonly & comparisons::entry_is_filtered(&entry) {
             return true;
         }
 
         let size = comparisons::entry_size(&entry);
-        //self.params.sizemax
-        //self.params.sizemin
-        //self.params.sizefilt
-        if (size > 1209) || (base & (size < 5)) || (!base & (size < 6)) {
+        if (size > self.params.sizemax) || (base & (size < self.params.sizemin)) || (!base & (size < self.params.sizefilt)) {
             return true;
         }
-        //self.params.bSample / self.params.cSample
-        let (samp, prefix) = if base { (0, 'b') } else { (1, 'c') };
-        //if (self.params.no_ref..
+        let (samp, prefix) = if base { (self.params.bSample, 'b') } else { (self.params.cSample, 'c') };
+        if (self.params.no_ref == prefix) || (self.params.no_ref == 'a') { // self.params.pick == 'ac'
+            return true;
+        }
+
         false
     }
 }
