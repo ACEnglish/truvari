@@ -8,12 +8,18 @@ fn main() {
         .build_from_path("sample.vcf.gz")
         .expect("Unable to parse vcf");
     let header = reader.read_header().expect("Unable to parse header");
-    let mut mmatch1 = matching::MatchResult{ ..Default::default() };
+    let mut mmatch1 = matching::MatchResult {
+        ..Default::default()
+    };
     mmatch1.base_gt_count = 4;
     mmatch1.score = Some(4.0);
-    let mut mmatch2 = matching::MatchResult{ ..Default::default() };
+    let mut mmatch2 = matching::MatchResult {
+        ..Default::default()
+    };
     mmatch2.score = Some(5.0);
-    let mut mmatch3 = matching::MatchResult{ ..Default::default() };
+    let mut mmatch3 = matching::MatchResult {
+        ..Default::default()
+    };
     mmatch3.state = true;
     let mut parts = vec![mmatch1, mmatch2, mmatch3];
     parts.sort();
@@ -22,7 +28,9 @@ fn main() {
         println!("{:?}", i);
     }
 
-    let m_params = matching::MatchParams{ ..Default::default() };
+    let m_params = matching::MatchParams {
+        ..Default::default()
+    };
     let mat = matching::Matcher::new(m_params);
     let mut up_record = vcf::Record::default();
     reader

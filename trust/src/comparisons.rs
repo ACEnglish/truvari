@@ -5,8 +5,18 @@ use noodles_vcf::{
 };
 use std::str::FromStr;
 
-pub fn coords_within(qstart: usize, qend: usize, rstart: usize, rend: usize, end_within: bool) -> bool {
-    let ending = if end_within { qend <= rend } else { qend < rend};
+pub fn coords_within(
+    qstart: usize,
+    qend: usize,
+    rstart: usize,
+    rend: usize,
+    end_within: bool,
+) -> bool {
+    let ending = if end_within {
+        qend <= rend
+    } else {
+        qend < rend
+    };
     (qstart >= rstart) & ending
 }
 
@@ -143,8 +153,8 @@ pub fn sizesim(size_a: usize, size_b: usize) -> (f32, isize) {
 }
 
 pub fn entry_within(entry: &vcf::Record, rstart: usize, rend: usize) -> bool {
-    let (qstart, qend) = entry_boundaries(&entry, false);
-    let end_within = entry_variant_type(&entry) != Svtype::Ins;
+    let (qstart, qend) = entry_boundaries(entry, false);
+    let end_within = entry_variant_type(entry) != Svtype::Ins;
     coords_within(qstart, qend, rstart, rend, end_within)
 }
 
@@ -170,38 +180,14 @@ pub fn entry_gt_comp(
     sample_a: usize,
     sample_b: usize,
 ) -> bool {
-    let gt_a = Gt::new(
-        entry_a
-            .genotypes()
-            .get_index(sample_a)
-            .expect("Bad sample index")
-            .genotype()
-            .expect("Unable to parse genotype")
-            .unwrap(),
-    );
-    let gt_b = Gt::new(
-        entry_b
-            .genotypes()
-            .get_index(sample_b)
-            .expect("Bad sample index")
-            .genotype()
-            .expect("Unable to parse genotype")
-            .unwrap(),
-    );
+    let gt_a = Gt::new(entry_a, sample_a);
+    let gt_b = Gt::new(entry_b, sample_b);
     gt_a == gt_b
 }
 
 pub fn entry_is_present(entry: &vcf::Record, sample: usize) -> bool {
-    let gt = Gt::new(
-        entry
-            .genotypes()
-            .get_index(sample)
-            .expect("Bad sample index")
-            .genotype()
-            .expect("Unable to parse genotype")
-            .unwrap(),
-    );
-    return (gt == Gt::Het) || (gt == Gt::Hom);
+    let gt = Gt::new(entry, sample);
+    (gt == Gt::Het) || (gt == Gt::Hom)
 }
 
 pub fn entry_is_filtered(entry: &vcf::Record) -> bool {
@@ -240,7 +226,7 @@ pub fn entry_seq_similarity(entry_a: &vcf::Record, entry_b: &vcf::Record) -> f32
             .to_string(),
     };
 
-    let (mut st_dist, mut ed_dist) = entry_distance(&entry_a, &entry_b);
+    let (mut st_dist, ed_dist) = entry_distance(entry_a, entry_b);
     if (st_dist == 0) || (ed_dist == 0) {
         return seqsim(&a_seq, &b_seq);
     }
@@ -256,9 +242,9 @@ pub fn entry_seq_similarity(entry_a: &vcf::Record, entry_b: &vcf::Record) -> f32
 }
 
 pub fn unroll_compare(a_seq: &String, b_seq: &String, p: usize, up: bool) -> f32 {
-    let b_len = b_seq.len() as usize;
+    let b_len = b_seq.len();
     let f = p % b_len;
-    let position = (b_len - f) as usize; // I'm worried about signs here
+    let position = b_len - f; // I'm worried about signs here
     if position >= b_len {
         return 0.0; // should never be called unless Symbolic alts are present, in which case we
                     // can't compare
@@ -268,7 +254,7 @@ pub fn unroll_compare(a_seq: &String, b_seq: &String, p: usize, up: bool) -> f32
         true => format!("{}{}", &b_seq[position..], &b_seq[..position]),
         false => format!("{}{}", &b_seq[..position], &b_seq[position..]),
     };
-    seqsim(&a_seq, &rolled)
+    seqsim(a_seq, &rolled)
 }
 
 /* TODO

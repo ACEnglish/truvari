@@ -1,12 +1,12 @@
-use crate::types::Gt;
 use crate::comparisons;
+use crate::types::Gt;
 use noodles_vcf::{self as vcf};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
-pub struct MatchResult {
-    pub base: Option<vcf::Record>,
-    pub comp: Option<vcf::Record>,
+pub struct MatchResult<'a> {
+    pub base: Option<&'a vcf::Record>,
+    pub comp: Option<&'a vcf::Record>,
     pub base_gt: Option<Gt>,
     pub base_gt_count: u8,
     pub comp_gt: Option<Gt>,
@@ -24,8 +24,8 @@ pub struct MatchResult {
     pub matid: Option<String>,
 }
 
-impl Default for MatchResult {
-    fn default() -> MatchResult {
+impl Default for MatchResult<'_> {
+    fn default() -> MatchResult<'static> {
         MatchResult {
             base: None,
             comp: None,
@@ -48,8 +48,8 @@ impl Default for MatchResult {
     }
 }
 
-impl MatchResult {
-    pub fn calc_score(mut self) {
+impl MatchResult<'_> {
+    pub fn calc_score(&mut self) {
         self.score = match (self.seqsim, self.sizesim, self.ovlpct) {
             (Some(seq), Some(size), Some(ovl)) => Some((seq + size + ovl) / 3.0 * 100.0),
             _ => None,
@@ -57,16 +57,16 @@ impl MatchResult {
     }
 }
 
-impl PartialOrd for MatchResult {
+impl PartialOrd for MatchResult<'_> {
     fn partial_cmp(&self, other: &MatchResult) -> Option<Ordering> {
         Some(other.cmp(self))
     }
 }
 
-impl Ord for MatchResult {
+impl Ord for MatchResult<'_> {
     fn cmp(&self, other: &MatchResult) -> Ordering {
         if self.state != other.state {
-            if self.state < other.state {
+            if !self.state & other.state {
                 Ordering::Greater
             } else {
                 Ordering::Less
@@ -88,25 +88,25 @@ impl Ord for MatchResult {
     }
 }
 
-impl PartialEq for MatchResult {
+impl PartialEq for MatchResult<'_> {
     fn eq(&self, other: &MatchResult) -> bool {
         (self.state == other.state) & (self.score == other.score)
     }
 }
 
-impl Eq for MatchResult {}
+impl Eq for MatchResult<'_> {}
 
 #[derive(Debug)]
 pub struct MatchParams {
     pub reference: Option<String>,
-    pub refdist: usize ,
+    pub refdist: usize,
     pub pctseq: f32,
     pub pctsize: f32,
     pub pctovl: f32,
     pub typeignore: bool,
     pub chunksize: usize,
-    pub bSample: usize,
-    pub cSample: usize,
+    pub b_sample: usize,
+    pub c_sample: usize,
     pub dup_to_ins: bool,
     pub sizemin: usize,
     pub sizefilt: usize,
@@ -124,31 +124,30 @@ impl Default for MatchParams {
         MatchParams {
             reference: None,
             refdist: 500,
-            pctseq:  0.70,
-            pctsize:  0.70,
-            pctovl:  0.0,
-            typeignore:  false,
-            chunksize:  1000,
-            bSample:  0,
-            cSample:  0,
-            dup_to_ins:  false,
-            sizemin:  50,
-            sizefilt:  30,
-            sizemax:  50000,
-            passonly:  false,
-            no_ref:  'o', // maybe should be some enum
+            pctseq: 0.70,
+            pctsize: 0.70,
+            pctovl: 0.0,
+            typeignore: false,
+            chunksize: 1000,
+            b_sample: 0,
+            c_sample: 0,
+            dup_to_ins: false,
+            sizemin: 50,
+            sizefilt: 30,
+            sizemax: 50000,
+            passonly: false,
+            no_ref: 'o', // maybe should be some enum
             // params.pick:  'single',
             ignore_monref: true,
-            check_multi:  true,
-            check_monref:  true,
+            check_multi: true,
+            check_monref: true,
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Matcher {
-    pub params: MatchParams
-
+    pub params: MatchParams,
 }
 
 impl Matcher {
@@ -166,70 +165,115 @@ impl Matcher {
             return true;
         }
 
-        if self.params.passonly & comparisons::entry_is_filtered(&entry) {
+        if self.params.passonly & comparisons::entry_is_filtered(entry) {
             return true;
         }
 
-        let size = comparisons::entry_size(&entry);
-        if (size > self.params.sizemax) || (base & (size < self.params.sizemin)) || (!base & (size < self.params.sizefilt)) {
+        let size = comparisons::entry_size(entry);
+        if (size > self.params.sizemax)
+            || (base & (size < self.params.sizemin))
+            || (!base & (size < self.params.sizefilt))
+        {
             return true;
         }
-        let (samp, prefix) = if base { (self.params.bSample, 'b') } else { (self.params.cSample, 'c') };
-        if (self.params.no_ref == prefix) || (self.params.no_ref == 'a') { // self.params.pick == 'ac'
+        let (samp, prefix) = if base {
+            (self.params.b_sample, 'b')
+        } else {
+            (self.params.c_sample, 'c')
+        };
+        if (self.params.no_ref == prefix) || (self.params.no_ref == 'a') {
+            // self.params.pick == 'ac'
             return true;
         }
 
         false
     }
 
-    pub fn build_match(&self, base: &vcf::Record, comp: &vcf::Record, matid: Option<String>, skip_gt: bool, short_circuit: bool) -> MatchResult {
-        let mut ret = MatchResult { base: Some(base.clone()), comp: Some(comp.clone()), matid: matid, ..Default::default() };
+    pub fn build_match<'a>(
+        &'a self,
+        base: &'a vcf::Record,
+        comp: &'a vcf::Record,
+        matid: Option<String>,
+        skip_gt: bool,
+        short_circuit: bool,
+    ) -> MatchResult {
+        let mut ret = MatchResult {
+            base: Some(base),
+            comp: Some(comp),
+            matid,
+            ..Default::default()
+        };
 
-        if !self.params.typeignore & !comparisons::entry_same_variant_type(base, comp, self.params.dup_to_ins) {
+        if !self.params.typeignore
+            & !comparisons::entry_same_variant_type(base, comp, self.params.dup_to_ins)
+        {
             ret.state = false;
             if short_circuit {
-                return ret
+                return ret;
             }
         }
-    
+
         // Don't want to call this twice, but also might want to add in insertion inflation...
         // Revisit after the alpha
         let (bstart, bend) = comparisons::entry_boundaries(base, false);
         let (cstart, cend) = comparisons::entry_boundaries(comp, false);
-        // PctOvl...?
-        if !comparisons::overlaps(bstart - self.params.refdist, bend + self.params.refdist, cstart, cend) {
+
+        if !comparisons::overlaps(
+            bstart - self.params.refdist,
+            bend + self.params.refdist,
+            cstart,
+            cend,
+        ) {
             ret.state = false;
             if short_circuit {
-                return ret
+                return ret;
             }
         }
 
-        let (szsim, szdiff) =comparisons::entry_size_similarity(base, comp);
+        let (szsim, szdiff) = comparisons::entry_size_similarity(base, comp);
         ret.sizesim = Some(szsim);
         ret.sizediff = Some(szdiff);
         if ret.sizesim < Some(self.params.pctsize) {
             ret.state = false;
             if short_circuit {
-                return ret
+                return ret;
             }
         }
 
-        //if !skip_gt {
-            //ret.base_gt = Some(comp
-        //}
+        if !skip_gt {
+            ret.base_gt = Some(Gt::new(base, self.params.b_sample));
+            //ret.base_gt_count = 1;
+            ret.comp_gt = Some(Gt::new(comp, self.params.c_sample));
+            //ret.comp_gt_count = 1;
+            // ret.gt_match = ret.base_gt_count.abs_diff(ret.comp_gt_count)
+        }
 
-        return ret
-        
+        ret.ovlpct = Some(comparisons::reciprocal_overlap(bstart, bend, cstart, cend));
+        if ret.ovlpct < Some(self.params.pctovl) {
+            ret.state = false;
+            if short_circuit {
+                return ret;
+            }
+        }
+       
+        if self.params.pctseq > 0.0 {
+            ret.seqsim = Some(comparisons::entry_seq_similarity(base, comp));
+            if ret.seqsim < Some(self.params.pctseq) {
+                ret.state = false;
+                if short_circuit {
+                    return ret;
+                }
+            }
+        }
+
+        ret.st_dist = Some(bstart as isize - cstart as isize);
+        ret.ed_dist = Some(bend as isize - cend as isize);
+        ret.calc_score();
+
+        ret
     }
 }
-    //check_monref and alts is None
-    //# check_multi and 
 /* TODO
-class Matcher():
-    make_match_params with defaults...
-    make_match_params_from_args with the thing
-    def filter_call(self, entry, base=False):
-    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
 def file_zipper(*start_files):
 def chunker(matcher, *files):
  */

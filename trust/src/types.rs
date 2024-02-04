@@ -1,4 +1,4 @@
-use noodles_vcf::record::genotypes::sample::value::Genotype;
+use noodles_vcf::{self as vcf};
 use std::str::FromStr;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -37,7 +37,14 @@ pub enum Gt {
 }
 
 impl Gt {
-    pub fn new(gt: Genotype) -> Self {
+    pub fn new(entry: &vcf::Record, samp_idx: usize) -> Self {
+        let gt = entry
+            .genotypes()
+            .get_index(samp_idx)
+            .expect("Bad sample index")
+            .genotype()
+            .expect("Unable to parse genotype")
+            .unwrap();
         let g1 = match gt.first().unwrap().position() {
             Some(g) => g.to_string().chars().next().unwrap(),
             None => '.',
