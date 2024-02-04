@@ -97,7 +97,7 @@ impl PartialEq for MatchResult<'_> {
 impl Eq for MatchResult<'_> {}
 
 #[derive(Debug)]
-pub struct MatchParams {
+pub struct Matcher {
     pub reference: Option<String>,
     pub refdist: usize,
     pub pctseq: f32,
@@ -119,9 +119,9 @@ pub struct MatchParams {
     pub check_monref: bool,
 }
 
-impl Default for MatchParams {
-    fn default() -> MatchParams {
-        MatchParams {
+impl Default for Matcher {
+    fn default() -> Matcher {
+        Matcher {
             reference: None,
             refdist: 500,
             pctseq: 0.70,
@@ -145,44 +145,35 @@ impl Default for MatchParams {
     }
 }
 
-#[derive(Debug)]
-pub struct Matcher {
-    pub params: MatchParams,
-}
-
 impl Matcher {
-    pub fn new(m_params: MatchParams) -> Self {
-        Matcher { params: m_params }
-    }
-
     pub fn filter_call(&self, entry: &vcf::Record, base: bool) -> bool {
-        if self.params.check_monref & (entry.alternate_bases().len() == 0) {
+        if self.check_monref & (entry.alternate_bases().len() == 0) {
             return true;
         }
 
-        if self.params.check_multi & (entry.alternate_bases().len() > 1) {
+        if self.check_multi & (entry.alternate_bases().len() > 1) {
             //panic and exit
             return true;
         }
 
-        if self.params.passonly & comparisons::entry_is_filtered(entry) {
+        if self.passonly & comparisons::entry_is_filtered(entry) {
             return true;
         }
 
         let size = comparisons::entry_size(entry);
-        if (size > self.params.sizemax)
-            || (base & (size < self.params.sizemin))
-            || (!base & (size < self.params.sizefilt))
+        if (size > self.sizemax)
+            || (base & (size < self.sizemin))
+            || (!base & (size < self.sizefilt))
         {
             return true;
         }
         let (samp, prefix) = if base {
-            (self.params.b_sample, 'b')
+            (self.b_sample, 'b')
         } else {
-            (self.params.c_sample, 'c')
+            (self.c_sample, 'c')
         };
-        if (self.params.no_ref == prefix) || (self.params.no_ref == 'a') {
-            // self.params.pick == 'ac'
+        if (self.no_ref == prefix) || (self.no_ref == 'a') {
+            // self.pick == 'ac'
             return true;
         }
 
@@ -204,8 +195,8 @@ impl Matcher {
             ..Default::default()
         };
 
-        if !self.params.typeignore
-            & !comparisons::entry_same_variant_type(base, comp, self.params.dup_to_ins)
+        if !self.typeignore
+            & !comparisons::entry_same_variant_type(base, comp, self.dup_to_ins)
         {
             ret.state = false;
             if short_circuit {
@@ -219,8 +210,8 @@ impl Matcher {
         let (cstart, cend) = comparisons::entry_boundaries(comp, false);
 
         if !comparisons::overlaps(
-            bstart - self.params.refdist,
-            bend + self.params.refdist,
+            bstart - self.refdist,
+            bend + self.refdist,
             cstart,
             cend,
         ) {
@@ -233,7 +224,7 @@ impl Matcher {
         let (szsim, szdiff) = comparisons::entry_size_similarity(base, comp);
         ret.sizesim = Some(szsim);
         ret.sizediff = Some(szdiff);
-        if ret.sizesim < Some(self.params.pctsize) {
+        if ret.sizesim < Some(self.pctsize) {
             ret.state = false;
             if short_circuit {
                 return ret;
@@ -241,24 +232,24 @@ impl Matcher {
         }
 
         if !skip_gt {
-            ret.base_gt = Some(Gt::new(base, self.params.b_sample));
+            ret.base_gt = Some(Gt::new(base, self.b_sample));
             //ret.base_gt_count = 1;
-            ret.comp_gt = Some(Gt::new(comp, self.params.c_sample));
+            ret.comp_gt = Some(Gt::new(comp, self.c_sample));
             //ret.comp_gt_count = 1;
             // ret.gt_match = ret.base_gt_count.abs_diff(ret.comp_gt_count)
         }
 
         ret.ovlpct = Some(comparisons::reciprocal_overlap(bstart, bend, cstart, cend));
-        if ret.ovlpct < Some(self.params.pctovl) {
+        if ret.ovlpct < Some(self.pctovl) {
             ret.state = false;
             if short_circuit {
                 return ret;
             }
         }
        
-        if self.params.pctseq > 0.0 {
+        if self.pctseq > 0.0 {
             ret.seqsim = Some(comparisons::entry_seq_similarity(base, comp));
-            if ret.seqsim < Some(self.params.pctseq) {
+            if ret.seqsim < Some(self.pctseq) {
                 ret.state = false;
                 if short_circuit {
                     return ret;
@@ -273,7 +264,3 @@ impl Matcher {
         ret
     }
 }
-/* TODO
-def file_zipper(*start_files):
-def chunker(matcher, *files):
- */

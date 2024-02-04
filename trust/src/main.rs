@@ -28,10 +28,9 @@ fn main() {
         println!("{:?}", i);
     }
 
-    let m_params = matching::MatchParams {
+    let mat = matching::Matcher { 
         ..Default::default()
     };
-    let mat = matching::Matcher::new(m_params);
     let mut up_record = vcf::Record::default();
     reader
         .read_record(&header, &mut up_record)
