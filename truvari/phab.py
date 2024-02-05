@@ -270,8 +270,11 @@ def run_poa(seq_bytes):
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
     _, seqs, names = zip(*parts)
-    aligner = pyabpoa.msa_aligner()
-    aln_result = aligner.msa(seqs, False, True)
+    try:
+        aligner = pyabpoa.msa_aligner()
+        aln_result = aligner.msa(seqs, False, True)
+    except Exception:
+        return ""
     return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
 
 
