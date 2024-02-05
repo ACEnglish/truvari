@@ -176,24 +176,42 @@ def region_filter(vcf, tree, inside=True):
             # region-less chromosome
             continue
 
-        for entry in vcf.fetch(chrom):
-            start, end = truvari.entry_boundaries(entry)
+        cur_iter = vcf.fetch(chrom)
+        try:
+            cur_entry = next(cur_iter)
+        except StopIteration:
+            # variant-less chromosome
+            continue
+        cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+
+        while True:
             # if start is after this interval, we need the next interval
-            if start > cur_intv.end - 1:
+            if cur_start > cur_intv.end - 1:
                 try:
                     cur_intv = cur_tree.popleft()
                 except IndexError:
-                    if inside:
-                        break
-                    yield entry
+                    break
+            # well before, we need the next entry
+            elif cur_end < cur_intv.begin:
+                if not inside:
+                    yield cur_entry
+                try:
+                    cur_entry = next(cur_iter)
+                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                except StopIteration:
+                    break
+            else:
+                end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
+                is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
+                if is_within == inside:
+                    yield cur_entry
+                try:
+                    cur_entry = next(cur_iter)
+                    cur_stop, cur_end = truvari.entry_boundaries(cur_entry)
+                except StopIteration:
+                    break
 
-            # well before
-            if end < cur_intv.begin:
-                if inside:
-                    continue
-                yield entry
-
-            end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
-            is_within = truvari.coords_within(start, end, cur_intv.begin, cur_intv.end - 1, end_within)
-            if is_within == inside:
+        # if we finished the intervals first, need to flush the rest of the outside entries
+        if not inside: 
+            for entry in cur_iter:
                 yield entry
