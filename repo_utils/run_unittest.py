@@ -27,14 +27,13 @@ for entry in vcf:
     state = entry.info['include'] == 'in'
     assert state == truvari.entry_within(entry, region_start, region_end), f"Bad Boundary {str(entry)}"
 
-v = pysam.VariantFile(vcf_fn)
-regions = truvari.RegionVCFIterator(v, includebed=bed_fn)
-
+regions = truvari.RegionVCFIterator(vcf, includebed=bed_fn)
+vcf.reset()
 truv_ans = defaultdict(lambda: False)
-for entry in regions.iterate(v):
+for entry in regions.iterate(vcf):
     truv_ans[truvari.entry_to_key(entry)] = True
 
-v = pysam.VariantFile(vcf_fn)
+vcf.reset()
 for entry in v:
     state = entry.info['include'] == 'in'
     assert state == truv_ans[truvari.entry_to_key(entry)], f"Bad Boundary {str(entry)}"
@@ -52,7 +51,7 @@ with open(bed_fn, 'r') as fh:
         tree[data[0]].addi(int(data[1]), int(data[2]) + 1)
 
 vcf = pysam.VariantFile(vcf_fn)
-for entry in truvari.region_filter(vcf, tree):
+for entry in truvari.region_filter(vcf, tree, True):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()

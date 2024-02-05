@@ -183,17 +183,15 @@ def region_filter(vcf, tree, inside=True):
                 try:
                     cur_intv = cur_tree.popleft()
                 except IndexError:
-                    if not inside:
-                        yield entry
-                        continue
-                    # next chromosome
-                    break
+                    if inside:
+                        break
+                    yield entry
 
             # well before
             if end < cur_intv.begin:
-                if not inside:
-                    yield entry
-                continue
+                if inside:
+                    continue
+                yield entry
 
             end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
             is_within = truvari.coords_within(start, end, cur_intv.begin, cur_intv.end - 1, end_within)
