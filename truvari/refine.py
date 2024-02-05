@@ -150,7 +150,7 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     regions = regions.join(counts)
     for i in ["tpbase", "tp", "fn", "fp"]:
         regions[f"out_{i}"] = regions[f"in_{i}"].where(
-            ~regions['refined'], regions[f"out_{i}"]).infer_objects(copy=False)
+            ~regions['refined'], regions[f"out_{i}"])
     return regions
 
 
