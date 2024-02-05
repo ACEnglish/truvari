@@ -20,6 +20,6 @@ positional arguments:
   CMD         Command to execute
   OPTIONS     Options to pass to the command
 
-optional arguments:
+options:
   -h, --help  show this help message and exit
 

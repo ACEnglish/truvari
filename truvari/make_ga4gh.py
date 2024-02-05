@@ -48,21 +48,6 @@ def edit_header(header):
                      'Description="Sub-type for decision (match/mismatch type) lm variants had any counterpart to which it could compare">'))
     return header
 
-def in_tree(tree, entry):
-    """
-    return True if entry within boundaries of tree interval
-    """
-    astart, aend = truvari.entry_boundaries(entry)
-    # Filter these early so we don't have to keep checking overlaps
-    if astart == aend - 1:
-        return tree[entry.chrom].overlaps(astart)
-    m_ovl = tree[entry.chrom].overlap(astart, aend)
-    if len(m_ovl) != 1:
-        return False
-    m_ovl = list(m_ovl)[0]
-    # Edge case - the variant spans the entire include region
-    return astart >= m_ovl.begin and aend <= m_ovl.end
-
 def build_tree(regions, buffer=0):
     """
     Build tree from regions
