@@ -138,6 +138,8 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
     :type `end_col`: integer, optional
     :param `one_based`: True if coordinates are one-based
     :type `one_based`: bool, optional
+    :param `is_pyintv`: add 1 to end position to correct pyintervaltree.overlap behavior
+    :type `is_pyintv`: bool, optional
     :param `comment`: ignore lines if they start with this string
     :type `comment`: string, optional
     :param `idxfmt`: Index of column in file with chromosome
@@ -174,6 +176,9 @@ def region_filter(vcf, tree, inside=True):
             cur_intv = cur_tree.popleft()
         except IndexError:
             # region-less chromosome
+            if not inside:
+                for entry in vcf.fetch(chrom):
+                    yield entry
             continue
 
         cur_iter = vcf.fetch(chrom)
@@ -186,10 +191,12 @@ def region_filter(vcf, tree, inside=True):
 
         while True:
             # if start is after this interval, we need the next interval
-            if cur_start > cur_intv.end - 1:
+            if cur_start > cur_intv.end:
                 try:
                     cur_intv = cur_tree.popleft()
                 except IndexError:
+                    if not inside:
+                        yield cur_entry # pass this back before flush after the while
                     break
             # well before, we need the next entry
             elif cur_end < cur_intv.begin:
@@ -207,11 +214,11 @@ def region_filter(vcf, tree, inside=True):
                     yield cur_entry
                 try:
                     cur_entry = next(cur_iter)
-                    cur_stop, cur_end = truvari.entry_boundaries(cur_entry)
+                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
                 except StopIteration:
                     break
 
         # if we finished the intervals first, need to flush the rest of the outside entries
-        if not inside: 
+        if not inside:
             for entry in cur_iter:
                 yield entry

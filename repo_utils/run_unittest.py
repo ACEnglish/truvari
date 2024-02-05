@@ -34,7 +34,7 @@ for entry in regions.iterate(vcf):
     truv_ans[truvari.entry_to_key(entry)] = True
 
 vcf.reset()
-for entry in v:
+for entry in vcf:
     state = entry.info['include'] == 'in'
     assert state == truv_ans[truvari.entry_to_key(entry)], f"Bad Boundary {str(entry)}"
 

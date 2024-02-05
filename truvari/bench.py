@@ -584,7 +584,7 @@ class Bench():
             if match.comp is not None:
                 chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
-        if has_unmatched and pos:  # I don't think I need to confirm pos, but unsure
+        if has_unmatched and pos:
             self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 
