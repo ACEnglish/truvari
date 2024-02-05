@@ -19,6 +19,7 @@ source $TESTSRC/sub_tests/consistency.sh
 source $TESTSRC/sub_tests/divide.sh
 source $TESTSRC/sub_tests/doctests.sh
 source $TESTSRC/sub_tests/entry_main.sh
+source $TESTSRC/sub_tests/ga4gh.sh
 source $TESTSRC/sub_tests/phab.sh
 source $TESTSRC/sub_tests/refine.sh
 source $TESTSRC/sub_tests/segment.sh

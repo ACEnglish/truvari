@@ -81,7 +81,7 @@ def resolve_regions(params, args):
         reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
 
-    return [[chrom, intv.begin, intv.end]
+    return [[chrom, intv.begin, intv.end - 1]
             for chrom, all_intv in reeval_trees.items()
             for intv in sorted(all_intv)]
 
@@ -150,7 +150,7 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     regions = regions.join(counts)
     for i in ["tpbase", "tp", "fn", "fp"]:
         regions[f"out_{i}"] = regions[f"in_{i}"].where(
-            ~regions['refined'], regions[f"out_{i}"])
+            ~regions['refined'], regions[f"out_{i}"]).infer_objects(copy=False)
     return regions
 
 
@@ -176,15 +176,14 @@ def recount_variant_report(orig_dir, phab_dir, regions):
     """
     tree = defaultdict(IntervalTree)
     n_regions = regions[regions["refined"]].copy()
-    n_regions['start'] -= PHAB_BUFFER
-    n_regions['end'] += PHAB_BUFFER
     for _, row in n_regions.iterrows():
-        tree[row['chrom']].addi(row['start'], row['end'])
+        tree[row['chrom']].addi(row['start'], row['end'] + 1)
 
     summary = truvari.StatsBox()
     with open(os.path.join(phab_dir, "summary.json")) as fh:
         summary.update(json.load(fh))
 
+    # Adding the original counts to the updated phab counts
     vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
     tpb = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-base"] += tpb
@@ -430,7 +429,6 @@ def refine_main(cmdargs):
         args.benchdir, 'refine.variant_summary.json'))
 
     report = make_region_report(regions)
-    regions['end'] -= 1  # Undo IntervalTree's correction
     regions.to_csv(os.path.join(
         args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:

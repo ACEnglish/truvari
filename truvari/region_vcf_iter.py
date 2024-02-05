@@ -4,7 +4,7 @@ Helper class to specify included regions of the genome when iterating events.
 import sys
 import copy
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from intervaltree import IntervalTree
 import truvari
@@ -138,6 +138,8 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
     :type `end_col`: integer, optional
     :param `one_based`: True if coordinates are one-based
     :type `one_based`: bool, optional
+    :param `is_pyintv`: add 1 to end position to correct pyintervaltree.overlap behavior
+    :type `is_pyintv`: bool, optional
     :param `comment`: ignore lines if they start with this string
     :type `comment`: string, optional
     :param `idxfmt`: Index of column in file with chromosome
@@ -168,13 +170,55 @@ def region_filter(vcf, tree, inside=True):
     """
     Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
     """
-    for entry in vcf:
-        start, end = truvari.entry_boundaries(entry)
-        m_ovl = list(tree[entry.chrom].overlap(start, end))
-        if len(m_ovl) == 1:
-            end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
-            is_within = truvari.coords_within(start, end, m_ovl[0].begin, m_ovl[0].end - 1, end_within)
-            if is_within == inside:
+    for chrom, cur_tree in tree.items():
+        cur_tree = deque(sorted(cur_tree))
+        try:
+            cur_intv = cur_tree.popleft()
+        except IndexError:
+            # region-less chromosome
+            if not inside:
+                for entry in vcf.fetch(chrom):
+                    yield entry
+            continue
+
+        cur_iter = vcf.fetch(chrom)
+        try:
+            cur_entry = next(cur_iter)
+        except StopIteration:
+            # variant-less chromosome
+            continue
+        cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+
+        while True:
+            # if start is after this interval, we need the next interval
+            if cur_start > cur_intv.end:
+                try:
+                    cur_intv = cur_tree.popleft()
+                except IndexError:
+                    if not inside:
+                        yield cur_entry # pass this back before flush after the while
+                    break
+            # well before, we need the next entry
+            elif cur_end < cur_intv.begin:
+                if not inside:
+                    yield cur_entry
+                try:
+                    cur_entry = next(cur_iter)
+                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                except StopIteration:
+                    break
+            else:
+                end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
+                is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
+                if is_within == inside:
+                    yield cur_entry
+                try:
+                    cur_entry = next(cur_iter)
+                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                except StopIteration:
+                    break
+
+        # if we finished the intervals first, need to flush the rest of the outside entries
+        if not inside:
+            for entry in cur_iter:
                 yield entry
-        elif not inside:
-            yield entry
