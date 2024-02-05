@@ -1,0 +1,16 @@
+# ------------------------------------------------------------
+#                                 ga4gh
+# ------------------------------------------------------------
+run test_ga4gh $truv ga4gh -i $ANSDIR/refine/refine_output_three/ -o $OD/ga4gh_norefine
+if [ $test_ga4gh ]; then
+    assert_exit_code 0
+    assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_norefine_truth.vcf.gz) $(fn_md5 $OD/ga4gh_norefine_truth.vcf.gz)
+    assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_norefine_query.vcf.gz) $(fn_md5 $OD/ga4gh_norefine_query.vcf.gz)
+fi
+
+run test_ga4gh_refine $truv ga4gh -w -i $ANSDIR/refine/refine_output_three/ -o $OD/ga4gh_withrefine
+if [ $test_ga4gh ]; then
+    assert_exit_code 0
+    assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_withrefine_truth.vcf.gz) $(fn_md5 $OD/ga4gh_withrefine_truth.vcf.gz)
+    assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_withrefine_query.vcf.gz) $(fn_md5 $OD/ga4gh_withrefine_query.vcf.gz)
+fi

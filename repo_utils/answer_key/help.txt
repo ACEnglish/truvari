@@ -1,6 +1,6 @@
 usage: truvari [-h] CMD ...
 
-Truvari v4.3.0.dev Structural Variant Benchmarking and Annotation
+Truvari v4.2.1.dev Structural Variant Benchmarking and Annotation
 
 Available commands:
     bench         Performance metrics from comparison of two VCFs
@@ -13,12 +13,13 @@ Available commands:
     divide        Divide a VCF into independent shards
     phab          Variant harmonization using MSA
     refine        Automated bench result refinement with phab
+    ga4gh         Convert Truvari result to GA4GH
     version       Print the Truvari version and exit
 
 positional arguments:
   CMD         Command to execute
   OPTIONS     Options to pass to the command
 
-options:
+optional arguments:
   -h, --help  show this help message and exit
 
