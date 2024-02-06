@@ -19,6 +19,7 @@ VariantRecord methods:
 :meth:`entry_size_similarity`
 :meth:`entry_to_hash`
 :meth:`entry_to_key`
+:meth:`entry_within`
 :meth:`entry_variant_type`
 
 Extra methods:
@@ -51,6 +52,7 @@ Dev methods:
 :meth:`chunker`
 :meth:`cmd_exe`
 :meth:`consolidate_phab_vcfs`
+:meth:`coords_within`
 :meth:`count_entries`
 :meth:`file_zipper`
 :meth:`help_unknown_cmd`
@@ -58,6 +60,7 @@ Dev methods:
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`performance_metrics`
+:meth:`region_filter`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
@@ -85,7 +88,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.2.0'
+__version__ = '4.2.1'
 
 
 from truvari.annotations.af_calc import (
@@ -101,6 +104,7 @@ from truvari.bench import (
 )
 
 from truvari.comparisons import (
+    coords_within,
     create_pos_haplotype,
     entry_boundaries,
     entry_distance,
@@ -116,6 +120,7 @@ from truvari.comparisons import (
     entry_to_hash,
     entry_to_key,
     entry_variant_type,
+    entry_within,
     overlap_percent,
     overlaps,
     reciprocal_overlap,
@@ -141,7 +146,8 @@ from truvari.phab import (
 
 from truvari.region_vcf_iter import (
     RegionVCFIterator,
-    build_anno_tree
+    build_anno_tree,
+    region_filter,
 )
 
 from truvari.stratify import (

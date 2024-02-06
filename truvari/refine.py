@@ -81,7 +81,7 @@ def resolve_regions(params, args):
         reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
 
-    return [[chrom, intv.begin, intv.end]
+    return [[chrom, intv.begin, intv.end - 1]
             for chrom, all_intv in reeval_trees.items()
             for intv in sorted(all_intv)]
 
@@ -143,7 +143,8 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     """
     update regions in-place with the output variant counts
     """
-    counts = truvari.benchdir_count_entries(outdir, to_eval_coords, True, threads)
+    counts = truvari.benchdir_count_entries(
+        outdir, to_eval_coords, True, threads)
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
@@ -173,33 +174,30 @@ def recount_variant_report(orig_dir, phab_dir, regions):
     Count original variants not in refined regions and
     consolidate with the refined counts.
     """
-    def falls_in_count(fn, no_count):
-        """ count number of variants that don't start in no_count """
-        vcf = pysam.VariantFile(fn)
-        count = 0
-        for entry in vcf:
-            if entry.chrom in no_count.index:
-                chrom = no_count.loc[entry.chrom]
-                if ((chrom['start'] <= entry.start) & (entry.start <= chrom['end'])).any():
-                    continue
-            count += 1
-        return count
+    tree = defaultdict(IntervalTree)
+    n_regions = regions[regions["refined"]].copy()
+    for _, row in n_regions.iterrows():
+        tree[row['chrom']].addi(row['start'], row['end'] + 1)
 
     summary = truvari.StatsBox()
     with open(os.path.join(phab_dir, "summary.json")) as fh:
         summary.update(json.load(fh))
-    # if the variant starts in a refined region, skip it
-    no_count = regions[regions["refined"]].copy().set_index('chrom')
-    no_count['start'] -= PHAB_BUFFER
-    no_count['end'] += PHAB_BUFFER
 
-    tpb = falls_in_count(os.path.join(orig_dir, 'tp-base.vcf.gz'), no_count)
+    # Adding the original counts to the updated phab counts
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
+    tpb = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-base"] += tpb
-    tpc = falls_in_count(os.path.join(orig_dir, 'tp-comp.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
+    tpc = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-comp"] += tpc
-    fp = falls_in_count(os.path.join(orig_dir, 'fp.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
+    fp = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FP"] += fp
-    fn = falls_in_count(os.path.join(orig_dir, 'fn.vcf.gz'), no_count)
+
+    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
+    fn = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp
@@ -431,7 +429,6 @@ def refine_main(cmdargs):
         args.benchdir, 'refine.variant_summary.json'))
 
     report = make_region_report(regions)
-    regions['end'] -= 1  # Undo IntervalTree's correction
     regions.to_csv(os.path.join(
         args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:

@@ -90,6 +90,8 @@ class Matcher():
 
         self.reference = None
         if self.params.reference is not None:
+            #sys.stderr.write("WARNING `--reference` is no longer recommended for use with bench/collapse ")
+            #sys.stderr.write("results will be slower and less accurate.\n")
             self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod
@@ -170,11 +172,11 @@ class Matcher():
            or (not base and size < self.params.sizefilt):
             return True
 
-        samp = self.params.bSample if base else self.params.cSample
         prefix = 'b' if base else 'c'
-        if (self.params.no_ref in ["a", prefix] or self.params.pick == 'ac') \
-                and not truvari.entry_is_present(entry, samp):
-            return True
+        if self.params.no_ref in ["a", prefix] or self.params.pick == 'ac':
+            samp = self.params.bSample if base else self.params.cSample
+            if not truvari.entry_is_present(entry, samp):
+                return True
 
         return False
 

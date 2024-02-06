@@ -52,7 +52,7 @@ def parse_args(args):
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Don't compare variant types (%(default)s)")
     thresg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
-                        help="Number of matches reported per-call")
+                        help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
@@ -584,7 +584,7 @@ class Bench():
             if match.comp is not None:
                 chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
-        if has_unmatched and pos:  # I don't think I need to confirm pos, but unsure
+        if has_unmatched and pos:
             self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
 
 

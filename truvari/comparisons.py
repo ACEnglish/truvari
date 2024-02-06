@@ -10,6 +10,31 @@ import edlib
 import truvari
 
 
+def coords_within(qstart, qend, rstart, rend, end_within):
+    """
+    Returns if a span is within the provided [start, end). All coordinates assumed 0-based
+
+    :param `qstart`: query start position
+    :type `qstart`: integer
+    :param `qend`: query end position
+    :type `qend`: integer
+    :param `start`: start of span
+    :type `start`: integer
+    :param `end`: end of span
+    :type `end`: integer
+    :param `end_within`:  if true, qend <= rend, else qend < rend
+    :type `end_within`: bool
+
+    :return: If the coordinates are within the span
+    :rtype: bool
+    """
+    if end_within:
+        ending = qend <= rend
+    else:
+        ending = qend < rend
+    return qstart >= rstart and ending
+
+
 def create_pos_haplotype(a1, a2, ref, min_len=0):
     """
     Create haplotypes of two allele's regions that are assumed to be overlapping
@@ -459,6 +484,13 @@ def entry_variant_type(entry):
         return truvari.get_svtype(mat.groupdict()["SVTYPE"])
     return truvari.get_svtype("UNK")
 
+def entry_within(entry, rstart, rend):
+    """
+    Extract entry boundaries and type to call `coords_within`
+    """
+    qstart, qend = truvari.entry_boundaries(entry)
+    end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+    return coords_within(qstart, qend, rstart, rend, end_within)
 
 def overlap_percent(astart, aend, bstart, bend):
     """
