@@ -181,11 +181,17 @@ def region_filter(vcf, tree, inside=True, with_region=False):
         except IndexError:
             # region-less chromosome
             if not inside:
-                for entry in vcf.fetch(chrom):
-                    yield ret_type(entry, chrom, cur_intv)
+                try:
+                    for entry in vcf.fetch(chrom):
+                        yield ret_type(entry, chrom, cur_intv)
+                except ValueError:
+                    pass # region on chromosome not in vcf
             continue
 
-        cur_iter = vcf.fetch(chrom)
+        try:
+            cur_iter = vcf.fetch(chrom)
+        except ValueError:
+            continue # region on chromosome not in vcf
         try:
             cur_entry = next(cur_iter)
         except StopIteration:
