@@ -51,9 +51,9 @@ with open(bed_fn, 'r') as fh:
         tree[data[0]].addi(int(data[1]), int(data[2]) + 1)
 
 vcf = pysam.VariantFile(vcf_fn)
-for entry in truvari.region_filter(vcf, tree, True):
+for entry in truvari.region_filter(vcf, tree, True, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()
-for entry in truvari.region_filter(vcf, tree, False):
+for entry in truvari.region_filter(vcf, tree, False, False):
     assert entry.info['include'] == 'out', f"Bad out {str(entry)}"

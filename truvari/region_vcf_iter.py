@@ -166,10 +166,14 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
         idx += 1
     return tree, idx
 
-def region_filter(vcf, tree, inside=True):
+def region_filter(vcf, tree, inside=True, with_region=False):
     """
-    Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
+    Given a VariantRecord iter and defaultdict(IntervalTree),
+    yield variants which are inside/outside the tree regions
+    The region associated with the entry can be retuned also when using with_region.
+    with_region returns (entry, (chrom, Interval))
     """
+    ret_type = (lambda x,y,z: (x,(y,z))) if with_region else (lambda x,y,z: x)
     for chrom, cur_tree in tree.items():
         cur_tree = deque(sorted(cur_tree))
         try:
@@ -178,7 +182,7 @@ def region_filter(vcf, tree, inside=True):
             # region-less chromosome
             if not inside:
                 for entry in vcf.fetch(chrom):
-                    yield entry
+                    yield ret_type(entry, chrom, cur_intv)
             continue
 
         cur_iter = vcf.fetch(chrom)
@@ -196,12 +200,12 @@ def region_filter(vcf, tree, inside=True):
                     cur_intv = cur_tree.popleft()
                 except IndexError:
                     if not inside:
-                        yield cur_entry # pass this back before flush after the while
+                        yield ret_type(cur_entry, chrom, cur_intv) # pass this back before flush after the while
                     break
             # well before, we need the next entry
             elif cur_end < cur_intv.begin:
                 if not inside:
-                    yield cur_entry
+                    yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
                     cur_start, cur_end = truvari.entry_boundaries(cur_entry)
@@ -211,7 +215,7 @@ def region_filter(vcf, tree, inside=True):
                 end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
                 is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
                 if is_within == inside:
-                    yield cur_entry
+                    yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
                     cur_start, cur_end = truvari.entry_boundaries(cur_entry)
@@ -221,4 +225,4 @@ def region_filter(vcf, tree, inside=True):
         # if we finished the intervals first, need to flush the rest of the outside entries
         if not inside:
             for entry in cur_iter:
-                yield entry
+                yield ret_type(cur_entry, chrom, cur_intv)

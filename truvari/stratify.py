@@ -6,10 +6,12 @@ import logging
 import argparse
 import multiprocessing
 from functools import partial
+from collections import defaultdict
 
 import pysam
 import numpy as np
 import pandas as pd
+from intervaltree import IntervalTree
 
 import truvari
 
@@ -45,14 +47,18 @@ def count_entries(vcf, chroms, regions, within):
     """
     if isinstance(vcf, str):
         vcf = pysam.VariantFile(vcf)
+    tree = defaultdict(IntervalTree)
+    counts_idx = {}
     counts = [0] * len(regions)
     for idx, row in enumerate(zip(chroms, regions)):
         chrom, coords = row
         start, end = coords
-        for entry in vcf.fetch(chrom, start, end):
-            if within and not truvari.entry_within(entry, start, end):
-                continue
-            counts[idx] += 1
+        end += 1
+        tree[chrom].addi(start, end)
+        counts_idx[(chrom, start, end)] = idx
+    for _, location in truvari.region_filter(vcf, tree, within, True):
+        key = (location[0], location[1].begin, location[1].end)
+        counts[counts_idx[key]] += 1
     return counts
 
 
