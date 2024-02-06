@@ -21,7 +21,7 @@ dependencies = [
     "joblib>=1.2.0",
     "numpy>=1.24.4",
     "pytabix>=0.1",
-    "bwapy>=0.1.4",
+    #"bwapy>=0.1.4",
     "pandas>=1.5.3",
     "pyabpoa>=1.4.3",
 ]

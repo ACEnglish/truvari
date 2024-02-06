@@ -410,7 +410,7 @@ def refine_main(cmdargs):
                       .tolist())
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
-                 threads=args.threads, method=args.align)
+                 threads=args.threads, method=args.align, passonly=params.passonly)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")

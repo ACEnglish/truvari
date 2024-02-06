@@ -101,7 +101,7 @@ def incorporate(consensus_sequence, entry, correction):
     return correction + (alt_len - ref_len)
 
 
-def make_consensus(data, ref_fn):
+def make_consensus(data, ref_fn, passonly=True):
     """
     Creates consensus sequence from variants
     """
@@ -120,8 +120,11 @@ def make_consensus(data, ref_fn):
         haps = (list(sequence), list(sequence))
         correction = [-start, -start]
         for entry in vcf.fetch(chrom, start, end):
-            # Variant must be within boundaries
-            if not truvari.entry_within(entry, start, end):
+            # Variant must be resolved and within boundaries
+            if entry.alts is None \
+                or (entry.alleles_variant_types[-1] not in ['SNP', 'INDEL']) \
+                or (passonly and truvari.entry_is_filtered(entry)) \
+                or not truvari.entry_within(entry, start, end):
                 continue
             if entry.samples[sample]['GT'][0] == 1:
                 correction[0] = incorporate(haps[0], entry, correction[0])
@@ -174,14 +177,14 @@ def fasta_reader(fa_str):
     yield cur_name, cur_entry.read()
 
 
-def collect_haplotypes(ref_haps_fn, hap_jobs, threads):
+def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True):
     """
     Calls extract haplotypes for every hap_job and the reference sequence
     """
     all_haps = defaultdict(BytesIO)
     m_ref = pysam.FastaFile(ref_haps_fn)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
-        to_call = partial(make_consensus, ref_fn=ref_haps_fn)
+        to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly)
         for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
             for location, fasta_entry in haplotypes.items():
                 cur = all_haps[location]
@@ -270,11 +273,13 @@ def run_poa(seq_bytes):
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
     _, seqs, names = zip(*parts)
+    logging.critical("start %s %d", names[0], len(seqs[0]))
     try:
         aligner = pyabpoa.msa_aligner()
-        aln_result = aligner.msa(seqs, False, True)
+        aln_result = aligner.msa(seqs, out_cons=False, out_msa=True)
     except Exception:
         return ""
+    logging.critical("finish %s %d", names[0], len(seqs[0]))
     return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
 
 
@@ -282,7 +287,7 @@ def run_poa(seq_bytes):
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
          mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
-         prefix_comp=False, threads=1, method="mafft"):
+         prefix_comp=False, threads=1, method="mafft", passonly=True):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -319,16 +324,9 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
-    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads)
+    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly)
 
     logging.info("Harmonizing variants")
-    if method == "mafft":
-        align_method = partial(run_mafft, params=mafft_params)
-    elif method == "wfa":
-        align_method = run_wfa
-    else:
-        align_method = run_poa
-
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
@@ -337,7 +335,13 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
 
-        with multiprocessing.Pool(threads) as pool:
+        with multiprocessing.Pool(threads, maxtasksperchild=100) as pool:
+            if method == "mafft":
+                align_method = partial(run_mafft, params=mafft_params)
+            elif method == "wfa":
+                align_method = run_wfa
+            else:
+                align_method = run_poa
             for result in pool.imap_unordered(align_method, haplotypes):
                 fout.write(result)
             pool.close()
@@ -379,6 +383,8 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
+    parser.add_argument("--no-filter", action="store_false",
+                        help="Allow all FILTERs (pass only)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -455,6 +461,7 @@ def phab_main(cmdargs):
 
     all_regions = parse_regions(args.region)
     phab(all_regions, args.base, args.reference, args.output, args.bSamples, args.buffer,
-         args.mafft_params, args.comp, args.cSamples, threads=args.threads, method=args.align)
+         args.mafft_params, args.comp, args.cSamples, threads=args.threads, method=args.align,
+         passonly=args.no_filter)
 
     logging.info("Finished phab")
