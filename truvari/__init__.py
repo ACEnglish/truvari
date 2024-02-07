@@ -88,7 +88,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.2.1'
+__version__ = '4.2.2-dev'
 
 
 from truvari.annotations.af_calc import (
@@ -120,6 +120,7 @@ from truvari.comparisons import (
     entry_to_hash,
     entry_to_key,
     entry_variant_type,
+    entry_within_tree,
     entry_within,
     overlap_percent,
     overlaps,
@@ -145,9 +146,13 @@ from truvari.phab import (
 )
 
 from truvari.region_vcf_iter import (
-    RegionVCFIterator,
+    build_region_tree,
     build_anno_tree,
+    merge_region_tree_overlaps,
+    extend_region_tree,
     region_filter,
+    region_filter_fetch,
+    region_filter_stream,
 )
 
 from truvari.stratify import (

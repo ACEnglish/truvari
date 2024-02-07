@@ -101,6 +101,22 @@ def incorporate(consensus_sequence, entry, correction):
     return correction + (alt_len - ref_len)
 
 
+def make_haplotypes(sequence, entries, o_samp, ref, start, sample):
+    """
+    Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
+    Make the two haplotypes
+    """
+    haps = (list(sequence), list(sequence))
+    correction = [-start, -start]
+    for entry in entries:
+        if entry.samples[sample]['GT'][0] == 1:
+            correction[0] = incorporate(haps[0], entry, correction[0])
+        if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
+            correction[1] = incorporate(haps[1], entry, correction[1])
+    return (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
+            f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
+
+
 def make_consensus(data, ref_fn):
     """
     Creates consensus sequence from variants
@@ -108,28 +124,38 @@ def make_consensus(data, ref_fn):
     vcf_fn, sample, prefix = data
     reference = pysam.FastaFile(ref_fn)
     vcf = pysam.VariantFile(vcf_fn)
-    # could swap these fors with data structures and more memory..
-    # or I could do the work to iter chroms and pretty much -T it
     o_samp = 'p:' + sample if prefix else sample
     ret = {}
+
+    tree = defaultdict(IntervalTree)
     for ref in list(reference.references):
         chrom, start, end = re.split(':|-', ref)
         start = int(start)
         end = int(end)
-        sequence = reference.fetch(ref)
-        haps = (list(sequence), list(sequence))
-        correction = [-start, -start]
-        for entry in vcf.fetch(chrom, start, end):
-            # Variant must be within boundaries
-            if not truvari.entry_within(entry, start, end):
-                continue
-            if entry.samples[sample]['GT'][0] == 1:
-                correction[0] = incorporate(haps[0], entry, correction[0])
-            if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
-                correction[1] = incorporate(haps[1], entry, correction[1])
-        # turn into fasta.
-        ret[ref] = (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
-                    f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
+        tree[chrom].addi(start, end+1, data=ref)
+
+    vcf_i = truvari.region_filter(vcf, tree, with_region=True)
+
+    cur_key = None
+    cur_entries = []
+    for entry, key in vcf_i:
+        if cur_key is None:
+            cur_key = key
+        if key != cur_key:
+            ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
+            ref_seq = reference.fetch(ref)
+            ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
+                                       ref, cur_key[1].begin, sample)
+            cur_key = key
+            cur_entries = []
+        cur_entries.append(entry)
+
+    if cur_entries:
+        ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
+        ref_seq = reference.fetch(ref)
+        ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
+                                   ref, cur_key[1].begin, sample)
+
     return ret
 
 
