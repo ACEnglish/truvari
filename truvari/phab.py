@@ -122,6 +122,7 @@ def make_haplotypes(sequence, entries, o_samp, ref, start, sample, passonly=True
             f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
 
 
+#pylint: disable=too-many-locals
 def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     """
     Creates consensus sequence from variants
@@ -164,6 +165,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
                                    max_size)
 
     return ret
+#pylint: enable=too-many-locals
 
 
 def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
@@ -411,7 +413,7 @@ def parse_args(args):
                         help="Number of threads (%(default)s)")
     parser.add_argument("--maxsize", type=int, default=50000,
                         help="Maximum size of variant to incorporate into haplotypes (%(default)s)")
-    parser.add_argument("--passonly", action="store_true", 
+    parser.add_argument("--passonly", action="store_true",
                         help="Only incorporate passing variants (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
