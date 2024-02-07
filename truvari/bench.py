@@ -441,7 +441,7 @@ class Bench():
     """
 
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False):
+                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
         """
         Initilize
         """
@@ -453,6 +453,7 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
+        self.short_circuit = short_circuit
         self.refine_candidates = []
 
     def param_dict(self):
@@ -561,7 +562,8 @@ class Bench():
             base_matches = []
             for cid, c in enumerate(comp_variants):
                 mat = self.matcher.build_match(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt)
+                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                    skip_gt, self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
