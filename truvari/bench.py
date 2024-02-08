@@ -382,8 +382,6 @@ class BenchOutput():
                 box["FP"] += 1
                 self.out_vcfs["fp"].write(match.comp)
 
-
-
     def close_outputs(self):
         """
         Close all the files
@@ -443,7 +441,7 @@ class Bench():
     """
 
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False):
+                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
         """
         Initilize
         """
@@ -455,6 +453,7 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
+        self.short_circuit = short_circuit
         self.refine_candidates = []
 
     def param_dict(self):
@@ -481,22 +480,23 @@ class Bench():
         base = pysam.VariantFile(self.base_vcf)
         comp = pysam.VariantFile(self.comp_vcf)
 
-        regions = truvari.RegionVCFIterator(base, comp,
-                                            self.includebed,
-                                            self.matcher.params.sizemax)
-        regions.merge_overlaps()
-        regions_extended = regions.extend(
-            self.extend) if self.extend else regions
+        region_tree = truvari.build_region_tree(base, comp, self.includebed)
+        truvari.merge_region_tree_overlaps(region_tree)
+        regions_extended = (truvari.extend_region_tree(region_tree, self.extend)
+                            if self.extend else region_tree)
 
-        base_i = regions.iterate(base)
-        comp_i = regions_extended.iterate(comp)
+        base_i = truvari.region_filter(base, region_tree)
+        comp_i = truvari.region_filter(comp, regions_extended)
 
         chunks = truvari.chunker(
             self.matcher, ('base', base_i), ('comp', comp_i))
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
-            if self.extend and match.comp is not None and not match.state and not regions.include(match.comp):
+            if (self.extend
+                and (match.comp is not None)
+                and not match.state
+                and not truvari.entry_within_tree(match.comp, region_tree)):
                 match.comp = None
             output.write_match(match)
 
@@ -544,6 +544,22 @@ class Bench():
                 fns.append(ret)
             return fns
 
+        # 5k variants takes too long
+        if self.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+            pos = []
+            cnt = 0
+            chrom = None
+            for i in base_variants:
+                cnt += 1
+                pos.extend(truvari.entry_boundaries(i))
+                chrom = i.chrom
+            for i in comp_variants:
+                cnt += 1
+                pos.extend(truvari.entry_boundaries(i))
+                chrom = i.chrom
+            logging.warning("Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            return []
+
         match_matrix = self.build_matrix(
             base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
@@ -562,7 +578,8 @@ class Bench():
             base_matches = []
             for cid, c in enumerate(comp_variants):
                 mat = self.matcher.build_match(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt)
+                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                    skip_gt, self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)

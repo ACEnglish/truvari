@@ -101,21 +101,43 @@ def incorporate(consensus_sequence, entry, correction):
     return correction + (alt_len - ref_len)
 
 
+<<<<<<< HEAD
 def make_consensus(data, ref_fn, passonly=True):
+=======
+def make_haplotypes(sequence, entries, o_samp, ref, start, sample):
+    """
+    Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
+    Make the two haplotypes
+    """
+    haps = (list(sequence), list(sequence))
+    correction = [-start, -start]
+    for entry in entries:
+        if entry.samples[sample]['GT'][0] == 1:
+            correction[0] = incorporate(haps[0], entry, correction[0])
+        if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
+            correction[1] = incorporate(haps[1], entry, correction[1])
+    return (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
+            f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
+
+
+#pylint: disable=too-many-locals
+def make_consensus(data, ref_fn, passonly=True, max_size=50000):
+>>>>>>> develop
     """
     Creates consensus sequence from variants
     """
     vcf_fn, sample, prefix = data
     reference = pysam.FastaFile(ref_fn)
     vcf = pysam.VariantFile(vcf_fn)
-    # could swap these fors with data structures and more memory..
-    # or I could do the work to iter chroms and pretty much -T it
     o_samp = 'p:' + sample if prefix else sample
     ret = {}
+
+    tree = defaultdict(IntervalTree)
     for ref in list(reference.references):
         chrom, start, end = re.split(':|-', ref)
         start = int(start)
         end = int(end)
+<<<<<<< HEAD
         sequence = reference.fetch(ref)
         haps = (list(sequence), list(sequence))
         correction = [-start, -start]
@@ -133,7 +155,43 @@ def make_consensus(data, ref_fn, passonly=True):
         # turn into fasta.
         ret[ref] = (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
                     f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
+=======
+        tree[chrom].addi(start, end+1, data=ref)
+
+    vcf_i = truvari.region_filter(vcf, tree, with_region=True)
+
+    cur_key = None
+    cur_entries = []
+    # Can do the entry filtering here
+    # Won't need to pass to make_haplotypes
+    for entry, key in vcf_i:
+        if cur_key is None:
+            cur_key = key
+
+        if entry.alts is None \
+           or (entry.alleles_variant_types[-1] not in ['SNP', 'INDEL']) \
+           or (passonly and truvari.entry_is_filtered(entry)) \
+           or truvari.entry_size(entry) > max_size:
+            continue
+
+        if key != cur_key:
+            ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
+            ref_seq = reference.fetch(ref)
+            ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
+                                       ref, cur_key[1].begin, sample)
+            cur_key = key
+            cur_entries = []
+        cur_entries.append(entry)
+
+    if cur_entries:
+        ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
+        ref_seq = reference.fetch(ref)
+        ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
+                                   ref, cur_key[1].begin, sample)
+
+>>>>>>> develop
     return ret
+#pylint: enable=too-many-locals
 
 
 def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
@@ -177,14 +235,22 @@ def fasta_reader(fa_str):
     yield cur_name, cur_entry.read()
 
 
+<<<<<<< HEAD
 def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True):
+=======
+def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True, max_size=50000):
+>>>>>>> develop
     """
     Calls extract haplotypes for every hap_job and the reference sequence
     """
     all_haps = defaultdict(BytesIO)
     m_ref = pysam.FastaFile(ref_haps_fn)
     with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+<<<<<<< HEAD
         to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly)
+=======
+        to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly, max_size=max_size)
+>>>>>>> develop
         for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
             for location, fasta_entry in haplotypes.items():
                 cur = all_haps[location]
@@ -287,7 +353,11 @@ def run_poa(seq_bytes):
 # This is just how many arguments it takes
 def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
          mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
+<<<<<<< HEAD
          prefix_comp=False, threads=1, method="mafft", passonly=True):
+=======
+         prefix_comp=False, threads=1, method="mafft", passonly=True, max_size=50000):
+>>>>>>> develop
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -324,7 +394,11 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
                                                comp_vcf, cSamples,
                                                prefix_comp)
+<<<<<<< HEAD
     haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly)
+=======
+    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly, max_size)
+>>>>>>> develop
 
     logging.info("Harmonizing variants")
     with open(output_fn[:-len(".gz")], 'w') as fout:
@@ -335,6 +409,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
 
+<<<<<<< HEAD
         with multiprocessing.Pool(threads, maxtasksperchild=100) as pool:
             if method == "mafft":
                 align_method = partial(run_mafft, params=mafft_params)
@@ -342,6 +417,9 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
                 align_method = run_wfa
             else:
                 align_method = run_poa
+=======
+        with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+>>>>>>> develop
             for result in pool.imap_unordered(align_method, haplotypes):
                 fout.write(result)
             pool.close()
@@ -383,8 +461,15 @@ def parse_args(args):
                         help="Subset of samples to MSA from comp-VCF")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
+<<<<<<< HEAD
     parser.add_argument("--no-filter", action="store_false",
                         help="Allow all FILTERs (pass only)")
+=======
+    parser.add_argument("--maxsize", type=int, default=50000,
+                        help="Maximum size of variant to incorporate into haplotypes (%(default)s)")
+    parser.add_argument("--passonly", action="store_true",
+                        help="Only incorporate passing variants (%(default)s)")
+>>>>>>> develop
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -462,6 +547,10 @@ def phab_main(cmdargs):
     all_regions = parse_regions(args.region)
     phab(all_regions, args.base, args.reference, args.output, args.bSamples, args.buffer,
          args.mafft_params, args.comp, args.cSamples, threads=args.threads, method=args.align,
+<<<<<<< HEAD
          passonly=args.no_filter)
+=======
+         passonly=args.passonly, max_size=args.maxsize)
+>>>>>>> develop
 
     logging.info("Finished phab")

@@ -36,7 +36,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = None
+        self.score = 0
 
     def calc_score(self):
         """
@@ -90,7 +90,8 @@ class Matcher():
 
         self.reference = None
         if self.params.reference is not None:
-            #logging.warning("`--reference` is being deprecated and is only
+            #sys.stderr.write("WARNING `--reference` is no longer recommended for use with bench/collapse ")
+            #sys.stderr.write("results will be slower and less accurate.\n")
             self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod

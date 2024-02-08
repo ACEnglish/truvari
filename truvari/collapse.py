@@ -786,9 +786,9 @@ def collapse_main(args):
     matcher.picker = 'single'
 
     base = pysam.VariantFile(args.input)
-    regions = truvari.RegionVCFIterator(base, includebed=args.bed)
-    regions.merge_overlaps()
-    base_i = regions.iterate(base)
+    regions = truvari.build_region_tree(base, includebed=args.bed)
+    truvari.merge_region_tree_overlaps(regions)
+    base_i = truvari.region_filter(base, regions)
 
     chunks = truvari.chunker(matcher, ('base', base_i))
     smaller_chunks = tree_size_chunker(matcher, chunks)

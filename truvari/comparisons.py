@@ -484,6 +484,18 @@ def entry_variant_type(entry):
         return truvari.get_svtype(mat.groupdict()["SVTYPE"])
     return truvari.get_svtype("UNK")
 
+def entry_within_tree(entry, tree):
+    """
+    Extract entry and tree boundaries to call `coords_within`
+    """
+    qstart, qend = truvari.entry_boundaries(entry)
+    m_ovl = tree[entry.chrom].overlap(qstart, qend)
+    if len(m_ovl) != 1:
+        return False
+    m_ovl = list(m_ovl)[0]
+    end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+    return truvari.coords_within(qstart, qend, m_ovl.begin, m_ovl.end - 1, end_within)
+
 def entry_within(entry, rstart, rend):
     """
     Extract entry boundaries and type to call `coords_within`

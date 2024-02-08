@@ -1,6 +1,7 @@
 """
 Helper class to specify included regions of the genome when iterating events.
 """
+import os
 import sys
 import copy
 import logging
@@ -9,113 +10,65 @@ from collections import defaultdict, deque
 from intervaltree import IntervalTree
 import truvari
 
-class RegionVCFIterator():
+
+def build_region_tree(vcfA, vcfB=None, includebed=None):
     """
-    Helper class to specify include regions of the genome when iterating a VCF
-    Subset to only events less than max_span.
-    Subset to only events on contigs listed in vcfA left-join vcfB
+    Build a dict of chrom:IntervalTree containing regions
     """
-
-    def __init__(self, vcfA, vcfB=None, includebed=None, max_span=None):
-        """ init """
-        self.includebed = includebed
-        self.max_span = max_span
-        self.tree = self.__build_tree(vcfA, vcfB)
-
-    def __build_tree(self, vcfA, vcfB):
-        """
-        Build the include regions
-        """
-        contigA_set = set(vcfA.header.contigs.keys())
-        if vcfB is not None:
-            contigB_set = set(vcfB.header.contigs.keys())
-        else:
-            contigB_set = contigA_set
-
-        if self.includebed is not None:
-            all_regions, counter = build_anno_tree(self.includebed)
-            logging.info("Including %d bed regions", counter)
-            return all_regions
-
-        all_regions = defaultdict(IntervalTree)
-        excluding = contigB_set - contigA_set
-        if excluding:
-            logging.warning(
-                "Excluding %d contigs present in comparison calls header but not baseline calls.", len(excluding))
-
-        for contig in contigA_set:
-            name = vcfA.header.contigs[contig].name
-            length = vcfA.header.contigs[contig].length
-            if not length:
-                logging.error(
-                    "Contig %s has no length definition. Fix header.", name)
-                sys.exit(10)
-            all_regions[name].addi(0, length + 1)
+    contigA_set = set(vcfA.header.contigs.keys())
+    contigB_set = set(vcfB.header.contigs.keys()) if vcfB else contigA_set
+    if includebed is not None:
+        all_regions, counter = build_anno_tree(includebed)
+        logging.info("Including %d bed regions", counter)
         return all_regions
 
-    def merge_overlaps(self):
-        """
-        Runs IntervalTree.merge_overlaps on all trees. Returns list of all chromosomes having overlapping regions
-        and the pre_post totals
-        """
-        chr_with_overlaps = []
-        for i in self.tree:
-            pre_len = len(self.tree[i])
-            self.tree[i].merge_overlaps()
-            post_len = len(self.tree[i])
-            if pre_len != post_len:
-                chr_with_overlaps.append(i)
-        if chr_with_overlaps:
-            logging.info("Found %d chromosomes with overlapping regions",
-                         len(chr_with_overlaps))
-            logging.debug("CHRs: %s", chr_with_overlaps)
+    all_regions = defaultdict(IntervalTree)
+    excluding = contigB_set - contigA_set
+    if excluding:
+        logging.warning(
+            "Excluding %d contigs present in comparison calls header but not baseline calls.", len(excluding))
 
-    def iterate(self, vcf_file):
-        """
-        Iterates a vcf and yields only the entries that overlap included regions
-        """
-        for chrom in sorted(self.tree.keys()):
-            for intv in sorted(self.tree[chrom]):
-                try:
-                    for entry in vcf_file.fetch(chrom, intv.begin, intv.end):
-                        if self.includebed is None or self.include(entry):
-                            yield entry
-                except ValueError:
-                    logging.warning("Unable to fetch %s from %s",
-                                    chrom, vcf_file.filename)
+    for contig in contigA_set:
+        name = vcfA.header.contigs[contig].name
+        length = vcfA.header.contigs[contig].length
+        if not length:
+            logging.error(
+                "Contig %s has no length definition. Fix header.", name)
+            sys.exit(10)
+        all_regions[name].addi(0, length + 1)
+    return all_regions
 
-    def include(self, entry):
-        """
-        Returns if this entry's start and end are within a region that is to be included
-        Here overlap means lies completely within the boundary of an include region
-        """
-        astart, aend = truvari.entry_boundaries(entry)
-        # Filter these early so we don't have to keep checking overlaps
-        if self.max_span is not None and aend - astart > self.max_span:
-            return False
+def merge_region_tree_overlaps(tree):
+    """
+    Runs IntervalTree.merge_overlaps on all trees. Returns list of all chromosomes having overlapping regions
+    and the pre_post totals
+    """
+    chr_with_overlaps = []
+    for i in tree:
+        pre_len = len(tree[i])
+        tree[i].merge_overlaps()
+        post_len = len(tree[i])
+        if pre_len != post_len:
+            chr_with_overlaps.append(i)
+    if chr_with_overlaps:
+        logging.info("Found %d chromosomes with overlapping regions",
+                     len(chr_with_overlaps))
+        logging.debug("CHRs: %s", chr_with_overlaps)
 
-        m_ovl = self.tree[entry.chrom].overlap(astart, aend)
-        if len(m_ovl) != 1:
-            return False
-        m_ovl = list(m_ovl)[0]
-        end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
-        return truvari.coords_within(astart, aend, m_ovl.begin, m_ovl.end - 1, end_within)
+def extend_region_tree(tree, pad):
+    """
+    Extends all intervals by a fixed number of bases on each side
+    Returns a copy of this tree
+    """
+    logging.info("Extending the regions by %d bases", pad)
+    n_tree = copy.deepcopy(tree)
 
-    def extend(self, pad):
-        """
-        Extends all intervals by a fixed number of bases on each side
-        Returns a copy of this IntervalTree
-        """
-        logging.info("Extending the regions by %d bases", pad)
-        ret = copy.deepcopy(self)
+    for chrom in n_tree:
+        n_tree[chrom] = IntervalTree.from_tuples(
+            ((max(0, i.begin - pad), i.end + pad)) for i in n_tree[chrom])
 
-        for chrom in ret.tree:
-            ret.tree[chrom] = IntervalTree.from_tuples(
-                ((max(0, i.begin - pad), i.end + pad)) for i in ret.tree[chrom])
-
-        ret.merge_overlaps()
-        return ret
-
+    truvari.merge_region_tree_overlaps(n_tree)
+    return n_tree
 
 def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
@@ -166,22 +119,65 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
         idx += 1
     return tree, idx
 
-def region_filter(vcf, tree, inside=True):
+
+def region_filter(vcf, tree, inside=True, with_region=False):
     """
-    Given a VariantRecord iter and defaultdict(IntervalTree), yield variants which are inside/outside the tree regions
+    Chooses to stream or fetch entries inside/outside a VCF
+    If the VCF is over 25Mb or the number of regions is above 1k, use stream
     """
-    for chrom, cur_tree in tree.items():
-        cur_tree = deque(sorted(cur_tree))
+    sz = os.stat(vcf.filename)
+    if not inside or sz.st_size > (25 *  2**20) or sum(len(_) for _ in tree.values()) > 1000:
+        return region_filter_stream(vcf, tree, inside, with_region)
+
+    return region_filter_fetch(vcf, tree, with_region)
+
+def region_filter_fetch(vcf, tree, with_region=False):
+    """
+    Given a VariantRecord iter and defaultdict(IntervalTree),
+    yield variants which are inside/outside the tree regions
+    The region associated with the entry can be retuned also when using with_region.
+    with_region returns (entry, (chrom, Interval))
+    Can only check for variants within a region
+    """
+    ret_type = (lambda x, y, z: (x, (y, z))) if with_region else (lambda x, y, z: x)
+    for chrom in sorted(tree.keys()):
+        for intv in sorted(tree[chrom]):
+            try:
+                for entry in vcf.fetch(chrom, intv.begin, intv.end):
+                    if truvari.entry_within(entry, intv.begin, intv.end - 1):
+                        yield ret_type(entry, chrom, intv)
+            except ValueError:
+                logging.warning("Unable to fetch %s from %s",
+                                chrom, vcf.filename)
+
+
+def region_filter_stream(vcf, tree, inside=True, with_region=False):
+    """
+    Given a VariantRecord iter and defaultdict(IntervalTree),
+    yield variants which are inside/outside the tree regions
+    The region associated with the entry can be retuned also when using with_region.
+    with_region returns (entry, (chrom, Interval))
+    """
+    chroms = sorted(tree.keys())
+    ret_type = (lambda x, y, z: (x, (y, z))) if with_region else (lambda x, y, z: x)
+    for chrom in chroms:
+        cur_tree = deque(sorted(tree[chrom]))
         try:
             cur_intv = cur_tree.popleft()
         except IndexError:
             # region-less chromosome
             if not inside:
-                for entry in vcf.fetch(chrom):
-                    yield entry
+                try:
+                    for cur_entry in vcf.fetch(chrom):
+                        yield ret_type(cur_entry, chrom, cur_intv)
+                except ValueError:
+                    pass  # region on chromosome not in vcf
             continue
 
-        cur_iter = vcf.fetch(chrom)
+        try:
+            cur_iter = vcf.fetch(chrom)
+        except ValueError:
+            continue  # region on chromosome not in vcf
         try:
             cur_entry = next(cur_iter)
         except StopIteration:
@@ -196,12 +192,13 @@ def region_filter(vcf, tree, inside=True):
                     cur_intv = cur_tree.popleft()
                 except IndexError:
                     if not inside:
-                        yield cur_entry # pass this back before flush after the while
+                        # pass this back before flush after the while
+                        yield ret_type(cur_entry, chrom, cur_intv)
                     break
             # well before, we need the next entry
             elif cur_end < cur_intv.begin:
                 if not inside:
-                    yield cur_entry
+                    yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
                     cur_start, cur_end = truvari.entry_boundaries(cur_entry)
@@ -211,7 +208,7 @@ def region_filter(vcf, tree, inside=True):
                 end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
                 is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
                 if is_within == inside:
-                    yield cur_entry
+                    yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
                     cur_start, cur_end = truvari.entry_boundaries(cur_entry)
@@ -220,5 +217,5 @@ def region_filter(vcf, tree, inside=True):
 
         # if we finished the intervals first, need to flush the rest of the outside entries
         if not inside:
-            for entry in cur_iter:
-                yield entry
+            for cur_entry in cur_iter:
+                yield ret_type(cur_entry, chrom, cur_intv)
