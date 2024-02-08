@@ -36,7 +36,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = None
+        self.score = 0
 
     def calc_score(self):
         """
