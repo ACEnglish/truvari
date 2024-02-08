@@ -544,6 +544,22 @@ class Bench():
                 fns.append(ret)
             return fns
 
+        # 5k variants takes too long
+        if self.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+            pos = []
+            cnt = 0
+            chrom = None
+            for i in base_variants:
+                cnt += 1
+                pos.extend(truvari.entry_boundaries(i))
+                chrom = i.chrom
+            for i in comp_variants:
+                cnt += 1
+                pos.extend(truvari.entry_boundaries(i))
+                chrom = i.chrom
+            logging.warning("Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            return []
+
         match_matrix = self.build_matrix(
             base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):

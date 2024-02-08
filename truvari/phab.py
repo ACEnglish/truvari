@@ -101,7 +101,7 @@ def incorporate(consensus_sequence, entry, correction):
     return correction + (alt_len - ref_len)
 
 
-def make_haplotypes(sequence, entries, o_samp, ref, start, sample, passonly=True, max_size=50000):
+def make_haplotypes(sequence, entries, o_samp, ref, start, sample):
     """
     Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
     Make the two haplotypes
@@ -109,11 +109,6 @@ def make_haplotypes(sequence, entries, o_samp, ref, start, sample, passonly=True
     haps = (list(sequence), list(sequence))
     correction = [-start, -start]
     for entry in entries:
-        if entry.alts is None \
-           or (entry.alleles_variant_types[-1] not in ['SNP', 'INDEL']) \
-           or (passonly and truvari.entry_is_filtered(entry)) \
-           or truvari.entry_size(entry) > max_size:
-            continue
         if entry.samples[sample]['GT'][0] == 1:
             correction[0] = incorporate(haps[0], entry, correction[0])
         if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
@@ -144,15 +139,23 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
 
     cur_key = None
     cur_entries = []
+    # Can do the entry filtering here
+    # Won't need to pass to make_haplotypes
     for entry, key in vcf_i:
         if cur_key is None:
             cur_key = key
+
+        if entry.alts is None \
+           or (entry.alleles_variant_types[-1] not in ['SNP', 'INDEL']) \
+           or (passonly and truvari.entry_is_filtered(entry)) \
+           or truvari.entry_size(entry) > max_size:
+            continue
+
         if key != cur_key:
             ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
             ref_seq = reference.fetch(ref)
             ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
-                                       ref, cur_key[1].begin, sample,
-                                       passonly, max_size)
+                                       ref, cur_key[1].begin, sample)
             cur_key = key
             cur_entries = []
         cur_entries.append(entry)
@@ -161,8 +164,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
         ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
         ref_seq = reference.fetch(ref)
         ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
-                                   ref, cur_key[1].begin, sample, passonly,
-                                   max_size)
+                                   ref, cur_key[1].begin, sample)
 
     return ret
 #pylint: enable=too-many-locals
