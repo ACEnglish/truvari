@@ -410,14 +410,16 @@ def refine_main(cmdargs):
                       .tolist())
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
-                 threads=args.threads, method=args.align)
+                 threads=args.threads, method=args.align, passonly=params.passonly,
+                 max_size=params.sizemax)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
     matcher = truvari.Matcher(params)
     matcher.params.no_ref = 'a'
     outdir = os.path.join(args.benchdir, "phab_bench")
-    m_bench = truvari.Bench(matcher, phab_vcf, phab_vcf, outdir, reeval_bed)
+    m_bench = truvari.Bench(matcher=matcher, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
+                            includebed=reeval_bed, short_circuit=True)
     m_bench.run()
 
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
