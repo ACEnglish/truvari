@@ -138,11 +138,13 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     vcf_i = truvari.region_filter(vcf, tree, with_region=True)
 
     # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
+    # pylint: disable=unnecessary-lambda-assignment
     entry_filter = lambda entry: \
            entry.alts is not None \
            and (entry.alleles_variant_types[-1] in ['SNP', 'INDEL', 'OTHER']) \
            and (not passonly or not truvari.entry_is_filtered(entry)) \
-           and not (truvari.entry_size(entry) > max_size)
+           and (truvari.entry_size(entry) <= max_size)
+    # pylint: enable=unnecessary-lambda-assignment
 
     cur_key = None
     cur_entries = []
