@@ -143,6 +143,10 @@ def collapse_chunk(chunk, matcher):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
+            elif mat.sizesim is not None and mat.sizesim < matcher.params.pctsize:
+                # Can we do this? The sort tells us that we're going through most->least 
+                # similar size. So the next one will only be worse...
+                break
 
         # Does this collap need to go into a previous collap?
         if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
