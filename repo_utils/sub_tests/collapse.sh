@@ -98,3 +98,13 @@ run test_collapse_intragth $truv collapse -i $INDIR/variants/bcftools_merged.vcf
 if [ $test_collapse_intragth ]; then
     collapse_assert intragth
 fi
+
+
+run test_collapse_chain $truv collapse -i $INDIR/variants/issue196_chain.vcf.gz \
+                        -o $OD/inputissue196_collapsed.vcf \
+                        -c $OD/inputissue196_removed.vcf \
+                        --chain --pctseq 0 --pctsize 0.35
+if [ $test_collapse_chain ]; then
+    collapse_assert issue196
+fi
+

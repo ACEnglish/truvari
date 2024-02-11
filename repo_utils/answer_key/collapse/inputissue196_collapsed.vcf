@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr21,length=46709983,md5=2f45a3455007b7e271509161e52954a9>
+##INFO=<ID=END,Number=1,Type=Integer,Description="SV END position">
+##INFO=<ID=SVTYPE,Number=A,Type=String,Description="Variant type">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length of ref and alt alleles">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=NumCollapsed,Number=1,Type=Integer,Description="Number of calls collapsed into this call by truvari">
+##INFO=<ID=CollapseId,Number=1,Type=String,Description="Truvari uid to help tie output.vcf and output.collapsed.vcf entries together">
+##INFO=<ID=NumConsolidated,Number=1,Type=Integer,Description="Number of samples consolidated into this call by truvari">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+chr21	14088112	chr21-14088113-DEL-223	A	<DEL>	.	.	END=14088558;SVTYPE=DEL;SVLEN=-223;NumCollapsed=2;NumConsolidated=0;CollapseId=1.0	GT	1|0
