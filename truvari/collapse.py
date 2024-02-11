@@ -94,6 +94,15 @@ class CollapsedCalls():
         self.genotype_mask |= o_mask
         return False
 
+    def consolidate(self, other):
+        """
+        Add other's calls/matches to self's matches
+        """
+        self.matches.append(other.entry)
+        self.matches.extend(other.matches)
+        self.gt_consolidate_count += other.gt_consolidate_count
+        if self.genotype_mask != "" and other.genotype_mask != "":
+            self.genotype_mask |= other.genotype_mask
 
 def chain_collapse(cur_collapse, all_collapse, matcher):
     """
@@ -144,7 +153,7 @@ def collapse_chunk(chunk, matcher):
             if mat.state:
                 m_collap.matches.append(mat)
             elif mat.sizesim is not None and mat.sizesim < matcher.params.pctsize:
-                # Can we do this? The sort tells us that we're going through most->least 
+                # Can we do this? The sort tells us that we're going through most->least
                 # similar size. So the next one will only be worse...
                 break
 
