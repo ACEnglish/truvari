@@ -37,6 +37,8 @@ def parse_args(args):
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Fasta used to call variants. Turns on reference context sequence comparison")
+    parser.add_argument("--short", action="store_true",
+                        help="Short circuit comparisions. Faster, but fewer annotations")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -751,7 +753,7 @@ def bench_main(cmdargs):
     matcher = truvari.Matcher(args)
 
     m_bench = Bench(matcher, args.base, args.comp, args.output,
-                    args.includebed, args.extend, args.debug, True)
+                    args.includebed, args.extend, args.debug, True, args.short)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

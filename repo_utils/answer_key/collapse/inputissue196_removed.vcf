@@ -1,0 +1,20 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr21,length=46709983,md5=2f45a3455007b7e271509161e52954a9>
+##INFO=<ID=END,Number=1,Type=Integer,Description="SV END position">
+##INFO=<ID=SVTYPE,Number=A,Type=String,Description="Variant type">
+##INFO=<ID=SVLEN,Number=.,Type=Integer,Description="Difference in length of ref and alt alleles">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=TruScore,Number=1,Type=Integer,Description="Truvari score for similarity of match">
+##INFO=<ID=PctSeqSimilarity,Number=1,Type=Float,Description="Pct sequence similarity between this variant and its closest match">
+##INFO=<ID=PctSizeSimilarity,Number=1,Type=Float,Description="Pct size similarity between this variant and its closest match">
+##INFO=<ID=PctRecOverlap,Number=1,Type=Float,Description="Percent reciprocal overlap percent of the two calls' coordinates">
+##INFO=<ID=StartDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's start">
+##INFO=<ID=EndDistance,Number=1,Type=Integer,Description="Distance of the base call's end from comparison call's end">
+##INFO=<ID=SizeDiff,Number=1,Type=Float,Description="Difference in size of base and comp calls">
+##INFO=<ID=GTMatch,Number=1,Type=Integer,Description="Base/Comparison genotypes AC difference">
+##INFO=<ID=MatchId,Number=.,Type=String,Description="Tuple of base and comparison call ids which were matched">
+##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+chr21	14088212	chr21-14088113-DEL-223	T	<DEL>	.	.	END=14088828;SVTYPE=DEL;SVLEN=-393;PctSeqSimilarity=0;PctSizeSimilarity=0.5674;PctRecOverlap=0.5624;SizeDiff=-170;StartDistance=-100;EndDistance=-270;GTMatch=.;TruScore=37;MatchId=1.0	GT	1|0
+chr21	14088312	chr21-14088113-DEL-223	A	<DEL>	.	.	END=14089203;SVTYPE=DEL;SVLEN=-668;PctSeqSimilarity=0;PctSizeSimilarity=0.5883;PctRecOverlap=0.5796;SizeDiff=275;StartDistance=100;EndDistance=375;GTMatch=.;TruScore=38;MatchId=1.0	GT	1|0

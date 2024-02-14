@@ -137,24 +137,25 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
 
     vcf_i = truvari.region_filter(vcf, tree, with_region=True)
 
+    # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
+    # pylint: disable=unnecessary-lambda-assignment
+    entry_filter = lambda entry: \
+           entry.alts is not None \
+           and (entry.alleles_variant_types[-1] in ['SNP', 'INDEL', 'OTHER']) \
+           and (not passonly or not truvari.entry_is_filtered(entry)) \
+           and (truvari.entry_size(entry) <= max_size)
+    # pylint: enable=unnecessary-lambda-assignment
+
     cur_key = None
     cur_entries = []
-    # Can do the entry filtering here
-    # Won't need to pass to make_haplotypes
     for entry, key in vcf_i:
         if cur_key is None:
             cur_key = key
 
-        if entry.alts is None \
-           or (entry.alleles_variant_types[-1] not in ['SNP', 'INDEL']) \
-           or (passonly and truvari.entry_is_filtered(entry)) \
-           or truvari.entry_size(entry) > max_size:
-            continue
-
         if key != cur_key:
             ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
             ref_seq = reference.fetch(ref)
-            ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
+            ret[ref] = make_haplotypes(ref_seq, filter(entry_filter, cur_entries), o_samp,
                                        ref, cur_key[1].begin, sample)
             cur_key = key
             cur_entries = []
@@ -217,13 +218,14 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True, max_size=5
     """
     all_haps = defaultdict(BytesIO)
     m_ref = pysam.FastaFile(ref_haps_fn)
-    with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
         to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly, max_size=max_size)
+        # Keep imap because determinism
         for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
             for location, fasta_entry in haplotypes.items():
                 cur = all_haps[location]
                 cur.write(fasta_entry)
-                if pos == len(hap_jobs) - 1:  # ref/seek/read on last hap
+                if pos == len(hap_jobs) - 1: # Write reference for this location at the end
                     cur.write(f">ref_{location}\n{m_ref[location]}\n".encode())
                     cur.seek(0)
                     all_haps[location] = cur.read()
@@ -371,7 +373,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
 
-        with multiprocessing.Pool(threads, maxtasksperchild=1) as pool:
+        with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
             for result in pool.imap_unordered(align_method, haplotypes):
                 fout.write(result)
             pool.close()
