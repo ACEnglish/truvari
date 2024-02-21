@@ -73,6 +73,7 @@ def resolve_regions(params, args):
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                          regi_count, new_count, orig_count)
+            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER)
         else:
             reeval_trees, new_count = intersect_beds(b_trees, a_trees)
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
@@ -150,7 +151,7 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
     regions = regions.join(counts)
     for i in ["tpbase", "tp", "fn", "fp"]:
         regions[f"out_{i}"] = regions[f"in_{i}"].where(
-            ~regions['refined'], regions[f"out_{i}"])
+            ~regions['refined'], regions[f"out_{i}"].fillna(0).astype(int))
     return regions
 
 
@@ -305,6 +306,8 @@ def parse_args(args):
                               "those in analyzed regions"))
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
+    #parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=100,
+    #                    help="Amount of buffer around refined regions (%(default))")
     parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
                         help="Alignment method for phab (%(default)s)")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
@@ -408,7 +411,7 @@ def refine_main(cmdargs):
     to_eval_coords = (regions[regions["refined"]][["chrom", "start", "end"]]
                       .to_numpy()
                       .tolist())
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=PHAB_BUFFER,
+    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0 if args.use_region_coords else PHAB_BUFFER,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
                  threads=args.threads, method=args.align, passonly=params.passonly,
                  max_size=params.sizemax)

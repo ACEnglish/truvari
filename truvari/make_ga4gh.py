@@ -27,7 +27,8 @@ def parse_args(args):
     parser.add_argument("-w", "--with-refine", action="store_true",
                         help="Consolidate with `truvari refine` output")
     parser.add_argument("-B", "--buffer", type=int, default=100,
-                        help="Buffer length used by phab during refine (100)")
+                        help=("Buffer length used by phab during refine (100) "
+                              " Set to 0 for `refine --use-region-coords`"))
     parser.add_argument("-b", "--bSample", default=0,
                         help="Sample name to annotate in truth VCF (default first)")
     parser.add_argument("-c", "--cSample", default=0,
