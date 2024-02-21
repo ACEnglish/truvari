@@ -597,14 +597,16 @@ class Bench():
         chrom = None
         for match in result:
             has_unmatched |= not match.state
-            if match.base is not None:
+            if match.base is not None and truvari.entry_size(match.base) >= self.matcher.params.sizemin:
                 chrom = match.base.chrom
                 pos.extend(truvari.entry_boundaries(match.base))
             if match.comp is not None:
                 chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
         if has_unmatched and pos:
-            self.refine_candidates.append(f"{chrom}\t{min(*pos)}\t{max(*pos)}")
+            buf = 10 # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            start = max(0, min(*pos) - buf)
+            self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
 
 
 #################
