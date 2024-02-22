@@ -91,10 +91,11 @@ def incorporate(consensus_sequence, entry, correction):
     """
     Incorporate a variant into a haplotype returning the new correction field
     """
-    ref_len = len(entry.ref)
-    alt_len = len(entry.alts[0]) if entry.alts else 0
     if entry.alts[0] == '*':
         return correction
+
+    ref_len = len(entry.ref)
+    alt_len = len(entry.alts[0]) if entry.alts else 0
     # Need to check it doesn't overlap previous position
     position = entry.pos + correction
     consensus_sequence[position:position + ref_len] = list(entry.alts[0])
