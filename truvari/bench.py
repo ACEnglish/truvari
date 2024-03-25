@@ -582,6 +582,9 @@ class Bench():
                 mat = self.matcher.build_match(
                     b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
                     skip_gt, self.short_circuit)
+                # Not allowing self matches
+                if truvari.entry_to_hash(b) == truvari.entry_to_hash(c):
+                    mat.state = False
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
