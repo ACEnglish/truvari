@@ -31,7 +31,7 @@ class CollapsedCalls():
     match_id: str
     matches: list = field(default_factory=list)
     gt_consolidate_count: int = 0
-    genotype_mask: str = None # not actually a str
+    genotype_mask: str = None  # not actually a str
 
     def calc_median_sizepos(self):
         """
@@ -95,6 +95,7 @@ class CollapsedCalls():
         self.gt_consolidate_count += other.gt_consolidate_count
         if self.genotype_mask is not None and other.genotype_mask is not None:
             self.genotype_mask |= other.genotype_mask
+
 
 def chain_collapse(cur_collapse, all_collapse, matcher):
     """
@@ -309,7 +310,7 @@ def fmt_none(value):
     """
     Checks all values in a format field for nones
     """
-    if isinstance(value, tuple):
+    if isinstance(value, (tuple, list)):
         for i in value:
             if i is not None:
                 return value
@@ -350,8 +351,8 @@ def gt_aware_consolidate(entry, others):
         new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
         # consolidate format fields
         for k in all_fmts:
-            new_fmts[k] = None if k not in entry.samples.keys(
-            ) else entry.samples[sample][k]
+            new_fmts[k] = None if k not in entry.samples[sample].keys(
+            ) else fmt_none(entry.samples[sample][k])
         for o in others:
             o = o.comp
             n_c = get_ac(o.samples[sample]['GT'])
@@ -360,8 +361,9 @@ def gt_aware_consolidate(entry, others):
             for k in all_fmts:
                 rpl_val = None if k not in o.samples[sample] else fmt_none(
                     o.samples[sample][k])
-                if not (k in new_fmts and new_fmts[k] is not None) and rpl_val:
-                    new_fmts[k] = o.samples[sample][k]
+                # Replace blanks in this sample's new formats
+                if rpl_val and new_fmts[k] is None:
+                    new_fmts[k] = rpl_val
         if new_fmts['GT'] == 0:
             new_fmts['GT'] = (0, 0)
         elif new_fmts['GT'] == 1:
