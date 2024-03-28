@@ -411,6 +411,8 @@ def refine_main(cmdargs):
     to_eval_coords = (regions[regions["refined"]][["chrom", "start", "end"]]
                       .to_numpy()
                       .tolist())
+    # Except if there aren't any regions. Then we need to do all that accounting...
+    # And then skip the benchmarking
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0 if args.use_region_coords else PHAB_BUFFER,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
                  threads=args.threads, method=args.align, passonly=params.passonly,
