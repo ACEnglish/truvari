@@ -31,14 +31,7 @@ class CollapsedCalls():
     match_id: str
     matches: list = field(default_factory=list)
     gt_consolidate_count: int = 0
-    genotype_mask: str = ""  # bad
-
-    def combine(self, other):
-        """
-        Put other's entries into this' collapsed_entries
-        """
-        self.matches.append(other.entry)
-        self.matches.extend(other.matches)
+    genotype_mask: str = None  # not actually a str
 
     def calc_median_sizepos(self):
         """
@@ -94,20 +87,34 @@ class CollapsedCalls():
         self.genotype_mask |= o_mask
         return False
 
+    def combine(self, other):
+        """
+        Add other's calls/matches to self's matches
+        """
+        self.matches.extend(other.matches)
+        self.gt_consolidate_count += other.gt_consolidate_count
+        if self.genotype_mask is not None and other.genotype_mask is not None:
+            self.genotype_mask |= other.genotype_mask
+
 
 def chain_collapse(cur_collapse, all_collapse, matcher):
     """
     Perform transitive matching of cur_collapse to all_collapse
+    Check the cur_collapse's entry to all other collapses' consolidated entries
     """
     for m_collap in all_collapse:
         for other in m_collap.matches:
             mat = matcher.build_match(cur_collapse.entry,
-                                      other.base,
+                                      other.comp,
                                       m_collap.match_id,
                                       skip_gt=True,
                                       short_circuit=True)
             if mat.state:
-                m_collap.consolidate(cur_collapse)
+                # The other's representative entry will report its
+                # similarity to the matched call that pulled it in
+                mat.base, mat.comp = mat.comp, mat.base
+                m_collap.matches.append(mat)
+                m_collap.combine(cur_collapse)
                 return True  # you can just ignore it later
     return False  # You'll have to add it to your set of collapsed calls
 
@@ -143,6 +150,10 @@ def collapse_chunk(chunk, matcher):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
+            elif mat.sizesim is not None and mat.sizesim < matcher.params.pctsize:
+                # Can we do this? The sort tells us that we're going through most->least
+                # similar size. So the next one will only be worse...
+                break
 
         # Does this collap need to go into a previous collap?
         if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
@@ -299,7 +310,7 @@ def fmt_none(value):
     """
     Checks all values in a format field for nones
     """
-    if isinstance(value, tuple):
+    if isinstance(value, (tuple, list)):
         for i in value:
             if i is not None:
                 return value
@@ -340,8 +351,8 @@ def gt_aware_consolidate(entry, others):
         new_fmts['GT'] += get_ac(entry.samples[sample]['GT'])
         # consolidate format fields
         for k in all_fmts:
-            new_fmts[k] = None if k not in entry.samples.keys(
-            ) else entry.samples[sample][k]
+            new_fmts[k] = None if k not in entry.samples[sample].keys(
+            ) else fmt_none(entry.samples[sample][k])
         for o in others:
             o = o.comp
             n_c = get_ac(o.samples[sample]['GT'])
@@ -350,8 +361,9 @@ def gt_aware_consolidate(entry, others):
             for k in all_fmts:
                 rpl_val = None if k not in o.samples[sample] else fmt_none(
                     o.samples[sample][k])
-                if not (k in new_fmts and new_fmts[k] is not None) and rpl_val:
-                    new_fmts[k] = o.samples[sample][k]
+                # Replace blanks in this sample's new formats
+                if rpl_val and new_fmts[k] is None:
+                    new_fmts[k] = rpl_val
         if new_fmts['GT'] == 0:
             new_fmts['GT'] = (0, 0)
         elif new_fmts['GT'] == 1:
@@ -786,9 +798,9 @@ def collapse_main(args):
     matcher.picker = 'single'
 
     base = pysam.VariantFile(args.input)
-    regions = truvari.RegionVCFIterator(base, includebed=args.bed)
-    regions.merge_overlaps()
-    base_i = regions.iterate(base)
+    regions = truvari.build_region_tree(base, includebed=args.bed)
+    truvari.merge_region_tree_overlaps(regions)
+    base_i = truvari.region_filter(base, regions)
 
     chunks = truvari.chunker(matcher, ('base', base_i))
     smaller_chunks = tree_size_chunker(matcher, chunks)

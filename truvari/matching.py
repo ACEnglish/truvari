@@ -36,7 +36,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = None
+        self.score = 0
 
     def calc_score(self):
         """
@@ -155,7 +155,7 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and entry.alts is None:  # ignore monomorphic reference
+        if self.params.check_monref and entry.alts in (None, '*'):  # ignore monomorphic reference
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
