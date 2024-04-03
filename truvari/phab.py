@@ -285,7 +285,7 @@ def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     dev_name = None
     if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
         import hashlib  # pylint: disable=import-outside-toplevel
-        dev_name = hashlib.md5(seq_bytes).hexdigest()
+        dev_name = hashlib.md5(seq_bytes, usedforsecurity=False).hexdigest()
 
     ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
