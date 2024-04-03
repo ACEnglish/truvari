@@ -287,10 +287,10 @@ def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
         import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes).hexdigest()
 
-    ret = truvari.cmd_exe(f"mafft --quiet {params} -", stdin=seq_bytes)
+    ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
-        logging.error(ret.stderr)
+        logging.error("stderr:", ret.stderr)
         return ""
 
     if dev_name is not None:
