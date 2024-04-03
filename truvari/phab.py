@@ -290,7 +290,7 @@ def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
-        logging.error("stderr:", ret.stderr)
+        logging.error("stderr: %s", ret.stderr)
         return ""
 
     if dev_name is not None:
