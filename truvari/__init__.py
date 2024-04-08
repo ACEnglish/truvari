@@ -164,6 +164,7 @@ from truvari.utils import (
     HEADERMAT,
     LogFileStderr,
     bed_ranges,
+    check_vcf_index,
     cmd_exe,
     compress_index_vcf,
     help_unknown_cmd,
