@@ -444,5 +444,4 @@ def check_vcf_index(vcf_path):
     Return true if an index file is found for the vcf
     """
     vcf_index_ext = ['tbi','csi']
-    return any([os.path.exists(vcf_path + '.' + x) for x in vcf_index_ext])
-
+    return any(os.path.exists(vcf_path + '.' + x) for x in vcf_index_ext)

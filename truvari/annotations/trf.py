@@ -633,7 +633,7 @@ def check_params(args):
     if not args.input.endswith((".vcf.gz", ".bcf.gz")):
         logging.error(f"{args.input} isn't compressed vcf")
         check_fail = True
-    if not os.path.exists(args.input + ".tbi") and not os.path.exists(args.input + ".csi"):
+    if not truvari.check_vcf_index(args.input):
         logging.error(f"{args.input}[.tbi|.csi] doesn't exit")
         check_fail = True
     if not args.repeats.endswith(".bed.gz"):
