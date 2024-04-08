@@ -459,17 +459,17 @@ def check_params(args):
         logging.error(
             "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
         check_fail = True
-    if args.comp is not None and not os.path.exists(args.comp + '.tbi'):
+    if args.comp is not None and not truvari.check_vcf_index(args.comp):
         logging.error(
-            "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+            "Comparison vcf %s must be indexed", args.comp)
         check_fail = True
     if not args.base.endswith(".gz"):
         logging.error(
             "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
         check_fail = True
-    if not os.path.exists(args.base + '.tbi'):
+    if not truvari.check_vcf_index(args.base):
         logging.error(
-            "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+            "Base vcf %s must be indexed", args.base)
         check_fail = True
     if not os.path.exists(args.reference):
         logging.error("Reference %s does not exist", args.reference)
