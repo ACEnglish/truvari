@@ -92,6 +92,10 @@ calc_hwe
 ^^^^^^^^
 .. autofunction:: calc_hwe
 
+check_vcf_index
+^^^^^^^^^^^^^^^
+.. autofunction:: check_vcf_index
+
 compress_index_vcf
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: compress_index_vcf
