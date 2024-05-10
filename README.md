@@ -27,18 +27,31 @@ The current most common Truvari use case is for structural variation benchmarkin
 ```
   truvari bench -b base.vcf.gz -c comp.vcf.gz -o output_dir/
 ```
+
+Find more matches by harmonizing phased varians using refine:
+```
+   truvari refine -R -U -r reference.fa --regions output_dir/candidate.refine.bed output_dir/
+```
+
+Use Truvari's comparison engine to consolidate redundant variants in a merged multi-sample VCF:
+```
+    bcftools merge -m none sampleA.vcf.gz sampleB.vcf.gz | bgzip > merge.vcf.gz
+    tabix merge.vcf.gz
+    truvari collapse -i merge.vcf.gz -o truvari_merge.vcf
+```
+
 ## 🧬 Truvari Commands
 
  - [bench](https://github.com/acenglish/truvari/wiki/bench) - Performance metrics from comparison of two VCFs
  - [collapse](https://github.com/acenglish/truvari/wiki/collapse) - Collapse possibly redundant VCF entries
+ - [refine](https://github.com/ACEnglish/truvari/wiki/refine) - Automated bench result refinement with phab
  - [anno](https://github.com/acenglish/truvari/wiki/anno) - Add SV annotations to a VCF
+ - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
  - [consistency](https://github.com/acenglish/truvari/wiki/consistency) - Consistency report between multiple VCFs
  - [vcf2df](https://github.com/acenglish/truvari/wiki/vcf2df) - Turn a VCF into a pandas DataFrame
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
  - [stratify](https://github.com/acenglish/truvari/wiki/stratify) - Count variants per-region in vcf
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent shards
- - [phab](https://github.com/ACEnglish/truvari/wiki/phab) - Harmonize variant representations using MSA
- - [refine](https://github.com/ACEnglish/truvari/wiki/refine) - Automated bench result refinement with phab
 
 ## 🔎 More Information
 
