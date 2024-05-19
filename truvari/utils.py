@@ -431,7 +431,7 @@ def compress_index_vcf(fn, fout=None, remove=True):
         fout = fn + '.gz'
     m_tmp = make_temp_filename(suffix='.vcf')
     with open(m_tmp, 'w') as out_hdlr:
-        out_hdlr.write(bcftools.sort(fn))
+        out_hdlr.write(bcftools.sort(fn, "--temp-dir", tempfile.gettempdir()))
     pysam.tabix_compress(m_tmp, fout, force=True)
     pysam.tabix_index(fout, force=True, preset="vcf")
     if remove:
