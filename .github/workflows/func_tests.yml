@@ -27,7 +27,7 @@ jobs:
           python3 -m pip install .
       - name: Running ssshtest
         run: |
-          TMPDIR=/tmp bash repo_utils/truvari_ssshtests.sh
+          TMPDIR=`pwd` bash repo_utils/truvari_ssshtests.sh
       - name: Uploading coverage
         uses: actions/upload-artifact@v3
         with:
