@@ -148,7 +148,7 @@ class NeighAnno():
 
             last_pos = [entry.chrom, entry.start]
 
-            if size < self.sizemin or (self.passonly and truvari.filter_value(entry)):
+            if size < self.sizemin or (self.passonly and truvari.entry_is_filtered(entry)):
                 self.out_vcf.write(entry)
                 continue
             # Make new range
