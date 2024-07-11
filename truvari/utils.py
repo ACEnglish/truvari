@@ -336,8 +336,7 @@ def opt_gz_open(in_fn):
 
     def fh_hdlr(fn):
         with open(fn) as fh:
-            for line in fh:
-                yield line
+            yield from fh
 
     if in_fn.endswith('.gz'):
         return gz_hdlr(in_fn)
