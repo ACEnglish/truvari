@@ -28,7 +28,6 @@ source $TESTSRC/sub_tests/unittest.sh
 source $TESTSRC/sub_tests/vcf2df.sh
 source $TESTSRC/sub_tests/version.sh
 
-
 # Don't generate coverage when doing subset of tests
 if [ -z "$1" ]; then
     printf "\n${BOLD}generating test coverage reports${NC}\n"
