@@ -13,6 +13,8 @@ import truvari
 def coords_within(qstart, qend, rstart, rend, end_within):
     """
     Returns if a span is within the provided [start, end). All coordinates assumed 0-based
+    One exception is made for REPL types with anchor bases. This is for TR callers and GIABTR benchmark
+    where variants will span the entire includebed region.
 
     :param `qstart`: query start position
     :type `qstart`: integer
@@ -28,6 +30,7 @@ def coords_within(qstart, qend, rstart, rend, end_within):
     :return: If the coordinates are within the span
     :rtype: bool
     """
+    # REPL types, probably
     if qstart == rstart - 1 and qend == rend:
         return True
     if end_within:
