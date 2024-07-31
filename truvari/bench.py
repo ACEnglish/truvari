@@ -83,8 +83,6 @@ def parse_args(args):
                         help="Bed file of regions to analyze. Only calls within regions are counted")
     filteg.add_argument("--extend", type=truvari.restricted_int, default=0,
                         help="Distance to allow comp entries outside of includebed regions (%(default)s)")
-    filteg.add_argument("--hard-extend", action="store_true",
-                        help="All entries within `--extend` of includebed regions are considered")
 
     args = parser.parse_args(args)
     # When sizefilt is not provided and sizemin has been lowered below the default,
@@ -118,9 +116,6 @@ def check_params(args):
         check_fail = True
     if args.extend and args.includebed is None:
         logging.error("--extend can only be used when --includebed is set")
-        check_fail = True
-    if args.hard_extend and args.includebed is None:
-        logging.error("--hard-extend can only be used when --includebed is set")
         check_fail = True
     if os.path.isdir(args.output):
         logging.error("Output directory '%s' already exists", args.output)
@@ -447,7 +442,7 @@ class Bench():
     """
 
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, hard_extend=False, debug=False, do_logging=False, short_circuit=False):
+                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
         """
         Initilize
         """
@@ -457,7 +452,6 @@ class Bench():
         self.outdir = outdir
         self.includebed = includebed
         self.extend = extend
-        self.hard_extend = hard_extend
         self.debug = debug
         self.do_logging = do_logging
         self.short_circuit = short_circuit
@@ -472,7 +466,6 @@ class Bench():
                 "output": self.outdir,
                 "includebed": self.includebed,
                 "extend": self.extend,
-                "hard_extend": self.hard_extend,
                 "debug": self.debug}
 
     def run(self):
@@ -493,11 +486,7 @@ class Bench():
         regions_extended = (truvari.extend_region_tree(region_tree, self.extend)
                             if self.extend else region_tree)
 
-        if self.hard_extend:
-            b_tree = regions_extended
-        else:
-            b_tree = region_tree
-        base_i = truvari.region_filter(base, b_tree)
+        base_i = truvari.region_filter(base, region_tree)
         comp_i = truvari.region_filter(comp, regions_extended)
 
         chunks = truvari.chunker(
@@ -505,7 +494,7 @@ class Bench():
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
-            if not self.hard_extend and (self.extend
+            if (self.extend
                 and (match.comp is not None)
                 and not match.state
                 and not truvari.entry_within_tree(match.comp, region_tree)):
@@ -771,7 +760,6 @@ def bench_main(cmdargs):
                     outdir=args.output,
                     includebed=args.includebed,
                     extend=args.extend,
-                    hard_extend=args.hard_extend,
                     debug=args.debug,
                     do_logging=True,
                     short_circuit=args.short)
