@@ -28,6 +28,8 @@ def coords_within(qstart, qend, rstart, rend, end_within):
     :return: If the coordinates are within the span
     :rtype: bool
     """
+    if qstart == rstart - 1 and qend == rend:
+        return True
     if end_within:
         ending = qend <= rend
     else:
@@ -494,6 +496,7 @@ def entry_within_tree(entry, tree):
         return False
     m_ovl = list(m_ovl)[0]
     end_within = truvari.entry_variant_type(entry) != truvari.SV.INS
+
     return truvari.coords_within(qstart, qend, m_ovl.begin, m_ovl.end - 1, end_within)
 
 def entry_within(entry, rstart, rend):
