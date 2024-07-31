@@ -397,7 +397,6 @@ class BenchOutput():
             self.m_bench.outdir, "summary.json"))
 
 
-# pylint: disable=too-many-instance-attributes,too-many-arguments
 class Bench():
     """
     Object to perform operations of truvari bench
@@ -606,7 +605,6 @@ class Bench():
             buf = 10 # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
             start = max(0, min(*pos) - buf)
             self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
-# pylint: enable=too-many-instance-attributes,too-many-arguments
 
 
 #################
