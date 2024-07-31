@@ -285,12 +285,12 @@ def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     dev_name = None
     if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
         import hashlib  # pylint: disable=import-outside-toplevel
-        dev_name = hashlib.md5(seq_bytes).hexdigest()
+        dev_name = hashlib.md5(seq_bytes, usedforsecurity=False).hexdigest()
 
-    ret = truvari.cmd_exe(f"mafft --quiet {params} -", stdin=seq_bytes)
+    ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
     if ret.ret_code != 0:
         logging.error("Unable to run MAFFT")
-        logging.error(ret.stderr)
+        logging.error("stderr: %s", ret.stderr)
         return ""
 
     if dev_name is not None:
@@ -459,17 +459,17 @@ def check_params(args):
         logging.error(
             "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
         check_fail = True
-    if args.comp is not None and not os.path.exists(args.comp + '.tbi'):
+    if args.comp is not None and not truvari.check_vcf_index(args.comp):
         logging.error(
-            "Comparison vcf index %s.tbi does not exist. Must be indexed", args.comp)
+            "Comparison vcf %s must be indexed", args.comp)
         check_fail = True
     if not args.base.endswith(".gz"):
         logging.error(
             "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
         check_fail = True
-    if not os.path.exists(args.base + '.tbi'):
+    if not truvari.check_vcf_index(args.base):
         logging.error(
-            "Base vcf index %s.tbi does not exist. Must be indexed", args.base)
+            "Base vcf %s must be indexed", args.base)
         check_fail = True
     if not os.path.exists(args.reference):
         logging.error("Reference %s does not exist", args.reference)

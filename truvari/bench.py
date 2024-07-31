@@ -130,17 +130,15 @@ def check_params(args):
         logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd",
                       args.comp)
         check_fail = True
-    if not os.path.exists(args.comp + '.tbi'):
-        logging.error("Comparison vcf index %s.tbi does not exist. Must be indexed",
-                      args.comp)
+    if not truvari.check_vcf_index(args.comp):
+        logging.error("Comparison vcf '%s' must be indexed.", args.comp)
         check_fail = True
     if not args.base.endswith(".gz"):
         logging.error("Base vcf %s does not end with .gz. Must be bgzip'd",
                       args.base)
         check_fail = True
-    if not os.path.exists(args.base + '.tbi'):
-        logging.error("Base vcf index %s.tbi does not exist. Must be indexed",
-                      args.base)
+    if not truvari.check_vcf_index(args.base):
+        logging.error("Base vcf '%s' must be indexed.", args.base)
         check_fail = True
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
@@ -754,8 +752,15 @@ def bench_main(cmdargs):
 
     matcher = truvari.Matcher(args)
 
-    m_bench = Bench(matcher, args.base, args.comp, args.output,
-                    args.includebed, args.extend, args.debug, True, args.short)
+    m_bench = Bench(matcher=matcher,
+                    base_vcf=args.base,
+                    comp_vcf=args.comp,
+                    outdir=args.output,
+                    includebed=args.includebed,
+                    extend=args.extend,
+                    debug=args.debug,
+                    do_logging=True,
+                    short_circuit=args.short)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

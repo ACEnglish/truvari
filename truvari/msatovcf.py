@@ -64,8 +64,7 @@ def aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
 
         if ref_base == alt_base:  # No variant
             if cur_variant and is_ref:  # back to matching reference
-                for variant in decompose_variant(cur_variant):
-                    yield variant
+                yield from decompose_variant(cur_variant)
                 cur_variant = []
         else:
             if not cur_variant:
@@ -80,8 +79,7 @@ def aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
             anchor_base = ref_base
     # End Zipping
     if cur_variant:
-        for variant in decompose_variant(cur_variant):
-            yield variant
+        yield from decompose_variant(cur_variant)
 
 def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
     """

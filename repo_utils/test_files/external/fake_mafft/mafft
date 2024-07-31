@@ -11,7 +11,7 @@ sys.stderr.write(f"Running fake MAFFT\n")
 m_dir = os.path.dirname(os.path.realpath(__file__))
 
 stdin = sys.stdin.read()
-md5sum = hashlib.md5(stdin.encode()).hexdigest()
+md5sum = hashlib.md5(stdin.encode(), usedforsecurity=False).hexdigest()
 fn = os.path.join(m_dir, f"lookup/fm_{md5sum}.msa")
 
 #if not os.path.exists(fn):

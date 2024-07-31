@@ -88,7 +88,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.2.2'
+__version__ = '4.3.0'
 
 
 from truvari.annotations.af_calc import (
@@ -164,6 +164,7 @@ from truvari.utils import (
     HEADERMAT,
     LogFileStderr,
     bed_ranges,
+    check_vcf_index,
     cmd_exe,
     compress_index_vcf,
     help_unknown_cmd,

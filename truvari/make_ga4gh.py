@@ -23,7 +23,7 @@ def parse_args(args):
     parser.add_argument("-i", "--input", required=True,
                         help="Truvari result directory")
     parser.add_argument("-o", "--output", required=True,
-                        help="Output suffix")
+                        help="Output prefix")
     parser.add_argument("-w", "--with-refine", action="store_true",
                         help="Consolidate with `truvari refine` output")
     parser.add_argument("-B", "--buffer", type=int, default=100,

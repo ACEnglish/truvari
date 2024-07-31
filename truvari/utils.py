@@ -336,8 +336,7 @@ def opt_gz_open(in_fn):
 
     def fh_hdlr(fn):
         with open(fn) as fh:
-            for line in fh:
-                yield line
+            yield from fh
 
     if in_fn.endswith('.gz'):
         return gz_hdlr(in_fn)
@@ -350,8 +349,10 @@ def make_temp_filename(tmpdir=None, suffix=""):
     Get a random filename in a tmpdir with an optional extension
     """
     if tmpdir is None:
-        tmpdir = tempfile._get_default_tempdir()  # pylint: disable=protected-access
-    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix  # pylint: disable=protected-access
+        tmpdir = tempfile.gettempdir()
+    # pylint: disable=protected-access
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix
+    # pylint: enable=protected-access
     return fn
 
 
@@ -431,9 +432,17 @@ def compress_index_vcf(fn, fout=None, remove=True):
         fout = fn + '.gz'
     m_tmp = make_temp_filename(suffix='.vcf')
     with open(m_tmp, 'w') as out_hdlr:
-        out_hdlr.write(bcftools.sort(fn))
+        out_hdlr.write(bcftools.sort(fn, "--temp-dir", tempfile.gettempdir()))
     pysam.tabix_compress(m_tmp, fout, force=True)
     pysam.tabix_index(fout, force=True, preset="vcf")
     if remove:
         os.remove(fn)
     os.remove(m_tmp)
+
+
+def check_vcf_index(vcf_path):
+    """
+    Return true if an index file is found for the vcf
+    """
+    vcf_index_ext = ['tbi', 'csi']
+    return any(os.path.exists(vcf_path + '.' + x) for x in vcf_index_ext)

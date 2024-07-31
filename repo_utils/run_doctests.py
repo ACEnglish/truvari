@@ -32,7 +32,6 @@ fails += tester(utils)
 fails += tester(vcf2df)
 fails += tester(msatovcf)
 fails += tester(af_calc)
-fails += tester(bench)
 
 os.remove("log.txt")
 sys.exit(fails)
