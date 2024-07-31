@@ -349,8 +349,9 @@ def make_temp_filename(tmpdir=None, suffix=""):
     Get a random filename in a tmpdir with an optional extension
     """
     if tmpdir is None:
-        tmpdir = tempfile._get_default_tempdir()  # pylint: disable=protected-access
-    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix  # pylint: disable=protected-access
+        tmpdir = tempfile.gettempdir()
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())
+                      ) + suffix  # pylint: disable=protected-access
     return fn
 
 
@@ -442,5 +443,5 @@ def check_vcf_index(vcf_path):
     """
     Return true if an index file is found for the vcf
     """
-    vcf_index_ext = ['tbi','csi']
+    vcf_index_ext = ['tbi', 'csi']
     return any(os.path.exists(vcf_path + '.' + x) for x in vcf_index_ext)
