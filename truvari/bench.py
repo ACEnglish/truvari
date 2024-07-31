@@ -752,8 +752,15 @@ def bench_main(cmdargs):
 
     matcher = truvari.Matcher(args)
 
-    m_bench = Bench(matcher, args.base, args.comp, args.output,
-                    args.includebed, args.extend, args.debug, True, args.short)
+    m_bench = Bench(matcher=matcher,
+                    base_vcf=args.base,
+                    comp_vcf=args.comp,
+                    outdir=args.output,
+                    includebed=args.includebed,
+                    extend=args.extend,
+                    debug=args.debug,
+                    do_logging=True,
+                    short_circuit=args.short)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

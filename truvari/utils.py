@@ -350,8 +350,9 @@ def make_temp_filename(tmpdir=None, suffix=""):
     """
     if tmpdir is None:
         tmpdir = tempfile.gettempdir()
-    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())
-                      ) + suffix  # pylint: disable=protected-access
+    # pylint: disable=protected-access
+    fn = os.path.join(tmpdir, next(tempfile._get_candidate_names())) + suffix
+    # pylint: enable=protected-access
     return fn
 
 
