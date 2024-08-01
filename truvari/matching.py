@@ -155,7 +155,7 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and entry.alts in (None, '*'):  # ignore monomorphic reference
+        if self.params.check_monref and entry.alts and entry.alts[0] in (None, '*'):  # ignore monomorphic reference
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
