@@ -1,7 +1,7 @@
 # ------------------------------------------------------------
 #                                 stratify
 # ------------------------------------------------------------
-run test_stratify $truv stratify -w \
+run test_stratify $truv stratify \
         $INDIR/beds/include.bed \
         $INDIR/variants/input1.vcf.gz \
         -o $OD/stratify.txt
