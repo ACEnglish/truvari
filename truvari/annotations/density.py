@@ -61,8 +61,8 @@ def density_main(args):
     # setting new indexes after masking
     new_tree = defaultdict(IntervalTree)
     cnt = 0
-    for chrom in tree:
-        for intv in tree[chrom]:
+    for chrom, intvs in tree.items():
+        for intv in intvs:
             for i in range(intv.begin, intv.end, args.stepsize):
                 new_tree[chrom].addi(
                     i, min(intv.end, i + args.windowsize), data=cnt)

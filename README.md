@@ -52,6 +52,7 @@ Use Truvari's comparison engine to consolidate redundant variants in a merged mu
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
  - [stratify](https://github.com/acenglish/truvari/wiki/stratify) - Count variants per-region in vcf
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent shards
+ - [ga4gh](https://github.com/ACEnglish/truvari/wiki/ga4gh) - Consolidate benchmarking result VCFs
 
 ## 🔎 More Information
 
