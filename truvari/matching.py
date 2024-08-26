@@ -1,7 +1,6 @@
 """
 Comparison engine
 """
-import sys
 import types
 import logging
 from collections import Counter, defaultdict
@@ -159,9 +158,7 @@ class Matcher():
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
-            logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("line %s", str(entry))
-            sys.exit(10)
+            raise ValueError(f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
