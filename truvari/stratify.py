@@ -53,10 +53,9 @@ def count_entries(vcf, chroms, regions, within):
     for idx, row in enumerate(zip(chroms, regions)):
         chrom, coords = row
         start, end = coords
-        end += 1
         tree[chrom].addi(start, end + 1)
         counts_idx[(chrom, start, end)] = idx
-    for _, location in truvari.region_filter(vcf, tree, within, True):
+    for _, location in truvari.region_filter(vcf, tree, inside=within, with_region=True):
         key = (location[0], location[1].begin, location[1].end - 1)
         counts[counts_idx[key]] += 1
     return counts
