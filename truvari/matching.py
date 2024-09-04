@@ -89,8 +89,6 @@ class Matcher():
 
         self.reference = None
         if self.params.reference is not None:
-            #sys.stderr.write("WARNING `--reference` is no longer recommended for use with bench/collapse ")
-            #sys.stderr.write("results will be slower and less accurate.\n")
             self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod
