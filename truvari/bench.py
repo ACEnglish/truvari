@@ -145,7 +145,7 @@ def check_params(args):
         check_fail = True
     if args.reference:
         logging.warning("`--reference` is no longer recommended and will be deprecated by v5")
-        not os.path.exists(args.reference):
+        if not os.path.exists(args.reference):
             logging.error("Reference %s does not exist", args.reference)
         check_fail = True
     return check_fail
