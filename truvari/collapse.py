@@ -738,7 +738,7 @@ class LinkedList:
         """
         Put data onto end of list
         """
-        new_node = (data, None)
+        new_node = [data, None]
         if not self.head:
             self.head = new_node
             self.tail = new_node
@@ -797,8 +797,9 @@ def tree_size_chunker(matcher, chunks):
     Needs to return the same thing as a chunker
     """
     chunk_count = 0
+    thresh = 1 if "COLLAP_SUB" in os.environ and os.environ["COLLAP_SUB"] == "1" else 100
     for chunk, _ in chunks:
-        if len(chunk['base']) < 100:  # fewer than 100 is fine
+        if len(chunk['base']) < thresh:  # fewer than 100 is fine
             chunk_count += 1
             yield chunk, chunk_count
             continue
@@ -826,8 +827,9 @@ def tree_dist_chunker(matcher, chunks):
     This does nothing
     """
     chunk_count = 0
+    thresh = 1 if "COLLAP_SUB" in os.environ and os.environ["COLLAP_SUB"] == "1" else 100
     for chunk, _ in chunks:
-        if len(chunk['base']) < 100:  # fewer than 100 is fine
+        if len(chunk['base']) < thresh:  # fewer than 100 is fine
             chunk_count += 1
             yield chunk, chunk_count
             continue
