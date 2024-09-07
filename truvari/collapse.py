@@ -16,7 +16,6 @@ from functools import cmp_to_key, partial
 
 import pysam
 import numpy as np
-from intervaltree import IntervalTree
 
 import truvari
 import truvari.bench as trubench
@@ -721,6 +720,76 @@ class CollapseOutput(dict):
         logging.info("%d samples' FORMAT fields consolidated",
                      self["stats_box"]["consol_cnt"])
 
+class LinkedList:
+    """
+    Simple linked list which should(?) be faster than concatenating a bunch 
+    regular lists
+    """
+    def __init__(self, data=None):
+        """
+        init
+        """
+        self.head = None
+        self.tail = None
+        if data is not None:
+            self.append(data)
+
+    def append(self, data):
+        """
+        Put data onto end of list
+        """
+        new_node = (data, None)
+        if not self.head:
+            self.head = new_node
+            self.tail = new_node
+            return
+        self.tail[1] = new_node
+        self.tail = new_node
+
+
+    def to_list(self):
+        """
+        Turn into a regular list
+        """
+        cur_node = self.head
+        ret = []
+        while cur_node:
+            ret.append(cur_node[0])
+            cur_node = cur_node[1]
+        return ret
+
+    def concatenate(self, other):
+        """
+        Combine two linked lists
+        """
+        if not self.head:  # If the first list is empty
+            return other
+        self.tail[1] = other.head
+        self.tail = other.tail
+        return self
+
+def merge_intervals(intervals):
+    """
+    Merge sorted list of tuples
+    """
+    if not intervals:
+        return []
+    merged = []
+
+    current_start, current_end, current_data = intervals[0]
+    for i in range(1, len(intervals)):
+        next_start, next_end, next_data = intervals[i]
+
+        # Should be <=, maybe. but this replicates intervaltree
+        if next_start < current_end:
+            current_end = max(current_end, next_end)
+            current_data.concatenate(next_data)
+        else:
+            # No overlap
+            merged.append((current_start, current_end, current_data))
+            current_start, current_end, current_data = next_start, next_end, next_data
+    merged.append((current_start, current_end, current_data))
+    return merged
 
 def tree_size_chunker(matcher, chunks):
     """
@@ -733,8 +802,8 @@ def tree_size_chunker(matcher, chunks):
             chunk_count += 1
             yield chunk, chunk_count
             continue
-        tree = IntervalTree()
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
+        to_add = []
         for entry in chunk['base']:
             # How much smaller/larger would be in sizesim?
             sz = truvari.entry_size(entry)
@@ -743,17 +812,18 @@ def tree_size_chunker(matcher, chunks):
                 sz *= - \
                     1 if truvari.entry_variant_type(
                         entry) == truvari.SV.DEL else 1
-            tree.addi(sz - diff, sz + diff, data=[entry])
-        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+            to_add.append((sz - diff, sz + diff, LinkedList(entry)))
+        tree = merge_intervals(to_add)
         for intv in tree:
             chunk_count += 1
-            yield {'base': intv.data, '__filtered': []}, chunk_count
+            yield {'base': intv[2].to_list(), '__filtered': []}, chunk_count
 
 
 def tree_dist_chunker(matcher, chunks):
     """
     To reduce the number of variants in a chunk try to sub-chunk by reference distance before hand
     Needs to return the same thing as a chunker
+    This does nothing
     """
     chunk_count = 0
     for chunk, _ in chunks:
@@ -761,17 +831,17 @@ def tree_dist_chunker(matcher, chunks):
             chunk_count += 1
             yield chunk, chunk_count
             continue
-        tree = IntervalTree()
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
+        to_add = []
         for entry in chunk['base']:
             st, ed = truvari.entry_boundaries(entry)
             st -= matcher.params.refdist
             ed += matcher.params.refdist
-            tree.addi(st, ed, data=[entry])
-        tree.merge_overlaps(data_reducer=lambda x, y: x + y)
+            to_add.append((st, ed, LinkedList(entry)))
+        tree = merge_intervals(to_add)
         for intv in tree:
             chunk_count += 1
-            yield {'base': intv.data, '__filtered': []}, chunk_count
+            yield {'base': intv[2].to_list(), '__filtered': []}, chunk_count
 
 
 def collapse_main(args):

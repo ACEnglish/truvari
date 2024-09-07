@@ -171,10 +171,18 @@ if [ $test_anno_grpaf_subset ]; then
     assert_equal $(fn_md5 $ANSDIR/anno/anno_grpaf.subtags.vcf) $(fn_md5 $OD/anno_grpaf.subtags.vcf)
 fi
 
-# 
+#                           add id 
 run test_anno_addid \
     $truv anno addid $INDIR/variants/multi.vcf.gz -o $OD/addid.vcf
 if [ $test_anno_addid ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/anno/addid.vcf) $(fn_md5 $OD/addid.vcf)
+fi
+
+
+#                           chunks
+run test_anno_chunks $truv anno chunks $INDIR/variants/multi.vcf.gz -o $OD/chunks.bed
+if [ $test_anno_chunks ]; then
+    assert_exit_code 0
+    assert_equal $(fn_md5 $ANSDIR/anno/chunks.bed) $(fn_md5 $OD/chunks.bed)
 fi

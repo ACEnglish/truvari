@@ -1,6 +1,7 @@
 """ annotation modules """
 from truvari.annotations.addid import addid_main
 from truvari.annotations.bpovl import bpovl_main
+from truvari.annotations.chunks import chunks_main
 from truvari.annotations.density import density_main
 from truvari.annotations.dpcnt import dpcnt_main
 from truvari.annotations.gccontent import gcpct_main
@@ -18,6 +19,7 @@ from truvari.annotations.trf import trf_main
 __all__ = [
     'addid_main',
     'bpovl_main',
+    'chunks_main',
     'density_main',
     'dpcnt_main',
     'gcpct_main',
