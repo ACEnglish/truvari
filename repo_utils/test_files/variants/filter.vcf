@@ -1,0 +1,10 @@
+##fileformat=VCFv4.2
+##contig=<ID=reference,length=30>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##INFO=<ID=reason,Number=1,Type=String,Description="Why variant should be filtered">
+##FILTER=<ID=FAIL,Description="Failure">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002
+reference	6	F1	TATATAT	.	30	.	reason=monref	GT	1|1
+reference	7	F2	ATATGCG	*	30	.	reason=star	GT	1|1
+reference	8	F3	ATATGCG	A	30	FAIL	reason=Fail	GT	1|1
+reference	9	F3	ATATGCG	A,C	30	.	reason=multi	GT	1|1

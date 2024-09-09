@@ -8,6 +8,7 @@ import truvari.annotations as tannos
 ANNOS = {
     "addid": ("Set ID field", tannos.addid_main),
     "bpovl": ("Annotation Intersection", tannos.bpovl_main),
+    "chunks": ("Chunk Boundaries and Variant Counts", tannos.chunks_main),
     "density": ("Variant Density", tannos.density_main),
     "dpcnt": ("Call Depth Counts", tannos.dpcnt_main),
     "gcpct": ("GC Percent", tannos.gcpct_main),

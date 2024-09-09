@@ -70,3 +70,18 @@ for entry in truvari.region_filter_stream(vcf, tree, False, False):
 vcf = pysam.VariantFile(vcf_fn)
 for entry in truvari.region_filter_fetch(vcf, tree, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
+
+
+"""
+Filtering logic
+"""
+vcf = pysam.VariantFile("repo_utils/test_files/variants/filter.vcf")
+matcher = truvari.Matcher()
+matcher.params.sizemin = 0
+matcher.params.sizefilt = 0
+matcher.params.passonly = True
+for entry in vcf:
+    try:
+        assert matcher.filter_call(entry), f"Didn't filter {str(entry)}"
+    except ValueError as e:
+        assert e.args[0].startswith("Cannot compare multi-allelic"), f"Unknown exception {str(entry)}"

@@ -143,9 +143,11 @@ def check_params(args):
     if args.includebed and not os.path.exists(args.includebed):
         logging.error("Include bed %s does not exist", args.includebed)
         check_fail = True
-    if args.reference and not os.path.exists(args.reference):
-        logging.error("Reference %s does not exist", args.reference)
-        check_fail = True
+    if args.reference:
+        logging.warning("`--reference` is no longer recommended and will be deprecated by v5")
+        if not os.path.exists(args.reference):
+            logging.error("Reference %s does not exist", args.reference)
+            check_fail = True
     return check_fail
 
 

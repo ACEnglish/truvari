@@ -1,5 +1,5 @@
 """
-Count variants per-region in vcf
+Count variants which start and end within each bed region
 """
 import os
 import logging
@@ -30,8 +30,8 @@ def parse_args(args):
                         help="Output bed-like file")
     parser.add_argument("--header", action="store_true",
                         help="Input regions have header to preserve in output")
-    parser.add_argument("-w", "--within", action="store_true",
-                        help="Only count variants contained completely within region boundaries")
+    parser.add_argument("-v", "--complement", action="store_false",
+                        help="Only count variants not within region boundaries")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -53,16 +53,15 @@ def count_entries(vcf, chroms, regions, within):
     for idx, row in enumerate(zip(chroms, regions)):
         chrom, coords = row
         start, end = coords
-        end += 1
         tree[chrom].addi(start, end + 1)
         counts_idx[(chrom, start, end)] = idx
-    for _, location in truvari.region_filter(vcf, tree, within, True):
+    for _, location in truvari.region_filter(vcf, tree, inside=within, with_region=True):
         key = (location[0], location[1].begin, location[1].end - 1)
         counts[counts_idx[key]] += 1
     return counts
 
 
-def benchdir_count_entries(benchdir, regions, within=False, threads=4):
+def benchdir_count_entries(benchdir, regions, within=True, threads=4):
     """
     Count the number of variants per bed region in Truvari bench directory by state
 
@@ -95,12 +94,12 @@ def stratify_main(cmdargs):
     regions = pd.read_csv(args.regions, sep='\t', header=read_header)
     r_list = regions.to_numpy().tolist()  # the methods expect lists
     if os.path.isdir(args.in_vcf):
-        counts = benchdir_count_entries(args.in_vcf, r_list, args.within)
+        counts = benchdir_count_entries(args.in_vcf, r_list, args.complement)
     else:
         chroms = np.array([_[0] for _ in r_list])
         intvs = np.array([[_[1], _[2]] for _ in r_list])
         counts = count_entries(pysam.VariantFile(
-            args.in_vcf), chroms, intvs, args.within)
+            args.in_vcf), chroms, intvs, args.complement)
         counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)

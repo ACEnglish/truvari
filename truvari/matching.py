@@ -1,7 +1,6 @@
 """
 Comparison engine
 """
-import sys
 import types
 import logging
 from collections import Counter, defaultdict
@@ -90,8 +89,6 @@ class Matcher():
 
         self.reference = None
         if self.params.reference is not None:
-            #sys.stderr.write("WARNING `--reference` is no longer recommended for use with bench/collapse ")
-            #sys.stderr.write("results will be slower and less accurate.\n")
             self.reference = pysam.FastaFile(self.params.reference)
 
     @staticmethod
@@ -155,13 +152,11 @@ class Matcher():
         Returns True if the call should be filtered
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and entry.alts in (None, '*'):  # ignore monomorphic reference
+        if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
-            logging.error("Cannot compare multi-allelic records. Please split")
-            logging.error("line %s", str(entry))
-            sys.exit(10)
+            raise ValueError(f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True

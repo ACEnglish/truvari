@@ -78,3 +78,10 @@ run test_bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o
 if [ $test_bench_badparams ]; then
     assert_exit_code 100
 fi
+
+run test_bench_starallele $truv bench -b $INDIR/variants/star.base.vcf.gz \
+                                      -c $INDIR/variants/star.comp.vcf.gz \
+                                      -s 0 -o $OD/bench_starallele/
+if [ $test_bench_starallele ]; then
+    bench_assert _starallele
+fi

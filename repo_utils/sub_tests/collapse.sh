@@ -74,6 +74,8 @@ if [ $test_collapse_badparams ]; then
     assert_exit_code 100
 fi
 
+# Lower collapse sub-chunk threshold
+export COLLAP_SUB=1
 run test_collapse_median $truv collapse -f $INDIR/references/reference.fa \
                    -i $INDIR/variants/input1.vcf.gz \
                    -o $OD/input1_median_collapsed.vcf \
@@ -82,6 +84,7 @@ run test_collapse_median $truv collapse -f $INDIR/references/reference.fa \
 if [ $test_collapse_median ]; then
     collapse_assert 1_median
 fi
+unset COLLAP_SUB
 
 run test_collapse_intragt $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
                         -o $OD/inputintragt_collapsed.vcf \

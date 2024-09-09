@@ -2,7 +2,7 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.2.2)](https://github.com/ACEnglish/truvari/compare/v4.2.2...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.3.0)](https://github.com/ACEnglish/truvari/compare/v4.3.0...develop)
 [![Downloads](https://static.pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
@@ -52,6 +52,7 @@ Use Truvari's comparison engine to consolidate redundant variants in a merged mu
  - [segment](https://github.com/acenglish/truvari/wiki/segment) - Normalization of SVs into disjointed genomic regions
  - [stratify](https://github.com/acenglish/truvari/wiki/stratify) - Count variants per-region in vcf
  - [divide](https://github.com/ACEnglish/truvari/wiki/divide) - Divide a VCF into independent shards
+ - [ga4gh](https://github.com/ACEnglish/truvari/wiki/ga4gh) - Consolidate benchmarking result VCFs
 
 ## 🔎 More Information
 

@@ -103,7 +103,7 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
     """
     idx = 0
     correction = 1 if one_based else 0
-    tree = defaultdict(IntervalTree)
+    ttree = defaultdict(list)
     for line in truvari.opt_gz_open(filename):
         if line.startswith(comment):
             continue
@@ -115,8 +115,11 @@ def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=Fal
             m_idx = idxfmt.format(idx)
         else:
             m_idx = idx
-        tree[chrom].addi(start, end + 1, data=m_idx)
+        ttree[chrom].append((start, end + 1, m_idx))
         idx += 1
+    tree = {}
+    for chrom in ttree:
+        tree[chrom] = IntervalTree.from_tuples(ttree[chrom])
     return tree, idx
 
 
