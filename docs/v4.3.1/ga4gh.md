@@ -1,0 +1,3 @@
+The ga4gh command will consolidate tp-base/fn and tp-comp/fp VCF files into a single truth and query vcf, respectively. Additional tags are added that are compliant with the [ga4gh intermediates](https://github.com/ga4gh/benchmarking-tools/blob/master/doc/ref-impl/intermediate.md).  
+
+When consolidating a result which has `truvari refine`, the `truvari ga4gh --with-refine` flag will extract original variants from unharmonized regions and altered variants from harmonized regions inside the `phab_bench/` sub-directory.
