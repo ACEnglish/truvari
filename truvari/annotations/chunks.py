@@ -24,9 +24,9 @@ def parse_args(args):
     parser.add_argument("-c", "--chunksize", type=int, default=500,
                         help="Distance between variants to split chunks (%(default)s)")
     parser.add_argument("-s", "--sizemin", type=int, default=50,
-                        help="Minimum SV length")
+                        help="Minimum SV length (%(default)s)")
     parser.add_argument("-S", "--sizemax", type=int, default=50000,
-                        help="Maximum SV length")
+                        help="Maximum SV length (%(default)s)")
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args

@@ -258,7 +258,7 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
     return max(unroll_compare(a_seq, b_seq, st_dist), unroll_compare(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
 
 
-def entry_reciprocal_overlap(entry1, entry2):
+def entry_reciprocal_overlap(entry1, entry2, ins_inflate=True):
     """
     Calculates reciprocal overlap of two entries
 
@@ -266,6 +266,8 @@ def entry_reciprocal_overlap(entry1, entry2):
     :type `entry1`: :class:`pysam.VariantRecord`
     :param `entry2`: Second entry
     :type `entry2`: :class:`pysam.VariantRecord`
+    :param `ins_inflate`: inflate entry boundaries
+    :type `ins_inflate`: bool
 
     :return: The reciprocal overlap
     :rtype: float
@@ -279,8 +281,8 @@ def entry_reciprocal_overlap(entry1, entry2):
         >>> truvari.entry_reciprocal_overlap(a, b)
         0
     """
-    astart, aend = entry_boundaries(entry1, True)
-    bstart, bend = entry_boundaries(entry2, True)
+    astart, aend = entry_boundaries(entry1, ins_inflate)
+    bstart, bend = entry_boundaries(entry2, ins_inflate)
     return reciprocal_overlap(astart, aend, bstart, bend)
 
 
