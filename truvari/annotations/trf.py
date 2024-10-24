@@ -64,7 +64,7 @@ class TRFAnno():
         self.region = region
         self.reference = reference
         self.motif_similarity = motif_similarity
-        self.known_motifs = {_["repeat"]: _["copies"]
+        self.known_motifs = {_["repeat"] if "repeat" in _ else _["motif"]: _["copies"]
                              for _ in self.region["annos"]}
         self.buffer = buf
 
