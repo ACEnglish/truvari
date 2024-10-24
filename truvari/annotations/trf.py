@@ -109,10 +109,11 @@ class TRFAnno():
             best_pos = None
             motif_len = len(anno["repeat"])
             for known in self.region["annos"]:
-                if truvari.sizesim(len(known["repeat"]), motif_len)[0] < self.motif_similarity:
+                mkey = "repeat" if "repeat" in known else "motif"
+                if truvari.sizesim(len(known[mkey]), motif_len)[0] < self.motif_similarity:
                     continue
                 sq = truvari.unroll_compare(
-                    known["repeat"], anno["repeat"], anno["start"] - known["start"])
+                    known[mkey], anno["repeat"], anno["start"] - known["start"])
                 if sq >= self.motif_similarity and sq > best_score:
                     best_score = sq
                     best_pos = known
