@@ -64,7 +64,7 @@ class TRFAnno():
         self.region = region
         self.reference = reference
         self.motif_similarity = motif_similarity
-        self.known_motifs = {_["repeat"] if "repeat" in _ else _["motif"]: _["copies"]
+        self.known_motifs = {_["repeat"]: _["copies"]
                              for _ in self.region["annos"]}
         self.buffer = buf
 
@@ -109,11 +109,10 @@ class TRFAnno():
             best_pos = None
             motif_len = len(anno["repeat"])
             for known in self.region["annos"]:
-                mkey = "repeat" if "repeat" in known else "motif"
-                if truvari.sizesim(len(known[mkey]), motif_len)[0] < self.motif_similarity:
+                if truvari.sizesim(len(known["repeat"]), motif_len)[0] < self.motif_similarity:
                     continue
                 sq = truvari.unroll_compare(
-                    known[mkey], anno["repeat"], anno["start"] - known["start"])
+                    known["repeat"], anno["repeat"], anno["start"] - known["start"])
                 if sq >= self.motif_similarity and sq > best_score:
                     best_score = sq
                     best_pos = known
@@ -523,6 +522,11 @@ def iter_tr_regions(fn, region=None):
         start = int(start)
         end = int(end)
         annos = json.loads(annos)
+        for i in annos:
+            try:
+                i['repeat'] = i['motif']
+            except KeyError:
+                pass
         yield {"chrom": chrom,
                "start": start,
                "end": end,

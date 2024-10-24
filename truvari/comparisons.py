@@ -31,7 +31,7 @@ def coords_within(qstart, qend, rstart, rend, end_within):
     :rtype: bool
     """
     # REPL types, probably
-    if (qstart == rstart - 1 or qstart == rstart) and qend == rend:
+    if qstart in (rstart - 1, rstart) and qend == rend:
         return True
     if end_within:
         ending = qend <= rend
