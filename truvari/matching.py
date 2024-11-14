@@ -362,7 +362,6 @@ def resolve_sv(entry, ref, dup_to_ins=False):
         entry.ref = seq
         entry.alts = [seq.translate(RC)[::-1]]
     elif entry.alts[0] == '<DUP>' and dup_to_ins:
-        entry.info['SVTYPE'] = 'INS'
         entry.ref = seq[0]
         entry.alts = [seq]
         entry.stop = entry.start + 1

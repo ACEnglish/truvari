@@ -4,67 +4,67 @@
         "repo_utils/test_files/variants/input2.vcf.gz",
         "repo_utils/test_files/variants/input3.vcf.gz"
     ],
-    "total_calls": 3513,
+    "total_calls": 3516,
     "num_vcfs": 3,
     "vcf_counts": {
-        "repo_utils/test_files/variants/input1.vcf.gz": 2151,
+        "repo_utils/test_files/variants/input1.vcf.gz": 2153,
         "repo_utils/test_files/variants/input2.vcf.gz": 1783,
         "repo_utils/test_files/variants/input3.vcf.gz": 2065
     },
     "shared": [
         {
             "vcf_count": 3,
-            "num_calls": 701,
-            "call_pct": 0.1995445488186735
+            "num_calls": 700,
+            "call_pct": 0.19908987485779295
         },
         {
             "vcf_count": 2,
-            "num_calls": 1084,
-            "call_pct": 0.3085681753487048
+            "num_calls": 1085,
+            "call_pct": 0.30858930602957907
         },
         {
             "vcf_count": 1,
-            "num_calls": 1728,
-            "call_pct": 0.4918872758326217
+            "num_calls": 1731,
+            "call_pct": 0.492320819112628
         }
     ],
     "detailed": [
         {
             "group": "111",
-            "total": 701,
-            "total_pct": 0.1995445488186735,
-            "repo_utils/test_files/variants/input1.vcf.gz": 0.32589493258949326,
-            "repo_utils/test_files/variants/input2.vcf.gz": 0.393157599551318,
-            "repo_utils/test_files/variants/input3.vcf.gz": 0.3394673123486683
+            "total": 700,
+            "total_pct": 0.19908987485779295,
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.3251277287505806,
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.3925967470555244,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.3389830508474576
         },
         {
             "group": "001",
             "total": 645,
-            "total_pct": 0.18360375747224594,
+            "total_pct": 0.18344709897610922,
             "repo_utils/test_files/variants/input1.vcf.gz": 0,
             "repo_utils/test_files/variants/input2.vcf.gz": 0,
             "repo_utils/test_files/variants/input3.vcf.gz": 0.31234866828087166
         },
         {
             "group": "100",
-            "total": 598,
-            "total_pct": 0.17022487902077996,
-            "repo_utils/test_files/variants/input1.vcf.gz": 0.2780102278010228,
+            "total": 601,
+            "total_pct": 0.17093287827076223,
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.2791453785415699,
             "repo_utils/test_files/variants/input2.vcf.gz": 0,
             "repo_utils/test_files/variants/input3.vcf.gz": 0
         },
         {
             "group": "101",
             "total": 487,
-            "total_pct": 0.1386279533162539,
-            "repo_utils/test_files/variants/input1.vcf.gz": 0.22640632264063226,
+            "total_pct": 0.13850967007963594,
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.22619600557361821,
             "repo_utils/test_files/variants/input2.vcf.gz": 0,
             "repo_utils/test_files/variants/input3.vcf.gz": 0.2358353510895884
         },
         {
             "group": "010",
             "total": 485,
-            "total_pct": 0.13805863933959578,
+            "total_pct": 0.13794084186575653,
             "repo_utils/test_files/variants/input1.vcf.gz": 0,
             "repo_utils/test_files/variants/input2.vcf.gz": 0.27201346045989905,
             "repo_utils/test_files/variants/input3.vcf.gz": 0
@@ -72,18 +72,18 @@
         {
             "group": "110",
             "total": 365,
-            "total_pct": 0.10389980074010817,
-            "repo_utils/test_files/variants/input1.vcf.gz": 0.1696885169688517,
+            "total_pct": 0.10381114903299203,
+            "repo_utils/test_files/variants/input1.vcf.gz": 0.1695308871342313,
             "repo_utils/test_files/variants/input2.vcf.gz": 0.2047111609646663,
             "repo_utils/test_files/variants/input3.vcf.gz": 0
         },
         {
             "group": "011",
-            "total": 232,
-            "total_pct": 0.06604042129234272,
+            "total": 233,
+            "total_pct": 0.06626848691695109,
             "repo_utils/test_files/variants/input1.vcf.gz": 0,
-            "repo_utils/test_files/variants/input2.vcf.gz": 0.13011777902411667,
-            "repo_utils/test_files/variants/input3.vcf.gz": 0.11234866828087167
+            "repo_utils/test_files/variants/input2.vcf.gz": 0.13067863151991027,
+            "repo_utils/test_files/variants/input3.vcf.gz": 0.11283292978208233
         }
     ]
 }
