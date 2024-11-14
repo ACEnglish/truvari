@@ -10,6 +10,7 @@ bench() {
     $truv bench -b $INDIR/variants/input${f1}.vcf.gz \
                 -c $INDIR/variants/input${f2}.vcf.gz \
                 -f $INDIR/references/reference.fa \
+                --dup-to-ins \
                 -o $OD/bench${k}/ ${4}
 }
 

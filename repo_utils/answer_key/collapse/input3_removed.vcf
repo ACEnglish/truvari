@@ -46,4 +46,4 @@
 ##INFO=<ID=MatchId,Number=.,Type=String,Description="Tuple of base and comparison call ids which were matched">
 ##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00733
-chr20	149073	.	G	GAATCCTGACCCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCA	60	.	QNAME=cluster23_scaffold_2;QSTART=25547471;QSTRAND=-;SVTYPE=INS;SVLEN=69;PctSeqSimilarity=0.9962;PctSizeSimilarity=1;PctRecOverlap=0.1304;SizeDiff=0;StartDistance=-60;EndDistance=-60;GTMatch=.;TruScore=70;MatchId=1.0	GT	0/1
+chr20	149073	.	G	GAATCCTGACCCATATTTGGGAGGCAATTTTACCTGTTCTCAAGGCCGCATCTCTACCCCATCTCATGCA	60	.	QNAME=cluster23_scaffold_2;QSTART=25547471;QSTRAND=-;SVTYPE=INS;SVLEN=69;PctSeqSimilarity=0.9857;PctSizeSimilarity=1;PctRecOverlap=0.1304;SizeDiff=0;StartDistance=-60;EndDistance=-60;GTMatch=.;TruScore=70;MatchId=1.0	GT	0/1

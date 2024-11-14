@@ -50,10 +50,6 @@ entry_size_similarity
 ^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_size_similarity
 
-entry_shared_ref_context
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_shared_ref_context
-
 entry_to_hash
 ^^^^^^^^^^^^^
 .. autofunction:: entry_to_hash
@@ -99,10 +95,6 @@ check_vcf_index
 compress_index_vcf
 ^^^^^^^^^^^^^^^^^^
 .. autofunction:: compress_index_vcf
-
-create_pos_haplotype
-^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: create_pos_haplotype
 
 get_gt
 ^^^^^^

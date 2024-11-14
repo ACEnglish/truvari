@@ -24,6 +24,7 @@
 ##contig=<ID=chr22,length=50818468>
 ##contig=<ID=chrX,length=156040895>
 ##contig=<ID=chrY,length=57227415>
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of structural variation">
 ##INFO=<ID=QNAME,Number=1,Type=String,Description="Query name">
 ##INFO=<ID=QSTART,Number=1,Type=Integer,Description="Query start">
 ##INFO=<ID=QSTRAND,Number=1,Type=String,Description="Query strand">

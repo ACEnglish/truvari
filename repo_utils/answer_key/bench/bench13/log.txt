@@ -1,6 +1,6 @@
-2024-01-09 03:54:53,758 [INFO] Truvari v4.2.0rc1
-2024-01-09 03:54:53,760 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench13/
-2024-01-09 03:54:53,762 [INFO] Params:
+2024-11-14 05:19:42,526 [INFO] Truvari v5.0.0
+2024-11-14 05:19:42,527 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13/
+2024-11-14 05:19:42,527 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
@@ -11,14 +11,13 @@
     "reference": "/data/repo_utils/test_files/references/reference.fa",
     "refdist": 500,
     "pctseq": 0.7,
-    "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
     "chunksize": 1000,
     "bSample": "NA24385",
     "cSample": "HG00733",
-    "dup_to_ins": false,
+    "dup_to_ins": true,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
@@ -28,17 +27,17 @@
     "check_monref": true,
     "check_multi": true
 }
-2024-01-09 03:54:53,978 [INFO] Zipped 4216 variants Counter({'base': 2151, 'comp': 2065})
-2024-01-09 03:54:53,980 [INFO] 15 chunks of 4216 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 16})
-2024-01-09 03:54:54,174 [INFO] Stats: {
+2024-11-14 05:19:42,759 [INFO] Zipped 4218 variants Counter({'base': 2153, 'comp': 2065})
+2024-11-14 05:19:42,759 [INFO] 14 chunks of 4218 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 18})
+2024-11-14 05:19:42,801 [INFO] Stats: {
     "TP-base": 10,
     "TP-comp": 10,
     "FP": 7,
-    "FN": 6,
+    "FN": 8,
     "precision": 0.5882352941176471,
-    "recall": 0.625,
-    "f1": 0.6060606060606061,
-    "base cnt": 16,
+    "recall": 0.5555555555555556,
+    "f1": 0.5714285714285715,
+    "base cnt": 18,
     "comp cnt": 17,
     "TP-comp_TP-gt": 7,
     "TP-comp_FP-gt": 3,
@@ -58,26 +57,6 @@
         "(1, 0)": {
             "(1, 0)": 2
         }
-    },
-    "weighted": {
-        "sequence": {
-            "TP": 15.669700011610985,
-            "FP": 2.477899968624115,
-            "FN": 2.0650000125169754,
-            "precision": 0.8634585305317043,
-            "recall": 0.8835616046672594,
-            "f1": 0.8733944039097633,
-            "total": 19
-        },
-        "size": {
-            "TP": 14.242200031876564,
-            "FP": 3.953399956226349,
-            "FN": 3.3116999715566635,
-            "precision": 0.7827276946728189,
-            "recall": 0.8113410711631629,
-            "f1": 0.7967775792807436,
-            "total": 19
-        }
     }
 }
-2024-01-09 03:54:54,175 [INFO] Finished bench
+2024-11-14 05:19:42,802 [INFO] Finished bench
