@@ -312,9 +312,9 @@ def chunker(matcher, *files):
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<') and matcher.params.reference:
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
             was_resolved = resolve_sv(entry,
-                                      matcher.params.reference,
+                                      matcher.reference,
                                       matcher.params.dup_to_ins)
             if not was_resolved:
                 if not unresolved_warned:
@@ -347,14 +347,6 @@ def chunker(matcher, *files):
 
 RC = str.maketrans("ATCG", "TAGC")
 
-
-def do_rc(s):
-    """
-    Reverse complement a sequence
-    """
-    return s.translate(RC)[::-1]
-
-
 def resolve_sv(entry, ref, dup_to_ins=False):
     """
     Attempts to resolve an SV's REF/ALT sequences
@@ -368,7 +360,7 @@ def resolve_sv(entry, ref, dup_to_ins=False):
         entry.alts = [seq[0]]
     elif entry.alts[0] == '<INV>':
         entry.ref = seq
-        entry.alts = [do_rc(seq)]
+        entry.alts = [seq.translate(RC)[::-1]]
     elif entry.alts[0] == '<DUP>' and dup_to_ins:
         entry.info['SVTYPE'] = 'INS'
         entry.ref = seq[0]
