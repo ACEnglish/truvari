@@ -13,7 +13,6 @@ VariantRecord methods:
 :meth:`entry_is_present`
 :meth:`entry_reciprocal_overlap`
 :meth:`entry_same_variant_type`
-:meth:`entry_shared_ref_context`
 :meth:`entry_seq_similarity`
 :meth:`entry_size`
 :meth:`entry_size_similarity`
@@ -30,7 +29,6 @@ Extra methods:
 :meth:`calc_af`
 :meth:`calc_hwe`
 :meth:`compress_index_vcf`
-:meth:`create_pos_haplotype`
 :meth:`get_gt`
 :meth:`get_scalebin`
 :meth:`get_sizebin`
@@ -105,7 +103,6 @@ from truvari.bench import (
 
 from truvari.comparisons import (
     coords_within,
-    create_pos_haplotype,
     entry_boundaries,
     entry_distance,
     entry_gt_comp,
@@ -113,7 +110,6 @@ from truvari.comparisons import (
     entry_is_present,
     entry_reciprocal_overlap,
     entry_same_variant_type,
-    entry_shared_ref_context,
     entry_seq_similarity,
     entry_size,
     entry_size_similarity,

@@ -100,7 +100,6 @@ class Matcher():
         params.reference = None
         params.refdist = 500
         params.pctseq = 0.70
-        params.minhaplen = 50
         params.pctsize = 0.70
         params.pctovl = 0.0
         params.typeignore = False
@@ -128,7 +127,6 @@ class Matcher():
         ret.reference = args.reference
         ret.refdist = args.refdist
         ret.pctseq = args.pctseq
-        ret.minhaplen = args.minhaplen
         ret.pctsize = args.pctsize
         ret.pctovl = args.pctovl
         ret.typeignore = args.typeignore
@@ -156,7 +154,12 @@ class Matcher():
             return True
 
         if self.params.check_multi and len(entry.alts) > 1:
-            raise ValueError(f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
+            raise ValueError(
+                f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
+
+        # Don't compare BNDs, ever
+        if entry.alleles_variant_types[1] == 'BND':
+            return True
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
@@ -174,7 +177,6 @@ class Matcher():
                 return True
 
         return False
-
 
     def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
@@ -231,8 +233,7 @@ class Matcher():
                 return ret
 
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(
-                base, comp, self.reference, self.params.minhaplen)
+            ret.seqsim = truvari.entry_seq_similarity(base, comp)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -305,14 +306,24 @@ def chunker(matcher, *files):
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
-        if matcher.params.pctseq != 0 and (entry.alts and entry.alts[0].startswith('<')):
-            if not unresolved_warned:
-                logging.warning(
-                    "Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
-                unresolved_warned = True
+        if matcher.filter_call(entry, key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
+
+        # check symbolic, resolve if needed/possible
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<') and matcher.params.reference:
+            was_resolved = resolve_sv(entry,
+                                      matcher.params.reference,
+                                      matcher.params.dup_to_ins)
+            if not was_resolved:
+                if not unresolved_warned:
+                    logging.warning("Some symbolic SVs couldn't be resolved")
+                    unresolved_warned = True
+                cur_chunk['__filtered'].append(entry)
+                call_counts['__filtered'] += 1
+                continue
+
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
         if new_chunk or new_chrom:
@@ -324,14 +335,46 @@ def chunker(matcher, *files):
             cur_chunk = defaultdict(list)
 
         cur_chrom = entry.chrom
-        if not matcher.filter_call(entry, key == 'base'):
-            cur_end = max(entry.stop, cur_end)
-            cur_chunk[key].append(entry)
-            call_counts[key] += 1
-        else:
-            cur_chunk['__filtered'].append(entry)
-            call_counts['__filtered'] += 1
+        cur_end = max(entry.stop, cur_end)
+        cur_chunk[key].append(entry)
+        call_counts[key] += 1
+
     chunk_count += 1
     logging.info("%d chunks of %d variants %s", chunk_count,
                  sum(call_counts.values()), call_counts)
     yield cur_chunk, chunk_count
+
+
+RC = str.maketrans("ATCG", "TAGC")
+
+
+def do_rc(s):
+    """
+    Reverse complement a sequence
+    """
+    return s.translate(RC)[::-1]
+
+
+def resolve_sv(entry, ref, dup_to_ins=False):
+    """
+    Attempts to resolve an SV's REF/ALT sequences
+    """
+    if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
+        return False
+
+    seq = ref.fetch(entry.chrom, entry.start, entry.stop)
+    if entry.alts[0] == '<DEL>':
+        entry.ref = seq
+        entry.alts = [seq[0]]
+    elif entry.alts[0] == '<INV>':
+        entry.ref = seq
+        entry.alts = [do_rc(seq)]
+    elif entry.alts[0] == '<DUP>' and dup_to_ins:
+        entry.info['SVTYPE'] = 'INS'
+        entry.ref = seq[0]
+        entry.alts = [seq]
+        entry.stop = entry.start + 1
+    else:
+        return False
+
+    return True

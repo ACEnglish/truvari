@@ -489,7 +489,7 @@ def parse_args(args):
     parser.add_argument("-c", "--collapsed-output", type=str, default="collapsed.vcf",
                         help="Where collapsed variants are written (collapsed.vcf)")
     parser.add_argument("-f", "--reference", type=str, default=None,
-                        help="Indexed fasta used to call variants")
+                        help="Indexed fasta used to call variants. Only needed with symbolic variants.")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--bed", type=str, default=None,

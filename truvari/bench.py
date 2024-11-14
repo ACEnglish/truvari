@@ -36,7 +36,7 @@ def parse_args(args):
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
-                        help="Fasta used to call variants. Turns on reference context sequence comparison")
+                        help="Fasta used to call variants. Only needed with symbolic variants.")
     parser.add_argument("--short", action="store_true",
                         help="Short circuit comparisions. Faster, but fewer annotations")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -59,8 +59,6 @@ def parse_args(args):
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
-                        help="Min haplotype sequence length to create (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
@@ -144,7 +142,6 @@ def check_params(args):
         logging.error("Include bed %s does not exist", args.includebed)
         check_fail = True
     if args.reference:
-        sys.stderr.write("WARN: `--reference` is no longer recommended and will be deprecated by v5\n")
         if not os.path.exists(args.reference):
             logging.error("Reference %s does not exist", args.reference)
             check_fail = True

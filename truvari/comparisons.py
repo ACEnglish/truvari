@@ -40,42 +40,6 @@ def coords_within(qstart, qend, rstart, rend, end_within):
     return qstart >= rstart and ending
 
 
-def create_pos_haplotype(a1, a2, ref, min_len=0):
-    """
-    Create haplotypes of two allele's regions that are assumed to be overlapping
-
-    :param `a1`: tuple of chrom, start, end, seq
-    :type `a1`: tuple
-    :param `a2`: tuple of chrom, start, end, seq
-    :type `a2`: tuple
-    :param `ref`: Reference genome
-    :type `ref`: :class:`pysam.FastaFile`
-    :param `min_len`: Minimum length of the haplotype sequence to create
-    :type `min_len`: int, optional
-
-    :return: allele haplotype sequences created
-    :rtupe: tuple (string, string)
-    """
-    chrom, a1_start, a1_end, a1_seq = a1
-    chrom, a2_start, a2_end, a2_seq = a2
-    start = min(a1_start, a2_start)
-    end = max(a1_end, a2_end)
-
-    hap_len1 = (abs(a1_start - start) + len(a1_seq) + abs(a1_end - end))
-    hap_len2 = (abs(a2_start - start) + len(a2_seq) + abs(a2_end - end))
-    min_size = min(hap_len1, hap_len2)
-    if min_size < min_len:
-        start -= (min_len - min_size) // 2
-        end += (min_len + min_size) // 2
-    # no negative fetch
-    start = max(0, start)
-    hap1_seq = ref.fetch(chrom, start, a1_start) + \
-        a1_seq + ref.fetch(chrom, a1_end, end)
-    hap2_seq = ref.fetch(chrom, start, a2_start) + \
-        a2_seq + ref.fetch(chrom, a2_end, end)
-    return str(hap1_seq), str(hap2_seq)
-
-
 def entry_boundaries(entry, ins_inflate=False):
     """
     Get the start and end of an entry
@@ -204,7 +168,7 @@ def entry_is_present(entry, sample=None, allow_missing=True):
         truvari.GT.HET, truvari.GT.HOM]
 
 
-def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
+def entry_seq_similarity(entryA, entryB):
     """
     Calculate sequence similarity of two entries. If reference is not None,
     compare their shared reference context. Otherwise, use the unroll technique.
@@ -213,10 +177,6 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
     :type `entryA`: :class:`pysam.VariantRecord`
     :param `entryB`: second entry
     :type `entryB`: :class:`pysam.VariantRecord`
-    :param `ref`: Reference genome
-    :type `ref`: :class:`pysam.FastaFile`
-    :param `min_len`: Minimum length of reference context to generate
-    :type `min_len`: float, optional
 
     :return: sequence similarity
     :rtype: float
@@ -241,11 +201,6 @@ def entry_seq_similarity(entryA, entryB, ref=None, min_len=0):
 
     if st_dist == 0 or ed_dist == 0:
         return seqsim(a_seq, b_seq)
-
-    if ref is not None:
-        allele1, allele2 = entry_shared_ref_context(
-            entryA, entryB, ref, min_len=min_len)
-        return seqsim(allele1, allele2)
 
     # Directionality of rolling makes a difference
     if st_dist < 0:
@@ -284,36 +239,6 @@ def entry_reciprocal_overlap(entry1, entry2, ins_inflate=True):
     astart, aend = entry_boundaries(entry1, ins_inflate)
     bstart, bend = entry_boundaries(entry2, ins_inflate)
     return reciprocal_overlap(astart, aend, bstart, bend)
-
-
-def entry_shared_ref_context(entryA, entryB, ref, use_ref_seq=False, min_len=0):
-    """
-    Get the shared reference context of two entries and create the haplotype
-
-    :param `entryA`: first entry
-    :type `entryA`: :class:`pysam.VariantRecord`
-    :param `entryB`: second entry
-    :type `entryB`: :class:`pysam.VariantRecord`
-    :param `ref`: Reference genome
-    :type `ref`: :class:`pysam.FastaFile`
-    :param `use_ref_seq`: If True, use the reference genome to get the variant sequence instead the entries
-    :type `use_ref_seq`: bool, optional
-    :param `min_len`: Minimum length of the reference context to create
-    :type `min_len`: int, optional
-
-    :return: sequences created
-    :rtype: tuple : (string, string)
-    """
-    def get_props(entry):
-        """
-        We compare the longer of the ref/alt sequence to increase comparability
-        """
-        if use_ref_seq and (entry.alts[0] == "<DEL>" or len(entry.alts[0]) < len(entry.ref)):
-            return entry.chrom, entry.start, entry.stop, ref.fetch(entry.chrom, entry.start, entry.stop)
-        return entry.chrom, entry.start, entry.stop, entry.alts[0]
-    a1 = get_props(entryA)
-    a2 = get_props(entryB)
-    return create_pos_haplotype(a1, a2, ref, min_len=min_len)
 
 
 def entry_same_variant_type(entryA, entryB, dup_to_ins=False):
