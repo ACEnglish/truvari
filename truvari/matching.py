@@ -312,7 +312,7 @@ def chunker(matcher, *files):
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and entry.alleles_variant_types[-1] == 'BND' or entry.alts[0].startswith('<'):
+        if matcher.params.pctseq != 0 and (entry.alleles_variant_types[-1] == 'BND' or entry.alts[0].startswith('<')):
             was_resolved = resolve_sv(entry,
                                       matcher.reference,
                                       matcher.params.dup_to_ins)
