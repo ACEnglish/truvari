@@ -19,6 +19,8 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("input", type=str,
                         help="Input VCF")
+    parser.add_argument("-b", "--bed", type=str, default=None,
+                        help="Bed file of variants to chunk")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output name")
     parser.add_argument("-c", "--chunksize", type=int, default=500,
@@ -55,6 +57,9 @@ def chunks_main(args):
     m.params.sizemax = args.sizemax
     m.params.chunksize = args.chunksize
     m.params.refdist = args.chunksize
+    if args.bed:
+        regions = truvari.build_region_tree(v, includebed=args.bed)
+        v = truvari.region_filter(v, regions)
     c = truvari.chunker(m, ('base', v))
 
     with open(args.output, 'w') as fout:

@@ -158,8 +158,8 @@ class Matcher():
                 f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
         # Don't compare BNDs, ever
-        if entry.alleles_variant_types[1] == 'BND':
-            return True
+        #if entry.alleles_variant_types[1] == 'BND':
+        # return True
 
         if self.params.passonly and truvari.entry_is_filtered(entry):
             return True
@@ -312,7 +312,7 @@ def chunker(matcher, *files):
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+        if matcher.params.pctseq != 0 and entry.alleles_variant_types[-1] == 'BND' or entry.alts[0].startswith('<'):
             was_resolved = resolve_sv(entry,
                                       matcher.reference,
                                       matcher.params.dup_to_ins)
@@ -353,6 +353,10 @@ def resolve_sv(entry, ref, dup_to_ins=False):
     """
     if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
         return False
+
+    if entry.alleles_variant_types[1] == 'BND' and "SVTYPE" in entry.info \
+            and truvari.entry_variant_type(entry) == truvari.SV.DEL:
+        entry.alts = ['<DEL>']
 
     seq = ref.fetch(entry.chrom, entry.start, entry.stop)
     if entry.alts[0] == '<DEL>':
