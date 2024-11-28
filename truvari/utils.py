@@ -416,7 +416,6 @@ def performance_metrics(tpbase, tp, fn, fp):
     f1 = 2 * (neum / denom) if denom != 0 else None
     return precision, recall, f1
 
-
 def compress_index_vcf(fn, fout=None, remove=True):
     """
     Compress and index a vcf. If no fout is provided, write to fn + '.gz'
@@ -430,14 +429,14 @@ def compress_index_vcf(fn, fout=None, remove=True):
     """
     if fout is None:
         fout = fn + '.gz'
-    m_tmp = make_temp_filename(suffix='.vcf')
-    with open(m_tmp, 'w') as out_hdlr:
-        out_hdlr.write(bcftools.sort(fn, "--temp-dir", tempfile.gettempdir()))
-    pysam.tabix_compress(m_tmp, fout, force=True)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        m_tmp = make_temp_filename(tmpdir=tmpdirname, suffix='.vcf')
+        with open(m_tmp, 'w') as out_hdlr:
+            out_hdlr.write(bcftools.sort(fn, "--temp-dir", tmpdirname))
+        pysam.tabix_compress(m_tmp, fout, force=True)
     pysam.tabix_index(fout, force=True, preset="vcf")
     if remove:
         os.remove(fn)
-    os.remove(m_tmp)
 
 
 def check_vcf_index(vcf_path):
