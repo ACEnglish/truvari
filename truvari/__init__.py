@@ -12,6 +12,7 @@ VariantRecord methods:
 :meth:`entry_is_filtered`
 :meth:`entry_is_present`
 :meth:`entry_reciprocal_overlap`
+:meth:`entry_resolved`
 :meth:`entry_same_variant_type`
 :meth:`entry_seq_similarity`
 :meth:`entry_size`
@@ -109,6 +110,7 @@ from truvari.comparisons import (
     entry_is_filtered,
     entry_is_present,
     entry_reciprocal_overlap,
+    entry_resolved,
     entry_same_variant_type,
     entry_seq_similarity,
     entry_size,

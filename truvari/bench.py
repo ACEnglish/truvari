@@ -258,9 +258,9 @@ class StatsBox(OrderedDict):
         Calculate the precision/recall
         """
         if self["TP-base"] == 0 and self["FN"] == 0:
-            logging.warning("No TP or FN calls in base!")
+            logging.warning("No TP or FN calls in --base VCF!")
         elif self["TP-comp"] == 0 and self["FP"] == 0:
-            logging.warning("No TP or FP calls in comp!")
+            logging.warning("No TP or FP calls in --comp VCF!")
 
         precision, recall, f1 = truvari.performance_metrics(
             self["TP-base"], self["TP-comp"], self["FN"], self["FP"])

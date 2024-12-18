@@ -73,7 +73,8 @@ def resolve_regions(params, args):
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                          regi_count, new_count, orig_count)
-            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER)
+            # +1 for safety
+            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER + 1)
         else:
             reeval_trees, new_count = intersect_beds(b_trees, a_trees)
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",

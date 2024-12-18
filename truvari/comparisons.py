@@ -568,3 +568,16 @@ def unroll_compare(seqA, seqB, p):
     f = p % len(seqB)
     uB = seqB[-f:] + seqB[:-f]
     return seqsim(seqA, uB)
+
+def entry_resolved(entry):
+    """
+    Checks if an SV is a sequence resolved by checking it is
+    has an alt, is not symbolic, is not monref, is not BND
+
+    :param `entry`: entry to check
+    :type `entry`: :class:`pysam.VariantRecord`
+
+    :return: is_resolved
+    :rtype: bool
+    """
+    return entry.alts and ('<' not in entry.alts[0]) and not (entry.alts[0] in (None, '*')) and entry.alleles_variant_types[1] != 'BND'

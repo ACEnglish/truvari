@@ -34,6 +34,10 @@ entry_reciprocal_overlap
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_reciprocal_overlap
 
+entry_resolved
+^^^^^^^^^^^^^^
+.. autofunction:: entry_resolved
+
 entry_same_variant_type
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. autofunction:: entry_same_variant_type
