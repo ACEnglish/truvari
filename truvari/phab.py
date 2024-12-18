@@ -141,7 +141,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
     # pylint: disable=unnecessary-lambda-assignment
     entry_filter = lambda e: \
-           truvari.is_resolved(e) \
+           truvari.entry_resolved(e) \
            and (not passonly or not truvari.entry_is_filtered(e)) \
            and (truvari.entry_size(e) <= max_size)
     # pylint: enable=unnecessary-lambda-assignment
