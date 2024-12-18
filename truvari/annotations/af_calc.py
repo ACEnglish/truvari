@@ -69,7 +69,7 @@ def calc_hwe(nref, nalt, nhet):
 
     p_exc_het = probs[nhet:].sum()
     p_hwe = min(probs[probs > probs[nhet]].sum(), 1)
-    return p_exc_het, 1 - p_hwe
+    return float(p_exc_het), float(1 - p_hwe)
 
 
 def calc_af(gts):
@@ -157,7 +157,7 @@ def allele_freq_annos(entry, samples=None):
         >>> import pysam
         >>> v = pysam.VariantFile('repo_utils/test_files/variants/multi.vcf.gz')
         >>> truvari.allele_freq_annos(next(v))
-        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': np.float64(1.0), 'HWE': np.float64(1.0), 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
+        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
     """
     if samples is None:
         samples = list(entry.samples.keys())
