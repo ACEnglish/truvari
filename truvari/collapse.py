@@ -486,8 +486,8 @@ def parse_args(args):
                         help="Input variants")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output vcf (stdout)")
-    parser.add_argument("-c", "--redundant-output", type=str, default="redundant.vcf",
-                        help="Variants that collapsed into kept variants (redundant.vcf)")
+    parser.add_argument("-c", "--removed-output", type=str, default="removed.vcf",
+                        help="Variants that collapsed into kept variants (%(default)s)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants. Only needed with symbolic variants.")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
