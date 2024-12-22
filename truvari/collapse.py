@@ -676,7 +676,7 @@ class CollapseOutput(dict):
         else:
             self["output_vcf"] = pysam.VariantFile(args.output, 'w',
                                                    header=self["o_header"])
-        self["collap_vcf"] = pysam.VariantFile(args.redundant_output, 'w',
+        self["collap_vcf"] = pysam.VariantFile(args.removed_output, 'w',
                                                header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
                              "out_cnt": 0, "consol_cnt": 0}
