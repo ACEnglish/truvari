@@ -80,6 +80,10 @@ bed_ranges
 ^^^^^^^^^^
 .. autofunction:: bed_ranges
 
+best_seqsim
+^^^^^^^^^^^
+.. autofunction:: best_seqsim
+
 build_anno_tree
 ^^^^^^^^^^^^^^^
 .. autofunction:: build_anno_tree
@@ -140,6 +144,10 @@ ref_ranges
 ^^^^^^^^^^
 .. autofunction:: ref_ranges
 
+roll_seqsim
+^^^^^^^^^^^
+.. autofunction:: roll_seqsim
+
 seqsim
 ^^^^^^
 .. autofunction:: seqsim
@@ -148,9 +156,9 @@ sizesim
 ^^^^^^^
 .. autofunction:: sizesim
 
-unroll_compare
-^^^^^^^^^^^^^^
-.. autofunction:: unroll_compare
+unroll_seqsim
+^^^^^^^^^^^^^
+.. autofunction:: unroll_seqsim
 
 vcf_ranges
 ^^^^^^^^^^

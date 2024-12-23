@@ -168,7 +168,7 @@ def entry_is_present(entry, sample=None, allow_missing=True):
         truvari.GT.HET, truvari.GT.HOM]
 
 
-def entry_seq_similarity(entryA, entryB):
+def entry_seq_similarity(entryA, entryB, roll=True):
     """
     Calculate sequence similarity of two entries. If reference is not None,
     compare their shared reference context. Otherwise, use the unroll technique.
@@ -177,6 +177,8 @@ def entry_seq_similarity(entryA, entryB):
     :type `entryA`: :class:`pysam.VariantRecord`
     :param `entryB`: second entry
     :type `entryB`: :class:`pysam.VariantRecord`
+    :param `roll`: compare the lexicographically minimum rotation of sequences
+    :type `roll`: bool
 
     :return: sequence similarity
     :rtype: float
@@ -185,8 +187,8 @@ def entry_seq_similarity(entryA, entryB):
     if entryA.ref == entryB.ref and entryA.alts[0] == entryB.alts[0]:
         return 1.0
 
-    # Inversions handled differently
-    if entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV:
+    # Inversions aren't rolled
+    if not roll or (entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV):
         allele1 = entryA.alts[0]
         allele2 = entryB.alts[0]
         return seqsim(allele1, allele2)
@@ -202,16 +204,33 @@ def entry_seq_similarity(entryA, entryB):
     if st_dist == 0 or ed_dist == 0:
         return seqsim(a_seq, b_seq)
 
-    # Directionality of rolling makes a difference
     if st_dist < 0:
         st_dist *= -1
     else:
         a_seq, b_seq = b_seq, a_seq
 
-    # Roll both ends and compute direct similarity
+    # Return best of rolled, unrolled from both ends, and direct similarity
     # Whichever is highest is how similar these sequences can be
-    return max(unroll_compare(a_seq, b_seq, st_dist), unroll_compare(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
+    return best_seqsim(a_seq, b_seq, st_dist)
 
+def best_seqsim(a_seq, b_seq, st_dist):
+    """
+    Returns best of roll, unroll, and direct sequence similarity
+    """
+    return max(roll_seqsim(a_seq, b_seq), unroll_seqsim(a_seq, b_seq, st_dist),
+               unroll_seqsim(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
+
+def roll_seqsim(a_seq, b_seq):
+    """
+    Compare the lexicographically smallest rotations of two sequences
+    """
+    def smallest_rotation(s):
+        doubled = s + s
+        n = len(s)
+        return min(doubled[i:i + n] for i in range(n))
+    r_a = smallest_rotation(a_seq)
+    r_b = smallest_rotation(b_seq)
+    return seqsim(r_a, r_b)
 
 def entry_reciprocal_overlap(entry1, entry2, ins_inflate=True):
     """
@@ -516,9 +535,9 @@ def seqsim(allele1, allele2):
     Calculate similarity of two sequences
 
     :param `allele1`: first entry
-    :type `allele1`: :class:`pysam.VariantRecord`
+    :type `allele1`: str
     :param `allele2`: second entry
-    :type `allele2`: :class:`pysam.VariantRecord`
+    :type `allele2`: str
 
     :return: sequence similarity
     :rtype: float
@@ -550,7 +569,20 @@ def sizesim(sizeA, sizeB):
     return min(sizeA, sizeB) / float(max(sizeA, sizeB)), sizeA - sizeB
 
 
-def unroll_compare(seqA, seqB, p):
+def entry_resolved(entry):
+    """
+    Checks if an SV is a sequence resolved by checking it is
+    has an alt, is not symbolic, is not monref, is not BND
+
+    :param `entry`: entry to check
+    :type `entry`: :class:`pysam.VariantRecord`
+
+    :return: is_resolved
+    :rtype: bool
+    """
+    return entry.alts and ('<' not in entry.alts[0]) and not (entry.alts[0] in (None, '*')) and entry.alleles_variant_types[1] != 'BND'
+
+def unroll_seqsim(seqA, seqB, p):
     """
     Unroll two sequences and compare.
     See https://gist.github.com/ACEnglish/1e7421c46ee10c71bee4c03982e5df6c for details
@@ -568,16 +600,3 @@ def unroll_compare(seqA, seqB, p):
     f = p % len(seqB)
     uB = seqB[-f:] + seqB[:-f]
     return seqsim(seqA, uB)
-
-def entry_resolved(entry):
-    """
-    Checks if an SV is a sequence resolved by checking it is
-    has an alt, is not symbolic, is not monref, is not BND
-
-    :param `entry`: entry to check
-    :type `entry`: :class:`pysam.VariantRecord`
-
-    :return: is_resolved
-    :rtype: bool
-    """
-    return entry.alts and ('<' not in entry.alts[0]) and not (entry.alts[0] in (None, '*')) and entry.alleles_variant_types[1] != 'BND'

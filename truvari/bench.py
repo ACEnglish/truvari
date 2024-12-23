@@ -53,6 +53,8 @@ def parse_args(args):
                         help="Min reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Don't compare variant types (%(default)s)")
+    thresg.add_argument("--no-roll", action="store_false",
+                        help="Turn off rolling sequence similarity")
     thresg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
                         help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",

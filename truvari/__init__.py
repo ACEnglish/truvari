@@ -26,6 +26,7 @@ Extra methods:
 
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
+:meth:`best_seqsim`
 :meth:`build_anno_tree`
 :meth:`calc_af`
 :meth:`calc_hwe`
@@ -40,9 +41,10 @@ Extra methods:
 :meth:`phab`
 :meth:`reciprocal_overlap`
 :meth:`ref_ranges`
+:meth:`roll_compare`
 :meth:`seqsim`
 :meth:`sizesim`
-:meth:`unroll_compare`
+:meth:`unroll_seqsim`
 :meth:`vcf_ranges`
 
 Dev methods:
@@ -103,6 +105,7 @@ from truvari.bench import (
 )
 
 from truvari.comparisons import (
+    best_seqsim,
     coords_within,
     entry_boundaries,
     entry_distance,
@@ -123,9 +126,10 @@ from truvari.comparisons import (
     overlap_percent,
     overlaps,
     reciprocal_overlap,
+    roll_seqsim,
     seqsim,
     sizesim,
-    unroll_compare,
+    unroll_seqsim,
 )
 
 from truvari.matching import (

@@ -103,6 +103,7 @@ class Matcher():
         params.pctsize = 0.70
         params.pctovl = 0.0
         params.typeignore = False
+        params.no_roll = False
         params.chunksize = 1000
         params.bSample = 0
         params.cSample = 0
@@ -130,6 +131,7 @@ class Matcher():
         ret.pctsize = args.pctsize
         ret.pctovl = args.pctovl
         ret.typeignore = args.typeignore
+        ret.no_roll = args.no_roll
         ret.chunksize = args.chunksize
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
@@ -233,7 +235,7 @@ class Matcher():
                 return ret
 
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(base, comp)
+            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.params.no_roll)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
