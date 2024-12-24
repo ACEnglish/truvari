@@ -107,3 +107,9 @@ cp ../../test_results/input3_removed.vcf ./collapse/
 cp ../../test_results/inputintragt_removed.vcf ./collapse/
 cp ../../test_results/inputintragth_removed.vcf ./collapse/
 cp ../../test_results/inputissue196_removed.vcf ./collapse/
+cp ../../test_results/multi_removed_first.vcf ./collapse/multi_removed_first.vcf
+cp ../../test_results/multi_collapsed_first.vcf ./collapse/multi_collapsed_first.vcf
+cp ../../test_results/multi_removed_common.vcf  ./collapse/multi_removed_common.vcf
+cp ../../test_results/multi_collapsed_common.vcf  ./collapse/multi_collapsed_common.vcf
+cp ../../test_results/multi_removed_maxqual.vcf  ./collapse/multi_removed_maxqual.vcf
+cp ../../test_results/multi_collapsed_maxqual.vcf  ./collapse/multi_collapsed_maxqual.vcf

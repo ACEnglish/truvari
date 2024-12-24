@@ -188,7 +188,7 @@ def entry_seq_similarity(entryA, entryB, roll=True):
         return 1.0
 
     # Inversions aren't rolled
-    if not roll or (entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV):
+    if (entry_variant_type(entryA) == truvari.SV.INV and entry_variant_type(entryB) == truvari.SV.INV):
         allele1 = entryA.alts[0]
         allele2 = entryB.alts[0]
         return seqsim(allele1, allele2)
@@ -201,7 +201,7 @@ def entry_seq_similarity(entryA, entryB, roll=True):
     b_seq = b_seq.upper()
     st_dist, ed_dist = entry_distance(entryA, entryB)
 
-    if st_dist == 0 or ed_dist == 0:
+    if not roll or st_dist == 0 or ed_dist == 0:
         return seqsim(a_seq, b_seq)
 
     if st_dist < 0:
