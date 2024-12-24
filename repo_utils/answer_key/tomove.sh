@@ -93,3 +93,17 @@ cp ../../test_results/refine_output_three/phab_bench/fp.vcf.gz ./refine/refine_o
 cp ../../test_results/refine_output_three/phab_bench/tp-base.vcf.gz ./refine/refine_output_three/phab_bench/tp-base.vcf.gz
 cp ../../test_results/refine_output_three/phab_bench/tp-comp.vcf.gz ./refine/refine_output_three/phab_bench/tp-comp.vcf.gz
 cp ../../test_results/refine_output_three/tp-comp.vcf.gz ./refine/refine_output_three/tp-comp.vcf.gz
+cp ../../test_results/input1_collapsed.vcf ./collapse/
+cp ../../test_results/input1_median_collapsed.vcf ./collapse/
+cp ../../test_results/input2_collapsed.vcf ./collapse/
+cp ../../test_results/input3_collapsed.vcf ./collapse/
+cp ../../test_results/inputintragt_collapsed.vcf ./collapse/
+cp ../../test_results/inputintragth_collapsed.vcf ./collapse/
+cp ../../test_results/inputissue196_collapsed.vcf ./collapse/
+cp ../../test_results/input1_median_removed.vcf ./collapse/
+cp ../../test_results/input1_removed.vcf ./collapse/
+cp ../../test_results/input2_removed.vcf ./collapse/
+cp ../../test_results/input3_removed.vcf ./collapse/
+cp ../../test_results/inputintragt_removed.vcf ./collapse/
+cp ../../test_results/inputintragth_removed.vcf ./collapse/
+cp ../../test_results/inputissue196_removed.vcf ./collapse/
