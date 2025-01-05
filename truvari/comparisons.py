@@ -418,7 +418,7 @@ def entry_variant_type(entry):
     try:
         if entry.alleles_variant_types[1] == 'BND':
             return truvari.SV.BND
-    except IndexError:
+    except (IndexError, AttributeError):
         pass
 
     ret_type = None

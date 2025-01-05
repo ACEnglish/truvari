@@ -77,7 +77,7 @@ def get_svtype(svtype):
         >>> truvari.get_svtype("INS")
         <SV.INS: 2>
         >>> truvari.get_svtype("foo")
-        <SV.UNK: 6>
+        <SV.UNK: 7>
     """
     try:
         return SV.__members__[svtype]
