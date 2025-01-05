@@ -171,7 +171,8 @@ class Matcher():
             if not truvari.entry_is_present(entry, samp):
                 return True
 
-        return False
+        # No single end BNDs
+        return entry.alts[0][0] == '.' or entry.alts[0][-1] == '.'
 
     def size_filter(self, entry, base=False):
         """

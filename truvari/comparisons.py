@@ -399,11 +399,12 @@ def entry_variant_type(entry):
     .. note::
         How svtype is determined:
 
+        - BND if `pysam.VariantRecord.alleles_variant_types[1]` == "BND"
         - Starts by trying to use INFO/SVTYPE
         - If SVTYPE is unavailable, infer if entry is a insertion or deletion by \
         looking at the REF/ALT sequence size differences
         - If REF/ALT sequences are not available, try to parse the <INS>, <DEL>, \
-        etc from the ALT column.
+        etc from the ALT column. Subtypes are ignored (e.g. `DUP:ME` becomes `DUP`)
         - Otherwise, assume 'UNK'
 
     :param `entry`:
@@ -413,6 +414,12 @@ def entry_variant_type(entry):
     :rtype: :class:`truvari.SV`
     """
     sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
+
+    try:
+        if entry.alleles_variant_types[1] == 'BND':
+            return truvari.SV.BND
+    except IndexError:
+        pass
 
     ret_type = None
     if "SVTYPE" in entry.info:
@@ -432,7 +439,7 @@ def entry_variant_type(entry):
         return truvari.get_svtype(ret_type)
     mat = sv_alt_match.match(entry.alts[0]) if entry.alts is not None else None
     if mat is not None:
-        return truvari.get_svtype(mat.groupdict()["SVTYPE"])
+        return truvari.get_svtype(mat.groupdict()["SVTYPE"].split(':')[0])
     return truvari.get_svtype("UNK")
 
 def entry_within_tree(entry, tree):
