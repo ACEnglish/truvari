@@ -179,6 +179,8 @@ def cmd_exe(cmd, stdin=None, timeout=-1, cap_stderr=True, pipefail=False):
         >>> ret = truvari.cmd_exe("sleep 5", pipefail=True, timeout=2/60) # Error logged is caught
         >>> ret.ret_code
         214
+        >>> import truvari
+        >>> ret = truvari.cmd_exe("(sleep 1 && kill -SIGINT $$) &") # Keyboard Interruptable
     """
     cmd_result = namedtuple("cmd_result", "ret_code stdout stderr run_time")
     t_start = time.time()

@@ -314,17 +314,15 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
             continue
 
-        if entry.alleles_variant_types[1] == 'BND':
-            cur_chunk[f'{key}_BND'].append(entry)
-            continue
+        is_bnd = entry.alleles_variant_types[1] == 'BND'
 
-        if matcher.size_filter(entry, key=='base'):
+        if not is_bnd and matcher.size_filter(entry, key=='base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and (entry.alleles_variant_types[-1] == 'BND' or entry.alts[0].startswith('<')):
+        if not is_bnd and matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
             was_resolved = resolve_sv(entry,
                                       matcher.reference,
                                       matcher.params.dup_to_ins)
@@ -348,7 +346,11 @@ def chunker(matcher, *files):
 
         cur_chrom = entry.chrom
         cur_end = max(entry.stop, cur_end)
-        cur_chunk[key].append(entry)
+
+        if is_bnd:
+            cur_chunk[f'{key}_BND'].append(entry)
+        else:
+            cur_chunk[key].append(entry)
         call_counts[key] += 1
 
     chunk_count += 1
