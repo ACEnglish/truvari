@@ -308,6 +308,10 @@ def chunker(matcher, *files):
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
+        if matcher.bnd_filter(entry):
+            cur_chunk[f'{key}_BND'].append(entry)
+            continue
+
         if matcher.filter_call(entry, key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
@@ -356,9 +360,12 @@ def resolve_sv(entry, ref, dup_to_ins=False):
     if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
         return False
 
-    if entry.alleles_variant_types[1] == 'BND' and "SVTYPE" in entry.info \
-            and truvari.entry_variant_type(entry) == truvari.SV.DEL:
-        entry.alts = ['<DEL>']
+    # BNDs which describe a deletion can be resolved
+    if entry.alleles_variant_types[1] == 'BND':
+        if "SVTYPE" in entry.info and entry.info['SVTYPE'] == 'DEL':
+            entry.alts = ['<DEL>']
+        else:
+            return False
 
     seq = ref.fetch(entry.chrom, entry.start, entry.stop)
     if entry.alts[0] == '<DEL>':
