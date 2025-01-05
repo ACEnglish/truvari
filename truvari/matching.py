@@ -269,10 +269,29 @@ class Matcher():
             """
             start = pos - self.params.bnddist
             end = pos + self.params.bnddist
-            if key + '1' in entry.info:
-                start -= entry.info['CI' + key + '1']
-            if key + '2' in entry.info:
-                end += entry.info['CI' + key + '2']
+
+            """ Experimental, but it's getting tricky, so need clarification
+            For example, why does GIAB use CIPOS1 instead of the standard CIPOS? (not to mention Type=String).
+            Also, I assumed that the CIPOS was ±POS, but it seems like the standard is that the ambiguity is between 
+            POS, POS+CIPOS[0]. But then, there is no enforcement of strands with CIPOS, I think, so it could always be 
+            positive and if it's a complement BND it might need POS - CIPOS? 
+            I'm dropping for now
+
+            key = 'CI' + key
+            idx = 0 if key == 'POS' else 1
+            if key in entry.info: # Just CIPOS
+                start -= entry.info[key][idx]
+                end += entry.info[key][idx]
+            else: # Special CIPOS1/CIPOS2
+                if key + '1' in entry.info:
+                    k = entry.info[key + '1']
+                    if k not in [None, '.']:
+                        start -= int(k)
+                if key + '2' in entry.info:
+                    k = entry.info[key + '2']
+                    if k not in [None, '.']:
+                        end += int(k)
+            """
             return start, end
 
         ret = truvari.MatchResult()
