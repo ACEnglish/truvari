@@ -137,7 +137,7 @@ class Matcher():
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
         ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
-        ret.bnddist = args.bnddist
+        ret.bnddist = args.bnddist if 'bnddist' in args else -1
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt

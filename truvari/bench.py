@@ -60,8 +60,8 @@ def parse_args(args):
                         help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
-    thresg.add_argument("-B", "--bnddist", type=truvari.restricted_int, default=defaults.bnddist,
-                        help="Maximum distance allowed between BNDs")
+    thresg.add_argument("-B", "--bnddist", type=int, default=defaults.bnddist,
+                        help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 
@@ -520,7 +520,8 @@ class Bench():
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
         # Check BNDs separately
-        result.extend(self.bnd_compare(chunk_dict['base_BND'], chunk_dict['comp_BND'], chunk_id))
+        if self.matcher.params.bnddist != -1:
+            result.extend(self.bnd_compare(chunk_dict['base_BND'], chunk_dict['comp_BND'], chunk_id))
         return result
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
