@@ -1,0 +1,61 @@
+2025-01-05 07:08:37,421 [INFO] Truvari v5.0.0
+2025-01-05 07:08:37,422 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/
+2025-01-05 07:08:37,423 [INFO] Params:
+{
+    "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/bnd.comp.vcf.gz",
+    "output": "test_results/bench_bnd/",
+    "includebed": null,
+    "extend": 0,
+    "debug": false,
+    "reference": null,
+    "refdist": 500,
+    "pctseq": 0.0,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "no_roll": true,
+    "chunksize": 1000,
+    "bSample": "HG008-T",
+    "cSample": "HG008_T_hiphase.haplotagged",
+    "dup_to_ins": false,
+    "bnddist": 100,
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "pick": "single",
+    "check_monref": true,
+    "check_multi": true
+}
+2025-01-05 07:08:37,460 [WARNING] Excluding 193 contigs present in comparison calls header but not baseline calls.
+2025-01-05 07:08:37,552 [INFO] Zipped 418 variants Counter({'comp': 243, 'base': 175})
+2025-01-05 07:08:37,553 [INFO] 185 chunks of 418 variants Counter({'comp': 190, '__filtered': 115, 'base': 113})
+2025-01-05 07:08:37,638 [INFO] Stats: {
+    "TP-base": 85,
+    "TP-comp": 85,
+    "FP": 81,
+    "FN": 28,
+    "precision": 0.5120481927710844,
+    "recall": 0.7522123893805309,
+    "f1": 0.6093189964157706,
+    "base cnt": 113,
+    "comp cnt": 166,
+    "TP-comp_TP-gt": 68,
+    "TP-comp_FP-gt": 17,
+    "TP-base_TP-gt": 68,
+    "TP-base_FP-gt": 17,
+    "gt_concordance": 0.8,
+    "gt_matrix": {
+        "(0, 1)": {
+            "(0, 1)": 65,
+            "(0, 0)": 16,
+            "(1, 1)": 1
+        },
+        "(1, 0)": {
+            "(0, 1)": 3
+        }
+    }
+}
+2025-01-05 07:08:37,638 [INFO] Finished bench

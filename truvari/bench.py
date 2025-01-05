@@ -59,6 +59,8 @@ def parse_args(args):
                         help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
+    thresg.add_argument("-B", "--bnddist", type=int, default=defaults.bnddist,
+                        help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 
@@ -497,7 +499,7 @@ class Bench():
             if (self.extend
                 and (match.comp is not None)
                 and not match.state
-                and not truvari.entry_within_tree(match.comp, region_tree)):
+                    and not truvari.entry_within_tree(match.comp, region_tree)):
                 match.comp = None
             output.write_match(match)
 
@@ -516,9 +518,13 @@ class Bench():
         result = self.compare_calls(
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
+        # Check BNDs separately
+        if self.matcher.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
+            result.extend(self.compare_calls(chunk_dict['base_BND'],
+                                             chunk_dict['comp_BND'], chunk_id, True))
         return result
 
-    def compare_calls(self, base_variants, comp_variants, chunk_id=0):
+    def compare_calls(self, base_variants, comp_variants, chunk_id=0, is_bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
         Otherwise, returns a list of the variants placed in MatchResults
@@ -558,19 +564,20 @@ class Bench():
                 cnt += 1
                 pos.extend(truvari.entry_boundaries(i))
                 chrom = i.chrom
-            logging.warning("Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            logging.warning("Skipping region %s:%d-%d with %d variants",
+                            chrom, min(*pos), max(*pos), cnt)
             return []
 
-        match_matrix = self.build_matrix(
-            base_variants, comp_variants, chunk_id)
+        match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id, is_bnds=is_bnds)
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False, is_bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
+        matcher = self.matcher.build_match if not is_bnds else self.matcher.bnd_build_match
         if not base_variants or not comp_variants:
             raise RuntimeError(
                 "Expected at least one base and one comp variant")
@@ -578,9 +585,8 @@ class Bench():
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = self.matcher.build_match(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                    skip_gt, self.short_circuit)
+                mat = matcher(b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                              skip_gt, self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
@@ -603,14 +609,17 @@ class Bench():
                 chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
         if has_unmatched and pos:
-            buf = 10 # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            buf = 10
             start = max(0, min(*pos) - buf)
-            self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
-
+            self.refine_candidates.append(
+                f"{chrom}\t{start}\t{max(*pos) + buf}")
 
 #################
 # Match Pickers #
 #################
+
+
 def pick_multi_matches(match_matrix):
     """
     Given a numpy array of MatchResults

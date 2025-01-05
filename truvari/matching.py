@@ -1,6 +1,7 @@
 """
 Comparison engine
 """
+import re
 import types
 import logging
 from collections import Counter, defaultdict
@@ -108,6 +109,7 @@ class Matcher():
         params.bSample = 0
         params.cSample = 0
         params.dup_to_ins = False
+        params.bnddist = 100
         params.sizemin = 50
         params.sizefilt = 30
         params.sizemax = 50000
@@ -136,6 +138,7 @@ class Matcher():
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
         ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
+        ret.bnddist = args.bnddist if 'bnddist' in args else -1
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt
@@ -149,7 +152,7 @@ class Matcher():
 
     def filter_call(self, entry, base=False):
         """
-        Returns True if the call should be filtered
+        Returns True if the call should be filtered based on parameters or truvari requirements
         Base has different filtering requirements, so let the method know
         """
         if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
@@ -159,17 +162,7 @@ class Matcher():
             raise ValueError(
                 f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
-        # Don't compare BNDs, ever
-        #if entry.alleles_variant_types[1] == 'BND':
-        # return True
-
         if self.params.passonly and truvari.entry_is_filtered(entry):
-            return True
-
-        size = truvari.entry_size(entry)
-        if (size > self.params.sizemax) \
-           or (base and size < self.params.sizemin) \
-           or (not base and size < self.params.sizefilt):
             return True
 
         prefix = 'b' if base else 'c'
@@ -179,6 +172,27 @@ class Matcher():
                 return True
 
         return False
+
+    def size_filter(self, entry, base=False):
+        """
+        Returns True if entry should be filtered due to its size
+        """
+        size = truvari.entry_size(entry)
+        return (size > self.params.sizemax) \
+            or (base and size < self.params.sizemin) \
+            or (not base and size < self.params.sizefilt)
+
+    def compare_gts(self, match, base, comp):
+        """
+        Given a MatchResult, populate the genotype specific comparisons in place
+        """
+        if "GT" in base.samples[self.params.bSample]:
+            match.base_gt = base.samples[self.params.bSample]["GT"]
+            match.base_gt_count = sum(1 for _ in match.base_gt if _ == 1)
+        if "GT" in comp.samples[self.params.cSample]:
+            match.comp_gt = comp.samples[self.params.cSample]["GT"]
+            match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
+        match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
 
     def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
@@ -218,13 +232,7 @@ class Matcher():
                 return ret
 
         if not skip_gt:
-            if "GT" in base.samples[self.params.bSample]:
-                ret.base_gt = base.samples[self.params.bSample]["GT"]
-                ret.base_gt_count = sum(1 for _ in ret.base_gt if _ == 1)
-            if "GT" in comp.samples[self.params.cSample]:
-                ret.comp_gt = comp.samples[self.params.cSample]["GT"]
-                ret.comp_gt_count = sum(1 for _ in ret.comp_gt if _ == 1)
-            ret.gt_match = abs(ret.base_gt_count - ret.comp_gt_count)
+            self.compare_gts(ret, base, comp)
 
         ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
         if ret.ovlpct < self.params.pctovl:
@@ -235,7 +243,8 @@ class Matcher():
                 return ret
 
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(base, comp, self.params.no_roll)
+            ret.seqsim = truvari.entry_seq_similarity(
+                base, comp, self.params.no_roll)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -248,6 +257,37 @@ class Matcher():
         ret.st_dist, ret.ed_dist = bstart - cstart, bend - cend
         ret.calc_score()
 
+        return ret
+
+    def bnd_build_match(self, base, comp, matid=None, *_args, **_kwargs):
+        """
+        Build a MatchResult for bnds
+        """
+        ret = truvari.MatchResult()
+        ret.base = base
+        ret.comp = comp
+
+        ret.matid = matid
+        ret.state = base.chrom == comp.chrom
+
+        ret.st_dist = base.pos - comp.pos
+        ret.state &= abs(ret.st_dist) < self.params.bnddist
+        b_bnd = bnd_direction_strand(base.alts[0])
+        c_bnd = bnd_direction_strand(comp.alts[0])
+        ret.state &= b_bnd == c_bnd
+
+        b_pos2 = bnd_position(base.alts[0])
+        c_pos2 = bnd_position(comp.alts[0])
+        ret.ed_dist = b_pos2[1] - c_pos2[1]
+        ret.state &= b_pos2[0] == c_pos2[0]
+        ret.state &= ret.ed_dist < self.params.bnddist
+
+        self.compare_gts(ret, base, comp)
+
+        # Score is percent of allowed distance needed to find this match
+        ret.score = (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) /
+                     2) / self.params.bnddist) * 100
+        # I think I'm missing GT stuff here
         return ret
 
 ############################
@@ -313,8 +353,15 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
             continue
 
+        is_bnd = entry.alleles_variant_types[1] == 'BND'
+
+        if not is_bnd and matcher.size_filter(entry, key == 'base'):
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and (entry.alleles_variant_types[-1] == 'BND' or entry.alts[0].startswith('<')):
+        if not is_bnd and matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
             was_resolved = resolve_sv(entry,
                                       matcher.reference,
                                       matcher.params.dup_to_ins)
@@ -338,7 +385,11 @@ def chunker(matcher, *files):
 
         cur_chrom = entry.chrom
         cur_end = max(entry.stop, cur_end)
-        cur_chunk[key].append(entry)
+
+        if is_bnd:
+            cur_chunk[f'{key}_BND'].append(entry)
+        else:
+            cur_chunk[key].append(entry)
         call_counts[key] += 1
 
     chunk_count += 1
@@ -346,8 +397,13 @@ def chunker(matcher, *files):
                  sum(call_counts.values()), call_counts)
     yield cur_chunk, chunk_count
 
+####################
+# Helper functions #
+####################
+
 
 RC = str.maketrans("ATCG", "TAGC")
+
 
 def resolve_sv(entry, ref, dup_to_ins=False):
     """
@@ -356,9 +412,12 @@ def resolve_sv(entry, ref, dup_to_ins=False):
     if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
         return False
 
-    if entry.alleles_variant_types[1] == 'BND' and "SVTYPE" in entry.info \
-            and truvari.entry_variant_type(entry) == truvari.SV.DEL:
-        entry.alts = ['<DEL>']
+    # BNDs which describe a deletion can be resolved
+    if entry.alleles_variant_types[1] == 'BND':
+        if "SVTYPE" in entry.info and entry.info['SVTYPE'] == 'DEL':
+            entry.alts = ['<DEL>']
+        else:
+            return False
 
     seq = ref.fetch(entry.chrom, entry.start, entry.stop)
     if entry.alts[0] == '<DEL>':
@@ -375,3 +434,60 @@ def resolve_sv(entry, ref, dup_to_ins=False):
         return False
 
     return True
+
+
+def bnd_direction_strand(bnd: str) -> tuple:
+    """
+    Parses a BND ALT string to determine its direction and strand.
+     ALT  Meaning
+    t[p[ piece extending to the right of p is joined after t
+    t]p] reverse comp piece extending left of p is joined after t
+    ]p]t piece extending to the left of p is joined before t
+    [p[t reverse comp piece extending right of p is joined before t
+
+    Note that direction of 'left' means the piece is anchored on the left of the breakpoint
+
+    Args:
+        bnd (str): The BND ALT string.
+
+    Returns:
+        tuple: A tuple containing the direction ("left" or "right") and strand ("direct" or "complement").
+    """
+    if bnd.startswith('[') or bnd.endswith('['):
+        direction = "left"
+    elif bnd.startswith(']') or bnd.endswith(']'):
+        direction = "right"
+    else:
+        raise ValueError(f"Invalid BND ALT format: {bnd}")
+
+    # Determine strand based on the position of the base letter
+    if bnd[0] not in '[]':  # Base letter is at the start (before brackets)
+        strand = "direct"
+    elif bnd[-1] not in '[]':  # Base letter is at the end (after brackets)
+        strand = "complement"
+    else:
+        raise ValueError(f"Invalid BND ALT format: {bnd}")
+
+    return direction, strand
+
+
+def bnd_position(bnd):
+    """
+    Extracts the chromosome and position from a BND ALT string.
+
+    Args:
+        bnd (str): The BND ALT string.
+
+    Returns:
+        tuple: A tuple containing the chromosome (str) and position (int).
+    """
+
+    # Regular expression to match the BND format and extract chrom:pos
+    match = re.search(r'[\[\]]([^\[\]:]+):(\d+)[\[\]]', bnd)
+    if not match:
+        raise ValueError(f"Invalid BND ALT format: {bnd}")
+
+    chrom = match.group(1)  # Extract the chromosome
+    pos = int(match.group(2))  # Extract the position as an integer
+
+    return chrom, pos
