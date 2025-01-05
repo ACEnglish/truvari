@@ -16,7 +16,6 @@ import pysam
 import numpy as np
 
 import truvari
-import truvari.bndbench as bnd
 
 ##############
 # Parameters #
@@ -500,7 +499,7 @@ class Bench():
             if (self.extend
                 and (match.comp is not None)
                 and not match.state
-                and not truvari.entry_within_tree(match.comp, region_tree)):
+                    and not truvari.entry_within_tree(match.comp, region_tree)):
                 match.comp = None
             output.write_match(match)
 
@@ -521,13 +520,15 @@ class Bench():
         self.check_refine_candidate(result)
         # Check BNDs separately
         if self.matcher.params.bnddist != -1:
-            result.extend(self.bnd_compare(chunk_dict['base_BND'], chunk_dict['comp_BND'], chunk_id))
+            result.extend(self.compare_calls(chunk_dict['base_BND'],
+                                             chunk_dict['comp_BND'], chunk_id, True))
         return result
 
-    def compare_calls(self, base_variants, comp_variants, chunk_id=0):
+    def compare_calls(self, base_variants, comp_variants, chunk_id=0, bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
         Otherwise, returns a list of the variants placed in MatchResults
+        sends to build_matrix if not bnd, else bnd_build_matrix
         """
         # All FPs
         if len(base_variants) == 0:
@@ -564,16 +565,17 @@ class Bench():
                 cnt += 1
                 pos.extend(truvari.entry_boundaries(i))
                 chrom = i.chrom
-            logging.warning("Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            logging.warning(
+                "Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
             return []
 
         match_matrix = self.build_matrix(
-            base_variants, comp_variants, chunk_id)
+            base_variants, comp_variants, chunk_id, bnds)
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False, bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
@@ -584,9 +586,9 @@ class Bench():
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = self.matcher.build_match(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                    skip_gt, self.short_circuit)
+                matcher = self.matcher.build_match if not bnds else self.matcher.bnd_build_match
+                mat = matcher(
+                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt, self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
@@ -609,22 +611,17 @@ class Bench():
                 chrom = match.comp.chrom
                 pos.extend(truvari.entry_boundaries(match.comp))
         if has_unmatched and pos:
-            buf = 10 # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            buf = 10
             start = max(0, min(*pos) - buf)
-            self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
-
-    def bnd_compare(self, base, comp, chunk_id):
-        """
-        Special handling of BND variants
-        """
-        match_matrix = bnd.build_matches(base, comp, self.matcher, chunk_id)
-        if isinstance(match_matrix, list):
-            return match_matrix
-        return PICKERS[self.matcher.params.pick](match_matrix)
+            self.refine_candidates.append(
+                f"{chrom}\t{start}\t{max(*pos) + buf}")
 
 #################
 # Match Pickers #
 #################
+
+
 def pick_multi_matches(match_matrix):
     """
     Given a numpy array of MatchResults
