@@ -22,7 +22,7 @@ collapse_assert() {
 collapse_multi() {
     # tests multi sample collapse with provided keep method
     keep=$1
-    run test_collapse_multi_$keep $truv collapse -f $INDIR/references/reference.fa \
+    run collapse_multi_$keep $truv collapse -f $INDIR/references/reference.fa \
                                              -i $INDIR/variants/multi.vcf.gz \
                                              -o $OD/multi_collapsed_${keep}.vcf \
                                              -c $OD/multi_removed_${keep}.vcf \
@@ -39,75 +39,75 @@ collapse_multi_assert() {
     assert_equal $(fn_md5 $ANSDIR/collapse/multi_removed_${keep}.vcf) $(fn_md5 $OD/multi_removed_${keep}.vcf)
 }
 
-run test_collapse_1 collapse 1 --null-consolidate=PL,DP
-if [ $test_collapse_1 ]; then
+run collapse_1 collapse 1 --null-consolidate=PL,DP
+if [ $collapse_1 ]; then
     collapse_assert 1
 fi
 
-run test_collapse_2 collapse 2 --hap
-if [ $test_collapse_2 ]; then
+run collapse_2 collapse 2 --hap
+if [ $collapse_2 ]; then
     collapse_assert 2
 fi
 
-run test_collapse_3 collapse 3 --chain
-if [ $test_collapse_3 ]; then
+run collapse_3 collapse 3 --chain
+if [ $collapse_3 ]; then
     collapse_assert 3
 fi
 
-run test_collapse_multi_first collapse_multi first
-if [ $test_collapse_multi_first ]; then
+run collapse_multi_first collapse_multi first
+if [ $collapse_multi_first ]; then
     collapse_multi_assert first
 fi
 
-run test_collapse_multi_common collapse_multi common
-if [ $test_collapse_multi_common ]; then
+run collapse_multi_common collapse_multi common
+if [ $collapse_multi_common ]; then
     collapse_multi_assert common
 fi
 
-run test_collapse_multi_maxqual collapse_multi maxqual
-if [ $test_collapse_multi_maxqual ]; then
+run collapse_multi_maxqual collapse_multi maxqual
+if [ $collapse_multi_maxqual ]; then
     collapse_multi_assert maxqual
 fi
 
-run test_collapse_badparams $truv collapse -i nofile.vcf -c nofile.aga -f notref.fa -o $OD --hap --chain --keep common
-if [ $test_collapse_badparams ]; then
+run collapse_badparams $truv collapse -i nofile.vcf -c nofile.aga -f notref.fa -o $OD --hap --chain --keep common
+if [ $collapse_badparams ]; then
     assert_exit_code 100
 fi
 
 # Lower collapse sub-chunk threshold
 export COLLAP_SUB=1
-run test_collapse_median $truv collapse -f $INDIR/references/reference.fa \
+run collapse_median $truv collapse -f $INDIR/references/reference.fa \
                    -i $INDIR/variants/input1.vcf.gz \
                    -o $OD/input1_median_collapsed.vcf \
                    -c $OD/input1_median_removed.vcf \
                    --median-info
-if [ $test_collapse_median ]; then
+if [ $collapse_median ]; then
     collapse_assert 1_median
 fi
 unset COLLAP_SUB
 
-run test_collapse_intragt $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
+run collapse_intragt $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
                         -o $OD/inputintragt_collapsed.vcf \
                         -c $OD/inputintragt_removed.vcf \
                         --intra --gt all --keep maxqual
-if [ $test_collapse_intragt ]; then
+if [ $collapse_intragt ]; then
     collapse_assert intragt
 fi
 
-run test_collapse_intragth $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
+run collapse_intragth $truv collapse -i $INDIR/variants/bcftools_merged.vcf.gz \
                         -o $OD/inputintragth_collapsed.vcf \
                         -c $OD/inputintragth_removed.vcf \
                         --intra --gt het --keep maxqual
-if [ $test_collapse_intragth ]; then
+if [ $collapse_intragth ]; then
     collapse_assert intragth
 fi
 
 
-run test_collapse_chain $truv collapse -i $INDIR/variants/issue196_chain.vcf.gz \
+run collapse_chain $truv collapse -i $INDIR/variants/issue196_chain.vcf.gz \
                         -o $OD/inputissue196_collapsed.vcf \
                         -c $OD/inputissue196_removed.vcf \
                         --chain --pctseq 0 --pctsize 0.35
-if [ $test_collapse_chain ]; then
+if [ $collapse_chain ]; then
     collapse_assert issue196
 fi
 

@@ -582,11 +582,13 @@ class Bench():
             raise RuntimeError(
                 "Expected at least one base and one comp variant")
         match_matrix = []
-        for bid, b in enumerate(base_variants):
+        for bid, base in enumerate(base_variants):
             base_matches = []
-            for cid, c in enumerate(comp_variants):
-                mat = matcher(b, c, matid=[f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                              skip_gt=skip_gt, short=self.short_circuit)
+            for cid, comp in enumerate(comp_variants):
+                mat = matcher(base, comp, 
+                              matid=[f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                              skip_gt=skip_gt, 
+                              short_circuit=self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)

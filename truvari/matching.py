@@ -194,11 +194,11 @@ class Matcher():
             match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
         match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
 
-    def build_match(self, base, comp, matid=None, skip_gt=False, short=False):
+    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
         Build a MatchResult
         if skip_gt, don't do genotype comparison
-        if short, return after first failure
+        if short_circuit, return after first failure
         """
         ret = MatchResult()
         ret.base = base
@@ -211,7 +211,7 @@ class Matcher():
             logging.debug("%s and %s are not the same SVTYPE",
                           str(base), str(comp))
             ret.state = False
-            if short:
+            if short_circuit:
                 return ret
 
         bstart, bend = truvari.entry_boundaries(base)
@@ -220,7 +220,7 @@ class Matcher():
             logging.debug("%s and %s are not within REFDIST",
                           str(base), str(comp))
             ret.state = False
-            if short:
+            if short_circuit:
                 return ret
 
         ret.sizesim, ret.sizediff = truvari.entry_size_similarity(base, comp)
@@ -228,7 +228,7 @@ class Matcher():
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(base), str(comp), ret.sizesim)
             ret.state = False
-            if short:
+            if short_circuit:
                 return ret
 
         if not skip_gt:
@@ -239,7 +239,7 @@ class Matcher():
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
             ret.state = False
-            if short:
+            if short_circuit:
                 return ret
 
         if self.params.pctseq > 0:
@@ -249,7 +249,7 @@ class Matcher():
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
                 ret.state = False
-                if short:
+                if short_circuit:
                     return ret
         else:
             ret.seqsim = 0
