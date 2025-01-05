@@ -518,7 +518,7 @@ class Bench():
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
         # Check BNDs separately
-        results.extend(self.bnd_compare(chunk_dict['base_BND'], chunk_dict['comp_BND']))
+        result.extend(self.bnd_compare(chunk_dict['base_BND'], chunk_dict['comp_BND'], chunk_id))
         return result
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):
@@ -610,13 +610,14 @@ class Bench():
             start = max(0, min(*pos) - buf)
             self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
 
-    def bnd_compare(self, base_variants, comp_variants, chunk_id):
+    def bnd_compare(self, base, comp, chunk_id):
         """
         Special handling of BND variants
         """
-        matches = bnd.build_matches(chunk['base'], chunk['comp'], args.refdist, chunk_id)
-        picked = pick_single_matches(matches)
-        return matches
+        match_matrix = bnd.build_matches(base, comp, self.matcher, chunk_id)
+        if isinstance(match_matrix, list):
+            return match_matrix
+        return PICKERS[self.matcher.params.pick](match_matrix)
 
 #################
 # Match Pickers #

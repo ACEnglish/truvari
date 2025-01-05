@@ -16,7 +16,6 @@ from truvari.bench import bench_main
 from truvari.divide import divide_main
 from truvari.vcf2df import vcf2df_main
 from truvari.refine import refine_main
-from truvari.bndbench import bndbench_main
 from truvari.collapse import collapse_main
 from truvari.stratify import stratify_main
 from truvari.segmentation import segment_main
@@ -42,7 +41,6 @@ TOOLS = {"bench": bench_main,
          "phab": phab_main,
          "refine": refine_main,
          "ga4gh": make_ga4gh_main,
-         "bndbench": bndbench_main,
          "version": flat_version}
 
 USAGE = f"""\
@@ -60,7 +58,6 @@ Available commands:
     [bold][cyan]phab[/][/]          Variant harmonization using MSA
     [bold][cyan]refine[/][/]        Automated bench result refinement with phab
     [bold][cyan]ga4gh[/][/]         Convert Truvari result to GA4GH
-    [bold][cyan]bndbench[/][/]      BND Performance metrics 
     [bold][cyan]version[/][/]       Print the Truvari version and exit
 """
 
