@@ -585,8 +585,8 @@ class Bench():
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                mat = matcher(b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                              skip_gt, self.short_circuit)
+                mat = matcher(b, c, matid=[f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                              skip_gt=skip_gt, short=self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
