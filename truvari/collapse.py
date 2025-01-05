@@ -723,7 +723,7 @@ class CollapseOutput(dict):
 
 class LinkedList:
     """
-    Simple linked list which should(?) be faster than concatenating a bunch 
+    Simple linked list which should(?) be faster than concatenating a bunch
     regular lists
     """
     def __init__(self, data=None):
