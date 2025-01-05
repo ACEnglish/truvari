@@ -259,7 +259,7 @@ class Matcher():
 
         return ret
 
-    def bnd_build_match(self, base, comp, matid=None, **_kwargs):
+    def bnd_build_match(self, base, comp, matid=None, *_args, **_kwargs):
         """
         Build a MatchResult for bnds
         """
@@ -271,7 +271,7 @@ class Matcher():
         ret.state = base.chrom == comp.chrom
 
         ret.st_dist = base.pos - comp.pos
-        ret.state &= abs(ret.st_dist) < self.matcher.params.bnddist
+        ret.state &= abs(ret.st_dist) < self.params.bnddist
         b_bnd = bnd_direction_strand(base.alts[0])
         c_bnd = bnd_direction_strand(comp.alts[0])
         ret.state &= b_bnd == c_bnd
@@ -280,15 +280,14 @@ class Matcher():
         c_pos2 = bnd_position(comp.alts[0])
         ret.ed_dist = b_pos2[1] - c_pos2[1]
         ret.state &= b_pos2[0] == c_pos2[0]
-        ret.state &= ret.ed_dist < self.matcher.params.bnddist
+        ret.state &= ret.ed_dist < self.params.bnddist
 
         self.compare_gts(ret, base, comp)
 
         # Score is percent of allowed distance needed to find this match
         ret.score = (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) /
-                     2) / self.matcher.params.bnddist) * 100
+                     2) / self.params.bnddist) * 100
         # I think I'm missing GT stuff here
-        logging.debug("BND match -> %s", ret)
         return ret
 
 ############################

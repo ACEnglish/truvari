@@ -91,5 +91,5 @@ run test_bench_bnd $truv bench -b $INDIR/variants/bnd.base.vcf.gz \
                                -c $INDIR/variants/bnd.comp.vcf.gz \
                                -p 0 -o $OD/bench_bnd/
 if [ $test_bench_bnd ]; then
-    bnech_assert _bnd
+    bench_assert _bnd
 fi

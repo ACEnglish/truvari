@@ -519,16 +519,15 @@ class Bench():
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
         # Check BNDs separately
-        if self.matcher.params.bnddist != -1:
+        if self.matcher.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
             result.extend(self.compare_calls(chunk_dict['base_BND'],
                                              chunk_dict['comp_BND'], chunk_id, True))
         return result
 
-    def compare_calls(self, base_variants, comp_variants, chunk_id=0, bnds=False):
+    def compare_calls(self, base_variants, comp_variants, chunk_id=0, is_bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
         Otherwise, returns a list of the variants placed in MatchResults
-        sends to build_matrix if not bnd, else bnd_build_matrix
         """
         # All FPs
         if len(base_variants) == 0:
@@ -565,20 +564,20 @@ class Bench():
                 cnt += 1
                 pos.extend(truvari.entry_boundaries(i))
                 chrom = i.chrom
-            logging.warning(
-                "Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            logging.warning("Skipping region %s:%d-%d with %d variants",
+                            chrom, min(*pos), max(*pos), cnt)
             return []
 
-        match_matrix = self.build_matrix(
-            base_variants, comp_variants, chunk_id, bnds)
+        match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id, is_bnds=is_bnds)
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False, bnds=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False, is_bnds=False):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
+        matcher = self.matcher.build_match if not is_bnds else self.matcher.bnd_build_match
         if not base_variants or not comp_variants:
             raise RuntimeError(
                 "Expected at least one base and one comp variant")
@@ -586,9 +585,8 @@ class Bench():
         for bid, b in enumerate(base_variants):
             base_matches = []
             for cid, c in enumerate(comp_variants):
-                matcher = self.matcher.build_match if not bnds else self.matcher.bnd_build_match
-                mat = matcher(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"], skip_gt, self.short_circuit)
+                mat = matcher(b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
+                              skip_gt, self.short_circuit)
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
