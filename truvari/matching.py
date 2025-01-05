@@ -108,6 +108,7 @@ class Matcher():
         params.bSample = 0
         params.cSample = 0
         params.dup_to_ins = False
+        params.bnddist = 100
         params.sizemin = 50
         params.sizefilt = 30
         params.sizemax = 50000
@@ -136,6 +137,7 @@ class Matcher():
         ret.bSample = args.bSample if args.bSample else 0
         ret.cSample = args.cSample if args.cSample else 0
         ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
+        ret.bnddist = args.bnddist
         # filtering properties
         ret.sizemin = args.sizemin
         ret.sizefilt = args.sizefilt
@@ -149,7 +151,7 @@ class Matcher():
 
     def filter_call(self, entry, base=False):
         """
-        Returns True if the call should be filtered
+        Returns True if the call should be filtered based on parameters or truvari requirements
         Base has different filtering requirements, so let the method know
         """
         if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
@@ -159,17 +161,7 @@ class Matcher():
             raise ValueError(
                 f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
-        # Don't compare BNDs, ever
-        #if entry.alleles_variant_types[1] == 'BND':
-        # return True
-
         if self.params.passonly and truvari.entry_is_filtered(entry):
-            return True
-
-        size = truvari.entry_size(entry)
-        if (size > self.params.sizemax) \
-           or (base and size < self.params.sizemin) \
-           or (not base and size < self.params.sizefilt):
             return True
 
         prefix = 'b' if base else 'c'
@@ -179,6 +171,15 @@ class Matcher():
                 return True
 
         return False
+
+    def size_filter(self, entry, base=False):
+        """
+        Returns True if entry should be filtered due to its size
+        """
+        size = truvari.entry_size(entry)
+        return (size > self.params.sizemax) \
+           or (base and size < self.params.sizemin) \
+           or (not base and size < self.params.sizefilt)
 
     def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
         """
@@ -308,11 +309,16 @@ def chunker(matcher, *files):
     cur_chunk = defaultdict(list)
     unresolved_warned = False
     for key, entry in file_zipper(*files):
-        if matcher.bnd_filter(entry):
+        if matcher.filter_call(entry, key == 'base'):
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+
+        if entry.alleles_variant_types[1] == 'BND':
             cur_chunk[f'{key}_BND'].append(entry)
             continue
 
-        if matcher.filter_call(entry, key == 'base'):
+        if matcher.size_filter(entry, key=='base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue

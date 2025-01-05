@@ -60,6 +60,8 @@ def parse_args(args):
                         help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
+    thresg.add_argument("-B", "--bnddist", type=truvari.restricted_int, default=defaults.bnddist,
+                        help="Maximum distance allowed between BNDs")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
 

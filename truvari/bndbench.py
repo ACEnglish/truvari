@@ -97,23 +97,33 @@ def build_matches(base_variants, comp_variants, matcher, chunk_id):
             mat.comp = comp
 
             mat.matid = [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"]
-            mat.state = True
+            mat.state = base.chrom == comp.chrom
 
             mat.st_dist = base.pos - comp.pos
-            mat.state &= mat.score < matcher.params.refdist
-
+            mat.state &= abs(mat.st_dist) < matcher.params.bnddist
             b_bnd = bnd_direction_strand(base.alts[0])
             c_bnd = bnd_direction_strand(comp.alts[0])
             mat.state &= b_bnd == c_bnd
 
             b_pos2 = bnd_position(base.alts[0])
             c_pos2 = bnd_position(comp.alts[0])
-            dist2 = abs(b_pos2[1] - c_pos2[1])
+            mat.ed_dist = b_pos2[1] - c_pos2[1]
             mat.state &= b_pos2[0] == c_pos2[0]
-            mat.state &= dist2 < matcher.params.refdist
+            mat.state &= mat.ed_dist < matcher.params.bnddist
 
-            mat.score = abs(mat.st_dist + dist2) / 2
-            logging.debug("Made mat -> %s", mat)
+            # not dry
+            if "GT" in base.samples[matcher.params.bSample]:
+                mat.base_gt = base.samples[matcher.params.bSample]["GT"]
+                mat.base_gt_count = sum(1 for _ in mat.base_gt if _ == 1)
+            if "GT" in comp.samples[matcher.params.cSample]:
+                mat.comp_gt = comp.samples[matcher.params.cSample]["GT"]
+                mat.comp_gt_count = sum(1 for _ in mat.comp_gt if _ == 1)
+            mat.gt_match = abs(mat.base_gt_count - mat.comp_gt_count)
+
+            # Score is percent of allowed distance needed to find this match
+            mat.score = (1 - ((abs(mat.st_dist) + abs(mat.ed_dist)) / 2) / matcher.params.bnddist) * 100
+            # I think I'm missing GT stuff here
+            logging.debug("BND match -> %s", mat)
             base_matches.append(mat)
 
         match_matrix.append(base_matches)
