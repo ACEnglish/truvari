@@ -316,8 +316,11 @@ class Matcher():
         self.compare_gts(ret, base, comp)
 
         # Score is percent of allowed distance needed to find this match
-        ret.score = (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                     / self.params.bnddist) * 100
+        if self.params.bnddist > 0:
+            ret.score = (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
+                        / self.params.bnddist) * 100
+        else:
+            ret.score = int(ret.state) * 100
 
         return ret
 
