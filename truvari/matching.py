@@ -263,20 +263,16 @@ class Matcher():
         """
         Build a MatchResult for bnds
         """
-        def bounds(entry, pos, key='POS'):
+        def bounds(pos):
             """
-            Inflate a bnd position
-            """
-            start = pos - self.params.bnddist
-            end = pos + self.params.bnddist
-
-            """ Experimental, but it's getting tricky, so need clarification
+            Inflate a bnd position based on CIPOS. 
+            Experimental, but it's getting tricky, so need clarification
             For example, why does GIAB use CIPOS1 instead of the standard CIPOS? (not to mention Type=String).
             Also, I assumed that the CIPOS was ±POS, but it seems like the standard is that the ambiguity is between 
             POS, POS+CIPOS[0]. But then, there is no enforcement of strands with CIPOS, I think, so it could always be 
             positive and if it's a complement BND it might need POS - CIPOS? 
             I'm dropping for now
-
+            entry and key were also parameters
             key = 'CI' + key
             idx = 0 if key == 'POS' else 1
             if key in entry.info: # Just CIPOS
@@ -292,6 +288,9 @@ class Matcher():
                     if k not in [None, '.']:
                         end += int(k)
             """
+            start = pos - self.params.bnddist
+            end = pos + self.params.bnddist
+
             return start, end
 
         ret = truvari.MatchResult()
@@ -301,7 +300,7 @@ class Matcher():
         ret.matid = matid
         ret.state = base.chrom == comp.chrom
         ret.st_dist = base.pos - comp.pos
-        ret.state &= truvari.overlaps(*bounds(base, base.pos, 'POS'), *bounds(comp, comp.pos, 'POS'))
+        ret.state &= truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
         b_bnd = bnd_direction_strand(base.alts[0])
         c_bnd = bnd_direction_strand(comp.alts[0])
         ret.state &= b_bnd == c_bnd
@@ -311,7 +310,7 @@ class Matcher():
         ret.ed_dist = b_pos2[1] - c_pos2[1]
         ret.state &= b_pos2[0] == c_pos2[0]
 
-        ret.state &= truvari.overlaps(*bounds(base, b_pos2[1], 'END'), *bounds(comp, c_pos2[1], 'END'))
+        ret.state &= truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
         ret.state &= ret.ed_dist < self.params.bnddist
 
         self.compare_gts(ret, base, comp)
