@@ -157,30 +157,30 @@ class Matcher():
         Returns True if the call should be filtered based on parameters or truvari requirements
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
+        if self.params.check_monref and entry.is_monrefstar():
             return True
 
-        if self.params.check_multi and len(entry.alts) > 1:
+        if self.params.check_multi and entry.is_multi():
             raise ValueError(
                 f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
-        if self.params.passonly and truvari.entry_is_filtered(entry):
+        if self.params.passonly and entry.is_filtered():
             return True
 
         prefix = 'b' if base else 'c'
         if self.params.no_ref in ["a", prefix] or self.params.pick == 'ac':
             samp = self.params.bSample if base else self.params.cSample
-            if not truvari.entry_is_present(entry, samp):
+            if not entry.is_present(samp):
                 return True
 
         # No single end BNDs
-        return entry.alts[0][0] == '.' or entry.alts[0][-1] == '.'
+        return entry.is_single_bnd()
 
     def size_filter(self, entry, base=False):
         """
         Returns True if entry should be filtered due to its size
         """
-        size = truvari.entry_size(entry)
+        size = entry.size()
         return (size > self.params.sizemax) \
             or (base and size < self.params.sizemin) \
             or (not base and size < self.params.sizefilt)
@@ -189,11 +189,13 @@ class Matcher():
         """
         Given a MatchResult, populate the genotype specific comparisons in place
         """
-        if "GT" in base.samples[self.params.bSample]:
-            match.base_gt = base.samples[self.params.bSample]["GT"]
+        b_gt = base.gt(self.params.bSample)
+        c_gt = comp.gt(self.params.cSample)
+        if b_gt:
+            match.base_gt = b_gt
             match.base_gt_count = sum(1 for _ in match.base_gt if _ == 1)
-        if "GT" in comp.samples[self.params.cSample]:
-            match.comp_gt = comp.samples[self.params.cSample]["GT"]
+        if c_gt:
+            match.comp_gt = c_gt
             match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
         match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
 
@@ -210,15 +212,15 @@ class Matcher():
         ret.matid = matid
         ret.state = True
 
-        if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp, self.params.dup_to_ins):
+        if not self.params.typeignore and not base.same_type(comp, self.params.dup_to_ins):
             logging.debug("%s and %s are not the same SVTYPE",
                           str(base), str(comp))
             ret.state = False
             if short_circuit:
                 return ret
 
-        bstart, bend = truvari.entry_boundaries(base)
-        cstart, cend = truvari.entry_boundaries(comp)
+        bstart, bend = base.boundaries()
+        cstart, cend = comp.boundaries()
         if not truvari.overlaps(bstart - self.params.refdist, bend + self.params.refdist, cstart, cend):
             logging.debug("%s and %s are not within REFDIST",
                           str(base), str(comp))
@@ -226,7 +228,7 @@ class Matcher():
             if short_circuit:
                 return ret
 
-        ret.sizesim, ret.sizediff = truvari.entry_size_similarity(base, comp)
+        ret.sizesim, ret.sizediff = base.sizesim(comp)
         if ret.sizesim < self.params.pctsize:
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(base), str(comp), ret.sizesim)
@@ -237,7 +239,7 @@ class Matcher():
         if not skip_gt:
             self.compare_gts(ret, base, comp)
 
-        ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
+        ret.ovlpct = base.recovl(comp)
         if ret.ovlpct < self.params.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(base), str(comp), ret.ovlpct)
@@ -246,8 +248,7 @@ class Matcher():
                 return ret
 
         if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(
-                base, comp, self.params.no_roll)
+            ret.seqsim = base.seqsim(comp, self.params.no_roll)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(base), str(comp), ret.seqsim)
@@ -389,7 +390,7 @@ def file_zipper(*start_files):
         except StopIteration:
             # This file is done
             markers.pop(first_idx)
-        yield name, entry
+        yield name, truvari.VariantRecord(entry)
     logging.info("Zipped %d variants %s", sum(
         file_counts.values()), file_counts)
 
@@ -412,18 +413,14 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
             continue
 
-        is_bnd = entry.alleles_variant_types[1] == 'BND'
-
-        if not is_bnd and matcher.size_filter(entry, key == 'base'):
+        if not entry.is_bnd() and matcher.size_filter(entry, key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
         # check symbolic, resolve if needed/possible
-        if not is_bnd and matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
-            was_resolved = resolve_sv(entry,
-                                      matcher.reference,
-                                      matcher.params.dup_to_ins)
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+            was_resolved = entry.resolve(matcher.reference, matcher.params.dup_to_ins)
             if not was_resolved:
                 if not unresolved_warned:
                     logging.warning("Some symbolic SVs couldn't be resolved")
@@ -445,7 +442,7 @@ def chunker(matcher, *files):
         cur_chrom = entry.chrom
         cur_end = max(entry.stop, cur_end)
 
-        if is_bnd:
+        if entry.is_bnd():
             cur_chunk[f'{key}_BND'].append(entry)
         else:
             cur_chunk[key].append(entry)
@@ -459,40 +456,6 @@ def chunker(matcher, *files):
 ####################
 # Helper functions #
 ####################
-
-
-RC = str.maketrans("ATCG", "TAGC")
-
-
-def resolve_sv(entry, ref, dup_to_ins=False):
-    """
-    Attempts to resolve an SV's REF/ALT sequences
-    """
-    if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
-        return False
-
-    # BNDs which describe a deletion can be resolved
-    if entry.alleles_variant_types[1] == 'BND':
-        if "SVTYPE" in entry.info and entry.info['SVTYPE'] == 'DEL':
-            entry.alts = ['<DEL>']
-        else:
-            return False
-
-    seq = ref.fetch(entry.chrom, entry.start, entry.stop)
-    if entry.alts[0] == '<DEL>':
-        entry.ref = seq
-        entry.alts = [seq[0]]
-    elif entry.alts[0] == '<INV>':
-        entry.ref = seq
-        entry.alts = [seq.translate(RC)[::-1]]
-    elif entry.alts[0] == '<DUP>' and dup_to_ins:
-        entry.ref = seq[0]
-        entry.alts = [seq]
-        entry.stop = entry.start + 1
-    else:
-        return False
-
-    return True
 
 
 def bnd_direction_strand(bnd: str) -> tuple:

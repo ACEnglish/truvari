@@ -365,21 +365,21 @@ class BenchOutput():
                 box["gt_matrix"][gtBase][gtComp] += 1
 
                 box["TP-base"] += 1
-                self.out_vcfs["tpb"].write(match.base)
+                self.out_vcfs["tpb"].write(match.base._record)
                 if match.gt_match == 0:
                     box["TP-base_TP-gt"] += 1
                 else:
                     box["TP-base_FP-gt"] += 1
             else:
                 box["FN"] += 1
-                self.out_vcfs["fn"].write(match.base)
+                self.out_vcfs["fn"].write(match.base._record)
 
         if match.comp:
             annotate_entry(match.comp, match, self.n_headers['c'])
             if match.state:
                 box["comp cnt"] += 1
                 box["TP-comp"] += 1
-                self.out_vcfs["tpc"].write(match.comp)
+                self.out_vcfs["tpc"].write(match.comp._record)
                 if match.gt_match == 0:
                     box["TP-comp_TP-gt"] += 1
                 else:
@@ -388,7 +388,7 @@ class BenchOutput():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
-                self.out_vcfs["fp"].write(match.comp)
+                self.out_vcfs["fp"].write(match.comp._record)
 
     def close_outputs(self):
         """

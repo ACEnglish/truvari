@@ -180,6 +180,10 @@ from truvari.utils import (
     vcf_ranges,
 )
 
+from truvari.variant_record import (
+    VariantRecord,
+)
+
 from truvari.vcf2df import (
     GT,
     QUALBINS,
