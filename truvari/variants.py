@@ -45,11 +45,16 @@ class VariantFile:
         for i in self._vcf.fetch(*args, **kwargs):
             yield truvari.VariantRecord(i)
 
-    def write(self, record):
+    def write(self, record, resolved=False):
         """
         Pull pysam VarianRecord out of truvari VariantRecord before writing
+        If resolved, replace the record's REF and ALT with self.get_ref() self.get_alt()
         """
-        self._vcf.write(record.get_record())
+        out = record.get_record()
+        if resolved:
+            out.ref = record.get_ref()
+            out.alts = (record.get_alt(),)
+        self._vcf.write(out)
 
 
 class VariantRecord:

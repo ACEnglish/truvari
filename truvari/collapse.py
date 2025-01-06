@@ -489,6 +489,8 @@ def parse_args(args):
                         help="Variants that collapsed into kept variants (%(default)s)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants. Only needed with symbolic variants.")
+    parser.add_argument("-w", "--write-resolved", action="store_true",
+                        help="Replace resolved symbolic variants with their sequence")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--bed", type=str, default=None,
@@ -587,7 +589,6 @@ class IntraMergeOutput():
         else:
             self.fh = open(self.fn, 'w')  # pylint: disable=consider-using-with
             self.isgz = False
-
         self.make_header()
 
     def make_header(self):
@@ -604,7 +605,7 @@ class IntraMergeOutput():
                 data = line.strip().split('\t')[:10]
                 self.write("\t".join(data) + '\n')
 
-    def consolidate(self, entry):
+    def consolidate(self, entry, write_resolved=False):
         """
         Consolidate information into the first sample
         Returns a string
@@ -632,14 +633,19 @@ class IntraMergeOutput():
             needs_fill -= was_filled
         entry.translate(self.header)
         entry.samples[0]['SUPP'] = flag
+        if write_resolved:
+            n_entry = entry.get_record()
+            n_entry.ref = entry.get_ref()
+            n_entry.alts = (entry.get_alt(),)
+            entry = n_entry
         return "\t".join(str(entry).split('\t')[:10]) + '\n'
 
-    def write(self, entry):
+    def write(self, entry, write_resolved=False):
         """
         Writes header (str) or entries (VariantRecords)
         """
         if isinstance(entry, truvari.VariantRecord):
-            entry = self.consolidate(entry)
+            entry = self.consolidate(entry, write_resolved)
         if self.isgz:
             entry = entry.encode()
         self.fh.write(entry)
@@ -672,8 +678,7 @@ class CollapseOutput(dict):
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
         if args.intra:
-            self["output_vcf"] = IntraMergeOutput(
-                args.output, self["o_header"])
+            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
         else:
             self["output_vcf"] = truvari.VariantFile(args.output, 'w',
                                                      header=self["o_header"])
@@ -681,6 +686,7 @@ class CollapseOutput(dict):
                                                  header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
                              "out_cnt": 0, "consol_cnt": 0}
+        self.write_resolved = args.write_resolved
 
     def write(self, collap, median_info=False):
         """
@@ -690,17 +696,17 @@ class CollapseOutput(dict):
         self["stats_box"]["out_cnt"] += 1
         # Nothing collapsed, no need to annotate
         if not collap.matches:
-            self["output_vcf"].write(collap.entry)
+            self["output_vcf"].write(collap.entry, self.write_resolved)
             return
 
         collap.annotate_entry(self["o_header"], median_info)
 
-        self["output_vcf"].write(collap.entry)
+        self["output_vcf"].write(collap.entry, self.write_resolved)
         self["stats_box"]["kept_cnt"] += 1
         self["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
         for match in collap.matches:
             trubench.annotate_entry(match.comp, match, self["c_header"])
-            self["collap_vcf"].write(match.comp)
+            self["collap_vcf"].write(match.comp, self.write_resolved)
             self['stats_box']["collap_cnt"] += 1
 
     def close(self):

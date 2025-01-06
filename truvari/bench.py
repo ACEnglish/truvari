@@ -36,6 +36,8 @@ def parse_args(args):
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Fasta used to call variants. Only needed with symbolic variants.")
+    parser.add_argument("-w", "--write-resolved", action="store_true",
+                        help="Replace resolved symbolic variants with their sequence")
     parser.add_argument("--short", action="store_true",
                         help="Short circuit comparisions. Faster, but fewer annotations")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -350,7 +352,7 @@ class BenchOutput():
 
         self.stats_box = StatsBox()
 
-    def write_match(self, match):
+    def write_match(self, match, resolved=False):
         """
         Annotate a MatchResults' entries then write to the apppropriate file
         and do the stats counting.
@@ -366,21 +368,21 @@ class BenchOutput():
                 box["gt_matrix"][gtBase][gtComp] += 1
 
                 box["TP-base"] += 1
-                self.out_vcfs["tpb"].write(match.base)
+                self.out_vcfs["tpb"].write(match.base, resolved)
                 if match.gt_match == 0:
                     box["TP-base_TP-gt"] += 1
                 else:
                     box["TP-base_FP-gt"] += 1
             else:
                 box["FN"] += 1
-                self.out_vcfs["fn"].write(match.base)
+                self.out_vcfs["fn"].write(match.base, resolved)
 
         if match.comp:
             annotate_entry(match.comp, match, self.n_headers['c'])
             if match.state:
                 box["comp cnt"] += 1
                 box["TP-comp"] += 1
-                self.out_vcfs["tpc"].write(match.comp)
+                self.out_vcfs["tpc"].write(match.comp, resolved)
                 if match.gt_match == 0:
                     box["TP-comp_TP-gt"] += 1
                 else:
@@ -389,7 +391,7 @@ class BenchOutput():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
-                self.out_vcfs["fp"].write(match.comp)
+                self.out_vcfs["fp"].write(match.comp, resolved)
 
     def close_outputs(self):
         """
@@ -405,7 +407,7 @@ class BenchOutput():
         self.stats_box.write_json(os.path.join(
             self.m_bench.outdir, "summary.json"))
 
-
+#pylint: disable=too-many-instance-attributes
 class Bench():
     """
     Object to perform operations of truvari bench
@@ -449,8 +451,10 @@ class Bench():
     However, the returned `BenchOutput` has attributes pointing to all the results.
     """
 
+    #pylint: disable=too-many-arguments
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
+                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False,
+                 write_resolved=False):
         """
         Initilize
         """
@@ -464,6 +468,8 @@ class Bench():
         self.do_logging = do_logging
         self.short_circuit = short_circuit
         self.refine_candidates = []
+        self.write_resolved = write_resolved
+    #pylint: enable=too-many-arguments
 
     def param_dict(self):
         """
@@ -507,7 +513,7 @@ class Bench():
                 and not match.state
                     and not match.comp.within_tree(region_tree)):
                 match.comp = None
-            output.write_match(match)
+            output.write_match(match, self.write_resolved)
 
         with open(os.path.join(self.outdir, 'candidate.refine.bed'), 'w') as fout:
             fout.write("\n".join(self.refine_candidates))
@@ -777,7 +783,8 @@ def bench_main(cmdargs):
                     extend=args.extend,
                     debug=args.debug,
                     do_logging=True,
-                    short_circuit=args.short)
+                    short_circuit=args.short,
+                    write_resolved=args.write_resolved)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

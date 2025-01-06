@@ -30,7 +30,7 @@ if [ $bench_12 ]; then
     bench_assert  12
 fi
 
-run bench_13 bench 1 3 13
+run bench_13 bench 1 3 13 "--write-resolved"
 if [ $bench_13 ]; then
     bench_assert 13
 fi
