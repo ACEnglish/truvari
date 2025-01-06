@@ -4,7 +4,6 @@ Annotates GTCounts of alleles
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -67,9 +66,9 @@ def gtcnt_main(cmdargs):
     Main method
     """
     args = parse_args(cmdargs)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     n_header = edit_header(vcf)
-    out = pysam.VariantFile(args.output, 'w', header=n_header)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
     for entry in add_gtcnt(vcf, n_header):
         out.write(entry)
     out.close()

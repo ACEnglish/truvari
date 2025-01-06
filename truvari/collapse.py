@@ -14,7 +14,6 @@ import statistics
 from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
-import pysam
 import numpy as np
 
 import truvari
@@ -103,11 +102,11 @@ def chain_collapse(cur_collapse, all_collapse, matcher):
     """
     for m_collap in all_collapse:
         for other in m_collap.matches:
-            mat = matcher.build_match(cur_collapse.entry,
-                                      other.comp,
-                                      m_collap.match_id,
-                                      skip_gt=True,
-                                      short_circuit=True)
+            mat = cur_collapse.entry.match(other.comp,
+                                           matcher=matcher,
+                                           skip_gt=True,
+                                           short_circuit=True)
+            mat.matid = m_collap.match_id
             if mat.state:
                 # The other's representative entry will report its
                 # similarity to the matched call that pulled it in
@@ -138,11 +137,11 @@ def collapse_chunk(chunk, matcher):
 
         # Sort based on size difference to current call
         for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
-            mat = matcher.build_match(m_collap.entry,
-                                      candidate,
-                                      m_collap.match_id,
-                                      skip_gt=True,
-                                      short_circuit=True)
+            mat = m_collap.entry.match(candidate,
+                                       matcher=matcher,
+                                       skip_gt=True,
+                                       short_circuit=True)
+            mat.matid = m_collap.match_id
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
             if mat.state and m_collap.gt_conflict(candidate, matcher.gt):
@@ -639,7 +638,7 @@ class IntraMergeOutput():
         """
         Writes header (str) or entries (VariantRecords)
         """
-        if isinstance(entry, pysam.VariantRecord):
+        if isinstance(entry, truvari.VariantRecord):
             entry = self.consolidate(entry)
         if self.isgz:
             entry = entry.encode()
@@ -664,7 +663,7 @@ class CollapseOutput(dict):
         super().__init__()
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
-        in_vcf = pysam.VariantFile(args.input)
+        in_vcf = truvari.VariantFile(args.input)
         self["o_header"] = edit_header(in_vcf, args.median_info)
         self["c_header"] = trubench.edit_header(in_vcf)
         num_samps = len(self["o_header"].samples)
@@ -676,10 +675,10 @@ class CollapseOutput(dict):
             self["output_vcf"] = IntraMergeOutput(
                 args.output, self["o_header"])
         else:
-            self["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                                   header=self["o_header"])
-        self["collap_vcf"] = pysam.VariantFile(args.removed_output, 'w',
-                                               header=self["c_header"])
+            self["output_vcf"] = truvari.VariantFile(args.output, 'w',
+                                                     header=self["o_header"])
+        self["collap_vcf"] = truvari.VariantFile(args.removed_output, 'w',
+                                                 header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
                              "out_cnt": 0, "consol_cnt": 0}
 
@@ -721,11 +720,13 @@ class CollapseOutput(dict):
         logging.info("%d samples' FORMAT fields consolidated",
                      self["stats_box"]["consol_cnt"])
 
+
 class LinkedList:
     """
     Simple linked list which should(?) be faster than concatenating a bunch
     regular lists
     """
+
     def __init__(self, data=None):
         """
         init
@@ -747,7 +748,6 @@ class LinkedList:
         self.tail[1] = new_node
         self.tail = new_node
 
-
     def to_list(self):
         """
         Turn into a regular list
@@ -768,6 +768,7 @@ class LinkedList:
         self.tail[1] = other.head
         self.tail = other.tail
         return self
+
 
 def merge_intervals(intervals):
     """
@@ -792,6 +793,7 @@ def merge_intervals(intervals):
     merged.append((current_start, current_end, current_data))
     return merged
 
+
 def tree_size_chunker(matcher, chunks):
     """
     To reduce the number of variants in a chunk try to sub-chunk by size-similarity before hand
@@ -811,7 +813,7 @@ def tree_size_chunker(matcher, chunks):
             sz = entry.size()
             diff = sz * (1 - matcher.params.pctsize)
             if not matcher.params.typeignore:
-                sz *= -1 if entry.svtype() == truvari.SV.DEL else 1
+                sz *= -1 if entry.var_type() == truvari.SV.DEL else 1
             to_add.append((sz - diff, sz + diff, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -873,7 +875,7 @@ def collapse_main(args):
     matcher.no_consolidate = args.no_consolidate
     matcher.picker = 'single'
 
-    base = pysam.VariantFile(args.input)
+    base = truvari.VariantFile(args.input)
     regions = truvari.build_region_tree(base, includebed=args.bed)
     truvari.merge_region_tree_overlaps(regions)
     base_i = truvari.region_filter(base, regions)

@@ -64,9 +64,9 @@ def gcpct_main(cmdargs):
     """
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     n_header = edit_header(vcf)
-    out = pysam.VariantFile(args.output, 'w', header=n_header)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
     for entry in add_gcpct(vcf, ref, n_header):
         out.write(entry)
     out.close()

@@ -5,7 +5,6 @@ import logging
 import argparse
 from collections import defaultdict
 
-import pysam
 import numpy as np
 from intervaltree import IntervalTree
 
@@ -47,11 +46,11 @@ def segment_main(args):
     Main entry point for running Segmentation
     """
     args = parse_args(args)
-    vcf = pysam.VariantFile(args.vcf)
+    vcf = truvari.VariantFile(args.vcf)
     header = edit_header(vcf.header.copy())
     header = svinfo.edit_header(header)
 
-    out = pysam.VariantFile(args.output, 'w', header=header)
+    out = truvari.VariantFile(args.output, 'w', header=header)
     tree = defaultdict(IntervalTree)
     # Assume 0 for anything not HET/HOM
     gtcnt = defaultdict(int)
@@ -62,7 +61,7 @@ def segment_main(args):
     for entry in vcf:
         if args.passonly and entry.is_filtered():
             continue
-        if entry.svtype() != truvari.SV.DEL:
+        if entry.var_type() != truvari.SV.DEL:
             out.write(entry)
             continue
         data = [gtcnt[truvari.get_gt(x["GT"]).name]
@@ -107,5 +106,5 @@ def segment_main(args):
                 else:
                     new_entry.samples[samp]["GT"] = (1, 1)
                 new_entry.samples[samp]["SEG"] = int(dat)
-            out.write(new_entry)
+            out.write(truvari.VariantRecord(new_entry))
     logging.info("Finished segment")

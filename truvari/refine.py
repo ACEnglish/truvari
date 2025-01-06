@@ -11,7 +11,6 @@ import multiprocessing as mp
 from argparse import Namespace
 from collections import defaultdict
 
-import pysam
 import pandas as pd
 from pysam import bcftools
 from intervaltree import IntervalTree
@@ -186,19 +185,19 @@ def recount_variant_report(orig_dir, phab_dir, regions):
         summary.update(json.load(fh))
 
     # Adding the original counts to the updated phab counts
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
     tpb = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-base"] += tpb
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
     tpc = len(list(truvari.region_filter(vcf, tree, False)))
     summary["TP-comp"] += tpc
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
     fp = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FP"] += fp
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
     fn = len(list(truvari.region_filter(vcf, tree, False)))
     summary["FN"] += fn
 

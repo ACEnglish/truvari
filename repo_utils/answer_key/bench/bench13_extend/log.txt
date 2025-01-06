@@ -1,6 +1,6 @@
-2025-01-06 03:03:58,792 [INFO] Truvari v5.0.0
-2025-01-06 03:03:58,793 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13_extend/ --includebed repo_utils/test_files/beds/include.bed --extend 500
-2025-01-06 03:03:58,794 [INFO] Params:
+2025-01-06 19:48:57,885 [INFO] Truvari v5.0.0
+2025-01-06 19:48:57,886 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13_extend/ --includebed repo_utils/test_files/beds/include.bed --extend 500
+2025-01-06 19:48:57,886 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
@@ -29,13 +29,13 @@
     "check_monref": true,
     "check_multi": true
 }
-2025-01-06 03:03:58,809 [INFO] Including 11 bed regions
-2025-01-06 03:03:58,810 [INFO] Found 1 chromosomes with overlapping regions
-2025-01-06 03:03:58,810 [INFO] Extending the regions by 500 bases
-2025-01-06 03:03:58,812 [INFO] Found 1 chromosomes with overlapping regions
-2025-01-06 03:03:58,942 [INFO] Zipped 2052 variants Counter({'base': 1132, 'comp': 920})
-2025-01-06 03:03:58,942 [INFO] 10 chunks of 2052 variants Counter({'__filtered': 2025, 'comp': 15, 'base': 12})
-2025-01-06 03:03:58,979 [INFO] Stats: {
+2025-01-06 19:48:57,901 [INFO] Including 11 bed regions
+2025-01-06 19:48:57,902 [INFO] Found 1 chromosomes with overlapping regions
+2025-01-06 19:48:57,902 [INFO] Extending the regions by 500 bases
+2025-01-06 19:48:57,903 [INFO] Found 1 chromosomes with overlapping regions
+2025-01-06 19:48:58,130 [INFO] Zipped 2052 variants Counter({'base': 1132, 'comp': 920})
+2025-01-06 19:48:58,131 [INFO] 10 chunks of 2052 variants Counter({'__filtered': 2025, 'comp': 15, 'base': 12})
+2025-01-06 19:48:58,167 [INFO] Stats: {
     "TP-base": 6,
     "TP-comp": 6,
     "FP": 4,
@@ -64,4 +64,4 @@
         }
     }
 }
-2025-01-06 03:03:58,979 [INFO] Finished bench
+2025-01-06 19:48:58,168 [INFO] Finished bench

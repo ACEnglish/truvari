@@ -5,7 +5,6 @@ Requires the VCF to contain SVs beside SNPs/Indels
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -40,7 +39,7 @@ def hompct_main(cmd_args):
     """
     args = parse_args(cmd_args)
 
-    v = pysam.VariantFile(args.input)
+    v = truvari.VariantFile(args.input)
 
     def get_pct(chrom, start, end):
         tot = 0
@@ -64,8 +63,8 @@ def hompct_main(cmd_args):
                      'Description="Percent of calls < %dbp long within %dbp that are homozygous">')
                     % (args.maxgt, args.buffer))
 
-    out = pysam.VariantFile(args.output, 'w', header=header)
-    v2 = pysam.VariantFile(args.input)
+    out = truvari.VariantFile(args.output, 'w', header=header)
+    v2 = truvari.VariantFile(args.input)
     for entry in v2:
         if entry.size() >= args.minanno:
             entry.translate(header)

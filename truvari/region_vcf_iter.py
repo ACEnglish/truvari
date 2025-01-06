@@ -147,7 +147,7 @@ def region_filter_fetch(vcf, tree, with_region=False):
         for intv in sorted(tree[chrom]):
             try:
                 for entry in vcf.fetch(chrom, intv.begin, intv.end):
-                    if truvari.entry_within(entry, intv.begin, intv.end - 1):
+                    if entry.within(intv.begin, intv.end - 1):
                         yield ret_type(entry, chrom, intv)
             except ValueError:
                 logging.warning("Unable to fetch %s from %s",
@@ -208,7 +208,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
                 except StopIteration:
                     break
             else:
-                end_within = cur_entry.svtype() != truvari.SV.INS
+                end_within = cur_entry.var_type() != truvari.SV.INS
                 is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
                 if is_within == inside:
                     yield ret_type(cur_entry, chrom, cur_intv)

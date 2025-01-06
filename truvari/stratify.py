@@ -8,7 +8,6 @@ import multiprocessing
 from functools import partial
 from collections import defaultdict
 
-import pysam
 import numpy as np
 import pandas as pd
 from intervaltree import IntervalTree
@@ -46,7 +45,7 @@ def count_entries(vcf, chroms, regions, within):
     Returns a list of the counts in the same order as the regions
     """
     if isinstance(vcf, str):
-        vcf = pysam.VariantFile(vcf)
+        vcf = truvari.VariantFile(vcf)
     tree = defaultdict(IntervalTree)
     counts_idx = {}
     counts = [0] * len(regions)
@@ -98,8 +97,8 @@ def stratify_main(cmdargs):
     else:
         chroms = np.array([_[0] for _ in r_list])
         intvs = np.array([[_[1], _[2]] for _ in r_list])
-        counts = count_entries(pysam.VariantFile(
-            args.in_vcf), chroms, intvs, args.complement)
+        counts = count_entries(truvari.VariantFile(args.in_vcf),
+                               chroms, intvs, args.complement)
         counts = pd.Series(counts, name="count").to_frame()
     counts.index = regions.index
     regions = regions.join(counts)

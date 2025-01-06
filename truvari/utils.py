@@ -297,7 +297,7 @@ def vcf_ranges(vcf, min_dist=1000):
         >>> print(len([_ for _ in gen]))
         228
     """
-    in_vcf = pysam.VariantFile(vcf)
+    in_vcf = truvari.VariantFile(vcf)
 
     cur_chrom = None
     min_start = None

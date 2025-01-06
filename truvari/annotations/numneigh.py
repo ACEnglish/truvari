@@ -15,7 +15,6 @@ import sys
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -51,9 +50,9 @@ class NeighAnno():
         """
         initialize
         """
-        self.in_vcf = pysam.VariantFile(in_vcf)
+        self.in_vcf = truvari.VariantFile(in_vcf)
         self.header = self.edit_header()
-        self.out_vcf = pysam.VariantFile(out_vcf, 'w', header=self.header)
+        self.out_vcf = truvari.VariantFile(out_vcf, 'w', header=self.header)
         self.refdist = refdist
         self.sizemin = sizemin
         self.passonly = passonly
@@ -149,7 +148,7 @@ class NeighAnno():
             last_pos = [entry.chrom, entry.start]
 
             if size < self.sizemin or (self.passonly and entry.is_filtered()):
-                self.out_vcf.write(entry._record)
+                self.out_vcf.write(entry)
                 continue
             # Make new range
             start, end = entry.boundaries()

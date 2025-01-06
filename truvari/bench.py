@@ -12,7 +12,6 @@ import itertools
 
 from collections import defaultdict, OrderedDict, Counter
 
-import pysam
 import numpy as np
 
 import truvari
@@ -157,7 +156,7 @@ def check_sample(vcf_fn, sample_id=None):
     Checks that a sample is inside a vcf
     Returns True if check failed
     """
-    vcf_file = pysam.VariantFile(vcf_fn)
+    vcf_file = truvari.VariantFile(vcf_fn)
     check_fail = False
     if sample_id is not None and sample_id not in vcf_file.header.samples:
         logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
@@ -216,6 +215,7 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
+    # pylint: disable=unnecessary-lambda
     attributes = [
         ("seqsim", "PctSeqSimilarity", lambda x: round(x, 4)),
         ("sizesim", "PctSizeSimilarity", lambda x: round(x, 4)),
@@ -227,6 +227,7 @@ def annotate_entry(entry, match, header):
         ("score", "TruScore", lambda x: int(x)),
         ("matid", "MatchId", lambda x: x),
     ]
+    # pylint: enable=unnecessary-lambda
 
     for attr, key, transform in attributes:
         value = getattr(match, attr)
@@ -330,8 +331,8 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        b_vcf = pysam.VariantFile(self.m_bench.base_vcf)
-        c_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
+        b_vcf = truvari.VariantFile(self.m_bench.base_vcf)
+        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf)
         self.n_headers = {'b': edit_header(b_vcf),
                           'c': edit_header(c_vcf)}
 
@@ -341,10 +342,10 @@ class BenchOutput():
                               'fp': os.path.join(self.m_bench.outdir, "fp.vcf")}
         self.out_vcfs = {}
         for key in ['tpb', 'fn']:
-            self.out_vcfs[key] = pysam.VariantFile(
+            self.out_vcfs[key] = truvari.VariantFile(
                 self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
         for key in ['tpc', 'fp']:
-            self.out_vcfs[key] = pysam.VariantFile(
+            self.out_vcfs[key] = truvari.VariantFile(
                 self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
 
         self.stats_box = StatsBox()
@@ -365,21 +366,21 @@ class BenchOutput():
                 box["gt_matrix"][gtBase][gtComp] += 1
 
                 box["TP-base"] += 1
-                self.out_vcfs["tpb"].write(match.base._record)
+                self.out_vcfs["tpb"].write(match.base)
                 if match.gt_match == 0:
                     box["TP-base_TP-gt"] += 1
                 else:
                     box["TP-base_FP-gt"] += 1
             else:
                 box["FN"] += 1
-                self.out_vcfs["fn"].write(match.base._record)
+                self.out_vcfs["fn"].write(match.base)
 
         if match.comp:
             annotate_entry(match.comp, match, self.n_headers['c'])
             if match.state:
                 box["comp cnt"] += 1
                 box["TP-comp"] += 1
-                self.out_vcfs["tpc"].write(match.comp._record)
+                self.out_vcfs["tpc"].write(match.comp)
                 if match.gt_match == 0:
                     box["TP-comp_TP-gt"] += 1
                 else:
@@ -388,7 +389,7 @@ class BenchOutput():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
-                self.out_vcfs["fp"].write(match.comp._record)
+                self.out_vcfs["fp"].write(match.comp)
 
     def close_outputs(self):
         """
@@ -423,7 +424,7 @@ class Bench():
        matcher.params.pctseq = 0.50
        m_bench = truvari.Bench(matcher)
 
-    To run on a chunk of :class:`pysam.VariantRecord` already loaded, pass them in as lists to:
+    To run on a chunk of :class:`truvari.VariantRecord` already loaded, pass them in as lists to:
 
     .. code-block:: python
 
@@ -485,8 +486,8 @@ class Bench():
 
         output = BenchOutput(self, self.matcher)
 
-        base = pysam.VariantFile(self.base_vcf)
-        comp = pysam.VariantFile(self.comp_vcf)
+        base = truvari.VariantFile(self.base_vcf)
+        comp = truvari.VariantFile(self.comp_vcf)
 
         region_tree = truvari.build_region_tree(base, comp, self.includebed)
         truvari.merge_region_tree_overlaps(region_tree)
@@ -504,7 +505,7 @@ class Bench():
             if (self.extend
                 and (match.comp is not None)
                 and not match.state
-                    and not truvari.entry_within_tree(match.comp, region_tree)):
+                    and not match.comp.within_tree(region_tree)):
                 match.comp = None
             output.write_match(match)
 
@@ -526,10 +527,10 @@ class Bench():
         # Check BNDs separately
         if self.matcher.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
             result.extend(self.compare_calls(chunk_dict['base_BND'],
-                                             chunk_dict['comp_BND'], chunk_id, True))
+                                             chunk_dict['comp_BND'], chunk_id))
         return result
 
-    def compare_calls(self, base_variants, comp_variants, chunk_id=0, is_bnds=False):
+    def compare_calls(self, base_variants, comp_variants, chunk_id=0):
         """
         Builds MatchResults, returns them as a numpy matrix if there's at least one base and one comp variant.
         Otherwise, returns a list of the variants placed in MatchResults
@@ -573,16 +574,16 @@ class Bench():
                             chrom, min(*pos), max(*pos), cnt)
             return []
 
-        match_matrix = self.build_matrix(base_variants, comp_variants, chunk_id, is_bnds=is_bnds)
+        match_matrix = self.build_matrix(
+            base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
             return match_matrix
         return PICKERS[self.matcher.params.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False, is_bnds=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
-        matcher = self.matcher.build_match if not is_bnds else self.matcher.bnd_build_match
         if not base_variants or not comp_variants:
             raise RuntimeError(
                 "Expected at least one base and one comp variant")
@@ -590,10 +591,9 @@ class Bench():
         for bid, base in enumerate(base_variants):
             base_matches = []
             for cid, comp in enumerate(comp_variants):
-                mat = matcher(base, comp,
-                              matid=[f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                              skip_gt=skip_gt,
-                              short_circuit=self.short_circuit)
+                mat = base.match(comp, matcher=self.matcher,
+                                 skip_gt=skip_gt, short_circuit=self.short_circuit)
+                mat.matid = [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"]
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)

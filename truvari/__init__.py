@@ -1,20 +1,20 @@
 """
-
 Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
 
-VariantRecord methods:
+Objects:
 
-:meth:`entry_is_present`
-:meth:`entry_reciprocal_overlap`
-:meth:`entry_same_variant_type`
-:meth:`entry_seq_similarity`
-:meth:`entry_size`
-:meth:`entry_size_similarity`
-:meth:`entry_to_hash`
-:meth:`entry_to_key`
-:meth:`entry_within`
+:class:`Bench`
+:class:`BenchOutput`
+:class:`GT`
+:class:`RegionVCFIterator`
+:class:`LogFileStderr`
+:class:`MatchResult`
+:class:`Matcher`
+:class:`StatsBox`
+:class:`SV`
+:class:`VariantRecord`
 
 Extra methods:
 
@@ -61,18 +61,6 @@ Dev methods:
 :meth:`setup_logging`
 :meth:`vcf_to_df`
 
-Objects:
-
-:class:`Bench`
-:class:`BenchOutput`
-:class:`GT`
-:class:`RegionVCFIterator`
-:class:`LogFileStderr`
-:class:`MatchResult`
-:class:`Matcher`
-:class:`StatsBox`
-:class:`SV`
-
 Data:
 
 :data:`truvari.HEADERMAT`
@@ -101,16 +89,6 @@ from truvari.bench import (
 from truvari.comparisons import (
     best_seqsim,
     coords_within,
-    entry_is_present,
-    entry_reciprocal_overlap,
-    entry_same_variant_type,
-    entry_seq_similarity,
-    entry_size,
-    entry_size_similarity,
-    entry_to_hash,
-    entry_to_key,
-    entry_within_tree,
-    entry_within,
     overlap_percent,
     overlaps,
     reciprocal_overlap,
@@ -168,7 +146,8 @@ from truvari.utils import (
     vcf_ranges,
 )
 
-from truvari.variant_record import (
+from truvari.variants import (
+    VariantFile,
     VariantRecord,
 )
 

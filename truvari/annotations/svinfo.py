@@ -4,7 +4,6 @@ Adds SVTYPE and SVLEN INFO fields
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -48,7 +47,7 @@ def add_svinfo(entry, min_size=0, n_header=None):
         return
     if n_header:
         entry.translate(n_header)
-    svtype = entry.svtype()
+    svtype = entry.var_type()
     entry.info["SVTYPE"] = svtype.name
     entry.info["SVLEN"] = sz
 
@@ -58,10 +57,10 @@ def svinfo_main(cmdargs):
     Main method
     """
     args = parse_args(cmdargs)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     n_header = edit_header(vcf.header.copy())
-    with pysam.VariantFile(args.output, 'w', header=n_header) as out:
-        for entry in vcf:
-            add_svinfo(entry, args.minsize, n_header)
-            out.write(entry)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
+    for entry in vcf:
+        add_svinfo(entry, args.minsize, n_header)
+        out.write(entry)
     logging.info("Finished svinfo")

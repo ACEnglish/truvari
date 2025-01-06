@@ -4,7 +4,6 @@ Identify 'dense' and 'sparse' variant windows of the genome
 import logging
 import argparse
 from collections import Counter, defaultdict
-import pysam
 import joblib
 import pandas as pd
 from intervaltree import IntervalTree
@@ -72,10 +71,10 @@ def density_main(args):
 
     # Counting
     counts = Counter()
-    v = pysam.VariantFile(args.input)
+    v = truvari.VariantFile(args.input)
     cnt = 0
     for entry in v:
-        for intv in tree[entry.chrom].overlap(entry.start, entry.stop):
+        for intv in tree[entry.chrom].overlap(entry.start, entry.end):
             cnt += 1
             counts[intv.data] += 1
     logging.info("Intersected %d variants", cnt)

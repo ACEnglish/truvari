@@ -180,7 +180,7 @@ class TRFAnno():
         """
         Figure out the hit and return
         """
-        svtype = entry.svtype()
+        svtype = entry.var_type()
         sz = entry.size()
         repeat = []
         if svtype == truvari.SV.DEL:
@@ -364,7 +364,7 @@ def process_ref_region(region, args):
         f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -395,7 +395,7 @@ def process_ref_region(region, args):
                 out.write(str(entry))
                 continue
 
-            svtype = entry.svtype()
+            svtype = entry.var_type()
             svlen = entry.size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
@@ -443,7 +443,7 @@ def process_tr_region(region, args):
     ref = pysam.FastaFile(args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
     tanno = TRFAnno(region, ref_seq, args.motif_similarity, args.buffer)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -459,7 +459,7 @@ def process_tr_region(region, args):
             # Variants must be entirely contained within region
             if not (entry.start >= region["start"] and entry.stop < region["end"]):
                 continue
-            svtype = entry.svtype()
+            svtype = entry.var_type()
             svlen = entry.size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
@@ -672,7 +672,7 @@ def trf_main(cmdargs):
             args.reference, chunk_size=int(args.chunk_size * 1e6))
         m_process = functools.partial(process_ref_region, args=args)
 
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
 
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:

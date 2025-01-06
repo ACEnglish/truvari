@@ -17,7 +17,6 @@ import bisect
 import logging
 import argparse
 
-import pysam
 try:
     from bwapy import BwaAligner
     HASBWALIB = True
@@ -49,8 +48,8 @@ class Remap():
         Edits and holds on to the header
         """
         if header is None:
-            with pysam.VariantFile(self.in_vcf, 'r') as fh:
-                header = fh.header.copy()
+            fh = truvari.VariantFile(self.in_vcf, 'r')
+            header = fh.header.copy()
         header.add_line(('##INFO=<ID=REMAP,Number=1,Type=String,'
                          'Description="Annotation of alt-seq remapping">'))
         if self.anno_hits:
@@ -75,7 +74,7 @@ class Remap():
         """
         Map a sequence and return the information from it
         """
-        is_del = entry.svtype() == truvari.SV.DEL
+        is_del = entry.var_type() == truvari.SV.DEL
         if is_del:
             seq = str(entry.ref)
         else:
@@ -131,12 +130,12 @@ class Remap():
         """
         Annotates the vcf and writes to new vcf
         """
-        with pysam.VariantFile(self.in_vcf) as fh:
-            self.edit_header(fh.header.copy())
-            out = pysam.VariantFile(self.out_vcf, 'w', header=self.n_header)
-            for entry in fh:
-                entry = self.annotate_entry(entry)
-                out.write(entry)
+        fh = truvari.VariantFile(self.in_vcf)
+        self.edit_header(fh.header.copy())
+        out = truvari.VariantFile(self.out_vcf, 'w', header=self.n_header)
+        for entry in fh:
+            entry = self.annotate_entry(entry)
+            out.write(entry)
 
 
 def parse_args(args):
