@@ -8,6 +8,7 @@ import pysam
 
 import truvari
 from truvari.region_vcf_iter import region_filter
+from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
 
@@ -98,17 +99,36 @@ class VariantRecord:
     def __str__(self):
         return str(self._record)
 
+    def allele_freq_annos(self, samples=None):
+        """
+        Calculate allele annotations for a VCF Entry
+
+        :param `samples`: Subset of samples from the entry over which to calculate annos
+        :type `samples`: list of strings, optional
+
+        :return: | Dictonary of
+                 | AF - allele frequency
+                 | MAF - minor allele frequency
+                 | ExcHet - excess heterozygosity
+                 | HWE - hardy weinberg equilibrium
+                 | AC - allele count
+                 | MAC - minor allele count
+                 | AN - number of called alleles
+        :rtype: dict
+
+        Example
+            >>> import truvari
+            >>> v = truvari.VariantFile('repo_utils/test_files/variants/multi.vcf.gz')
+            >>> e = next(v)
+            >>> e.allele_freq_annos()
+            {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
+        """
+        return allele_freq_annos(self, samples)
+
     def bnd_direction_strand(self):
         """
         Parses a BND ALT string to determine its direction and strand.
-         ALT  Meaning
-        t[p[ piece extending to the right of p is joined after t
-        t]p] reverse comp piece extending left of p is joined after t
-        ]p]t piece extending to the left of p is joined before t
-        [p[t reverse comp piece extending right of p is joined before t
-
         A direction of 'left' means the piece is anchored on the left of the breakpoint
-
         Note that this method assumes `self.is_bnd()`
 
         Returns:
@@ -326,7 +346,7 @@ class VariantRecord:
         """
         return len(self.alts) > 1
 
-    def is_present(self, sample=None, allow_missing=True):
+    def is_present(self, sample=0, allow_missing=True):
         """
         Checks if entry's sample genotype is present and is heterozygous or homozygous (a.k.a. present)
         If allow_missing, just check for a 1 in the genotype. Otherwise, a missing ('.') genotype isn't

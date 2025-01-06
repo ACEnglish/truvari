@@ -151,13 +151,6 @@ def allele_freq_annos(entry, samples=None):
              | MAC - minor allele count
              | AN - number of called alleles
     :rtype: dict
-
-    Example
-        >>> import truvari
-        >>> import pysam
-        >>> v = truvari.VariantFile('repo_utils/test_files/variants/multi.vcf.gz')
-        >>> truvari.allele_freq_annos(next(v))
-        {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
     """
     if samples is None:
         samples = list(entry.samples.keys())

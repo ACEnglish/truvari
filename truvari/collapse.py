@@ -434,8 +434,8 @@ def sort_common(b1, b2):
     """
     Order entries from highest to highest AC
     """
-    mac1 = truvari.allele_freq_annos(b1)["AC"]
-    mac2 = truvari.allele_freq_annos(b2)["AC"]
+    mac1 = b1.allele_freq_annos()["AC"]
+    mac2 = b2.allele_freq_annos()["AC"]
     if mac1 > mac2:
         return 1
     if mac1 < mac2:

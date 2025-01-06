@@ -8,22 +8,19 @@ Objects:
 :class:`Bench`
 :class:`BenchOutput`
 :class:`GT`
-:class:`RegionVCFIterator`
 :class:`LogFileStderr`
 :class:`MatchResult`
 :class:`Matcher`
 :class:`StatsBox`
 :class:`SV`
+:class:`VariantFile`
 :class:`VariantRecord`
 
 Extra methods:
 
-:meth:`allele_freq_annos`
 :meth:`bed_ranges`
 :meth:`best_seqsim`
 :meth:`read_bed_tree`
-:meth:`calc_af`
-:meth:`calc_hwe`
 :meth:`compress_index_vcf`
 :meth:`get_gt`
 :meth:`get_scalebin`
@@ -46,7 +43,6 @@ Dev methods:
 :meth:`benchdir_count_entries`
 :meth:`chunker`
 :meth:`cmd_exe`
-:meth:`consolidate_phab_vcfs`
 :meth:`coords_within`
 :meth:`count_entries`
 :meth:`file_zipper`
@@ -72,12 +68,6 @@ Data:
 
 __version__ = '5.0.0'
 
-
-from truvari.annotations.af_calc import (
-    allele_freq_annos,
-    calc_af,
-    calc_hwe
-)
 
 from truvari.bench import (
     Bench,

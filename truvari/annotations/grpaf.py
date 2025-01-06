@@ -7,6 +7,7 @@ import argparse
 
 import pandas as pd
 import truvari
+from truvari.annotations.af_calc import calc_af
 
 
 def parse_args(args):
@@ -113,7 +114,7 @@ def grpaf_main(cmd_args):
         entry.translate(n_header)
         gt_series = pd.Series([_["GT"] for _ in entry.samples.values()])
         for grp, mask in group_lookup.items():
-            af = truvari.calc_af(gt_series[mask])
+            af = calc_af(gt_series[mask])
             af["AC"] = af["AC"][1]
             for anno in args.tags:
                 entry.info[f"{anno}_{grp}"] = af[anno]

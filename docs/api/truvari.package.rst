@@ -1,4 +1,4 @@
-truvari package
+Truvari package
 ===============
 
 Overview
@@ -8,8 +8,10 @@ Overview
    :undoc-members:
    :show-inheritance:
 
-VariantRecord Methods
----------------------
+.. _variant_handling:
+
+Variant Handling
+----------------
 
 VariantFile
 ^^^^^^^^^^^
@@ -23,10 +25,6 @@ VariantRecord
 
 Extra Methods
 -------------
-allele_freq_annos
-^^^^^^^^^^^^^^^^^
-.. autofunction:: allele_freq_annos  
-
 bed_ranges
 ^^^^^^^^^^
 .. autofunction:: bed_ranges
@@ -38,14 +36,6 @@ best_seqsim
 read_bed_tree
 ^^^^^^^^^^^^^^^
 .. autofunction:: read_bed_tree
-
-calc_af
-^^^^^^^
-.. autofunction:: calc_af
-
-calc_hwe
-^^^^^^^^
-.. autofunction:: calc_hwe
 
 check_vcf_index
 ^^^^^^^^^^^^^^^
@@ -129,10 +119,6 @@ cmd_exe
 ^^^^^^^
 .. autofunction:: cmd_exe
 
-consolidate_phab_vcfs
-^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: consolidate_phab_vcfs
-
 coords_within
 ^^^^^^^^^^^^^
 .. autofunction:: coords_within
@@ -202,11 +188,6 @@ StatsBox
 GT
 ^^
 .. autoclass:: GT
-   :members:
-
-RegionVCFIterator
-^^^^^^^^^^^^^^^^^
-.. autoclass:: RegionVCFIterator
    :members:
 
 LogFileStderr
