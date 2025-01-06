@@ -1,6 +1,6 @@
-2024-11-14 05:19:42,526 [INFO] Truvari v5.0.0
-2024-11-14 05:19:42,527 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13/
-2024-11-14 05:19:42,527 [INFO] Params:
+2025-01-06 03:03:53,974 [INFO] Truvari v5.0.0
+2025-01-06 03:03:53,975 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13/
+2025-01-06 03:03:53,975 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
@@ -14,10 +14,12 @@
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "no_roll": true,
     "chunksize": 1000,
     "bSample": "NA24385",
     "cSample": "HG00733",
     "dup_to_ins": true,
+    "bnddist": 100,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
@@ -27,9 +29,9 @@
     "check_monref": true,
     "check_multi": true
 }
-2024-11-14 05:19:42,759 [INFO] Zipped 4218 variants Counter({'base': 2153, 'comp': 2065})
-2024-11-14 05:19:42,759 [INFO] 14 chunks of 4218 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 18})
-2024-11-14 05:19:42,801 [INFO] Stats: {
+2025-01-06 03:03:54,559 [INFO] Zipped 4218 variants Counter({'base': 2153, 'comp': 2065})
+2025-01-06 03:03:54,560 [INFO] 14 chunks of 4218 variants Counter({'__filtered': 4179, 'comp': 21, 'base': 18})
+2025-01-06 03:03:54,606 [INFO] Stats: {
     "TP-base": 10,
     "TP-comp": 10,
     "FP": 7,
@@ -59,4 +61,4 @@
         }
     }
 }
-2024-11-14 05:19:42,802 [INFO] Finished bench
+2025-01-06 03:03:54,607 [INFO] Finished bench

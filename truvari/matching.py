@@ -36,7 +36,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = 0
+        self.score = None
 
     def calc_score(self):
         """
@@ -49,7 +49,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         # Trues are always worth more
         if self.state != other.state:
             return self.state < other.state
-        return self.score < other.score
+        m_score = self.score if self.score is not None else -float('inf')
+        o_score = other.score if other.score is not None else -float('inf')
+        return m_score < o_score
 
     def __eq__(self, other):
         return self.state == other.state and self.score == other.score
@@ -300,36 +302,50 @@ class Matcher():
 
         ret.matid = matid
         # Only put start distance same chrom pos2
-        if base.chrom == comp.chrom:
-            ret.st_dist = base.pos - comp.pos
-            ret.state &= truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
-        else:
-            ret.state = False
-            ret.score = 0
+        if base.chrom != comp.chrom:
+            logging.debug("%s and %s BND CHROM", str(base), str(comp))
+            return ret
+
+
+        ret.st_dist = base.pos - comp.pos
+        ovl = truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
+        if not ovl:
+            logging.debug("%s and %s BND POS not within BNDDIST", str(base), str(comp))
             return ret
 
         b_pos2 = bnd_position(base.alts[0])
         c_pos2 = bnd_position(comp.alts[0])
-        if b_pos2[0] == c_pos2[0]:
-            ret.ed_dist = b_pos2[1] - c_pos2[1]
-            ret.state &= truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
-        else:
-            ret.state = False
-            ret.score = 0
+        if b_pos2[0] != c_pos2[0]:
+            logging.debug("%s and %s BND join CHROM", str(base), str(comp))
             return ret
+
+
+        ret.ed_dist = b_pos2[1] - c_pos2[1]
+        ovl = truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
+
+        if not ovl:
+            logging.debug("%s and %s BND join POS not within BNDDIST", str(base), str(comp))
+            return ret
+
 
         b_bnd = bnd_direction_strand(base.alts[0])
         c_bnd = bnd_direction_strand(comp.alts[0])
-        ret.state &= b_bnd == c_bnd
+
+        ovl = b_bnd == c_bnd
+        if not ovl:
+            logging.debug("%s and %s BND strand/direction mismatch", str(base), str(comp))
+            return ret
 
         self.compare_gts(ret, base, comp)
 
         # Score is percent of allowed distance needed to find this match
         if self.params.bnddist > 0:
             ret.score = max(0, (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                        / self.params.bnddist) * 100)
+                                / self.params.bnddist) * 100)
         else:
             ret.score = int(ret.state) * 100
+
+        ret.state = True
 
         return ret
 

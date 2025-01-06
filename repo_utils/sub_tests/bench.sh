@@ -89,7 +89,7 @@ fi
 
 run bench_bnd $truv bench -b $INDIR/variants/bnd.base.vcf.gz \
                                -c $INDIR/variants/bnd.comp.vcf.gz \
-                               -p 0 -o $OD/bench_bnd/
+                               -p 0 -o $OD/bench_bnd/ --debug
 if [ $bench_bnd ]; then
     bench_assert _bnd
 fi

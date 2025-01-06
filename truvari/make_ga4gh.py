@@ -102,9 +102,15 @@ def parse_bench_dir(in_dir, t_vcf, q_vcf, tree, is_refined):
             n_entry.info["IsRefined"] = is_refined
             n_entry.samples[0]["BD"] = bdkey
             if bdkey.startswith('T'):
-                n_entry.samples[0]["BK"] = 'gm' if entry.info["GTMatch"] == 0 else 'am'
+                if "GTMatch" in entry.info and entry.info["GTMatch"] == 0:
+                    n_entry.samples[0]["BK"] = 'gm'
+                else:
+                    n_entry.samples[0]["BK"] = 'am'
             else:
-                n_entry.samples[0]["BK"] = '.' if entry.info["TruScore"] is None else 'lm'
+                if "TruScore" in entry.info:
+                    n_entry.samples[0]["BK"] = 'lm'
+                else:
+                    n_entry.samples[0]["BK"] = '.'
             out_vcf.write(n_entry)
 
 def check_bench_dir(dirname):

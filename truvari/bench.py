@@ -216,18 +216,23 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
-    entry.info["PctSeqSimilarity"] = round(
-        match.seqsim, 4) if match.seqsim is not None else None
-    entry.info["PctSizeSimilarity"] = round(
-        match.sizesim, 4) if match.sizesim is not None else None
-    entry.info["PctRecOverlap"] = round(
-        match.ovlpct, 4) if match.ovlpct is not None else None
-    entry.info["SizeDiff"] = match.sizediff
-    entry.info["StartDistance"] = match.st_dist
-    entry.info["EndDistance"] = match.ed_dist
-    entry.info["GTMatch"] = match.gt_match
-    entry.info["TruScore"] = int(match.score) if match.score else None
-    entry.info["MatchId"] = match.matid
+    attributes = [
+        ("seqsim", "PctSeqSimilarity", lambda x: round(x, 4)),
+        ("sizesim", "PctSizeSimilarity", lambda x: round(x, 4)),
+        ("ovlpct", "PctRecOverlap", lambda x: round(x, 4)),
+        ("sizediff", "SizeDiff", lambda x: x),
+        ("st_dist", "StartDistance", lambda x: x),
+        ("ed_dist", "EndDistance", lambda x: x),
+        ("gt_match", "GTMatch", lambda x: x),
+        ("score", "TruScore", lambda x: int(x)),
+        ("matid", "MatchId", lambda x: x),
+    ]
+
+    for attr, key, transform in attributes:
+        value = getattr(match, attr)
+        if value is not None:
+            entry.info[key] = transform(value)
+
     entry.info["Multi"] = match.multi
 
 
