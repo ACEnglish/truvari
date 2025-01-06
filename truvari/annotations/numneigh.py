@@ -15,7 +15,6 @@ import sys
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -51,9 +50,9 @@ class NeighAnno():
         """
         initialize
         """
-        self.in_vcf = pysam.VariantFile(in_vcf)
+        self.in_vcf = truvari.VariantFile(in_vcf)
         self.header = self.edit_header()
-        self.out_vcf = pysam.VariantFile(out_vcf, 'w', header=self.header)
+        self.out_vcf = truvari.VariantFile(out_vcf, 'w', header=self.header)
         self.refdist = refdist
         self.sizemin = sizemin
         self.passonly = passonly
@@ -133,7 +132,7 @@ class NeighAnno():
         """
         last_pos = None
         for entry in self.in_vcf:
-            size = truvari.entry_size(entry)
+            size = entry.size()
             if not last_pos:
                 last_pos = [entry.chrom, entry.start]
 
@@ -148,11 +147,11 @@ class NeighAnno():
 
             last_pos = [entry.chrom, entry.start]
 
-            if size < self.sizemin or (self.passonly and truvari.entry_is_filtered(entry)):
+            if size < self.sizemin or (self.passonly and entry.is_filtered()):
                 self.out_vcf.write(entry)
                 continue
             # Make new range
-            start, end = truvari.entry_boundaries(entry)
+            start, end = entry.boundaries()
             cur_range = [start, end, entry, 0]
 
             self.flush_push_stack(cur_range)

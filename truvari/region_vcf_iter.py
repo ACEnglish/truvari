@@ -18,7 +18,7 @@ def build_region_tree(vcfA, vcfB=None, includebed=None):
     contigA_set = set(vcfA.header.contigs.keys())
     contigB_set = set(vcfB.header.contigs.keys()) if vcfB else contigA_set
     if includebed is not None:
-        all_regions, counter = build_anno_tree(includebed)
+        all_regions, counter = read_bed_tree(includebed)
         logging.info("Including %d bed regions", counter)
         return all_regions
 
@@ -70,7 +70,7 @@ def extend_region_tree(tree, pad):
     truvari.merge_region_tree_overlaps(n_tree)
     return n_tree
 
-def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
+def read_bed_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
 
@@ -147,7 +147,7 @@ def region_filter_fetch(vcf, tree, with_region=False):
         for intv in sorted(tree[chrom]):
             try:
                 for entry in vcf.fetch(chrom, intv.begin, intv.end):
-                    if truvari.entry_within(entry, intv.begin, intv.end - 1):
+                    if entry.within(intv.begin, intv.end - 1):
                         yield ret_type(entry, chrom, intv)
             except ValueError:
                 logging.warning("Unable to fetch %s from %s",
@@ -186,7 +186,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
         except StopIteration:
             # variant-less chromosome
             continue
-        cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+        cur_start, cur_end = cur_entry.boundaries()
 
         while True:
             # if start is after this interval, we need the next interval
@@ -204,17 +204,17 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
                     yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
-                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                    cur_start, cur_end = cur_entry.boundaries()
                 except StopIteration:
                     break
             else:
-                end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
+                end_within = cur_entry.var_type() != truvari.SV.INS
                 is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
                 if is_within == inside:
                     yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
-                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                    cur_start, cur_end = cur_entry.boundaries()
                 except StopIteration:
                     break
 

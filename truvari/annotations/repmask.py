@@ -5,7 +5,6 @@ import argparse
 import tempfile
 from collections import defaultdict
 
-import pysam
 import truvari
 
 DEFAULTPARAMS = "-pa {threads} -qq -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}"
@@ -71,17 +70,17 @@ class RepMask():
         tot_cnt = 0
         cnt = 0
         cntbp = 0
-        with pysam.VariantFile(self.in_vcf) as fh:
-            for pos, entry in enumerate(fh):
-                tot_cnt += 1
-                entry_size = truvari.entry_size(entry)
-                if self.min_length <= entry_size <= self.max_length:
-                    cnt += 1
-                    cntbp += entry_size
-                    if truvari.entry_variant_type(entry) == truvari.SV.INS:
-                        ret.write(f">{pos}\n{entry.alts[0]}\n")
-                    else:
-                        ret.write(f">{pos}\n{entry.ref}\n")
+        fh = truvari.VariantFile(self.in_vcf)
+        for pos, entry in enumerate(fh):
+            tot_cnt += 1
+            entry_size = entry.size()
+            if self.min_length <= entry_size <= self.max_length:
+                cnt += 1
+                cntbp += entry_size
+                if entry.var_type() == truvari.SV.INS:
+                    ret.write(f">{pos}\n{entry.alts[0]}\n")
+                else:
+                    ret.write(f">{pos}\n{entry.ref}\n")
         logging.info(
             f"Extracted {cnt} sequences ({cntbp}bp) from {tot_cnt} entries")
         return ret.name
@@ -127,7 +126,7 @@ class RepMask():
         """
         best_hit_pct = 0
         best_hit = None
-        entry_size = truvari.entry_size(entry)
+        entry_size = entry.size()
         for hit in hits:
             size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
             pct = size_aln / entry_size  # The TR that covers the most of the sequence
@@ -143,14 +142,14 @@ class RepMask():
         Annotates entries in the vcf and writes to new vcf
         """
         hits = self.annotate_seqs(self.extract_seqs())
-        with pysam.VariantFile(self.in_vcf, 'r') as fh:
-            self.edit_header(fh.header.copy())
-            with pysam.VariantFile(self.out_vcf, 'w', header=self.n_header) as out:
-                for pos, entry in enumerate(fh):
-                    pos = str(pos)
-                    if pos in hits:
-                        entry = self.annotate_entry(entry, hits[pos])
-                    out.write(entry)
+        fh = truvari.VariantFile(self.in_vcf, 'r')
+        self.edit_header(fh.header.copy())
+        out = truvari.VariantFile(self.out_vcf, 'w', header=self.n_header)
+        for pos, entry in enumerate(fh):
+            pos = str(pos)
+            if pos in hits:
+                entry = self.annotate_entry(entry, hits[pos])
+            out.write(entry)
 
     def edit_entry(self, entry, rm_hit):
         """

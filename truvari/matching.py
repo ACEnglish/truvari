@@ -1,14 +1,11 @@
 """
 Comparison engine
 """
-import re
 import types
 import logging
 from collections import Counter, defaultdict
 from functools import total_ordering
 import pysam
-import truvari
-
 
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
@@ -69,11 +66,10 @@ class Matcher():
     Holds matching parameters. Allows calls to be checked for filtering and matches to be made
 
     Example
-        >>> import pysam
         >>> import truvari
         >>> mat = truvari.Matcher()
         >>> mat.params.pctseq = 0
-        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
+        >>> v = truvari.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> one = next(v); two = next(v)
         >>> mat.build_match(one, two)
         <truvari.bench.MatchResult (False 2.381)>
@@ -157,30 +153,30 @@ class Matcher():
         Returns True if the call should be filtered based on parameters or truvari requirements
         Base has different filtering requirements, so let the method know
         """
-        if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
+        if self.params.check_monref and entry.is_monrefstar():
             return True
 
-        if self.params.check_multi and len(entry.alts) > 1:
+        if self.params.check_multi and entry.is_multi():
             raise ValueError(
                 f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
 
-        if self.params.passonly and truvari.entry_is_filtered(entry):
+        if self.params.passonly and entry.is_filtered():
             return True
 
         prefix = 'b' if base else 'c'
         if self.params.no_ref in ["a", prefix] or self.params.pick == 'ac':
             samp = self.params.bSample if base else self.params.cSample
-            if not truvari.entry_is_present(entry, samp):
+            if not entry.is_present(samp):
                 return True
 
         # No single end BNDs
-        return entry.alts[0][0] == '.' or entry.alts[0][-1] == '.'
+        return entry.is_single_bnd()
 
     def size_filter(self, entry, base=False):
         """
         Returns True if entry should be filtered due to its size
         """
-        size = truvari.entry_size(entry)
+        size = entry.size()
         return (size > self.params.sizemax) \
             or (base and size < self.params.sizemin) \
             or (not base and size < self.params.sizefilt)
@@ -189,165 +185,15 @@ class Matcher():
         """
         Given a MatchResult, populate the genotype specific comparisons in place
         """
-        if "GT" in base.samples[self.params.bSample]:
-            match.base_gt = base.samples[self.params.bSample]["GT"]
+        b_gt = base.gt(self.params.bSample)
+        c_gt = comp.gt(self.params.cSample)
+        if b_gt:
+            match.base_gt = b_gt
             match.base_gt_count = sum(1 for _ in match.base_gt if _ == 1)
-        if "GT" in comp.samples[self.params.cSample]:
-            match.comp_gt = comp.samples[self.params.cSample]["GT"]
+        if c_gt:
+            match.comp_gt = c_gt
             match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
         match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
-
-    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
-        """
-        Build a MatchResult
-        if skip_gt, don't do genotype comparison
-        if short_circuit, return after first failure
-        """
-        ret = MatchResult()
-        ret.base = base
-        ret.comp = comp
-
-        ret.matid = matid
-        ret.state = True
-
-        if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp, self.params.dup_to_ins):
-            logging.debug("%s and %s are not the same SVTYPE",
-                          str(base), str(comp))
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        bstart, bend = truvari.entry_boundaries(base)
-        cstart, cend = truvari.entry_boundaries(comp)
-        if not truvari.overlaps(bstart - self.params.refdist, bend + self.params.refdist, cstart, cend):
-            logging.debug("%s and %s are not within REFDIST",
-                          str(base), str(comp))
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        ret.sizesim, ret.sizediff = truvari.entry_size_similarity(base, comp)
-        if ret.sizesim < self.params.pctsize:
-            logging.debug("%s and %s size similarity is too low (%.3f)",
-                          str(base), str(comp), ret.sizesim)
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        if not skip_gt:
-            self.compare_gts(ret, base, comp)
-
-        ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
-        if ret.ovlpct < self.params.pctovl:
-            logging.debug("%s and %s overlap percent is too low (%.3f)",
-                          str(base), str(comp), ret.ovlpct)
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(
-                base, comp, self.params.no_roll)
-            if ret.seqsim < self.params.pctseq:
-                logging.debug("%s and %s sequence similarity is too low (%.3ff)",
-                              str(base), str(comp), ret.seqsim)
-                ret.state = False
-                if short_circuit:
-                    return ret
-        else:
-            ret.seqsim = 0
-
-        ret.st_dist, ret.ed_dist = bstart - cstart, bend - cend
-        ret.calc_score()
-
-        return ret
-
-    def bnd_build_match(self, base, comp, matid=None, **_kwargs):
-        """
-        Build a MatchResult for bnds
-        """
-        def bounds(pos):
-            """
-            Inflate a bnd position based on CIPOS.
-            Experimental, but it's getting tricky, so need clarification
-            For example, why does GIAB use CIPOS1 instead of the standard CIPOS? (not to mention Type=String).
-            Also, I assumed that the CIPOS was ±POS, but it seems like the standard is that the ambiguity is between
-            POS, POS+CIPOS[0]. But then, there is no enforcement of strands with CIPOS, I think, so it could always be
-            positive and if it's a complement BND it might need POS - CIPOS?
-            I'm dropping for now
-            entry and key were also parameters
-            key = 'CI' + key
-            idx = 0 if key == 'POS' else 1
-            if key in entry.info: # Just CIPOS
-                start -= entry.info[key][idx]
-                end += entry.info[key][idx]
-            else: # Special CIPOS1/CIPOS2
-                if key + '1' in entry.info:
-                    k = entry.info[key + '1']
-                    if k not in [None, '.']:
-                        start -= int(k)
-                if key + '2' in entry.info:
-                    k = entry.info[key + '2']
-                    if k not in [None, '.']:
-                        end += int(k)
-            """
-            start = pos - self.params.bnddist
-            end = pos + self.params.bnddist
-
-            return start, end
-
-        ret = truvari.MatchResult()
-        ret.base = base
-        ret.comp = comp
-
-        ret.matid = matid
-        # Only put start distance same chrom pos2
-        if base.chrom != comp.chrom:
-            logging.debug("%s and %s BND CHROM", str(base), str(comp))
-            return ret
-
-        ret.st_dist = base.pos - comp.pos
-        ovl = truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
-        if not ovl:
-            logging.debug("%s and %s BND POS not within BNDDIST",
-                          str(base), str(comp))
-            return ret
-
-        b_pos2 = bnd_position(base.alts[0])
-        c_pos2 = bnd_position(comp.alts[0])
-        if b_pos2[0] != c_pos2[0]:
-            logging.debug("%s and %s BND join CHROM", str(base), str(comp))
-            return ret
-
-        ret.ed_dist = b_pos2[1] - c_pos2[1]
-        ovl = truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
-
-        if not ovl:
-            logging.debug(
-                "%s and %s BND join POS not within BNDDIST", str(base), str(comp))
-            return ret
-
-        b_bnd = bnd_direction_strand(base.alts[0])
-        c_bnd = bnd_direction_strand(comp.alts[0])
-
-        ovl = b_bnd == c_bnd
-        if not ovl:
-            logging.debug("%s and %s BND strand/direction mismatch",
-                          str(base), str(comp))
-            return ret
-
-        self.compare_gts(ret, base, comp)
-
-        # Score is percent of allowed distance needed to find this match
-        if self.params.bnddist > 0:
-            ret.score = max(0, (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                                / self.params.bnddist) * 100)
-        else:
-            ret.score = int(ret.state) * 100
-
-        ret.state = True
-
-        return ret
 
 ############################
 # Parsing and set building #
@@ -360,9 +206,9 @@ def file_zipper(*start_files):
     Each file must be sorted in the same order.
     start_files is a tuple of ('key', iterable)
     where key is the identifier (so we know which file the yielded entry came from)
-    and iterable is usually a pysam.VariantFile
+    and iterable is usually a truvari.VariantFile
 
-    yields key, pysam.VariantRecord
+    yields key, truvari.VariantRecord
     """
     markers = []  # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()
@@ -390,8 +236,8 @@ def file_zipper(*start_files):
             # This file is done
             markers.pop(first_idx)
         yield name, entry
-    logging.info("Zipped %d variants %s", sum(
-        file_counts.values()), file_counts)
+    logging.info("Zipped %d variants %s", sum(file_counts.values()),
+                 file_counts)
 
 
 def chunker(matcher, *files):
@@ -412,18 +258,14 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
             continue
 
-        is_bnd = entry.alleles_variant_types[1] == 'BND'
-
-        if not is_bnd and matcher.size_filter(entry, key == 'base'):
+        if not entry.is_bnd() and matcher.size_filter(entry, key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
         # check symbolic, resolve if needed/possible
-        if not is_bnd and matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
-            was_resolved = resolve_sv(entry,
-                                      matcher.reference,
-                                      matcher.params.dup_to_ins)
+        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
+            was_resolved = entry.resolve(matcher.reference, matcher.params.dup_to_ins)
             if not was_resolved:
                 if not unresolved_warned:
                     logging.warning("Some symbolic SVs couldn't be resolved")
@@ -443,9 +285,9 @@ def chunker(matcher, *files):
             cur_chunk = defaultdict(list)
 
         cur_chrom = entry.chrom
-        cur_end = max(entry.stop, cur_end)
+        cur_end = max(entry.end, cur_end)
 
-        if is_bnd:
+        if entry.is_bnd():
             cur_chunk[f'{key}_BND'].append(entry)
         else:
             cur_chunk[key].append(entry)
@@ -455,98 +297,3 @@ def chunker(matcher, *files):
     logging.info("%d chunks of %d variants %s", chunk_count,
                  sum(call_counts.values()), call_counts)
     yield cur_chunk, chunk_count
-
-####################
-# Helper functions #
-####################
-
-
-RC = str.maketrans("ATCG", "TAGC")
-
-
-def resolve_sv(entry, ref, dup_to_ins=False):
-    """
-    Attempts to resolve an SV's REF/ALT sequences
-    """
-    if ref is None or entry.alts[0] in ['<CNV>', '<INS>'] or entry.start > ref.get_reference_length(entry.chrom):
-        return False
-
-    # BNDs which describe a deletion can be resolved
-    if entry.alleles_variant_types[1] == 'BND':
-        if "SVTYPE" in entry.info and entry.info['SVTYPE'] == 'DEL':
-            entry.alts = ['<DEL>']
-        else:
-            return False
-
-    seq = ref.fetch(entry.chrom, entry.start, entry.stop)
-    if entry.alts[0] == '<DEL>':
-        entry.ref = seq
-        entry.alts = [seq[0]]
-    elif entry.alts[0] == '<INV>':
-        entry.ref = seq
-        entry.alts = [seq.translate(RC)[::-1]]
-    elif entry.alts[0] == '<DUP>' and dup_to_ins:
-        entry.ref = seq[0]
-        entry.alts = [seq]
-        entry.stop = entry.start + 1
-    else:
-        return False
-
-    return True
-
-
-def bnd_direction_strand(bnd: str) -> tuple:
-    """
-    Parses a BND ALT string to determine its direction and strand.
-     ALT  Meaning
-    t[p[ piece extending to the right of p is joined after t
-    t]p] reverse comp piece extending left of p is joined after t
-    ]p]t piece extending to the left of p is joined before t
-    [p[t reverse comp piece extending right of p is joined before t
-
-    Note that direction of 'left' means the piece is anchored on the left of the breakpoint
-
-    Args:
-        bnd (str): The BND ALT string.
-
-    Returns:
-        tuple: A tuple containing the direction ("left" or "right") and strand ("direct" or "complement").
-    """
-    if bnd.startswith('[') or bnd.endswith('['):
-        direction = "left"
-    elif bnd.startswith(']') or bnd.endswith(']'):
-        direction = "right"
-    else:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    # Determine strand based on the position of the base letter
-    if bnd[0] not in '[]':  # Base letter is at the start (before brackets)
-        strand = "direct"
-    elif bnd[-1] not in '[]':  # Base letter is at the end (after brackets)
-        strand = "complement"
-    else:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    return direction, strand
-
-
-def bnd_position(bnd):
-    """
-    Extracts the chromosome and position from a BND ALT string.
-
-    Args:
-        bnd (str): The BND ALT string.
-
-    Returns:
-        tuple: A tuple containing the chromosome (str) and position (int).
-    """
-
-    # Regular expression to match the BND format and extract chrom:pos
-    match = re.search(r'[\[\]]([^\[\]:]+):(\d+)[\[\]]', bnd)
-    if not match:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    chrom = match.group(1)  # Extract the chromosome
-    pos = int(match.group(2))  # Extract the position as an integer
-
-    return chrom, pos

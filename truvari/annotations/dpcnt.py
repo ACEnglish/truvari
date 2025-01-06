@@ -6,7 +6,6 @@ import bisect
 import logging
 import argparse
 
-import pysam
 import truvari
 
 
@@ -88,10 +87,10 @@ def dpcnt_main(cmdargs):
     except ValueError:
         logging.error("Cannot parse bins %s", args.bins)
 
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     bins.append(sys.maxsize)
     n_header = edit_header(vcf, bins, args.no_ad)
-    out = pysam.VariantFile(args.output, 'w', header=n_header)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
     for entry in add_dpcnt(vcf, n_header, bins, args.no_ad, args.present):
         out.write(entry)
     out.close()

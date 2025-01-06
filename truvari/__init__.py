@@ -1,33 +1,27 @@
 """
-
 Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
 
-VariantRecord methods:
+Objects:
 
-:meth:`entry_boundaries`
-:meth:`entry_distance`
-:meth:`entry_gt_comp`
-:meth:`entry_is_filtered`
-:meth:`entry_is_present`
-:meth:`entry_reciprocal_overlap`
-:meth:`entry_resolved`
-:meth:`entry_same_variant_type`
-:meth:`entry_seq_similarity`
-:meth:`entry_size`
-:meth:`entry_size_similarity`
-:meth:`entry_to_hash`
-:meth:`entry_to_key`
-:meth:`entry_within`
-:meth:`entry_variant_type`
+:class:`Bench`
+:class:`BenchOutput`
+:class:`GT`
+:class:`RegionVCFIterator`
+:class:`LogFileStderr`
+:class:`MatchResult`
+:class:`Matcher`
+:class:`StatsBox`
+:class:`SV`
+:class:`VariantRecord`
 
 Extra methods:
 
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
 :meth:`best_seqsim`
-:meth:`build_anno_tree`
+:meth:`read_bed_tree`
 :meth:`calc_af`
 :meth:`calc_hwe`
 :meth:`compress_index_vcf`
@@ -61,23 +55,10 @@ Dev methods:
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`performance_metrics`
-:meth:`region_filter`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
 :meth:`vcf_to_df`
-
-Objects:
-
-:class:`Bench`
-:class:`BenchOutput`
-:class:`GT`
-:class:`RegionVCFIterator`
-:class:`LogFileStderr`
-:class:`MatchResult`
-:class:`Matcher`
-:class:`StatsBox`
-:class:`SV`
 
 Data:
 
@@ -107,22 +88,6 @@ from truvari.bench import (
 from truvari.comparisons import (
     best_seqsim,
     coords_within,
-    entry_boundaries,
-    entry_distance,
-    entry_gt_comp,
-    entry_is_filtered,
-    entry_is_present,
-    entry_reciprocal_overlap,
-    entry_resolved,
-    entry_same_variant_type,
-    entry_seq_similarity,
-    entry_size,
-    entry_size_similarity,
-    entry_to_hash,
-    entry_to_key,
-    entry_variant_type,
-    entry_within_tree,
-    entry_within,
     overlap_percent,
     overlaps,
     reciprocal_overlap,
@@ -149,12 +114,9 @@ from truvari.phab import (
 
 from truvari.region_vcf_iter import (
     build_region_tree,
-    build_anno_tree,
+    read_bed_tree,
     merge_region_tree_overlaps,
     extend_region_tree,
-    region_filter,
-    region_filter_fetch,
-    region_filter_stream,
 )
 
 from truvari.stratify import (
@@ -178,6 +140,11 @@ from truvari.utils import (
     restricted_int,
     setup_logging,
     vcf_ranges,
+)
+
+from truvari.variants import (
+    VariantFile,
+    VariantRecord,
 )
 
 from truvari.vcf2df import (

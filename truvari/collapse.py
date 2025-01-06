@@ -14,7 +14,6 @@ import statistics
 from dataclasses import dataclass, field
 from functools import cmp_to_key, partial
 
-import pysam
 import numpy as np
 
 import truvari
@@ -36,14 +35,14 @@ class CollapsedCalls():
         """
         Given a set of variants, calculate the median start, end, and size
         """
-        st, en = truvari.entry_boundaries(self.entry)
-        sz = truvari.entry_size(self.entry)
+        st, en = self.entry.boundaries()
+        sz = self.entry.size()
         starts = [st]
         ends = [en]
         sizes = [sz]
         for i in self.matches:
-            st, en = truvari.entry_boundaries(i.comp)
-            sz = truvari.entry_size(i.comp)
+            st, en = i.comp.boundaries()
+            sz = i.comp.size()
             starts.append(st)
             ends.append(en)
             sizes.append(sz)
@@ -103,11 +102,11 @@ def chain_collapse(cur_collapse, all_collapse, matcher):
     """
     for m_collap in all_collapse:
         for other in m_collap.matches:
-            mat = matcher.build_match(cur_collapse.entry,
-                                      other.comp,
-                                      m_collap.match_id,
-                                      skip_gt=True,
-                                      short_circuit=True)
+            mat = cur_collapse.entry.match(other.comp,
+                                           matcher=matcher,
+                                           skip_gt=True,
+                                           short_circuit=True)
+            mat.matid = m_collap.match_id
             if mat.state:
                 # The other's representative entry will report its
                 # similarity to the matched call that pulled it in
@@ -138,11 +137,11 @@ def collapse_chunk(chunk, matcher):
 
         # Sort based on size difference to current call
         for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
-            mat = matcher.build_match(m_collap.entry,
-                                      candidate,
-                                      m_collap.match_id,
-                                      skip_gt=True,
-                                      short_circuit=True)
+            mat = m_collap.entry.match(candidate,
+                                       matcher=matcher,
+                                       skip_gt=True,
+                                       short_circuit=True)
+            mat.matid = m_collap.match_id
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
             if mat.state and m_collap.gt_conflict(candidate, matcher.gt):
@@ -188,7 +187,7 @@ def relative_size_sorter(base, comp):
     """
     Sort calls based on the absolute size difference of base and comp
     """
-    return abs(truvari.entry_size(base) - truvari.entry_size(comp))
+    return abs(base.size() - comp.size())
 
 
 def collapse_into_entry(entry, others, hap_mode=False):
@@ -396,8 +395,8 @@ def sort_length(b1, b2):
     """
     Order entries from longest to shortest SVLEN, ties are by alphanumeric of REF
     """
-    s1 = truvari.entry_size(b1)
-    s2 = truvari.entry_size(b2)
+    s1 = b1.size()
+    s2 = b2.size()
     if s1 < s2:
         return 1
     if s1 > s2:
@@ -490,6 +489,8 @@ def parse_args(args):
                         help="Variants that collapsed into kept variants (%(default)s)")
     parser.add_argument("-f", "--reference", type=str, default=None,
                         help="Indexed fasta used to call variants. Only needed with symbolic variants.")
+    parser.add_argument("-w", "--write-resolved", action="store_true",
+                        help="Replace resolved symbolic variants with their sequence")
     parser.add_argument("-k", "--keep", choices=["first", "maxqual", "common"], default="first",
                         help="When collapsing calls, which one to keep (%(default)s)")
     parser.add_argument("--bed", type=str, default=None,
@@ -588,7 +589,6 @@ class IntraMergeOutput():
         else:
             self.fh = open(self.fn, 'w')  # pylint: disable=consider-using-with
             self.isgz = False
-
         self.make_header()
 
     def make_header(self):
@@ -605,7 +605,7 @@ class IntraMergeOutput():
                 data = line.strip().split('\t')[:10]
                 self.write("\t".join(data) + '\n')
 
-    def consolidate(self, entry):
+    def consolidate(self, entry, write_resolved=False):
         """
         Consolidate information into the first sample
         Returns a string
@@ -633,14 +633,19 @@ class IntraMergeOutput():
             needs_fill -= was_filled
         entry.translate(self.header)
         entry.samples[0]['SUPP'] = flag
+        if write_resolved:
+            n_entry = entry.get_record()
+            n_entry.ref = entry.get_ref()
+            n_entry.alts = (entry.get_alt(),)
+            entry = n_entry
         return "\t".join(str(entry).split('\t')[:10]) + '\n'
 
-    def write(self, entry):
+    def write(self, entry, write_resolved=False):
         """
         Writes header (str) or entries (VariantRecords)
         """
-        if isinstance(entry, pysam.VariantRecord):
-            entry = self.consolidate(entry)
+        if isinstance(entry, truvari.VariantRecord):
+            entry = self.consolidate(entry, write_resolved)
         if self.isgz:
             entry = entry.encode()
         self.fh.write(entry)
@@ -664,7 +669,7 @@ class CollapseOutput(dict):
         super().__init__()
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
-        in_vcf = pysam.VariantFile(args.input)
+        in_vcf = truvari.VariantFile(args.input)
         self["o_header"] = edit_header(in_vcf, args.median_info)
         self["c_header"] = trubench.edit_header(in_vcf)
         num_samps = len(self["o_header"].samples)
@@ -673,15 +678,15 @@ class CollapseOutput(dict):
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
         if args.intra:
-            self["output_vcf"] = IntraMergeOutput(
-                args.output, self["o_header"])
+            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
         else:
-            self["output_vcf"] = pysam.VariantFile(args.output, 'w',
-                                                   header=self["o_header"])
-        self["collap_vcf"] = pysam.VariantFile(args.removed_output, 'w',
-                                               header=self["c_header"])
+            self["output_vcf"] = truvari.VariantFile(args.output, 'w',
+                                                     header=self["o_header"])
+        self["collap_vcf"] = truvari.VariantFile(args.removed_output, 'w',
+                                                 header=self["c_header"])
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
                              "out_cnt": 0, "consol_cnt": 0}
+        self.write_resolved = args.write_resolved
 
     def write(self, collap, median_info=False):
         """
@@ -691,17 +696,17 @@ class CollapseOutput(dict):
         self["stats_box"]["out_cnt"] += 1
         # Nothing collapsed, no need to annotate
         if not collap.matches:
-            self["output_vcf"].write(collap.entry)
+            self["output_vcf"].write(collap.entry, self.write_resolved)
             return
 
         collap.annotate_entry(self["o_header"], median_info)
 
-        self["output_vcf"].write(collap.entry)
+        self["output_vcf"].write(collap.entry, self.write_resolved)
         self["stats_box"]["kept_cnt"] += 1
         self["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
         for match in collap.matches:
             trubench.annotate_entry(match.comp, match, self["c_header"])
-            self["collap_vcf"].write(match.comp)
+            self["collap_vcf"].write(match.comp, self.write_resolved)
             self['stats_box']["collap_cnt"] += 1
 
     def close(self):
@@ -721,11 +726,13 @@ class CollapseOutput(dict):
         logging.info("%d samples' FORMAT fields consolidated",
                      self["stats_box"]["consol_cnt"])
 
+
 class LinkedList:
     """
     Simple linked list which should(?) be faster than concatenating a bunch
     regular lists
     """
+
     def __init__(self, data=None):
         """
         init
@@ -747,7 +754,6 @@ class LinkedList:
         self.tail[1] = new_node
         self.tail = new_node
 
-
     def to_list(self):
         """
         Turn into a regular list
@@ -768,6 +774,7 @@ class LinkedList:
         self.tail[1] = other.head
         self.tail = other.tail
         return self
+
 
 def merge_intervals(intervals):
     """
@@ -792,6 +799,7 @@ def merge_intervals(intervals):
     merged.append((current_start, current_end, current_data))
     return merged
 
+
 def tree_size_chunker(matcher, chunks):
     """
     To reduce the number of variants in a chunk try to sub-chunk by size-similarity before hand
@@ -808,12 +816,10 @@ def tree_size_chunker(matcher, chunks):
         to_add = []
         for entry in chunk['base']:
             # How much smaller/larger would be in sizesim?
-            sz = truvari.entry_size(entry)
+            sz = entry.size()
             diff = sz * (1 - matcher.params.pctsize)
             if not matcher.params.typeignore:
-                sz *= - \
-                    1 if truvari.entry_variant_type(
-                        entry) == truvari.SV.DEL else 1
+                sz *= -1 if entry.var_type() == truvari.SV.DEL else 1
             to_add.append((sz - diff, sz + diff, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -837,7 +843,7 @@ def tree_dist_chunker(matcher, chunks):
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
         to_add = []
         for entry in chunk['base']:
-            st, ed = truvari.entry_boundaries(entry)
+            st, ed = entry.boundaries()
             st -= matcher.params.refdist
             ed += matcher.params.refdist
             to_add.append((st, ed, LinkedList(entry)))
@@ -875,10 +881,10 @@ def collapse_main(args):
     matcher.no_consolidate = args.no_consolidate
     matcher.picker = 'single'
 
-    base = pysam.VariantFile(args.input)
+    base = truvari.VariantFile(args.input)
     regions = truvari.build_region_tree(base, includebed=args.bed)
     truvari.merge_region_tree_overlaps(regions)
-    base_i = truvari.region_filter(base, regions)
+    base_i = base.regions_fetch(regions)
 
     chunks = truvari.chunker(matcher, ('base', base_i))
     smaller_chunks = tree_size_chunker(matcher, chunks)

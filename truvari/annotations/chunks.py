@@ -6,7 +6,6 @@ Column 5: comma-deliminted number of sub-chunks after accounting for size and di
 """
 import sys
 import argparse
-import pysam
 
 import truvari
 from truvari.collapse import tree_size_chunker, tree_dist_chunker
@@ -41,7 +40,7 @@ def get_bounds(cnk):
     mend = 0
     for i in cnk:
         mstart = min(mstart, i.start)
-        mend = max(mend, i.stop)
+        mend = max(mend, i.end)
     return mstart, mend
 
 def chunks_main(args):
@@ -49,7 +48,7 @@ def chunks_main(args):
     Main
     """
     args = parse_args(args)
-    v = pysam.VariantFile(args.input)
+    v = truvari.VariantFile(args.input)
     m = truvari.Matcher()
     m.params.pctseq = 0
     m.params.sizemin = args.sizemin
@@ -58,8 +57,7 @@ def chunks_main(args):
     m.params.chunksize = args.chunksize
     m.params.refdist = args.chunksize
     if args.bed:
-        regions = truvari.build_region_tree(v, includebed=args.bed)
-        v = truvari.region_filter(v, regions)
+        v = v.bed_fetch(args.bed)
     c = truvari.chunker(m, ('base', v))
 
     with open(args.output, 'w') as fout:

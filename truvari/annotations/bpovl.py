@@ -4,7 +4,6 @@ Creates intersection of features in an annotation file with SVs' breakpoints and
 import logging
 import argparse
 
-import pysam
 import joblib
 import pandas as pd
 
@@ -62,8 +61,8 @@ def bpovl_main(cmdargs):
     Main method
     """
     args = parse_args(cmdargs)
-    in_vcf = pysam.VariantFile(args.input)
-    anno_tree, anno_cnt = truvari.build_anno_tree(args.anno, *args.anno_psets)
+    in_vcf = truvari.VariantFile(args.input)
+    anno_tree, anno_cnt = truvari.read_bed_tree(args.anno, *args.anno_psets)
     logging.info("Loaded %d annotations", anno_cnt)
 
     def _transform():
@@ -71,15 +70,15 @@ def bpovl_main(cmdargs):
         for entry in in_vcf:
             has_hit = False
 
-            start, end = truvari.entry_boundaries(entry)
+            start, end = entry.boundaries()
             span = abs(end - start)
             if span > args.spanmax:
                 continue
-            svlen = truvari.entry_size(entry)
-            if svlen < args.sizemin:
+
+            if entry.size() < args.sizemin:
                 continue
 
-            key = truvari.entry_to_hash(entry)
+            key = entry.to_hash()
             for anno_idx in anno_tree[entry.chrom].at(start):
                 has_hit = True
                 yield [key, 'start_bnd', anno_idx.data]

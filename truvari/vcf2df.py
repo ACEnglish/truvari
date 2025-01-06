@@ -9,7 +9,6 @@ import argparse
 import itertools
 from enum import Enum
 
-import pysam
 import joblib
 import pandas as pd
 import truvari
@@ -193,7 +192,7 @@ def get_files_from_truvdir(directory):
 
 def tags_to_ops(items):
     """
-    Given a list of  items from a :class:`pysam.VariantFile.header.[info|format].items`
+    Given a list of  items from a :class:`truvari.VariantFile.header.[info|format].items`
     build column names and operators for parsing
 
     :param `items`: SVTYPE string to turn into SV object
@@ -275,7 +274,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
                'NA12878_AD_ref', 'NA12878_AD_alt'],
               dtype='object')
     """
-    v = pysam.VariantFile(fn)
+    v = truvari.VariantFile(fn)
     if with_format and not sample:
         sample = list(v.header.samples)
     if sample and len(sample) > 1 and no_prefix:
@@ -315,18 +314,18 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         Yields the rows
         """
         for entry in v:
-            varsize = truvari.entry_size(entry)
-            cur_row = [truvari.entry_to_hash(entry),
+            varsize = entry.size()
+            cur_row = [entry.to_hash(),
                        entry.chrom,
                        entry.start,
                        entry.stop,
                        entry.id,
-                       truvari.entry_variant_type(entry).name,
+                       entry.var_type().name,
                        varsize,
                        truvari.get_sizebin(varsize),
                        entry.qual,
                        list(entry.filter),
-                       not truvari.entry_is_filtered(entry)
+                       not entry.is_filtered()
                        ]
 
             for i, op in info_ops:

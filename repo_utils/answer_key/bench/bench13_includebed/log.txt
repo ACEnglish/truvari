@@ -1,6 +1,6 @@
-2025-01-06 03:03:57,421 [INFO] Truvari v5.0.0
-2025-01-06 03:03:57,421 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13_includebed/ --includebed repo_utils/test_files/beds/include.bed
-2025-01-06 03:03:57,422 [INFO] Params:
+2025-01-06 19:48:56,555 [INFO] Truvari v5.0.0
+2025-01-06 19:48:56,556 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input1.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench13_includebed/ --includebed repo_utils/test_files/beds/include.bed
+2025-01-06 19:48:56,556 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input1.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
@@ -29,11 +29,11 @@
     "check_monref": true,
     "check_multi": true
 }
-2025-01-06 03:03:57,439 [INFO] Including 11 bed regions
-2025-01-06 03:03:57,440 [INFO] Found 1 chromosomes with overlapping regions
-2025-01-06 03:03:57,568 [INFO] Zipped 2032 variants Counter({'base': 1132, 'comp': 900})
-2025-01-06 03:03:57,568 [INFO] 9 chunks of 2032 variants Counter({'__filtered': 2009, 'base': 12, 'comp': 11})
-2025-01-06 03:03:57,606 [INFO] Stats: {
+2025-01-06 19:48:56,571 [INFO] Including 11 bed regions
+2025-01-06 19:48:56,572 [INFO] Found 1 chromosomes with overlapping regions
+2025-01-06 19:48:56,791 [INFO] Zipped 2032 variants Counter({'base': 1132, 'comp': 900})
+2025-01-06 19:48:56,792 [INFO] 9 chunks of 2032 variants Counter({'__filtered': 2009, 'base': 12, 'comp': 11})
+2025-01-06 19:48:56,828 [INFO] Stats: {
     "TP-base": 5,
     "TP-comp": 5,
     "FP": 4,
@@ -59,4 +59,4 @@
         }
     }
 }
-2025-01-06 03:03:57,607 [INFO] Finished bench
+2025-01-06 19:48:56,829 [INFO] Finished bench
