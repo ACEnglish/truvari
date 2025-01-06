@@ -257,7 +257,7 @@ def process_entries(ref_section, grm_shared):
             continue
 
         ref_up, ref_dn, alt_up, alt_dn = kmers
-        ty = truvari.entry_variant_type(entry)
+        ty = entry.svtype()
 
         result = ["%s:%d-%d.%s" %  # pylint: disable=consider-using-f-string
                   (entry.chrom, entry.start, entry.stop, entry.alts[0])]

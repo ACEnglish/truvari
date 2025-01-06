@@ -384,7 +384,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif truvari.entry_size(match.comp) >= self.m_matcher.params.sizemin:
+            elif match.comp.size() >= self.m_matcher.params.sizemin:
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
@@ -563,11 +563,11 @@ class Bench():
             chrom = None
             for i in base_variants:
                 cnt += 1
-                pos.extend(truvari.entry_boundaries(i))
+                pos.extend(i.boundaries())
                 chrom = i.chrom
             for i in comp_variants:
                 cnt += 1
-                pos.extend(truvari.entry_boundaries(i))
+                pos.extend(i.boundaries())
                 chrom = i.chrom
             logging.warning("Skipping region %s:%d-%d with %d variants",
                             chrom, min(*pos), max(*pos), cnt)
@@ -609,12 +609,12 @@ class Bench():
         chrom = None
         for match in result:
             has_unmatched |= not match.state
-            if match.base is not None and truvari.entry_size(match.base) >= self.matcher.params.sizemin:
+            if match.base is not None and match.base.size() >= self.matcher.params.sizemin:
                 chrom = match.base.chrom
-                pos.extend(truvari.entry_boundaries(match.base))
+                pos.extend(match.base.boundaries())
             if match.comp is not None:
                 chrom = match.comp.chrom
-                pos.extend(truvari.entry_boundaries(match.comp))
+                pos.extend(match.comp.boundaries())
         if has_unmatched and pos:
             # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
             buf = 10

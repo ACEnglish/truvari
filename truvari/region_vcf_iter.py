@@ -186,7 +186,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
         except StopIteration:
             # variant-less chromosome
             continue
-        cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+        cur_start, cur_end = cur_entry.boundaries()
 
         while True:
             # if start is after this interval, we need the next interval
@@ -204,17 +204,17 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
                     yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
-                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                    cur_start, cur_end = cur_entry.boundaries()
                 except StopIteration:
                     break
             else:
-                end_within = truvari.entry_variant_type(cur_entry) != truvari.SV.INS
+                end_within = cur_entry.svtype() != truvari.SV.INS
                 is_within = truvari.coords_within(cur_start, cur_end, cur_intv.begin, cur_intv.end - 1, end_within)
                 if is_within == inside:
                     yield ret_type(cur_entry, chrom, cur_intv)
                 try:
                     cur_entry = next(cur_iter)
-                    cur_start, cur_end = truvari.entry_boundaries(cur_entry)
+                    cur_start, cur_end = cur_entry.boundaries()
                 except StopIteration:
                     break
 

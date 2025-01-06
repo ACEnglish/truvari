@@ -71,12 +71,12 @@ def bpovl_main(cmdargs):
         for entry in in_vcf:
             has_hit = False
 
-            start, end = truvari.entry_boundaries(entry)
+            start, end = entry.boundaries()
             span = abs(end - start)
             if span > args.spanmax:
                 continue
-            svlen = truvari.entry_size(entry)
-            if svlen < args.sizemin:
+
+            if entry.size() < args.sizemin:
                 continue
 
             key = truvari.entry_to_hash(entry)

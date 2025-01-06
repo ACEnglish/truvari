@@ -314,8 +314,8 @@ class Matcher():
                           str(base), str(comp))
             return ret
 
-        b_pos2 = bnd_position(base.alts[0])
-        c_pos2 = bnd_position(comp.alts[0])
+        b_pos2 = base.bnd_position()
+        c_pos2 = comp.bnd_position()
         if b_pos2[0] != c_pos2[0]:
             logging.debug("%s and %s BND join CHROM", str(base), str(comp))
             return ret
@@ -328,8 +328,8 @@ class Matcher():
                 "%s and %s BND join POS not within BNDDIST", str(base), str(comp))
             return ret
 
-        b_bnd = bnd_direction_strand(base.alts[0])
-        c_bnd = bnd_direction_strand(comp.alts[0])
+        b_bnd = base.bnd_direction_strand()
+        c_bnd = comp.bnd_direction_strand()
 
         ovl = b_bnd == c_bnd
         if not ovl:
@@ -452,64 +452,3 @@ def chunker(matcher, *files):
     logging.info("%d chunks of %d variants %s", chunk_count,
                  sum(call_counts.values()), call_counts)
     yield cur_chunk, chunk_count
-
-####################
-# Helper functions #
-####################
-
-
-def bnd_direction_strand(bnd: str) -> tuple:
-    """
-    Parses a BND ALT string to determine its direction and strand.
-     ALT  Meaning
-    t[p[ piece extending to the right of p is joined after t
-    t]p] reverse comp piece extending left of p is joined after t
-    ]p]t piece extending to the left of p is joined before t
-    [p[t reverse comp piece extending right of p is joined before t
-
-    Note that direction of 'left' means the piece is anchored on the left of the breakpoint
-
-    Args:
-        bnd (str): The BND ALT string.
-
-    Returns:
-        tuple: A tuple containing the direction ("left" or "right") and strand ("direct" or "complement").
-    """
-    if bnd.startswith('[') or bnd.endswith('['):
-        direction = "left"
-    elif bnd.startswith(']') or bnd.endswith(']'):
-        direction = "right"
-    else:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    # Determine strand based on the position of the base letter
-    if bnd[0] not in '[]':  # Base letter is at the start (before brackets)
-        strand = "direct"
-    elif bnd[-1] not in '[]':  # Base letter is at the end (after brackets)
-        strand = "complement"
-    else:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    return direction, strand
-
-
-def bnd_position(bnd):
-    """
-    Extracts the chromosome and position from a BND ALT string.
-
-    Args:
-        bnd (str): The BND ALT string.
-
-    Returns:
-        tuple: A tuple containing the chromosome (str) and position (int).
-    """
-
-    # Regular expression to match the BND format and extract chrom:pos
-    match = re.search(r'[\[\]]([^\[\]:]+):(\d+)[\[\]]', bnd)
-    if not match:
-        raise ValueError(f"Invalid BND ALT format: {bnd}")
-
-    chrom = match.group(1)  # Extract the chromosome
-    pos = int(match.group(2))  # Extract the position as an integer
-
-    return chrom, pos

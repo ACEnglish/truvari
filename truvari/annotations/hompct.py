@@ -46,7 +46,7 @@ def hompct_main(cmd_args):
         tot = 0
         homs = 0
         for entry in v.fetch(chrom, max(0, start - args.buffer), min(v.header.contigs[chrom].length, end + args.buffer)):
-            if truvari.entry_size(entry) > args.maxgt:
+            if entry.size() > args.maxgt:
                 continue
             if truvari.get_gt(entry.samples[0]["GT"]).name == "HOM":
                 homs += 1
@@ -67,9 +67,9 @@ def hompct_main(cmd_args):
     out = pysam.VariantFile(args.output, 'w', header=header)
     v2 = pysam.VariantFile(args.input)
     for entry in v2:
-        if truvari.entry_size(entry) >= args.minanno:
+        if entry.size() >= args.minanno:
             entry.translate(header)
-            anno = get_pct(entry.chrom, *truvari.entry_boundaries(entry))
+            anno = get_pct(entry.chrom, *entry.boundaries())
             if anno is not None:
                 entry.info["HOMPCT"] = anno
         out.write(entry)

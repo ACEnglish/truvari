@@ -43,7 +43,7 @@ def add_gcpct(vcf, ref, n_header=None):
         n_header = edit_header(vcf)
 
     for entry in vcf:
-        start, end = truvari.entry_boundaries(entry)
+        start, end = entry.boundaries()
         span = abs(end - start)
         try:
             seq = ref.fetch(entry.chrom, start, end) if span >= len(

@@ -36,14 +36,14 @@ class CollapsedCalls():
         """
         Given a set of variants, calculate the median start, end, and size
         """
-        st, en = truvari.entry_boundaries(self.entry)
-        sz = truvari.entry_size(self.entry)
+        st, en = self.entry.boundaries()
+        sz = self.entry.size()
         starts = [st]
         ends = [en]
         sizes = [sz]
         for i in self.matches:
-            st, en = truvari.entry_boundaries(i.comp)
-            sz = truvari.entry_size(i.comp)
+            st, en = i.comp.boundaries()
+            sz = i.comp.size()
             starts.append(st)
             ends.append(en)
             sizes.append(sz)
@@ -188,7 +188,7 @@ def relative_size_sorter(base, comp):
     """
     Sort calls based on the absolute size difference of base and comp
     """
-    return abs(truvari.entry_size(base) - truvari.entry_size(comp))
+    return abs(base.size() - comp.size())
 
 
 def collapse_into_entry(entry, others, hap_mode=False):
@@ -396,8 +396,8 @@ def sort_length(b1, b2):
     """
     Order entries from longest to shortest SVLEN, ties are by alphanumeric of REF
     """
-    s1 = truvari.entry_size(b1)
-    s2 = truvari.entry_size(b2)
+    s1 = b1.size()
+    s2 = b2.size()
     if s1 < s2:
         return 1
     if s1 > s2:
@@ -808,12 +808,10 @@ def tree_size_chunker(matcher, chunks):
         to_add = []
         for entry in chunk['base']:
             # How much smaller/larger would be in sizesim?
-            sz = truvari.entry_size(entry)
+            sz = entry.size()
             diff = sz * (1 - matcher.params.pctsize)
             if not matcher.params.typeignore:
-                sz *= - \
-                    1 if truvari.entry_variant_type(
-                        entry) == truvari.SV.DEL else 1
+                sz *= -1 if entry.svtype() == truvari.SV.DEL else 1
             to_add.append((sz - diff, sz + diff, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -837,7 +835,7 @@ def tree_dist_chunker(matcher, chunks):
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
         to_add = []
         for entry in chunk['base']:
-            st, ed = truvari.entry_boundaries(entry)
+            st, ed = entry.boundaries()
             st -= matcher.params.refdist
             ed += matcher.params.refdist
             to_add.append((st, ed, LinkedList(entry)))

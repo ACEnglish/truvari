@@ -10,65 +10,11 @@ Overview
 
 VariantRecord Methods
 ---------------------
-entry_boundaries
-^^^^^^^^^^^^^^^^
-.. autofunction:: entry_boundaries
 
-entry_distance
-^^^^^^^^^^^^^^
-.. autofunction:: entry_distance
-
-entry_gt_comp
+VariantRecord
 ^^^^^^^^^^^^^
-.. autofunction:: entry_gt_comp
-
-entry_is_filtered
-^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_is_filtered
-
-entry_is_present
-^^^^^^^^^^^^^^^^
-.. autofunction:: entry_is_present
-
-entry_reciprocal_overlap
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_reciprocal_overlap
-
-entry_resolved
-^^^^^^^^^^^^^^
-.. autofunction:: entry_resolved
-
-entry_same_variant_type
-^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_same_variant_type
-
-entry_seq_similarity
-^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_seq_similarity
-
-entry_size
-^^^^^^^^^^
-.. autofunction:: entry_size
-
-entry_size_similarity
-^^^^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_size_similarity
-
-entry_to_hash
-^^^^^^^^^^^^^
-.. autofunction:: entry_to_hash
-
-entry_to_key
-^^^^^^^^^^^^
-.. autofunction:: entry_to_key
-
-entry_variant_type
-^^^^^^^^^^^^^^^^^^
-.. autofunction:: entry_variant_type
-
-entry_within
-^^^^^^^^^^^^
-..autofunction:: entry_within
+.. autoclass:: VariantRecord
+   :members:
 
 Extra Methods
 -------------

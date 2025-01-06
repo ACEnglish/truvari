@@ -75,7 +75,7 @@ class Remap():
         """
         Map a sequence and return the information from it
         """
-        is_del = truvari.entry_variant_type(entry) == truvari.SV.DEL
+        is_del = entry.svtype() == truvari.SV.DEL
         if is_del:
             seq = str(entry.ref)
         else:
@@ -118,7 +118,7 @@ class Remap():
         """
         Annotates entries in the vcf and writes to new vcf
         """
-        if truvari.entry_size(entry) >= self.min_length:
+        if entry.size() >= self.min_length:
             entry.translate(self.n_header)
             remap, hits = self.remap_entry(entry)
             entry.info["REMAP"] = remap

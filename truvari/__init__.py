@@ -6,13 +6,8 @@ See `help()` of specific functions / objects for details
 
 VariantRecord methods:
 
-:meth:`entry_boundaries`
-:meth:`entry_distance`
-:meth:`entry_gt_comp`
-:meth:`entry_is_filtered`
 :meth:`entry_is_present`
 :meth:`entry_reciprocal_overlap`
-:meth:`entry_resolved`
 :meth:`entry_same_variant_type`
 :meth:`entry_seq_similarity`
 :meth:`entry_size`
@@ -20,7 +15,6 @@ VariantRecord methods:
 :meth:`entry_to_hash`
 :meth:`entry_to_key`
 :meth:`entry_within`
-:meth:`entry_variant_type`
 
 Extra methods:
 
@@ -107,20 +101,14 @@ from truvari.bench import (
 from truvari.comparisons import (
     best_seqsim,
     coords_within,
-    entry_boundaries,
-    entry_distance,
-    entry_gt_comp,
-    entry_is_filtered,
     entry_is_present,
     entry_reciprocal_overlap,
-    entry_resolved,
     entry_same_variant_type,
     entry_seq_similarity,
     entry_size,
     entry_size_similarity,
     entry_to_hash,
     entry_to_key,
-    entry_variant_type,
     entry_within_tree,
     entry_within,
     overlap_percent,

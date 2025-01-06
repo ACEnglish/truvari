@@ -180,8 +180,8 @@ class TRFAnno():
         """
         Figure out the hit and return
         """
-        svtype = truvari.entry_variant_type(entry)
-        sz = truvari.entry_size(entry)
+        svtype = entry.svtype()
+        sz = entry.size()
         repeat = []
         if svtype == truvari.SV.DEL:
             repeat = self.del_annotate(entry, sz, score_filter)
@@ -395,8 +395,8 @@ def process_ref_region(region, args):
                 out.write(str(entry))
                 continue
 
-            svtype = truvari.entry_variant_type(entry)
-            svlen = truvari.entry_size(entry)
+            svtype = entry.svtype()
+            svlen = entry.size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
@@ -459,8 +459,8 @@ def process_tr_region(region, args):
             # Variants must be entirely contained within region
             if not (entry.start >= region["start"] and entry.stop < region["end"]):
                 continue
-            svtype = truvari.entry_variant_type(entry)
-            svlen = truvari.entry_size(entry)
+            svtype = entry.svtype()
+            svlen = entry.size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue

@@ -315,18 +315,18 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         Yields the rows
         """
         for entry in v:
-            varsize = truvari.entry_size(entry)
+            varsize = entry.size()
             cur_row = [truvari.entry_to_hash(entry),
                        entry.chrom,
                        entry.start,
                        entry.stop,
                        entry.id,
-                       truvari.entry_variant_type(entry).name,
+                       entry.svtype().name,
                        varsize,
                        truvari.get_sizebin(varsize),
                        entry.qual,
                        list(entry.filter),
-                       not truvari.entry_is_filtered(entry)
+                       not entry.is_filtered()
                        ]
 
             for i, op in info_ops:

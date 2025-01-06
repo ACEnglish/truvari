@@ -60,9 +60,9 @@ def segment_main(args):
 
     # needs to be split by chrom
     for entry in vcf:
-        if args.passonly and truvari.entry_is_filtered(entry):
+        if args.passonly and entry.is_filtered():
             continue
-        if truvari.entry_variant_type(entry).name != "DEL":
+        if entry.svtype() != truvari.SV.DEL:
             out.write(entry)
             continue
         data = [gtcnt[truvari.get_gt(x["GT"]).name]

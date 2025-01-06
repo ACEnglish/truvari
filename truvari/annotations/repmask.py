@@ -74,11 +74,11 @@ class RepMask():
         with pysam.VariantFile(self.in_vcf) as fh:
             for pos, entry in enumerate(fh):
                 tot_cnt += 1
-                entry_size = truvari.entry_size(entry)
+                entry_size = entry.size()
                 if self.min_length <= entry_size <= self.max_length:
                     cnt += 1
                     cntbp += entry_size
-                    if truvari.entry_variant_type(entry) == truvari.SV.INS:
+                    if entry.svtype() == truvari.SV.INS:
                         ret.write(f">{pos}\n{entry.alts[0]}\n")
                     else:
                         ret.write(f">{pos}\n{entry.ref}\n")
@@ -127,7 +127,7 @@ class RepMask():
         """
         best_hit_pct = 0
         best_hit = None
-        entry_size = truvari.entry_size(entry)
+        entry_size = entry.size()
         for hit in hits:
             size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
             pct = size_aln / entry_size  # The TR that covers the most of the sequence
