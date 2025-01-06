@@ -306,11 +306,11 @@ class Matcher():
             logging.debug("%s and %s BND CHROM", str(base), str(comp))
             return ret
 
-
         ret.st_dist = base.pos - comp.pos
         ovl = truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
         if not ovl:
-            logging.debug("%s and %s BND POS not within BNDDIST", str(base), str(comp))
+            logging.debug("%s and %s BND POS not within BNDDIST",
+                          str(base), str(comp))
             return ret
 
         b_pos2 = bnd_position(base.alts[0])
@@ -319,21 +319,21 @@ class Matcher():
             logging.debug("%s and %s BND join CHROM", str(base), str(comp))
             return ret
 
-
         ret.ed_dist = b_pos2[1] - c_pos2[1]
         ovl = truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
 
         if not ovl:
-            logging.debug("%s and %s BND join POS not within BNDDIST", str(base), str(comp))
+            logging.debug(
+                "%s and %s BND join POS not within BNDDIST", str(base), str(comp))
             return ret
-
 
         b_bnd = bnd_direction_strand(base.alts[0])
         c_bnd = bnd_direction_strand(comp.alts[0])
 
         ovl = b_bnd == c_bnd
         if not ovl:
-            logging.debug("%s and %s BND strand/direction mismatch", str(base), str(comp))
+            logging.debug("%s and %s BND strand/direction mismatch",
+                          str(base), str(comp))
             return ret
 
         self.compare_gts(ret, base, comp)
