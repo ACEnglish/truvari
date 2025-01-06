@@ -299,27 +299,35 @@ class Matcher():
         ret.comp = comp
 
         ret.matid = matid
-        ret.state = base.chrom == comp.chrom
-        ret.st_dist = base.pos - comp.pos
-        ret.state &= truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
-        b_bnd = bnd_direction_strand(base.alts[0])
-        c_bnd = bnd_direction_strand(comp.alts[0])
-        ret.state &= b_bnd == c_bnd
+        # Only put start distance same chrom pos2
+        if base.chrom == comp.chrom:
+            ret.st_dist = base.pos - comp.pos
+            ret.state &= truvari.overlaps(*bounds(base.pos), *bounds(comp.pos))
+        else:
+            ret.state = False
+            ret.score = 0
+            return ret
 
         b_pos2 = bnd_position(base.alts[0])
         c_pos2 = bnd_position(comp.alts[0])
-        ret.ed_dist = b_pos2[1] - c_pos2[1]
-        ret.state &= b_pos2[0] == c_pos2[0]
+        if b_pos2[0] == c_pos2[0]:
+            ret.ed_dist = b_pos2[1] - c_pos2[1]
+            ret.state &= truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
+        else:
+            ret.state = False
+            ret.score = 0
+            return ret
 
-        ret.state &= truvari.overlaps(*bounds(b_pos2[1]), *bounds(c_pos2[1]))
-        ret.state &= ret.ed_dist < self.params.bnddist
+        b_bnd = bnd_direction_strand(base.alts[0])
+        c_bnd = bnd_direction_strand(comp.alts[0])
+        ret.state &= b_bnd == c_bnd
 
         self.compare_gts(ret, base, comp)
 
         # Score is percent of allowed distance needed to find this match
         if self.params.bnddist > 0:
-            ret.score = (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                        / self.params.bnddist) * 100
+            ret.score = max(0, (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
+                        / self.params.bnddist) * 100)
         else:
             ret.score = int(ret.state) * 100
 
