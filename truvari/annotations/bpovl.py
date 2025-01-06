@@ -62,7 +62,7 @@ def bpovl_main(cmdargs):
     """
     args = parse_args(cmdargs)
     in_vcf = truvari.VariantFile(args.input)
-    anno_tree, anno_cnt = truvari.build_anno_tree(args.anno, *args.anno_psets)
+    anno_tree, anno_cnt = truvari.read_bed_tree(args.anno, *args.anno_psets)
     logging.info("Loaded %d annotations", anno_cnt)
 
     def _transform():

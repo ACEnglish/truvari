@@ -61,13 +61,13 @@ def resolve_regions(params, args):
         logging.error("Unable to run refine")
         sys.exit(1)
     elif args.regions is None:
-        reeval_trees, new_count = truvari.build_anno_tree(
-            params.includebed, idxfmt="")
+        reeval_trees, new_count = truvari.read_bed_tree(params.includebed,
+                                                          idxfmt="")
         logging.info("Evaluating %d regions", new_count)
     elif args.regions is not None and params.includebed is not None:
-        a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
-        b_trees, orig_count = truvari.build_anno_tree(
-            params.includebed, idxfmt="")
+        a_trees, regi_count = truvari.read_bed_tree(args.regions, idxfmt="")
+        b_trees, orig_count = truvari.read_bed_tree(params.includebed,
+                                                    idxfmt="")
         if args.use_region_coords:
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
@@ -79,7 +79,7 @@ def resolve_regions(params, args):
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
                          orig_count, new_count, regi_count)
     else:
-        reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
+        reeval_trees, count = truvari.read_bed_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
 
     return [[chrom, intv.begin, intv.end - 1]
@@ -186,19 +186,19 @@ def recount_variant_report(orig_dir, phab_dir, regions):
 
     # Adding the original counts to the updated phab counts
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
-    tpb = len(list(truvari.region_filter(vcf, tree, False)))
+    tpb = len(list(vcf.regions_fetch(tree, False)))
     summary["TP-base"] += tpb
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
-    tpc = len(list(truvari.region_filter(vcf, tree, False)))
+    tpc = len(list(vcf.regions_fetch(tree, False)))
     summary["TP-comp"] += tpc
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
-    fp = len(list(truvari.region_filter(vcf, tree, False)))
+    fp = len(list(vcf.regions_fetch(tree, False)))
     summary["FP"] += fp
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
-    fn = len(list(truvari.region_filter(vcf, tree, False)))
+    fn = len(list(vcf.regions_fetch(tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp

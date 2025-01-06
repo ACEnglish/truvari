@@ -57,8 +57,7 @@ def chunks_main(args):
     m.params.chunksize = args.chunksize
     m.params.refdist = args.chunksize
     if args.bed:
-        regions = truvari.build_region_tree(v, includebed=args.bed)
-        v = truvari.region_filter(v, regions)
+        v = v.bed_fetch(args.bed)
     c = truvari.chunker(m, ('base', v))
 
     with open(args.output, 'w') as fout:

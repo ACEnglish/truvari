@@ -41,7 +41,7 @@ def density_main(args):
     Main
     """
     args = parse_args(args)
-    tree, cnt = truvari.build_anno_tree(args.genome)
+    tree, cnt = truvari.read_bed_tree(args.genome)
     logging.info("Loaded %d seqs from genome", cnt)
 
     # mask

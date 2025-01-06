@@ -500,8 +500,8 @@ class Bench():
         regions_extended = (truvari.extend_region_tree(region_tree, self.extend)
                             if self.extend else region_tree)
 
-        base_i = truvari.region_filter(base, region_tree)
-        comp_i = truvari.region_filter(comp, regions_extended)
+        base_i = base.regions_fetch(region_tree)
+        comp_i = comp.regions_fetch(regions_extended)
 
         chunks = truvari.chunker(
             self.matcher, ('base', base_i), ('comp', comp_i))

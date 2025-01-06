@@ -5,7 +5,9 @@ import re
 import hashlib
 import logging
 import pysam
+
 import truvari
+from truvari.region_vcf_iter import region_filter
 
 RC = str.maketrans("ATCG", "TAGC")
 
@@ -44,6 +46,22 @@ class VariantFile:
         """
         for i in self._vcf.fetch(*args, **kwargs):
             yield truvari.VariantRecord(i)
+
+    def regions_fetch(self, tree, inside=True, with_region=False):
+        """
+        Given a tree of chrom:IntervalTree, fetch variants from the VCF
+        that are inside (or outside) the tree's regions
+        with_regions will return tuples of the (variant, region)
+        """
+        return region_filter(self, tree, inside, with_region)
+
+    def bed_fetch(self, bed_fn, inside=True, with_region=False):
+        """
+        Given a bed file, iterate variants inside or outside the regions.
+        with_regions will return tuples of the (variant, region)
+        """
+        tree = truvari.read_bed_tree(bed_fn)
+        return self.regions_fetch(tree, inside, with_region)
 
     def write(self, record, resolved=False):
         """

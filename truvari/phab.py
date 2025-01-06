@@ -136,7 +136,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
         end = int(end)
         tree[chrom].addi(start, end+1, data=ref)
 
-    vcf_i = truvari.region_filter(vcf, tree, with_region=True)
+    vcf_i = vcf.regions_fetch(tree, with_region=True)
 
     # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
     # pylint: disable=unnecessary-lambda-assignment

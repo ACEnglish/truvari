@@ -11,6 +11,7 @@ sys.path.insert(0, os.getcwd())
 
 import truvari
 
+from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 # Assume we're running in truvari root directory
 
 """
@@ -50,24 +51,24 @@ with open(bed_fn, 'r') as fh:
         tree[data[0]].addi(int(data[1]), int(data[2]) + 1)
 
 vcf = truvari.VariantFile(vcf_fn)
-for entry in truvari.region_filter(vcf, tree, True, False):
+for entry in vcf.regions_fetch(tree, True, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()
-for entry in truvari.region_filter(vcf, tree, False, False):
+for entry in vcf.regions_fetch(tree, False, False):
     assert entry.info['include'] == 'out', f"Bad out {str(entry)}"
 
 
 vcf = truvari.VariantFile(vcf_fn)
-for entry in truvari.region_filter_stream(vcf, tree, True, False):
+for entry in region_filter_stream(vcf, tree, True, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()
-for entry in truvari.region_filter_stream(vcf, tree, False, False):
+for entry in region_filter_stream(vcf, tree, False, False):
     assert entry.info['include'] == 'out', f"Bad out {str(entry)}"
 
 vcf = truvari.VariantFile(vcf_fn)
-for entry in truvari.region_filter_fetch(vcf, tree, False):
+for entry in region_filter_fetch(vcf, tree, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 

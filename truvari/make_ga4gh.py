@@ -88,8 +88,7 @@ def parse_bench_dir(in_dir, t_vcf, q_vcf, tree, is_refined):
                  ("tp-comp", "TP", q_vcf, csamp), ("fp", "FP", q_vcf, csamp)]
     for filename, bdkey, out_vcf, samp in ops_to_do:
         m_vcf = truvari.VariantFile(in_vcfs[filename])
-        m_iter = m_vcf if tree is None else truvari.region_filter(
-            m_vcf, tree, is_refined)
+        m_iter = m_vcf if tree is None else m_vcf.regions_fetch(tree, is_refined)
         for entry in m_iter:
             n_entry = entry.move_record(out_vcf, samp)
             n_entry.info["IsRefined"] = is_refined

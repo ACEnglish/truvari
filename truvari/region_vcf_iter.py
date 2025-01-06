@@ -18,7 +18,7 @@ def build_region_tree(vcfA, vcfB=None, includebed=None):
     contigA_set = set(vcfA.header.contigs.keys())
     contigB_set = set(vcfB.header.contigs.keys()) if vcfB else contigA_set
     if includebed is not None:
-        all_regions, counter = build_anno_tree(includebed)
+        all_regions, counter = read_bed_tree(includebed)
         logging.info("Including %d bed regions", counter)
         return all_regions
 
@@ -70,7 +70,7 @@ def extend_region_tree(tree, pad):
     truvari.merge_region_tree_overlaps(n_tree)
     return n_tree
 
-def build_anno_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
+def read_bed_tree(filename, chrom_col=0, start_col=1, end_col=2, one_based=False, comment='#', idxfmt=None):
     """
     Build an dictionary of IntervalTrees for each chromosome from tab-delimited annotation file
 

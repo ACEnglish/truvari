@@ -21,7 +21,7 @@ Extra methods:
 :meth:`allele_freq_annos`
 :meth:`bed_ranges`
 :meth:`best_seqsim`
-:meth:`build_anno_tree`
+:meth:`read_bed_tree`
 :meth:`calc_af`
 :meth:`calc_hwe`
 :meth:`compress_index_vcf`
@@ -55,7 +55,6 @@ Dev methods:
 :meth:`opt_gz_open`
 :meth:`optimize_df_memory`
 :meth:`performance_metrics`
-:meth:`region_filter`
 :meth:`restricted_float`
 :meth:`restricted_int`
 :meth:`setup_logging`
@@ -115,12 +114,9 @@ from truvari.phab import (
 
 from truvari.region_vcf_iter import (
     build_region_tree,
-    build_anno_tree,
+    read_bed_tree,
     merge_region_tree_overlaps,
     extend_region_tree,
-    region_filter,
-    region_filter_fetch,
-    region_filter_stream,
 )
 
 from truvari.stratify import (

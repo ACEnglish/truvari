@@ -11,6 +11,11 @@ Overview
 VariantRecord Methods
 ---------------------
 
+VariantFile
+^^^^^^^^^^^
+.. autoclass:: VariantFile
+   :members:
+
 VariantRecord
 ^^^^^^^^^^^^^
 .. autoclass:: VariantRecord
@@ -30,9 +35,9 @@ best_seqsim
 ^^^^^^^^^^^
 .. autofunction:: best_seqsim
 
-build_anno_tree
+read_bed_tree
 ^^^^^^^^^^^^^^^
-.. autofunction:: build_anno_tree
+.. autofunction:: read_bed_tree
 
 calc_af
 ^^^^^^^
@@ -159,10 +164,6 @@ optimize_df_memory
 performance_metrics
 ^^^^^^^^^^^^^^^^^^^
 .. autofunction:: performance_metrics
-
-region_filter
-^^^^^^^^^^^^^
-.. autofunction:: region_filter
 
 restricted_float
 ^^^^^^^^^^^^^^^^
