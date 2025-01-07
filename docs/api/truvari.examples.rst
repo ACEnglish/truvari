@@ -1,7 +1,7 @@
 Truvari API QuickStart
 ======================
 
-Truvari provides functionality to facilitate the comparison of structural variants (SVs) in VCF variant records. Developers can easily leverage this functionality by replacing calls to `pysam.VariantFile` with `truvari.VariantFile`. The `truvari.VariantFile` retains all `pysam` functionality except for context managers (i.e., `with` statements).
+Truvari provides functionality to facilitate the comparison of structural variants (SVs) in VCF variant records. Developers can easily leverage this functionality by replacing calls to `pysam.VariantFile` with `truvari.VariantFile`. The `truvari.VariantFile` retains all `pysam` functionality.
 
 .. code-block:: python
 
@@ -42,12 +42,12 @@ The `truvari.VariantRecord` simplifies comparing two VCF entries.
     print("Entries' Size Similarity:", match.sizesim)
     print("Is the match above thresholds:", match.state)
 
-This returns a `truvari.MatchResult`. You can customize matching thresholds by providing a `truvari.VariantParams` to the `truvari.VariantFile`.
+This returns a `truvari.MatchResult`. You can customize matching thresholds by providing `truvari.VariantParams` to the `truvari.VariantFile`.
 
 .. code-block:: python
 
     # Disable sequence and size similarity; enable reciprocal overlap
-    p = truvari.VariantParams(seqsim=0, sizesim=0, pctovl=0.5)
+    p = truvari.VariantParams(pctseq=0, pctsize=0, pctovl=0.5)
     vcf = truvari.VariantFile("input.vcf.gz", params=p)
     entry1 = next(vcf)
     entry2 = next(vcf)
@@ -88,7 +88,7 @@ If your regions of interest are stored in an in-memory object instead of a BED f
     tree['chr1'].addi(10, 100)
     tree['chr2'].addi(2000, 2200)
     count = 0
-    for entry in vcf.regions_fetch(tree):
+    for entry in vcf.fetch_regions(tree):
         count += 1
     print(f"Total of {count} variants")
 

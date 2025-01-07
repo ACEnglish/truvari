@@ -28,9 +28,9 @@ class VariantParams():
        * - `chunksize`
          - Number of entries to process in each chunk. Default: 1000.
        * - `bSample`
-         - Sample index for the "base" (a.k.a. self) variants during comparisons. Default: 0.
+         - Sample name or index for the "base" (a.k.a. self) variants during comparisons. Default: 0.
        * - `cSample`
-         - Sample index for the "comparison" (a.k.a. other) variants during comparisons. Default: 0.
+         - Sample name or index for the "comparison" (a.k.a. other) variants during comparisons. Default: 0.
        * - `dup_to_ins`
          - Whether to treat duplications as insertions for some operations. Default: `False`.
        * - `bnddist`
