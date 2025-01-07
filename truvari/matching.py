@@ -10,7 +10,40 @@ import pysam
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
-    A base/comp match holder
+    Holds results from a matching operation
+
+    Attributes
+    ----------
+    .. list-table::
+       :header-rows: 1
+
+       * - Attribute
+         - Description
+       * - `base`
+         - The base (a.k.a. self) variant
+       * - `comp`
+         - The comp (a.k.a. other) variant
+       * - `state`
+         - Boolean of if variants match
+       * - `seqsim`
+         - Sequence similarity of variants
+       * - `sizesim`
+         - Size similarity of variants
+       * - `ovlpct`
+         - Reciprocal overlap ov variants
+       * - `sizediff`
+         - Base variant var_size minus comp variant var_size
+       * - `st_dist`
+         - Base variant start position minus comp variant start position
+       * - `ed_dist`
+         - Base variant end position minus comp variant end position
+       * - `gt_match`
+         -  Boolean of if genotypes match
+       * - `score`
+         - TruScore of matches
+       * - `matid`
+         - Place to put MatchIds, not populated by `truvari.VariantRecord.match`
+
     """
     __slots__ = ["base", "comp", "base_gt", "base_gt_count", "comp_gt", "comp_gt_count",
                  "state", "seqsim", "sizesim", "ovlpct", "sizediff", "st_dist", "ed_dist",

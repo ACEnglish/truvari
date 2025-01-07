@@ -59,8 +59,8 @@ def svinfo_main(cmdargs):
     args = parse_args(cmdargs)
     vcf = truvari.VariantFile(args.input)
     n_header = edit_header(vcf.header.copy())
-    out = truvari.VariantFile(args.output, 'w', header=n_header)
-    for entry in vcf:
-        add_svinfo(entry, args.minsize, n_header)
-        out.write(entry)
+    with truvari.VariantFile(args.output, 'w', header=n_header) as out:
+        for entry in vcf:
+            add_svinfo(entry, args.minsize, n_header)
+            out.write(entry)
     logging.info("Finished svinfo")

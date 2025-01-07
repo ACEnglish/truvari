@@ -22,9 +22,35 @@ Variant Handling
 .. autoclass:: VariantParams
    :members:
 
+Objects
+-------
+
+.. autoclass:: MatchResult
+   :members:
+
+.. autoclass:: GT
+   :members:
+
+.. autoclass:: SV
+   :members:
+
+.. autoclass:: Bench
+   :members:
+
+.. autoclass:: BenchOutput
+   :members:
+
+.. autoclass:: StatsBox
+   :members:
+
+.. autoclass:: LogFileStderr
+   :members:
+
 Extra Methods
 -------------
 .. autofunction:: bed_ranges
+
+.. autofunction:: benchdir_count_entries
 
 .. autofunction:: best_seqsim
 
@@ -32,43 +58,9 @@ Extra Methods
 
 .. autofunction:: check_vcf_index
 
-.. autofunction:: compress_index_vcf
-
-.. autofunction:: get_gt
-
-.. autofunction:: get_scalebin
-
-.. autofunction:: get_sizebin
-
-.. autofunction:: get_svtype
-
-.. autofunction:: msa2vcf
-
-.. autofunction:: overlap_percent
-
-.. autofunction:: overlaps
-
-.. autofunction:: phab
-
-.. autofunction:: reciprocal_overlap
-
-.. autofunction:: ref_ranges
-
-.. autofunction:: roll_seqsim
-
-.. autofunction:: seqsim
-
-.. autofunction:: sizesim
-
-.. autofunction:: unroll_seqsim
-
-.. autofunction:: vcf_ranges
-
-Dev Methods
------------
-.. autofunction:: benchdir_count_entries
-
 .. autofunction:: chunker
+
+.. autofunction:: compress_index_vcf
 
 .. autofunction:: cmd_exe
 
@@ -80,45 +72,51 @@ Dev Methods
 
 .. autofunction:: help_unknown_cmd
 
+.. autofunction:: get_gt
+
+.. autofunction:: get_scalebin
+
+.. autofunction:: get_sizebin
+
+.. autofunction:: get_svtype
+
 .. autofunction:: make_temp_filename
+
+.. autofunction:: msa2vcf
 
 .. autofunction:: opt_gz_open
 
 .. autofunction:: optimize_df_memory
 
+.. autofunction:: overlap_percent
+
+.. autofunction:: overlaps
+
 .. autofunction:: performance_metrics
+
+.. autofunction:: phab
+
+.. autofunction:: reciprocal_overlap
 
 .. autofunction:: restricted_float
 
 .. autofunction:: restricted_int
 
+.. autofunction:: ref_ranges
+
+.. autofunction:: roll_seqsim
+
+.. autofunction:: seqsim
+
 .. autofunction:: setup_logging
 
+.. autofunction:: sizesim
+
+.. autofunction:: unroll_seqsim
+
+.. autofunction:: vcf_ranges
+
 .. autofunction:: vcf_to_df
-
-Objects
--------
-
-.. autoclass:: Bench
-   :members:
-
-.. autoclass:: BenchOutput
-   :members:
-
-.. autoclass:: StatsBox
-   :members:
-
-.. autoclass:: GT
-   :members:
-
-.. autoclass:: LogFileStderr
-   :members:
-
-.. autoclass:: MatchResult
-   :members:
-
-.. autoclass:: SV
-   :members:
 
 Data
 ----

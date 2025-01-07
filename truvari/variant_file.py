@@ -9,10 +9,7 @@ from truvari.region_vcf_iter import region_filter
 
 class VariantFile:
     """
-    Wrapper around pysam.VariantFile with helper functions for iteration.
-
-    .. note::
-        The context manager functionality of pysam.VariantFile is not available with truvari.VariantFile.
+    Wrapper around `pysam.VariantFile` with helper functions for iteration.
     """
 
     def __init__(self, filename, *args, params=None, **kwargs):
@@ -28,6 +25,19 @@ class VariantFile:
         """
         self.params = params
         self._vcf = pysam.VariantFile(filename, *args, **kwargs)
+
+    def __enter__(self):
+        """
+        Enter the context of the wrapped `pysam.VariantFile` object
+        """
+        self._vcf.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """
+        Exit the context of the wrapped `pysam.VariantFile` object
+        """
+        return self._vcf.__exit__(exc_type, exc_value, traceback)
 
     def __getattr__(self, name):
         """
@@ -87,7 +97,6 @@ class VariantFile:
         """
         tree = truvari.read_bed_tree(bed_fn)
         return self.fetch_regions(tree, inside, with_region)
-
 
     def fetch_regions(self, tree, inside=True, with_region=False):
         """
