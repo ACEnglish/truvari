@@ -25,7 +25,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    defaults = truvari.VariantParams.make_params()
+    defaults = truvari.VariantParams()
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,

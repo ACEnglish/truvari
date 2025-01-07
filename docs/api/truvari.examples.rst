@@ -37,7 +37,7 @@ This returns a `truvari.MatchResult`. You can customize matching thresholds by p
 .. code-block:: python
 
     # Disable sequence and size similarity; enable reciprocal overlap
-    matcher = truvari.VariantParams(seqsim=0, sizesim=0, recovl=0.5)
+    matcher = truvari.VariantParams(seqsim=0, sizesim=0, pctovl=0.5)
     vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
     entry1 = next(vcf)
     entry2 = next(vcf)
