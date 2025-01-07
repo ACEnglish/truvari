@@ -8,14 +8,24 @@ Truvari provides functionality to facilitate the comparison of structural varian
     import truvari
     vcf = truvari.VariantFile("input.vcf.gz")
     for entry in vcf:
-        print(entry.info['SVTYPE'])  # Access variant's INFO fields using pysam
-        print(entry.allele_freq_annos())  # Calculate variant's allele frequency with truvari
+        # Access variant's INFO fields using pysam
+        if 'SVTYPE' in entry.info and 'SVLEN' in entry.info:
+            print(entry.info['SVTYPE'], entry.info['SVLEN'])
 
-        # Access genotype (GT) using pysam
-        if 'GT' in entry.samples['SAMPLE']:
+        # But these INFOs aren't always available.
+        # Access type/size properties of variants using truvari
+        print(entry.var_type(), entry.var_size())
+
+        # Access genotype (GT)
+        # using pysam ->
+        if 'SAMPLE' in entry.samples and 'GT' in entry.samples['SAMPLE']:
             print(entry.samples['SAMPLE']['GT'])
-        # Access genotype (GT) using truvari
+
+        # using truvari ->
         print(entry.gt('SAMPLE'))
+
+        # Calculate variant's allele frequency with truvari
+        print(entry.allele_freq_annos())
 
 Details of all available functions are in :ref:`package documentation <variant_handling>`.
 
@@ -37,8 +47,8 @@ This returns a `truvari.MatchResult`. You can customize matching thresholds by p
 .. code-block:: python
 
     # Disable sequence and size similarity; enable reciprocal overlap
-    matcher = truvari.VariantParams(seqsim=0, sizesim=0, pctovl=0.5)
-    vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
+    p = truvari.VariantParams(seqsim=0, sizesim=0, pctovl=0.5)
+    vcf = truvari.VariantFile("input.vcf.gz", params=p)
     entry1 = next(vcf)
     entry2 = next(vcf)
     match = entry1.match(entry2)
@@ -50,10 +60,10 @@ The `truvari.VariantParams` provides parameters for filtering variants, such as 
 
 .. code-block:: python
 
-    matcher = truvari.VariantParams(sizemin=200, sizemax=500)
-    vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
+    p = truvari.VariantParams(sizemin=200, sizemax=500)
+    vcf = truvari.VariantFile("input.vcf.gz", params=p)
     # Retrieve all variant records within sizemin and sizemax
-    results = [entry for entry in vcf if not entry.size_filter()]
+    results = [entry for entry in vcf if not entry.filter_size()]
 
 Additional filters, such as excluding monomorphic reference sites or single-end BNDs, can be applied using `entry.filter_call()`.
 
@@ -64,11 +74,11 @@ To subset a VCF to regions specified in a BED file, use:
 
 .. code-block:: python
 
-    for entry in vcf.bed_fetch("regions.bed"):
+    for entry in vcf.fetch_bed("regions.bed"):
         print("Entry's variant type:", entry.var_type())
         print("Entry's variant size:", entry.var_size())
 
-If your regions of interest are stored in an in-memory object instead of a BED file, use the `.regions_fetch` method:
+If your regions of interest are stored in an in-memory object instead of a BED file, use the `.fetch_regions` method:
 
 .. code-block:: python
 
@@ -82,12 +92,14 @@ If your regions of interest are stored in an in-memory object instead of a BED f
         count += 1
     print(f"Total of {count} variants")
 
-To iterate over variants that are not within the regions, use `vcf.regions_fetch(tree, within=False)`.
+To iterate over variants that are not within the regions, use `vcf.fetch_regions(tree, within=False)`. Both of these
+fetch methods use heuristics to choose the more efficient fetching strategy of either seeking through the VCF file or
+streaming the entire file.
 
 Parsing BND Information
 -----------------------
 
-Truvari simplifies parsing BND information from VCF entries:
+Truvari also simplifies parsing BND information from VCF entries:
 
 .. code-block:: python
 

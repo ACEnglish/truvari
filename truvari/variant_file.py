@@ -72,22 +72,7 @@ class VariantFile:
         for i in self._vcf.fetch(*args, **kwargs):
             yield truvari.VariantRecord(i, self.params)
 
-    def regions_fetch(self, tree, inside=True, with_region=False):
-        """
-        Fetch variants from the VCF based on regions defined in a tree of chrom:IntervalTree.
-
-        :param tree: Tree of chrom:IntervalTree defining regions of interest.
-        :type tree: dict
-        :param inside: If True, fetch variants inside the regions. If False, fetch variants outside the regions.
-        :type inside: bool
-        :param with_region: If True, return tuples of (`truvari.VariantRecord`, region). Defaults to False.
-        :type with_region: bool
-        :return: Iterator of truvari.VariantRecord objects or tuples of (`truvari.VariantRecord`, region).
-        :rtype: iterator
-        """
-        return region_filter(self, tree, inside, with_region)
-
-    def bed_fetch(self, bed_fn, inside=True, with_region=False):
+    def fetch_bed(self, bed_fn, inside=True, with_region=False):
         """
         Fetch variants from the VCF based on regions defined in a BED file.
 
@@ -101,7 +86,23 @@ class VariantFile:
         :rtype: iterator
         """
         tree = truvari.read_bed_tree(bed_fn)
-        return self.regions_fetch(tree, inside, with_region)
+        return self.fetch_regions(tree, inside, with_region)
+
+
+    def fetch_regions(self, tree, inside=True, with_region=False):
+        """
+        Fetch variants from the VCF based on regions defined in a tree of chrom:IntervalTree.
+
+        :param tree: Tree of chrom:IntervalTree defining regions of interest.
+        :type tree: dict
+        :param inside: If True, fetch variants inside the regions. If False, fetch variants outside the regions.
+        :type inside: bool
+        :param with_region: If True, return tuples of (`truvari.VariantRecord`, region). Defaults to False.
+        :type with_region: bool
+        :return: Iterator of truvari.VariantRecord objects or tuples of (`truvari.VariantRecord`, region).
+        :rtype: iterator
+        """
+        return region_filter(self, tree, inside, with_region)
 
     def write(self, record):
         """

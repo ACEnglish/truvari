@@ -64,7 +64,7 @@ Extra Methods
 
 .. autofunction:: vcf_ranges
 
-Dev methods
+Dev Methods
 -----------
 .. autofunction:: benchdir_count_entries
 

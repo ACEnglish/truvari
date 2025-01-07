@@ -54,7 +54,7 @@ def count_entries(vcf, chroms, regions, within):
         start, end = coords
         tree[chrom].addi(start, end + 1)
         counts_idx[(chrom, start, end)] = idx
-    for _, location in vcf.regions_fetch(tree, inside=within, with_region=True):
+    for _, location in vcf.fetch_regions(tree, inside=within, with_region=True):
         key = (location[0], location[1].begin, location[1].end - 1)
         counts[counts_idx[key]] += 1
     return counts

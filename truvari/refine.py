@@ -186,19 +186,19 @@ def recount_variant_report(orig_dir, phab_dir, regions):
 
     # Adding the original counts to the updated phab counts
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
-    tpb = len(list(vcf.regions_fetch(tree, False)))
+    tpb = len(list(vcf.fetch_regions(tree, False)))
     summary["TP-base"] += tpb
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
-    tpc = len(list(vcf.regions_fetch(tree, False)))
+    tpc = len(list(vcf.fetch_regions(tree, False)))
     summary["TP-comp"] += tpc
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
-    fp = len(list(vcf.regions_fetch(tree, False)))
+    fp = len(list(vcf.fetch_regions(tree, False)))
     summary["FP"] += fp
 
     vcf = truvari.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
-    fn = len(list(vcf.regions_fetch(tree, False)))
+    fn = len(list(vcf.fetch_regions(tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp

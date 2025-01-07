@@ -874,7 +874,7 @@ def collapse_main(args):
     base = truvari.VariantFile(args.input, params=params)
     regions = truvari.build_region_tree(base, includebed=args.bed)
     truvari.merge_region_tree_overlaps(regions)
-    base_i = base.regions_fetch(regions)
+    base_i = base.fetch_regions(regions)
 
     chunks = truvari.chunker(params, ('base', base_i))
     smaller_chunks = tree_size_chunker(params, chunks)

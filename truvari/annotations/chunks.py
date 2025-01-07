@@ -51,7 +51,7 @@ def chunks_main(args):
     v = truvari.VariantFile(args.input)
     m = truvari.VariantParams(args=args, pctseq=0)
     if args.bed:
-        v = v.bed_fetch(args.bed)
+        v = v.fetch_bed(args.bed)
     c = truvari.chunker(m, ('base', v))
 
     with open(args.output, 'w') as fout:
