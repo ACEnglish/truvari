@@ -75,13 +75,10 @@ for entry in region_filter_fetch(vcf, tree, False):
 """
 Filtering logic
 """
-vcf = truvari.VariantFile("repo_utils/test_files/variants/filter.vcf")
-matcher = truvari.Matcher()
-matcher.params.sizemin = 0
-matcher.params.sizefilt = 0
-matcher.params.passonly = True
+matcher = truvari.Matcher(sizemin=0, sizefilt=0, passonly=True)
+vcf = truvari.VariantFile("repo_utils/test_files/variants/filter.vcf", matcher=matcher)
 for entry in vcf:
     try:
-        assert matcher.filter_call(entry), f"Didn't filter {str(entry)}"
+        assert entry.filter_call(), f"Didn't filter {str(entry)}"
     except ValueError as e:
         assert e.args[0].startswith("Cannot compare multi-allelic"), f"Unknown exception {str(entry)}"

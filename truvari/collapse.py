@@ -95,7 +95,7 @@ class CollapsedCalls():
             self.genotype_mask |= other.genotype_mask
 
 
-def chain_collapse(cur_collapse, all_collapse, matcher):
+def chain_collapse(cur_collapse, all_collapse):
     """
     Perform transitive matching of cur_collapse to all_collapse
     Check the cur_collapse's entry to all other collapses' consolidated entries
@@ -103,7 +103,6 @@ def chain_collapse(cur_collapse, all_collapse, matcher):
     for m_collap in all_collapse:
         for other in m_collap.matches:
             mat = cur_collapse.entry.match(other.comp,
-                                           matcher=matcher,
                                            skip_gt=True,
                                            short_circuit=True)
             mat.matid = m_collap.match_id
@@ -138,7 +137,6 @@ def collapse_chunk(chunk, matcher):
         # Sort based on size difference to current call
         for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
             mat = m_collap.entry.match(candidate,
-                                       matcher=matcher,
                                        skip_gt=True,
                                        short_circuit=True)
             mat.matid = m_collap.match_id
@@ -148,13 +146,13 @@ def collapse_chunk(chunk, matcher):
                 mat.state = False
             if mat.state:
                 m_collap.matches.append(mat)
-            elif mat.sizesim is not None and mat.sizesim < matcher.params.pctsize:
+            elif mat.sizesim is not None and mat.sizesim < matcher.pctsize:
                 # Can we do this? The sort tells us that we're going through most->least
                 # similar size. So the next one will only be worse...
                 break
 
         # Does this collap need to go into a previous collap?
-        if not matcher.chain or not chain_collapse(m_collap, ret, matcher):
+        if not matcher.chain or not chain_collapse(m_collap, ret):
             ret.append(m_collap)
 
         # If hap, only allow the best match
@@ -640,12 +638,12 @@ class IntraMergeOutput():
             entry = n_entry
         return "\t".join(str(entry).split('\t')[:10]) + '\n'
 
-    def write(self, entry, write_resolved=False):
+    def write(self, entry):
         """
         Writes header (str) or entries (VariantRecords)
         """
         if isinstance(entry, truvari.VariantRecord):
-            entry = self.consolidate(entry, write_resolved)
+            entry = self.consolidate(entry, entry.matcher.write_resolved)
         if self.isgz:
             entry = entry.encode()
         self.fh.write(entry)
@@ -662,14 +660,14 @@ class CollapseOutput(dict):
     Output writer for collapse
     """
 
-    def __init__(self, args):
+    def __init__(self, args, matcher):
         """
         Makes all of the output files for collapse
         """
         super().__init__()
         logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
 
-        in_vcf = truvari.VariantFile(args.input)
+        in_vcf = truvari.VariantFile(args.input, matcher=matcher)
         self["o_header"] = edit_header(in_vcf, args.median_info)
         self["c_header"] = trubench.edit_header(in_vcf)
         num_samps = len(self["o_header"].samples)
@@ -681,12 +679,11 @@ class CollapseOutput(dict):
             self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
         else:
             self["output_vcf"] = truvari.VariantFile(args.output, 'w',
-                                                     header=self["o_header"])
+                                                     header=self["o_header"], matcher=matcher)
         self["collap_vcf"] = truvari.VariantFile(args.removed_output, 'w',
-                                                 header=self["c_header"])
+                                                 header=self["c_header"], matcher=matcher)
         self["stats_box"] = {"collap_cnt": 0, "kept_cnt": 0,
                              "out_cnt": 0, "consol_cnt": 0}
-        self.write_resolved = args.write_resolved
 
     def write(self, collap, median_info=False):
         """
@@ -696,17 +693,17 @@ class CollapseOutput(dict):
         self["stats_box"]["out_cnt"] += 1
         # Nothing collapsed, no need to annotate
         if not collap.matches:
-            self["output_vcf"].write(collap.entry, self.write_resolved)
+            self["output_vcf"].write(collap.entry)
             return
 
         collap.annotate_entry(self["o_header"], median_info)
 
-        self["output_vcf"].write(collap.entry, self.write_resolved)
+        self["output_vcf"].write(collap.entry)
         self["stats_box"]["kept_cnt"] += 1
         self["stats_box"]["consol_cnt"] += collap.gt_consolidate_count
         for match in collap.matches:
             trubench.annotate_entry(match.comp, match, self["c_header"])
-            self["collap_vcf"].write(match.comp, self.write_resolved)
+            self["collap_vcf"].write(match.comp)
             self['stats_box']["collap_cnt"] += 1
 
     def close(self):
@@ -817,8 +814,8 @@ def tree_size_chunker(matcher, chunks):
         for entry in chunk['base']:
             # How much smaller/larger would be in sizesim?
             sz = entry.size()
-            diff = sz * (1 - matcher.params.pctsize)
-            if not matcher.params.typeignore:
+            diff = sz * (1 - matcher.pctsize)
+            if not matcher.typeignore:
                 sz *= -1 if entry.var_type() == truvari.SV.DEL else 1
             to_add.append((sz - diff, sz + diff, LinkedList(entry)))
         tree = merge_intervals(to_add)
@@ -844,8 +841,8 @@ def tree_dist_chunker(matcher, chunks):
         to_add = []
         for entry in chunk['base']:
             st, ed = entry.boundaries()
-            st -= matcher.params.refdist
-            ed += matcher.params.refdist
+            st -= matcher.refdist
+            ed += matcher.refdist
             to_add.append((st, ed, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -872,7 +869,7 @@ def collapse_main(args):
     args.sizefilt = args.sizemin
     args.no_ref = False
     matcher = truvari.Matcher(args=args)
-    matcher.params.includebed = None
+    matcher.includebed = None
     matcher.keep = args.keep
     matcher.hap = args.hap
     matcher.gt = args.gt
@@ -881,7 +878,7 @@ def collapse_main(args):
     matcher.no_consolidate = args.no_consolidate
     matcher.picker = 'single'
 
-    base = truvari.VariantFile(args.input)
+    base = truvari.VariantFile(args.input, matcher=matcher)
     regions = truvari.build_region_tree(base, includebed=args.bed)
     truvari.merge_region_tree_overlaps(regions)
     base_i = base.regions_fetch(regions)
@@ -890,7 +887,7 @@ def collapse_main(args):
     smaller_chunks = tree_size_chunker(matcher, chunks)
     even_smaller_chunks = tree_dist_chunker(matcher, smaller_chunks)
 
-    outputs = CollapseOutput(args)
+    outputs = CollapseOutput(args, matcher)
     m_collap = partial(collapse_chunk, matcher=matcher)
     for call in itertools.chain.from_iterable(map(m_collap, even_smaller_chunks)):
         outputs.write(call, args.median_info)

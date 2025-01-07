@@ -15,62 +15,109 @@ RC = str.maketrans("ATCG", "TAGC")
 
 class VariantFile:
     """
-    Wrapper around pysam.VariantFile with helper functions for iteration
-    Note: The context manager functionality of pysam.VariantFile is not available with truvari.VariantFile
+    Wrapper around pysam.VariantFile with helper functions for iteration.
+
+    .. note::
+        The context manager functionality of pysam.VariantFile is not available with truvari.VariantFile.
     """
 
-    def __init__(self, filename, *args, **kwargs):
+    def __init__(self, filename, *args, matcher=None, **kwargs):
+        """
+        Initialize the VariantFile wrapper.
+
+        :param filename: Path to the VCF file to be opened.
+        :type filename: str
+        :param matcher: Matcher to apply to all VariantRecords
+        :type matcher: `truvari.Matcher`
+        :param args: Additional positional arguments to pass to pysam.VariantFile.
+        :param kwargs: Additional keyword arguments to pass to pysam.VariantFile.
+        """
+        self.matcher = matcher
         self._vcf = pysam.VariantFile(filename, *args, **kwargs)
 
     def __getattr__(self, name):
         """
-        Delegate attribute access to the original VariantFile
+        Delegate attribute access to the original VariantFile.
+
+        :param name: Attribute name to access from the underlying pysam.VariantFile object.
+        :type name: str
+        :return: The requested attribute from the underlying pysam.VariantFile.
+        :rtype: Any
         """
         return getattr(self._vcf, name)
 
     def __iter__(self):
         """
-        Iterate the VariantFile, wrapping into truvari VariantRecords
+        Iterate over the `pysam.VariantFile`, wrapping entries into `truvari.VariantRecord`.
+
+        :return: Iterator of truvari.VariantRecord objects.
+        :rtype: iterator
         """
         for i in self._vcf:
-            yield VariantRecord(i)
+            yield VariantRecord(i, self.matcher)
 
     def __next__(self):
         """
-        Return the next
+        Return the next truvari.VariantRecord in the VariantFile.
+
+        :return: Next truvari.VariantRecord.
+        :rtype: truvari.VariantRecord
         """
-        return VariantRecord(next(self._vcf))
+        return VariantRecord(next(self._vcf), self.matcher)
 
     def fetch(self, *args, **kwargs):
         """
-        Fetch from the VariantFile, wrapping into truvari VariantRecords
+        Fetch variants from the `pysam.VariantFile`, wrapping them into `truvari.VariantRecords`.
+
+        :param args: Positional arguments for the pysam.VariantFile.fetch method.
+        :param kwargs: Keyword arguments for the pysam.VariantFile.fetch method.
+        :return: Iterator of truvari.VariantRecord objects.
+        :rtype: iterator
         """
+
         for i in self._vcf.fetch(*args, **kwargs):
-            yield truvari.VariantRecord(i)
+            yield truvari.VariantRecord(i, self.matcher)
 
     def regions_fetch(self, tree, inside=True, with_region=False):
         """
-        Given a tree of chrom:IntervalTree, fetch variants from the VCF
-        that are inside (or outside) the tree's regions
-        with_regions will return tuples of the (variant, region)
+        Fetch variants from the VCF based on regions defined in a tree of chrom:IntervalTree.
+
+        :param tree: Tree of chrom:IntervalTree defining regions of interest.
+        :type tree: dict
+        :param inside: If True, fetch variants inside the regions. If False, fetch variants outside the regions.
+        :type inside: bool
+        :param with_region: If True, return tuples of (`truvari.VariantRecord`, region). Defaults to False.
+        :type with_region: bool
+        :return: Iterator of truvari.VariantRecord objects or tuples of (`truvari.VariantRecord`, region).
+        :rtype: iterator
         """
         return region_filter(self, tree, inside, with_region)
 
     def bed_fetch(self, bed_fn, inside=True, with_region=False):
         """
-        Given a bed file, iterate variants inside or outside the regions.
-        with_regions will return tuples of the (variant, region)
+        Fetch variants from the VCF based on regions defined in a BED file.
+
+        :param bed_fn: Path to the BED file defining regions of interest.
+        :type bed_fn: str
+        :param inside: If True, fetch variants inside the regions. If False, fetch variants outside the regions.
+        :type inside: bool
+        :param with_region: If True, return tuples of (`truvari.VariantRecord`, region). Defaults to False.
+        :type with_region: bool
+        :return: Iterator of truvari.VariantRecord objects or tuples of (`truvari.VariantRecord`, region).
+        :rtype: iterator
         """
         tree = truvari.read_bed_tree(bed_fn)
         return self.regions_fetch(tree, inside, with_region)
 
-    def write(self, record, resolved=False):
+    def write(self, record):
         """
-        Pull pysam VarianRecord out of truvari VariantRecord before writing
-        If resolved, replace the record's REF and ALT with self.get_ref() self.get_alt()
+        Write a `truvari.VariantRecord` to the `pysam.VariantFile`.
+
+        :param record: The truvari.VariantRecord to be written.
+        :type record: `truvari.VariantRecord`
         """
         out = record.get_record()
-        if resolved:
+        if self.matcher and self.matcher.write_resolved:
             out.ref = record.get_ref()
             out.alts = (record.get_alt(),)
         self._vcf.write(out)
@@ -81,7 +128,7 @@ class VariantRecord:
     Wrapper around pysam.VariantRecords with helper functions of variant properties and basic comparisons
     """
 
-    def __init__(self, record):
+    def __init__(self, record, matcher=None):
         """
         Initialize with just the internal record
         """
@@ -89,6 +136,10 @@ class VariantRecord:
         self.resolved_ref = None
         self.resolved_alt = None
         self.end = record.stop
+        if matcher is None:
+            self.matcher = truvari.Matcher()
+        else:
+            self.matcher = matcher
 
     def __getattr__(self, name):
         """
@@ -128,11 +179,19 @@ class VariantRecord:
     def bnd_direction_strand(self):
         """
         Parses a BND ALT string to determine its direction and strand.
-        A direction of 'left' means the piece is anchored on the left of the breakpoint
-        Note that this method assumes `self.is_bnd()`
 
-        Returns:
-            tuple: A tuple containing the direction ("left" or "right") and strand ("direct" or "complement").
+        A BND (breakend) ALT string indicates a structural variant breakpoint. This method parses the ALT string to determine:
+
+        - The direction: "left" means the piece is anchored on the left side of the breakpoint, while "right" means it's anchored on the right.
+        - The strand: "direct" indicates the base is on the direct strand, and "complement" indicates the base is on the complement strand.
+
+        .. note::
+            This method assumes that `self.is_bnd()` is `True`, meaning the variant is a BND-type structural variant.
+
+        :return: A tuple containing the direction ("left" or "right") and the strand ("direct" or "complement").
+        :rtype: tuple (str, str)
+
+        :raises ValueError: If the ALT string does not follow the expected BND format.
         """
         bnd = self.alts[0]
         if bnd.startswith('[') or bnd.endswith('['):
@@ -156,8 +215,14 @@ class VariantRecord:
         """
         Extracts the chromosome and position from a BND ALT string.
 
-        Returns:
-            tuple: A tuple containing the chromosome (str) and position (int).
+        Breakend (BND) ALT strings indicate structural variant breakpoints that span across chromosomes or positions. 
+        This method parses the ALT string to extract the target chromosome and position of the breakpoint.
+
+        :return: A tuple containing the chromosome (as a string) and the position (as an integer).
+        :rtype: tuple (str, int)
+
+        :raises ValueError: If the ALT string does not follow the expected BND format.
+
         """
         # Regular expression to match the BND format and extract chrom:pos
         match = re.search(r'[\[\]]([^\[\]:]+):(\d+)[\[\]]', self.alts[0])
@@ -169,19 +234,16 @@ class VariantRecord:
 
         return chrom, pos
 
-    def bnd_match(self, other, matcher=None, **_kwargs):
+    def bnd_match(self, other, **_kwargs):
         """
         Build a MatchResult for bnds
         """
-        if matcher is None:
-            matcher = truvari.Matcher()
-
         def bounds(entry, pos, key):
             """
             Inflate a bnd position based on CIPOS.
             """
-            start = pos - matcher.params.bnddist
-            end = pos + matcher.params.bnddist
+            start = pos - self.matcher.bnddist
+            end = pos + self.matcher.bnddist
 
             key = 'CI' + key
             idx = 0 if key == 'POS' else 1
@@ -232,12 +294,12 @@ class VariantRecord:
                           str(self), str(other))
             return ret
 
-        matcher.compare_gts(ret, self, other)
+        self.compare_gts(other, ret)
 
         # Score is percent of allowed distance needed to find this match
-        if matcher.params.bnddist > 0:
+        if self.matcher.bnddist > 0:
             ret.score = max(0, (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                                / matcher.params.bnddist) * 100)
+                                / self.matcher.bnddist) * 100)
         else:
             ret.score = int(ret.state) * 100
 
@@ -396,7 +458,7 @@ class VariantRecord:
         """
         return self._record
 
-    def match(self, other, matcher=None, skip_gt=False, short_circuit=False):
+    def match(self, other, skip_gt=False, short_circuit=False):
         """
         Build a MatchResult from comparison of two VariantRecords
         If self and other are non-bnd, calls VariantRecord.var_match,
@@ -404,12 +466,10 @@ class VariantRecord:
         Otherwise, raises a TypeError.
         If no matcher is provided, builds one from defaults
         """
-        if matcher is None:
-            matcher = truvari.Matcher()
         if not self.is_bnd() and not other.is_bnd():
-            return self.var_match(other, matcher, skip_gt, short_circuit)
+            return self.var_match(other, skip_gt, short_circuit)
         if self.is_bnd() and other.is_bnd():
-            return self.bnd_match(other, matcher)
+            return self.bnd_match(other)
         raise TypeError("Incompatible Variants (BND and !BND) can't be matched")
 
     def move_record(self, out_vcf, sample=None):
@@ -449,7 +509,7 @@ class VariantRecord:
         bstart, bend = other.boundaries(ins_inflate)
         return truvari.reciprocal_overlap(astart, aend, bstart, bend)
 
-    def resolve(self, ref, dup_to_ins=False):
+    def resolve(self, ref):
         """
         Attempts to resolve an SV's REF/ALT sequences. Stores in self.resolved_ref, self.resolved_alt, and self.end
         """
@@ -464,7 +524,7 @@ class VariantRecord:
         elif svtype == truvari.SV.INV:
             self.resolved_ref = seq
             self.resolved_alt = seq.translate(RC)[::-1]
-        elif svtype == truvari.SV.DUP and dup_to_ins:
+        elif svtype == truvari.SV.DUP and self.matcher.dup_to_ins:
             self.resolved_ref = seq[0]
             self.resolved_alt = seq
             self.end = self.start + 1
@@ -594,7 +654,7 @@ class VariantRecord:
         """
         return truvari.sizesim(self.size(), other.size())
 
-    def var_match(self, other, matcher=None, skip_gt=False, short_circuit=False):
+    def var_match(self, other, skip_gt=False, short_circuit=False):
         """
         Build a MatchResult
         if skip_gt, don't do genotype comparison
@@ -606,7 +666,7 @@ class VariantRecord:
 
         ret.state = True
 
-        if not matcher.params.typeignore and not self.same_type(other, matcher.params.dup_to_ins):
+        if not self.matcher.typeignore and not self.same_type(other):
             logging.debug("%s and %s are not the same SVTYPE",
                           str(self), str(other))
             ret.state = False
@@ -615,7 +675,7 @@ class VariantRecord:
 
         bstart, bend = self.boundaries()
         cstart, cend = other.boundaries()
-        if not truvari.overlaps(bstart - matcher.params.refdist, bend + matcher.params.refdist, cstart, cend):
+        if not truvari.overlaps(bstart - self.matcher.refdist, bend + self.matcher.refdist, cstart, cend):
             logging.debug("%s and %s are not within REFDIST",
                           str(self), str(other))
             ret.state = False
@@ -623,7 +683,7 @@ class VariantRecord:
                 return ret
 
         ret.sizesim, ret.sizediff = self.sizesim(other)
-        if ret.sizesim < matcher.params.pctsize:
+        if ret.sizesim < self.matcher.pctsize:
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(self), str(other), ret.sizesim)
             ret.state = False
@@ -631,19 +691,19 @@ class VariantRecord:
                 return ret
 
         if not skip_gt:
-            matcher.compare_gts(ret, self, other)
+            self.compare_gts(other, ret)
 
         ret.ovlpct = self.recovl(other)
-        if ret.ovlpct < matcher.params.pctovl:
+        if ret.ovlpct < self.matcher.pctovl:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(self), str(other), ret.ovlpct)
             ret.state = False
             if short_circuit:
                 return ret
 
-        if matcher.params.pctseq > 0:
-            ret.seqsim = self.seqsim(other, matcher.params.no_roll)
-            if ret.seqsim < matcher.params.pctseq:
+        if self.matcher.pctseq > 0:
+            ret.seqsim = self.seqsim(other)
+            if ret.seqsim < self.matcher.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(self), str(other), ret.seqsim)
                 ret.state = False
@@ -760,3 +820,105 @@ class VariantRecord:
         qstart, qend = self.boundaries()
         end_within = self.var_type() != truvari.SV.INS
         return truvari.coords_within(qstart, qend, rstart, rend, end_within)
+
+    def filter_call(self, base=False):
+        """
+        Determines whether a variant call should be filtered based on Truvari parameters or specific requirements.
+
+        This method evaluates a variant entry (`entry`) and checks if it should be excluded from further processing
+        based on filtering criteria such as monomorphic reference, multi-allelic records, filtering status,
+        sample presence, or unsupported single-end BNDs.
+
+        :param entry: The variant entry to evaluate.
+        :type entry: truvari.VariantRecord
+        :param base: A flag indicating whether the entry is the "base" (reference) call or the "comparison" call.
+                     Filtering behavior may differ based on this flag.
+        :type base: bool, optional
+
+        :return: `True` if the variant should be filtered (excluded), otherwise `False`.
+        :rtype: bool
+
+        :raises ValueError: If the entry is multi-allelic and `check_multi` is enabled in the Truvari parameters.
+
+        Filtering Logic:
+            - **Monomorphic Reference:** If `check_monref` is enabled and the entry is a monomorphic reference, it is filtered.
+            - **Multi-Allelic Records:** If `check_multi` is enabled and the entry is multi-allelic, an error is raised.
+            - **Filtered Variants:** If `passonly` is enabled and the entry is flagged as filtered, it is excluded.
+            - **Sample Presence:** If `no_ref` is set to include the entry's type (base or comparison) or `pick == 'ac'`, the sample must be present in the entry.
+            - **Single-End BNDs:** Single-end BNDs are always excluded.
+        """
+        if self.matcher.check_monref and self.is_monrefstar():
+            return True
+
+        if self.matcher.check_multi and self.is_multi():
+            raise ValueError(
+                f"Cannot compare multi-allelic records. Please split\nline {str(self)}")
+
+        if self.matcher.passonly and self.is_filtered():
+            return True
+
+        prefix = 'b' if base else 'c'
+        if self.matcher.no_ref in ["a", prefix] or self.matcher.pick == 'ac':
+            samp = self.matcher.bSample if base else self.matcher.cSample
+            if not self.is_present(samp):
+                return True
+
+        if self.matcher.no_single_bnd and self.is_single_bnd():
+            return True
+        return False
+
+    def size_filter(self, base=False):
+        """
+        Determines whether a variant entry should be filtered based on its size.
+
+        This method evaluates the size of a variant and checks if it falls outside the specified size thresholds.
+        Filtering criteria depend on whether the entry is a "base" (reference) or "comparison" call.
+
+        :param entry: The variant entry to evaluate.
+        :type entry: truvari.VariantRecord
+        :param base: A flag indicating whether the entry is the "base" (reference) call. If `True`, the `sizemin`
+                     parameter is used as the minimum size threshold. Otherwise, the `sizefilt` parameter is used.
+        :type base: bool, optional
+
+        :return: `True` if the variant should be filtered due to its size, otherwise `False`.
+        :rtype: bool
+
+        Filtering Logic:
+            - **Maximum Size:** If the size exceeds `sizemax`, the variant is filtered.
+            - **Minimum Size (Base):** If `base=True` and the size is less than `sizemin`, the variant is filtered.
+            - **Minimum Size (Comparison):** If `base=False` and the size is less than `sizefilt`, the variant is filtered.
+        """
+        size = self.size()
+        return (size > self.matcher.sizemax) \
+            or (base and size < self.matcher.sizemin) \
+            or (not base and size < self.matcher.sizefilt)
+
+    def compare_gts(self, other, match):
+        """
+        Populates genotype-specific comparison details in a `MatchResult`.
+
+        This method compares the genotypes of a "base" (reference) variant and a "comparison" variant and updates
+        the provided `MatchResult` object with the results. It computes the genotype counts and determines the
+        difference between the base and comparison genotypes.
+
+        :param other: The other variant entry.
+        :type other: `truvari.VariantRecord`
+        :param match: The `MatchResult` object to update with genotype comparison details.
+        :type match: truvari.MatchResult
+
+        Updates the `MatchResult` object with the following attributes:
+            - `base_gt`: The genotype of the base sample.
+            - `base_gt_count`: The count of the reference allele (1) in the base genotype.
+            - `comp_gt`: The genotype of the comparison sample.
+            - `comp_gt_count`: The count of the reference allele (1) in the comparison genotype.
+            - `gt_match`: The absolute difference between `base_gt_count` and `comp_gt_count`.
+        """
+        b_gt = self.gt(self.matcher.bSample)
+        c_gt = other.gt(self.matcher.cSample)
+        if b_gt:
+            match.base_gt = b_gt
+            match.base_gt_count = sum(1 for _ in match.base_gt if _ == 1)
+        if c_gt:
+            match.comp_gt = c_gt
+            match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
+        match.gt_match = abs(match.base_gt_count - match.comp_gt_count)

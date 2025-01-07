@@ -323,7 +323,7 @@ class BenchOutput():
 
         os.mkdir(self.m_bench.outdir)
         param_dict = self.m_bench.param_dict()
-        param_dict.update(vars(self.m_matcher.params))
+        param_dict.update(vars(self.m_matcher))
 
         if self.m_bench.do_logging:
             truvari.setup_logging(self.m_bench.debug, truvari.LogFileStderr(
@@ -333,8 +333,8 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        b_vcf = truvari.VariantFile(self.m_bench.base_vcf)
-        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf)
+        b_vcf = truvari.VariantFile(self.m_bench.base_vcf, matcher=self.m_matcher)
+        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf, matcher=self.m_matcher)
         self.n_headers = {'b': edit_header(b_vcf),
                           'c': edit_header(c_vcf)}
 
@@ -345,14 +345,14 @@ class BenchOutput():
         self.out_vcfs = {}
         for key in ['tpb', 'fn']:
             self.out_vcfs[key] = truvari.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
+                self.vcf_filenames[key], mode='w', header=self.n_headers['b'], matcher=self.m_matcher)
         for key in ['tpc', 'fp']:
             self.out_vcfs[key] = truvari.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
+                self.vcf_filenames[key], mode='w', header=self.n_headers['c'], matcher=self.m_matcher)
 
         self.stats_box = StatsBox()
 
-    def write_match(self, match, resolved=False):
+    def write_match(self, match):
         """
         Annotate a MatchResults' entries then write to the apppropriate file
         and do the stats counting.
@@ -368,30 +368,30 @@ class BenchOutput():
                 box["gt_matrix"][gtBase][gtComp] += 1
 
                 box["TP-base"] += 1
-                self.out_vcfs["tpb"].write(match.base, resolved)
+                self.out_vcfs["tpb"].write(match.base)
                 if match.gt_match == 0:
                     box["TP-base_TP-gt"] += 1
                 else:
                     box["TP-base_FP-gt"] += 1
             else:
                 box["FN"] += 1
-                self.out_vcfs["fn"].write(match.base, resolved)
+                self.out_vcfs["fn"].write(match.base)
 
         if match.comp:
             annotate_entry(match.comp, match, self.n_headers['c'])
             if match.state:
                 box["comp cnt"] += 1
                 box["TP-comp"] += 1
-                self.out_vcfs["tpc"].write(match.comp, resolved)
+                self.out_vcfs["tpc"].write(match.comp)
                 if match.gt_match == 0:
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif match.comp.size() >= self.m_matcher.params.sizemin:
+            elif match.comp.size() >= self.m_matcher.sizemin:
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
-                self.out_vcfs["fp"].write(match.comp, resolved)
+                self.out_vcfs["fp"].write(match.comp)
 
     def close_outputs(self):
         """
@@ -422,8 +422,7 @@ class Bench():
 
     .. code-block:: python
 
-       matcher = truvari.Matcher()
-       matcher.params.pctseq = 0.50
+       matcher = truvari.Matcher(pctseq=0.50)
        m_bench = truvari.Bench(matcher)
 
     To run on a chunk of :class:`truvari.VariantRecord` already loaded, pass them in as lists to:
@@ -451,10 +450,8 @@ class Bench():
     However, the returned `BenchOutput` has attributes pointing to all the results.
     """
 
-    #pylint: disable=too-many-arguments
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False,
-                 write_resolved=False):
+                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
         """
         Initilize
         """
@@ -468,8 +465,6 @@ class Bench():
         self.do_logging = do_logging
         self.short_circuit = short_circuit
         self.refine_candidates = []
-        self.write_resolved = write_resolved
-    #pylint: enable=too-many-arguments
 
     def param_dict(self):
         """
@@ -492,8 +487,8 @@ class Bench():
 
         output = BenchOutput(self, self.matcher)
 
-        base = truvari.VariantFile(self.base_vcf)
-        comp = truvari.VariantFile(self.comp_vcf)
+        base = truvari.VariantFile(self.base_vcf, matcher=self.matcher)
+        comp = truvari.VariantFile(self.comp_vcf, matcher=self.matcher)
 
         region_tree = truvari.build_region_tree(base, comp, self.includebed)
         truvari.merge_region_tree_overlaps(region_tree)
@@ -513,7 +508,7 @@ class Bench():
                 and not match.state
                     and not match.comp.within_tree(region_tree)):
                 match.comp = None
-            output.write_match(match, self.write_resolved)
+            output.write_match(match)
 
         with open(os.path.join(self.outdir, 'candidate.refine.bed'), 'w') as fout:
             fout.write("\n".join(self.refine_candidates))
@@ -531,7 +526,7 @@ class Bench():
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
         # Check BNDs separately
-        if self.matcher.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
+        if self.matcher.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
             result.extend(self.compare_calls(chunk_dict['base_BND'],
                                              chunk_dict['comp_BND'], chunk_id))
         return result
@@ -584,7 +579,7 @@ class Bench():
             base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
             return match_matrix
-        return PICKERS[self.matcher.params.pick](match_matrix)
+        return PICKERS[self.matcher.pick](match_matrix)
 
     def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
         """
@@ -597,8 +592,7 @@ class Bench():
         for bid, base in enumerate(base_variants):
             base_matches = []
             for cid, comp in enumerate(comp_variants):
-                mat = base.match(comp, matcher=self.matcher,
-                                 skip_gt=skip_gt, short_circuit=self.short_circuit)
+                mat = base.match(comp, skip_gt=skip_gt, short_circuit=self.short_circuit)
                 mat.matid = [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"]
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
@@ -615,14 +609,14 @@ class Bench():
         chrom = None
         for match in result:
             has_unmatched |= not match.state
-            if match.base is not None and match.base.size() >= self.matcher.params.sizemin:
+            if match.base is not None and match.base.size() >= self.matcher.sizemin:
                 chrom = match.base.chrom
                 pos.extend(match.base.boundaries())
             if match.comp is not None:
                 chrom = match.comp.chrom
                 pos.extend(match.comp.boundaries())
         if has_unmatched and pos:
-            # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            # min(10, self.matcher.chunksize) need to make sure the refine covers the region
             buf = 10
             start = max(0, min(*pos) - buf)
             self.refine_candidates.append(
@@ -783,8 +777,7 @@ def bench_main(cmdargs):
                     extend=args.extend,
                     debug=args.debug,
                     do_logging=True,
-                    short_circuit=args.short,
-                    write_resolved=args.write_resolved)
+                    short_circuit=args.short)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

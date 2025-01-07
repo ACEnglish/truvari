@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from functools import total_ordering
 import pysam
 
+
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
@@ -67,28 +68,33 @@ class Matcher():
 
     Example
         >>> import truvari
-        >>> mat = truvari.Matcher()
-        >>> mat.params.pctseq = 0
+        >>> mat = truvari.Matcher(pctseq=0)
         >>> v = truvari.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
         >>> one = next(v); two = next(v)
-        >>> mat.build_match(one, two)
+        >>> one.match(two, matcher=mat)
         <truvari.bench.MatchResult (False 2.381)>
 
     Look at `Matcher.make_match_params()` for a list of all params and their defaults
     """
 
-    def __init__(self, args=None):
+    def __init__(self, args=None, **kwargs):
         """
         Initalize. args is a Namespace from argparse
         """
         if args is not None:
-            self.params = self.make_match_params_from_args(args)
+            params = self.make_match_params_from_args(args)
         else:
-            self.params = self.make_match_params()
+            params = self.make_match_params()
 
-        self.reference = None
-        if self.params.reference is not None:
-            self.reference = pysam.FastaFile(self.params.reference)
+        # Override parameters with those provided in kwargs
+        for key, value in kwargs.items():
+            if hasattr(params, key):
+                setattr(params, key, value)
+            else:
+                raise ValueError(f"Invalid parameter: {key}")
+
+        for key, value in params.__dict__.items():
+            setattr(self, key, value)
 
     @staticmethod
     def make_match_params():
@@ -117,83 +123,23 @@ class Matcher():
         params.ignore_monref = True
         params.check_multi = True
         params.check_monref = True
+        params.no_single_bnd = True
+        params.write_resolved = False
         return params
 
     @staticmethod
     def make_match_params_from_args(args):
         """
-        Makes a simple namespace of matching parameters
+        Makes a simple namespace of matching parameters.
+        Populates defaults from make_match_params, then updates with values from args.
         """
-        ret = types.SimpleNamespace()
-        ret.reference = args.reference
-        ret.refdist = args.refdist
-        ret.pctseq = args.pctseq
-        ret.pctsize = args.pctsize
-        ret.pctovl = args.pctovl
-        ret.typeignore = args.typeignore
-        ret.no_roll = args.no_roll
-        ret.chunksize = args.chunksize
-        ret.bSample = args.bSample if args.bSample else 0
-        ret.cSample = args.cSample if args.cSample else 0
-        ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
-        ret.bnddist = args.bnddist if 'bnddist' in args else -1
-        # filtering properties
-        ret.sizemin = args.sizemin
-        ret.sizefilt = args.sizefilt
-        ret.sizemax = args.sizemax
-        ret.passonly = args.passonly
-        ret.no_ref = args.no_ref
-        ret.pick = args.pick if "pick" in args else "single"
-        ret.check_monref = True
-        ret.check_multi = True
+        ret = Matcher.make_match_params()
+
+        for key in vars(ret):
+            if hasattr(args, key):
+                setattr(ret, key, getattr(args, key))
+
         return ret
-
-    def filter_call(self, entry, base=False):
-        """
-        Returns True if the call should be filtered based on parameters or truvari requirements
-        Base has different filtering requirements, so let the method know
-        """
-        if self.params.check_monref and entry.is_monrefstar():
-            return True
-
-        if self.params.check_multi and entry.is_multi():
-            raise ValueError(
-                f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
-
-        if self.params.passonly and entry.is_filtered():
-            return True
-
-        prefix = 'b' if base else 'c'
-        if self.params.no_ref in ["a", prefix] or self.params.pick == 'ac':
-            samp = self.params.bSample if base else self.params.cSample
-            if not entry.is_present(samp):
-                return True
-
-        # No single end BNDs
-        return entry.is_single_bnd()
-
-    def size_filter(self, entry, base=False):
-        """
-        Returns True if entry should be filtered due to its size
-        """
-        size = entry.size()
-        return (size > self.params.sizemax) \
-            or (base and size < self.params.sizemin) \
-            or (not base and size < self.params.sizefilt)
-
-    def compare_gts(self, match, base, comp):
-        """
-        Given a MatchResult, populate the genotype specific comparisons in place
-        """
-        b_gt = base.gt(self.params.bSample)
-        c_gt = comp.gt(self.params.cSample)
-        if b_gt:
-            match.base_gt = b_gt
-            match.base_gt_count = sum(1 for _ in match.base_gt if _ == 1)
-        if c_gt:
-            match.comp_gt = c_gt
-            match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
-        match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
 
 ############################
 # Parsing and set building #
@@ -252,20 +198,22 @@ def chunker(matcher, *files):
     cur_end = 0
     cur_chunk = defaultdict(list)
     unresolved_warned = False
+    reference = pysam.FastaFile(matcher.reference) if matcher.reference is not None else None
+
     for key, entry in file_zipper(*files):
-        if matcher.filter_call(entry, key == 'base'):
+        if entry.filter_call(key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
-        if not entry.is_bnd() and matcher.size_filter(entry, key == 'base'):
+        if not entry.is_bnd() and entry.size_filter(key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.params.pctseq != 0 and entry.alts[0].startswith('<'):
-            was_resolved = entry.resolve(matcher.reference, matcher.params.dup_to_ins)
+        if matcher.pctseq != 0 and entry.alts[0].startswith('<'):
+            was_resolved = entry.resolve(reference)
             if not was_resolved:
                 if not unresolved_warned:
                     logging.warning("Some symbolic SVs couldn't be resolved")
@@ -275,7 +223,7 @@ def chunker(matcher, *files):
                 continue
 
         new_chrom = cur_chrom and entry.chrom != cur_chrom
-        new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
+        new_chunk = cur_end and cur_end + matcher.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
             yield cur_chunk, chunk_count
