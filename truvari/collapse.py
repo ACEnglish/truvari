@@ -102,9 +102,7 @@ def chain_collapse(cur_collapse, all_collapse):
     """
     for m_collap in all_collapse:
         for other in m_collap.matches:
-            mat = cur_collapse.entry.match(other.comp,
-                                           skip_gt=True,
-                                           short_circuit=True)
+            mat = cur_collapse.entry.match(other.comp)
             mat.matid = m_collap.match_id
             if mat.state:
                 # The other's representative entry will report its
@@ -136,9 +134,7 @@ def collapse_chunk(chunk, matcher):
 
         # Sort based on size difference to current call
         for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
-            mat = m_collap.entry.match(candidate,
-                                       skip_gt=True,
-                                       short_circuit=True)
+            mat = m_collap.entry.match(candidate)
             mat.matid = m_collap.match_id
             if matcher.hap and not hap_resolve(m_collap.entry,  candidate):
                 mat.state = False
@@ -676,7 +672,8 @@ class CollapseOutput(dict):
                 "--hap mode requires exactly one sample. Found %d", num_samps)
             sys.exit(100)
         if args.intra:
-            self["output_vcf"] = IntraMergeOutput(args.output, self["o_header"])
+            self["output_vcf"] = IntraMergeOutput(
+                args.output, self["o_header"])
         else:
             self["output_vcf"] = truvari.VariantFile(args.output, 'w',
                                                      header=self["o_header"], matcher=matcher)
@@ -861,22 +858,18 @@ def collapse_main(args):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    # The matcher collapse needs isn't 100% identical to bench
-    # So we set it up here
-    args.chunksize = args.refdist
-    args.bSample = None
-    args.cSample = None
-    args.sizefilt = args.sizemin
-    args.no_ref = False
-    matcher = truvari.Matcher(args=args)
-    matcher.includebed = None
+    matcher = truvari.Matcher(args=args,
+                              short_circuit=True,
+                              skip_gt=True,
+                              sizefilt=args.sizemin,
+                              chunksize=args.refdist)
+    # Extra attributes needed for collapse
     matcher.keep = args.keep
     matcher.hap = args.hap
     matcher.gt = args.gt
     matcher.chain = args.chain
     matcher.sorter = SORTS[args.keep]
     matcher.no_consolidate = args.no_consolidate
-    matcher.picker = 'single'
 
     base = truvari.VariantFile(args.input, matcher=matcher)
     regions = truvari.build_region_tree(base, includebed=args.bed)

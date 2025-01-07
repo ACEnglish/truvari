@@ -1,29 +1,28 @@
 Truvari API QuickStart
 ======================
 
-Truvari provides functionality to facilitate comparison of SVs in VCF variant records.
-These functions are available to developers by simply replacing calls to `pysam.VariantFile` with `truvari.VariantFile`.
-All of the `pysam` functionality is still available in this object with the exception of context managers (i.e. `with`
-statements).
+Truvari provides functionality to facilitate the comparison of structural variants (SVs) in VCF variant records. Developers can easily leverage this functionality by replacing calls to `pysam.VariantFile` with `truvari.VariantFile`. The `truvari.VariantFile` retains all `pysam` functionality except for context managers (i.e., `with` statements).
 
 .. code-block:: python
 
     import truvari
     vcf = truvari.VariantFile("input.vcf.gz")
     for entry in vcf:
-        print(entry.info['SVTYPE']) # pysam access to the variant's INFO fields
-        print(entry.allele_freq_annos()) # truvari calculation of a variant's allele frequency
+        print(entry.info['SVTYPE'])  # Access variant's INFO fields using pysam
+        print(entry.allele_freq_annos())  # Calculate variant's allele frequency with truvari
 
-        # pysam GT access
+        # Access genotype (GT) using pysam
         if 'GT' in entry.samples['SAMPLE']:
-            print(entry.samples[0]['GT'])
-        # truvari GT access
+            print(entry.samples['SAMPLE']['GT'])
+        # Access genotype (GT) using truvari
         print(entry.gt('SAMPLE'))
 
+Details of all available functions are in :ref:`package documentation <variant_handling>`.
 
-Details of all available functions are in :ref:`package documentation <variant_handling>`
+Comparing Variants
+------------------
 
-Besides some helpful accession functions, the `truvari.VariantRecord` also makes comparing two VCF entries easy.
+The `truvari.VariantRecord` simplifies comparing two VCF entries.
 
 .. code-block:: python
 
@@ -33,40 +32,42 @@ Besides some helpful accession functions, the `truvari.VariantRecord` also makes
     print("Entries' Size Similarity:", match.sizesim)
     print("Is the match above thresholds:", match.state)
 
-This returns a `truvari.MatchResult`. We can customize the thresholds for matching by giving the `truvari.VariantFile` a
-`truvari.Matcher`.
+This returns a `truvari.MatchResult`. You can customize matching thresholds by providing a `truvari.Matcher` to the `truvari.VariantFile`.
 
 .. code-block:: python
 
-    # Turn off sequence and size similarity. Turn on reciprocal overlap
-    matcher = truvari.Matcher(seqsim=0, sizesim=0, recovl=0.5, ...)
+    # Disable sequence and size similarity; enable reciprocal overlap
+    matcher = truvari.Matcher(seqsim=0, sizesim=0, recovl=0.5)
     vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
     entry1 = next(vcf)
     entry2 = next(vcf)
     match = entry1.match(entry2)
 
-Another useful function is a quick way filter variants. The `truvari.Matcher` has parameters for e.g. minimum or maximum
-size of SVs one wants to analyze which can be leveraged via:
+Filtering Variants
+------------------
+
+The `truvari.Matcher` provides parameters for filtering variants, such as minimum or maximum SV sizes.
 
 .. code-block:: python
 
     matcher = truvari.Matcher(sizemin=200, sizemax=500)
     vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
-    # Grab all of the variant records between sizemin and sizemax
+    # Retrieve all variant records within sizemin and sizemax
     results = [entry for entry in vcf if not entry.size_filter()]
 
-Additional filtering for things such as monomorphic reference sites or single-end BNDs are available by calling `entry.filter_call()`
+Additional filters, such as excluding monomorphic reference sites or single-end BNDs, can be applied using `entry.filter_call()`.
 
-A common operation one needs to perform on a VCF is subsetting to regions from e.g. a bed file. This can be performed by
-truvari by simply calling
+Subsetting to Regions
+---------------------
+
+To subset a VCF to regions specified in a BED file, use:
 
 .. code-block:: python
 
     for entry in vcf.bed_fetch("regions.bed"):
         print(entry.var_type(), entry.size())
 
-In cases where your regions of interest aren't in a bed file, but an in-memory object, the `.regions_fetch`
-method allows iteration over the variants of interest.
+If your regions of interest are stored in an in-memory object instead of a BED file, use the `.regions_fetch` method:
 
 .. code-block:: python
 
@@ -80,16 +81,19 @@ method allows iteration over the variants of interest.
         count += 1
     print(f"Total of {count} variants")
 
-Furthermore, you can iterate variant that aren't within the regions via `vcf.regions_fetch(tree, within=False)`.
+To iterate over variants that are not within the regions, use `vcf.regions_fetch(tree, within=False)`.
 
-A particularly pesky problem to deal with is parsing BND information out of VCF entries. Truvari can help with that,
-also.
+Parsing BND Information
+-----------------------
+
+Truvari simplifies parsing BND information from VCF entries:
 
 .. code-block:: python
 
-    # Example entry
-    # chr1	23272628	SV_1	G	G]chr5:52747359]	.	PASS	SVTYPE=BND;EVENTTYPE=TRA:UNBALANCED;SUBCLONAL=n;COMPLEX=n;MATEID=SV_171	GT:PSL:PSO	0/1:.:.
+    # Example entry:
+    # chr1  23272628  SV_1  G  G]chr5:52747359]  .  PASS  SVTYPE=BND;EVENTTYPE=TRA:UNBALANCED;SUBCLONAL=n;COMPLEX=n;MATEID=SV_171  GT:PSL:PSO  0/1:.:.
     print(entry.bnd_position())
     # ('chr5', 52747359)
     print(entry.bnd_direction_strand())
     # ('right', 'direct')
+

@@ -234,7 +234,7 @@ class VariantRecord:
 
         return chrom, pos
 
-    def bnd_match(self, other, **_kwargs):
+    def bnd_match(self, other):
         """
         Build a MatchResult for bnds
         """
@@ -458,7 +458,7 @@ class VariantRecord:
         """
         return self._record
 
-    def match(self, other, skip_gt=False, short_circuit=False):
+    def match(self, other):
         """
         Build a MatchResult from comparison of two VariantRecords
         If self and other are non-bnd, calls VariantRecord.var_match,
@@ -467,7 +467,7 @@ class VariantRecord:
         If no matcher is provided, builds one from defaults
         """
         if not self.is_bnd() and not other.is_bnd():
-            return self.var_match(other, skip_gt, short_circuit)
+            return self.var_match(other)
         if self.is_bnd() and other.is_bnd():
             return self.bnd_match(other)
         raise TypeError("Incompatible Variants (BND and !BND) can't be matched")
@@ -654,11 +654,9 @@ class VariantRecord:
         """
         return truvari.sizesim(self.size(), other.size())
 
-    def var_match(self, other, skip_gt=False, short_circuit=False):
+    def var_match(self, other):
         """
         Build a MatchResult
-        if skip_gt, don't do genotype comparison
-        if short_circuit, return after first failure
         """
         ret = truvari.MatchResult()
         ret.base = self
@@ -670,7 +668,7 @@ class VariantRecord:
             logging.debug("%s and %s are not the same SVTYPE",
                           str(self), str(other))
             ret.state = False
-            if short_circuit:
+            if self.matcher.short_circuit:
                 return ret
 
         bstart, bend = self.boundaries()
@@ -679,7 +677,7 @@ class VariantRecord:
             logging.debug("%s and %s are not within REFDIST",
                           str(self), str(other))
             ret.state = False
-            if short_circuit:
+            if self.matcher.short_circuit:
                 return ret
 
         ret.sizesim, ret.sizediff = self.sizesim(other)
@@ -687,10 +685,10 @@ class VariantRecord:
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(self), str(other), ret.sizesim)
             ret.state = False
-            if short_circuit:
+            if self.matcher.short_circuit:
                 return ret
 
-        if not skip_gt:
+        if not self.matcher.skip_gt:
             self.compare_gts(other, ret)
 
         ret.ovlpct = self.recovl(other)
@@ -698,7 +696,7 @@ class VariantRecord:
             logging.debug("%s and %s overlap percent is too low (%.3f)",
                           str(self), str(other), ret.ovlpct)
             ret.state = False
-            if short_circuit:
+            if self.matcher.short_circuit:
                 return ret
 
         if self.matcher.pctseq > 0:
@@ -707,7 +705,7 @@ class VariantRecord:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(self), str(other), ret.seqsim)
                 ret.state = False
-                if short_circuit:
+                if self.matcher.short_circuit:
                     return ret
         else:
             ret.seqsim = 0

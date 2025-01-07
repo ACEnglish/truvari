@@ -407,7 +407,6 @@ class BenchOutput():
         self.stats_box.write_json(os.path.join(
             self.m_bench.outdir, "summary.json"))
 
-#pylint: disable=too-many-instance-attributes
 class Bench():
     """
     Object to perform operations of truvari bench
@@ -452,7 +451,7 @@ class Bench():
     """
 
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
+                 includebed=None, extend=0, debug=False, do_logging=False):
         """
         Initilize
         """
@@ -464,7 +463,6 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
-        self.short_circuit = short_circuit
         self.refine_candidates = []
 
     def param_dict(self):
@@ -560,7 +558,7 @@ class Bench():
             return fns
 
         # 5k variants takes too long
-        if self.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+        if self.matcher.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
             pos = []
             cnt = 0
             chrom = None
@@ -582,7 +580,7 @@ class Bench():
             return match_matrix
         return PICKERS[self.matcher.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
@@ -593,7 +591,7 @@ class Bench():
         for bid, base in enumerate(base_variants):
             base_matches = []
             for cid, comp in enumerate(comp_variants):
-                mat = base.match(comp, skip_gt=skip_gt, short_circuit=self.short_circuit)
+                mat = base.match(comp)
                 mat.matid = [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"]
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
@@ -768,7 +766,7 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    matcher = truvari.Matcher(args)
+    matcher = truvari.Matcher(args, short_circuit=args.short)
 
     m_bench = Bench(matcher=matcher,
                     base_vcf=args.base,
@@ -777,8 +775,7 @@ def bench_main(cmdargs):
                     includebed=args.includebed,
                     extend=args.extend,
                     debug=args.debug,
-                    do_logging=True,
-                    short_circuit=args.short)
+                    do_logging=True)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

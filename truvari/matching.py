@@ -125,6 +125,8 @@ class Matcher():
         params.check_monref = True
         params.no_single_bnd = True
         params.write_resolved = False
+        params.short_circuit = False
+        params.skip_gt = False
         return params
 
     @staticmethod
