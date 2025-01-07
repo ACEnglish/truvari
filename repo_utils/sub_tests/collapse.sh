@@ -39,7 +39,7 @@ collapse_multi_assert() {
     assert_equal $(fn_md5 $ANSDIR/collapse/multi_removed_${keep}.vcf) $(fn_md5 $OD/multi_removed_${keep}.vcf)
 }
 
-run collapse_1 collapse 1 "--null-consolidate=PL,DP --write-resolved"
+run collapse_1 collapse 1  --write-resolved
 if [ $collapse_1 ]; then
     collapse_assert 1
 fi

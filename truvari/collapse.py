@@ -129,8 +129,8 @@ def collapse_chunk(chunk, params):
         m_collap = CollapsedCalls(remaining_calls.pop(0),
                                   f'{chunk_id}.{call_id}')
         # quicker genotype comparison - needs to be refactored
-        m_collap.genotype_mask = m_collap.make_genotype_mask(
-            m_collap.entry, params.gt)
+        m_collap.genotype_mask = m_collap.make_genotype_mask(m_collap.entry,
+                                                             params.gt)
 
         # Sort based on size difference to current call
         for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
@@ -143,7 +143,7 @@ def collapse_chunk(chunk, params):
             if mat.state:
                 m_collap.matches.append(mat)
             elif mat.sizesim is not None and mat.sizesim < params.pctsize:
-                # Can we do this? The sort tells us that we're going through most->least
+                # The sort tells us that we're going through most->least
                 # similar size. So the next one will only be worse...
                 break
 
@@ -503,8 +503,6 @@ def parse_args(args):
                         help="Max reference location distance (%(default)s)")
     thresg.add_argument("-p", "--pctseq", type=truvari.restricted_float, default=0.95,
                         help="Min percent sequence similarity. Set to 0 to ignore. (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=50,
-                        help="Minimum haplotype sequence length to create (%(default)s)")
     thresg.add_argument("-P", "--pctsize", type=truvari.restricted_float, default=0.95,
                         help="Min pct allele size similarity (minvarsize/maxvarsize) (%(default)s)")
     thresg.add_argument("-O", "--pctovl", type=truvari.restricted_float, default=0.0,
@@ -520,9 +518,6 @@ def parse_args(args):
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
     parser.add_argument("--no-consolidate", action="store_false", default=True,
                         help="Skip consolidation of sample genotype fields (%(default)s)")
-    parser.add_argument("--null-consolidate", type=str, default=None,
-                        help=("Comma separated list of FORMAT fields to consolidate into the kept "
-                              "entry by taking the first non-null from all neighbors (%(default)s)"))
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
@@ -532,9 +527,6 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
 
     args = parser.parse_args(args)
-
-    if args.null_consolidate is not None:
-        args.null_consolidate = args.null_consolidate.split(',')
 
     return args
 
