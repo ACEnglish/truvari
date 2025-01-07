@@ -1,7 +1,6 @@
 """
 Comparison engine
 """
-import types
 import logging
 from collections import Counter, defaultdict
 from functools import total_ordering
@@ -62,87 +61,6 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         return f'<truvari.MatchResult ({self.state} {sc})>'
 
 
-class Matcher():
-    """
-    Holds matching parameters. Allows calls to be checked for filtering and matches to be made
-
-    Example
-        >>> import truvari
-        >>> mat = truvari.Matcher(pctseq=0)
-        >>> v = truvari.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
-        >>> one = next(v); two = next(v)
-        >>> one.match(two, matcher=mat)
-        <truvari.bench.MatchResult (False 2.381)>
-
-    Look at `Matcher.make_match_params()` for a list of all params and their defaults
-    """
-
-    def __init__(self, args=None, **kwargs):
-        """
-        Initalize. args is a Namespace from argparse
-        """
-        if args is not None:
-            params = self.make_match_params_from_args(args)
-        else:
-            params = self.make_match_params()
-
-        # Override parameters with those provided in kwargs
-        for key, value in kwargs.items():
-            if hasattr(params, key):
-                setattr(params, key, value)
-            else:
-                raise ValueError(f"Invalid parameter: {key}")
-
-        for key, value in params.__dict__.items():
-            setattr(self, key, value)
-
-    @staticmethod
-    def make_match_params():
-        """
-        Makes a simple namespace of matching parameters. Holds defaults
-        """
-        params = types.SimpleNamespace()
-        params.reference = None
-        params.refdist = 500
-        params.pctseq = 0.70
-        params.pctsize = 0.70
-        params.pctovl = 0.0
-        params.typeignore = False
-        params.no_roll = False
-        params.chunksize = 1000
-        params.bSample = 0
-        params.cSample = 0
-        params.dup_to_ins = False
-        params.bnddist = 100
-        params.sizemin = 50
-        params.sizefilt = 30
-        params.sizemax = 50000
-        params.passonly = False
-        params.no_ref = False
-        params.pick = 'single'
-        params.ignore_monref = True
-        params.check_multi = True
-        params.check_monref = True
-        params.no_single_bnd = True
-        params.write_resolved = False
-        params.short_circuit = False
-        params.skip_gt = False
-        return params
-
-    @staticmethod
-    def make_match_params_from_args(args):
-        """
-        Makes a simple namespace of matching parameters.
-        Populates defaults from make_match_params, then updates with values from args.
-        """
-        ret = Matcher.make_match_params()
-
-        for key in vars(ret):
-            if hasattr(args, key):
-                setattr(ret, key, getattr(args, key))
-
-        return ret
-
 ############################
 # Parsing and set building #
 ############################
@@ -188,9 +106,9 @@ def file_zipper(*start_files):
                  file_counts)
 
 
-def chunker(matcher, *files):
+def chunker(params, *files):
     """
-    Given a Matcher and multiple files, zip them and create chunks
+    Given a `truvari.VariantParams` and multiple files, zip them and create chunks
 
     Yields tuple of the chunk of calls, and an identifier of the chunk
     """
@@ -200,7 +118,7 @@ def chunker(matcher, *files):
     cur_end = 0
     cur_chunk = defaultdict(list)
     unresolved_warned = False
-    reference = pysam.FastaFile(matcher.reference) if matcher.reference is not None else None
+    reference = pysam.FastaFile(params.reference) if params.reference is not None else None
 
     for key, entry in file_zipper(*files):
         if entry.filter_call(key == 'base'):
@@ -208,13 +126,13 @@ def chunker(matcher, *files):
             call_counts['__filtered'] += 1
             continue
 
-        if not entry.is_bnd() and entry.size_filter(key == 'base'):
+        if not entry.is_bnd() and entry.filter_size(key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
 
         # check symbolic, resolve if needed/possible
-        if matcher.pctseq != 0 and entry.alts[0].startswith('<'):
+        if params.pctseq != 0 and entry.alts[0].startswith('<'):
             was_resolved = entry.resolve(reference)
             if not was_resolved:
                 if not unresolved_warned:
@@ -225,7 +143,7 @@ def chunker(matcher, *files):
                 continue
 
         new_chrom = cur_chrom and entry.chrom != cur_chrom
-        new_chunk = cur_end and cur_end + matcher.chunksize < entry.start
+        new_chunk = cur_end and cur_end + params.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
             yield cur_chunk, chunk_count

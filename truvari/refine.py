@@ -420,9 +420,9 @@ def refine_main(cmdargs):
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
-    matcher = truvari.Matcher(params, no_ref='a', short_circuit=True)
+    var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
-    m_bench = truvari.Bench(matcher=matcher, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
+    m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
                             includebed=reeval_bed)
     m_bench.run()
 

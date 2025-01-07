@@ -314,7 +314,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         Yields the rows
         """
         for entry in v:
-            varsize = entry.size()
+            varsize = entry.var_size()
             cur_row = [entry.to_hash(),
                        entry.chrom,
                        entry.start,

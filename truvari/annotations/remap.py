@@ -117,7 +117,7 @@ class Remap():
         """
         Annotates entries in the vcf and writes to new vcf
         """
-        if entry.size() >= self.min_length:
+        if entry.var_size() >= self.min_length:
             entry.translate(self.n_header)
             remap, hits = self.remap_entry(entry)
             entry.info["REMAP"] = remap

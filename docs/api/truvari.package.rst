@@ -19,6 +19,9 @@ Variant Handling
 .. autoclass:: VariantRecord
    :members:
 
+.. autoclass:: VariantParams
+   :members:
+
 Extra Methods
 -------------
 .. autofunction:: bed_ranges
@@ -112,9 +115,6 @@ Objects
    :members:
 
 .. autoclass:: MatchResult
-   :members:
-
-.. autoclass:: Matcher
    :members:
 
 .. autoclass:: SV

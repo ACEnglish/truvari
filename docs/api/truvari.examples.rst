@@ -32,12 +32,12 @@ The `truvari.VariantRecord` simplifies comparing two VCF entries.
     print("Entries' Size Similarity:", match.sizesim)
     print("Is the match above thresholds:", match.state)
 
-This returns a `truvari.MatchResult`. You can customize matching thresholds by providing a `truvari.Matcher` to the `truvari.VariantFile`.
+This returns a `truvari.MatchResult`. You can customize matching thresholds by providing a `truvari.VariantParams` to the `truvari.VariantFile`.
 
 .. code-block:: python
 
     # Disable sequence and size similarity; enable reciprocal overlap
-    matcher = truvari.Matcher(seqsim=0, sizesim=0, recovl=0.5)
+    matcher = truvari.VariantParams(seqsim=0, sizesim=0, recovl=0.5)
     vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
     entry1 = next(vcf)
     entry2 = next(vcf)
@@ -46,11 +46,11 @@ This returns a `truvari.MatchResult`. You can customize matching thresholds by p
 Filtering Variants
 ------------------
 
-The `truvari.Matcher` provides parameters for filtering variants, such as minimum or maximum SV sizes.
+The `truvari.VariantParams` provides parameters for filtering variants, such as minimum or maximum SV sizes.
 
 .. code-block:: python
 
-    matcher = truvari.Matcher(sizemin=200, sizemax=500)
+    matcher = truvari.VariantParams(sizemin=200, sizemax=500)
     vcf = truvari.VariantFile("input.vcf.gz", matcher=matcher)
     # Retrieve all variant records within sizemin and sizemax
     results = [entry for entry in vcf if not entry.size_filter()]
@@ -65,7 +65,8 @@ To subset a VCF to regions specified in a BED file, use:
 .. code-block:: python
 
     for entry in vcf.bed_fetch("regions.bed"):
-        print(entry.var_type(), entry.size())
+        print("Entry's variant type:", entry.var_type())
+        print("Entry's variant size:", entry.var_size())
 
 If your regions of interest are stored in an in-memory object instead of a BED file, use the `.regions_fetch` method:
 

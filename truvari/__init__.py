@@ -10,11 +10,11 @@ Objects:
 :class:`GT`
 :class:`LogFileStderr`
 :class:`MatchResult`
-:class:`Matcher`
 :class:`StatsBox`
 :class:`SV`
 :class:`VariantFile`
 :class:`VariantRecord`
+:class:`VariantParams`
 
 Extra methods:
 
@@ -89,7 +89,6 @@ from truvari.comparisons import (
 
 from truvari.matching import (
     MatchResult,
-    Matcher,
     chunker,
     file_zipper
 )
@@ -132,10 +131,9 @@ from truvari.utils import (
     vcf_ranges,
 )
 
-from truvari.variants import (
-    VariantFile,
-    VariantRecord,
-)
+from truvari.variant_file import VariantFile
+from truvari.variant_params import VariantParams
+from truvari.variant_record import VariantRecord
 
 from truvari.vcf2df import (
     GT,

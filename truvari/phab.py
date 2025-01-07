@@ -143,7 +143,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     entry_filter = lambda e: \
            e.is_resolved() \
            and (not passonly or not e.is_filtered()) \
-           and (e.size() <= max_size)
+           and (e.var_size() <= max_size)
     # pylint: enable=unnecessary-lambda-assignment
 
     cur_key = None

@@ -75,8 +75,8 @@ for entry in region_filter_fetch(vcf, tree, False):
 """
 Filtering logic
 """
-matcher = truvari.Matcher(sizemin=0, sizefilt=0, passonly=True)
-vcf = truvari.VariantFile("repo_utils/test_files/variants/filter.vcf", matcher=matcher)
+p = truvari.VariantParams(sizemin=0, sizefilt=0, passonly=True)
+vcf = truvari.VariantFile("repo_utils/test_files/variants/filter.vcf", params=p)
 for entry in vcf:
     try:
         assert entry.filter_call(), f"Didn't filter {str(entry)}"

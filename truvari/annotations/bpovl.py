@@ -75,7 +75,7 @@ def bpovl_main(cmdargs):
             if span > args.spanmax:
                 continue
 
-            if entry.size() < args.sizemin:
+            if entry.var_size() < args.sizemin:
                 continue
 
             key = entry.to_hash()

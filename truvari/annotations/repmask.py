@@ -73,7 +73,7 @@ class RepMask():
         fh = truvari.VariantFile(self.in_vcf)
         for pos, entry in enumerate(fh):
             tot_cnt += 1
-            entry_size = entry.size()
+            entry_size = entry.var_size()
             if self.min_length <= entry_size <= self.max_length:
                 cnt += 1
                 cntbp += entry_size
@@ -126,7 +126,7 @@ class RepMask():
         """
         best_hit_pct = 0
         best_hit = None
-        entry_size = entry.size()
+        entry_size = entry.var_size()
         for hit in hits:
             size_aln = abs(hit["RM_qstart"] - hit["RM_qend"]) + 1
             pct = size_aln / entry_size  # The TR that covers the most of the sequence

@@ -45,7 +45,7 @@ def hompct_main(cmd_args):
         tot = 0
         homs = 0
         for entry in v.fetch(chrom, max(0, start - args.buffer), min(v.header.contigs[chrom].length, end + args.buffer)):
-            if entry.size() > args.maxgt:
+            if entry.var_size() > args.maxgt:
                 continue
             if truvari.get_gt(entry.samples[0]["GT"]).name == "HOM":
                 homs += 1
@@ -66,7 +66,7 @@ def hompct_main(cmd_args):
     out = truvari.VariantFile(args.output, 'w', header=header)
     v2 = truvari.VariantFile(args.input)
     for entry in v2:
-        if entry.size() >= args.minanno:
+        if entry.var_size() >= args.minanno:
             entry.translate(header)
             anno = get_pct(entry.chrom, *entry.boundaries())
             if anno is not None:

@@ -181,7 +181,7 @@ class TRFAnno():
         Figure out the hit and return
         """
         svtype = entry.var_type()
-        sz = entry.size()
+        sz = entry.var_size()
         repeat = []
         if svtype == truvari.SV.DEL:
             repeat = self.del_annotate(entry, sz, score_filter)
@@ -396,7 +396,7 @@ def process_ref_region(region, args):
                 continue
 
             svtype = entry.var_type()
-            svlen = entry.size()
+            svlen = entry.var_size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
@@ -460,7 +460,7 @@ def process_tr_region(region, args):
             if not (entry.start >= region["start"] and entry.stop < region["end"]):
                 continue
             svtype = entry.var_type()
-            svlen = entry.size()
+            svlen = entry.var_size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue

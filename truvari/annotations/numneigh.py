@@ -132,7 +132,7 @@ class NeighAnno():
         """
         last_pos = None
         for entry in self.in_vcf:
-            size = entry.size()
+            size = entry.var_size()
             if not last_pos:
                 last_pos = [entry.chrom, entry.start]
 

@@ -42,7 +42,7 @@ def add_svinfo(entry, min_size=0, n_header=None):
         del entry.info['SVTYPE']
     if "SVLEN" in entry.info:
         del entry.info['SVLEN']
-    sz = entry.size()
+    sz = entry.var_size()
     if sz < min_size:
         return
     if n_header:

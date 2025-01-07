@@ -13,7 +13,8 @@ from truvari import (
     comparisons,
     msatovcf,
     utils,
-    variants,
+    variant_file,
+    variant_record,
     vcf2df,
 )
     
@@ -27,7 +28,8 @@ def tester(module):
     return ret.failed
 
 fails = 0
-fails += tester(variants)
+fails += tester(variant_file)
+fails += tester(variant_record)
 fails += tester(comparisons)
 fails += tester(utils)
 fails += tester(vcf2df)

@@ -25,7 +25,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    defaults = truvari.Matcher.make_match_params()
+    defaults = truvari.VariantParams.make_params()
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
@@ -314,16 +314,16 @@ class BenchOutput():
     a :class:`StatsBox`.
     """
 
-    def __init__(self, bench, matcher):
+    def __init__(self, bench, params):
         """
         initialize
         """
         self.m_bench = bench
-        self.m_matcher = matcher
+        self.m_params = params
 
         os.mkdir(self.m_bench.outdir)
         param_dict = self.m_bench.param_dict()
-        param_dict.update(vars(self.m_matcher))
+        param_dict.update(vars(self.m_params))
 
         if self.m_bench.do_logging:
             truvari.setup_logging(self.m_bench.debug, truvari.LogFileStderr(
@@ -333,8 +333,8 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        b_vcf = truvari.VariantFile(self.m_bench.base_vcf, matcher=self.m_matcher)
-        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf, matcher=self.m_matcher)
+        b_vcf = truvari.VariantFile(self.m_bench.base_vcf, params=self.m_params)
+        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf, params=self.m_params)
         self.n_headers = {'b': edit_header(b_vcf),
                           'c': edit_header(c_vcf)}
 
@@ -345,10 +345,10 @@ class BenchOutput():
         self.out_vcfs = {}
         for key in ['tpb', 'fn']:
             self.out_vcfs[key] = truvari.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['b'], matcher=self.m_matcher)
+                self.vcf_filenames[key], mode='w', header=self.n_headers['b'], params=self.m_params)
         for key in ['tpc', 'fp']:
             self.out_vcfs[key] = truvari.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['c'], matcher=self.m_matcher)
+                self.vcf_filenames[key], mode='w', header=self.n_headers['c'], params=self.m_params)
 
         self.stats_box = StatsBox()
 
@@ -387,7 +387,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif match.comp.size() >= self.m_matcher.sizemin:
+            elif match.comp.var_size() >= self.m_params.sizemin:
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
@@ -417,12 +417,12 @@ class Bench():
 
        m_bench = truvari.Bench()
 
-    If you'd like to customize the parameters, build and edit a :class:`Matcher` and pass it to the Bench init
+    If you'd like to customize the parameters, build and edit a :class:`VariantParams` and pass it to the Bench init
 
     .. code-block:: python
 
-       matcher = truvari.Matcher(pctseq=0.50)
-       m_bench = truvari.Bench(matcher)
+       params = truvari.VariantParams(pctseq=0.50)
+       m_bench = truvari.Bench(params)
 
     To run on a chunk of :class:`truvari.VariantRecord` already loaded, pass them in as lists to:
 
@@ -442,7 +442,7 @@ class Bench():
 
     .. code-block:: python
 
-        m_bench = truvari.Bench(matcher, base_vcf, comp_vcf, outdir)
+        m_bench = truvari.Bench(params, base_vcf, comp_vcf, outdir)
         output = m_bench.run()
 
     .. note::
@@ -450,12 +450,12 @@ class Bench():
         However, the returned `BenchOutput` has attributes pointing to all the results.
     """
 
-    def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
+    def __init__(self, params=None, base_vcf=None, comp_vcf=None, outdir=None,
                  includebed=None, extend=0, debug=False, do_logging=False):
         """
         Initilize
         """
-        self.matcher = matcher if matcher is not None else truvari.Matcher()
+        self.params = params if params is not None else truvari.VariantParams()
         self.base_vcf = base_vcf
         self.comp_vcf = comp_vcf
         self.outdir = outdir
@@ -484,10 +484,10 @@ class Bench():
             raise RuntimeError(
                 "Cannot call Bench.run without base/comp vcf filenames and outdir")
 
-        output = BenchOutput(self, self.matcher)
+        output = BenchOutput(self, self.params)
 
-        base = truvari.VariantFile(self.base_vcf, matcher=self.matcher)
-        comp = truvari.VariantFile(self.comp_vcf, matcher=self.matcher)
+        base = truvari.VariantFile(self.base_vcf, params=self.params)
+        comp = truvari.VariantFile(self.comp_vcf, params=self.params)
 
         region_tree = truvari.build_region_tree(base, comp, self.includebed)
         truvari.merge_region_tree_overlaps(region_tree)
@@ -497,8 +497,9 @@ class Bench():
         base_i = base.regions_fetch(region_tree)
         comp_i = comp.regions_fetch(regions_extended)
 
-        chunks = truvari.chunker(
-            self.matcher, ('base', base_i), ('comp', comp_i))
+        chunks = truvari.chunker(self.params,
+                                 ('base', base_i),
+                                 ('comp', comp_i))
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
@@ -525,7 +526,7 @@ class Bench():
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
         self.check_refine_candidate(result)
         # Check BNDs separately
-        if self.matcher.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
+        if self.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
             result.extend(self.compare_calls(chunk_dict['base_BND'],
                                              chunk_dict['comp_BND'], chunk_id))
         return result
@@ -558,7 +559,7 @@ class Bench():
             return fns
 
         # 5k variants takes too long
-        if self.matcher.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
             pos = []
             cnt = 0
             chrom = None
@@ -578,7 +579,7 @@ class Bench():
             base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
             return match_matrix
-        return PICKERS[self.matcher.pick](match_matrix)
+        return PICKERS[self.params.pick](match_matrix)
 
     def build_matrix(self, base_variants, comp_variants, chunk_id=0):
         """
@@ -608,7 +609,7 @@ class Bench():
         chrom = None
         for match in result:
             has_unmatched |= not match.state
-            if match.base is not None and match.base.size() >= self.matcher.sizemin:
+            if match.base is not None and match.base.var_size() >= self.params.sizemin:
                 chrom = match.base.chrom
                 pos.extend(match.base.boundaries())
             if match.comp is not None:
@@ -766,9 +767,9 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    matcher = truvari.Matcher(args, short_circuit=args.short)
+    params = truvari.VariantParams(args, short_circuit=args.short)
 
-    m_bench = Bench(matcher=matcher,
+    m_bench = Bench(params=params,
                     base_vcf=args.base,
                     comp_vcf=args.comp,
                     outdir=args.output,
