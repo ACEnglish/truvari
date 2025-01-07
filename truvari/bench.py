@@ -333,8 +333,10 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        b_vcf = truvari.VariantFile(self.m_bench.base_vcf, params=self.m_params)
-        c_vcf = truvari.VariantFile(self.m_bench.comp_vcf, params=self.m_params)
+        b_vcf = truvari.VariantFile(
+            self.m_bench.base_vcf, params=self.m_params)
+        c_vcf = truvari.VariantFile(
+            self.m_bench.comp_vcf, params=self.m_params)
         self.n_headers = {'b': edit_header(b_vcf),
                           'c': edit_header(c_vcf)}
 
@@ -406,6 +408,7 @@ class BenchOutput():
         self.stats_box.calc_performance()
         self.stats_box.write_json(os.path.join(
             self.m_bench.outdir, "summary.json"))
+
 
 class Bench():
     """
@@ -524,6 +527,7 @@ class Bench():
         logging.debug("Comparing chunk %s", chunk_id)
         result = self.compare_calls(
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
+        # Not checking BNDs as part of refine_candidates because they can't be refined.
         self.check_refine_candidate(result)
         # Check BNDs separately
         if self.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
@@ -619,8 +623,8 @@ class Bench():
             # min(10, self.matcher.chunksize) need to make sure the refine covers the region
             buf = 10
             start = max(0, min(*pos) - buf)
-            self.refine_candidates.append(
-                f"{chrom}\t{start}\t{max(*pos) + buf}")
+            end = max(*pos) + buf
+            self.refine_candidates.append(f"{chrom}\t{start}\t{end}")
 
 #################
 # Match Pickers #

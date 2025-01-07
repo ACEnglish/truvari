@@ -101,13 +101,25 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
 
 def file_zipper(*start_files):
     """
-    Zip files to yield the entries in order.
-    Each file must be sorted in the same order.
-    start_files is a tuple of ('key', iterable)
-    where key is the identifier (so we know which file the yielded entry came from)
-    and iterable is usually a truvari.VariantFile
+    Zip multiple files to yield their entries in order.
 
-    yields key, truvari.VariantRecord
+    The function takes as input tuples of (`key`, `iterable`), where:
+
+    - `key` is an identifier (used to track which file the yielded entry comes from).
+    - `iterable` is an iterable object, typically a `truvari.VariantFile`.
+
+    The function iterates through all input files in a coordinated manner, yielding the entries in order.
+
+    :param start_files: A variable-length argument list of tuples (`key`, `iterable`).
+    :type start_files: tuple
+
+    :yields: A tuple of (`key`, `truvari.VariantRecord`), where `key` is the file identifier and the second element is the next record from the corresponding file.
+    :rtype: tuple
+
+    :raises StopIteration: Raised when all input files have been exhausted.
+
+    **Logs**:
+        - Logs a summary of the zipping process after all files have been processed.
     """
     markers = []  # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()

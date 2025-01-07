@@ -10,7 +10,6 @@ from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
 
-
 class VariantRecord:
     """
     Wrapper around pysam.VariantRecords with helper functions of variant properties and basic comparisons
@@ -34,6 +33,21 @@ class VariantRecord:
         Delegate attribute access to the original VariantRecord
         """
         return getattr(self._record, name)
+
+    def __setattr__(self, name, value):
+        """
+        Attempt to delegate attribute setting to the original VariantRecord first
+        """
+        if name.startswith("_") or not hasattr(self, "_record"):
+            # Directly set internal attributes or during __init__ before _record is set
+            super().__setattr__(name, value)
+        else:
+            try:
+                # Try to set the attribute on the wrapped _record
+                setattr(self._record, name, value)
+            except AttributeError:
+                # If the wrapped object does not have the attribute, set it on self
+                super().__setattr__(name, value)
 
     def __str__(self):
         return str(self._record)
@@ -348,8 +362,7 @@ class VariantRecord:
         gt = self.gt(sample)
         if allow_missing:
             return 1 in gt
-        # Hemi...
-        return truvari.get_gt(gt)[truvari.GT.HET, truvari.GT.HOM]
+        return truvari.get_gt(gt) in [truvari.GT.HET, truvari.GT.HOM]
 
     def is_single_bnd(self):
         """
