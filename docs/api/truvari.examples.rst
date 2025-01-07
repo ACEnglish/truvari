@@ -56,3 +56,40 @@ size of SVs one wants to analyze which can be leveraged via:
     results = [entry for entry in vcf if not entry.size_filter()]
 
 Additional filtering for things such as monomorphic reference sites or single-end BNDs are available by calling `entry.filter_call()`
+
+A common operation one needs to perform on a VCF is subsetting to regions from e.g. a bed file. This can be performed by
+truvari by simply calling
+
+.. code-block:: python
+
+    for entry in vcf.bed_fetch("regions.bed"):
+        print(entry.var_type(), entry.size())
+
+In cases where your regions of interest aren't in a bed file, but an in-memory object, the `.regions_fetch`
+method allows iteration over the variants of interest.
+
+.. code-block:: python
+
+    from collections import defaultdict
+    from pyintervaltree import IntervalTree
+    tree = defaultdict(IntervalTree)
+    tree['chr1'].addi(10, 100)
+    tree['chr2'].addi(2000, 2200)
+    count = 0
+    for entry in vcf.regions_fetch(tree):
+        count += 1
+    print(f"Total of {count} variants")
+
+Furthermore, you can iterate variant that aren't within the regions via `vcf.regions_fetch(tree, within=False)`.
+
+A particularly pesky problem to deal with is parsing BND information out of VCF entries. Truvari can help with that,
+also.
+
+.. code-block:: python
+
+    # Example entry
+    # chr1	23272628	SV_1	G	G]chr5:52747359]	.	PASS	SVTYPE=BND;EVENTTYPE=TRA:UNBALANCED;SUBCLONAL=n;COMPLEX=n;MATEID=SV_171	GT:PSL:PSO	0/1:.:.
+    print(entry.bnd_position())
+    # ('chr5', 52747359)
+    print(entry.bnd_direction_strand())
+    # ('right', 'direct')

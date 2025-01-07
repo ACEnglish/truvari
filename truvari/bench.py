@@ -446,8 +446,9 @@ class Bench():
         m_bench = truvari.Bench(matcher, base_vcf, comp_vcf, outdir)
         output = m_bench.run()
 
-    Note that running on files must write to an output directory and is the only way to use things like 'includebed'.
-    However, the returned `BenchOutput` has attributes pointing to all the results.
+    .. note::
+        Running on files must write to an output directory and is the only way to use things like 'includebed'.
+        However, the returned `BenchOutput` has attributes pointing to all the results.
     """
 
     def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
