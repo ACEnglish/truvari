@@ -95,7 +95,7 @@ class VariantFile:
         :return: Iterator of truvari.VariantRecord objects or tuples of (`truvari.VariantRecord`, region).
         :rtype: iterator
         """
-        tree = truvari.read_bed_tree(bed_fn)
+        tree, _ = truvari.read_bed_tree(bed_fn)
         return self.fetch_regions(tree, inside, with_region)
 
     def fetch_regions(self, tree, inside=True, with_region=False):

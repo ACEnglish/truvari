@@ -92,7 +92,7 @@ If your regions of interest are stored in an in-memory object instead of a BED f
         count += 1
     print(f"Total of {count} variants")
 
-To iterate over variants that are not within the regions, use `vcf.fetch_regions(tree, within=False)`. Both of these
+To iterate over variants that are not within the regions, use `vcf.fetch_regions(tree, inside=False)`. Both of these
 fetch methods use heuristics to choose the more efficient fetching strategy of either seeking through the VCF file or
 streaming the entire file.
 

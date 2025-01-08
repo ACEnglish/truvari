@@ -71,7 +71,7 @@ def parse_args(args):
     parser.add_argument("-j", "--json", action='store_true',
                         help="Output report in json format")
     parser.add_argument("-o", "--output", default=None, type=str,
-                        help="Write tsv of variant keys and their flag")
+                        help="Write tsv of variant keys, flag, vcf_count")
     parser.add_argument("allVCFs", metavar='VCFs', nargs='+',
                         help="VCFs to intersect")
     args = parser.parse_args(args)
@@ -174,5 +174,6 @@ def consistency_main(args):
         write_report(data)
     if args.output:
         with open(args.output, 'w') as fout:
+            fout.write("CHROM\tPOS\tID\tREF\tALT\tFLAG\tCOUNT\n")
             for k,v in all_presence.items():
-                fout.write(f"{k}\t{v}\n")
+                fout.write(f"{k}\t{v}\t{bin(v).count('1')}\n")

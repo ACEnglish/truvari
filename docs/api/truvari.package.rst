@@ -54,19 +54,23 @@ Extra Methods
 
 .. autofunction:: best_seqsim
 
+.. autofunction:: build_region_tree
+
 .. autofunction:: read_bed_tree
 
 .. autofunction:: check_vcf_index
 
 .. autofunction:: chunker
 
-.. autofunction:: compress_index_vcf
-
 .. autofunction:: cmd_exe
+
+.. autofunction:: compress_index_vcf
 
 .. autofunction:: coords_within
 
 .. autofunction:: count_entries
+
+.. autofunction:: extend_region_tree
 
 .. autofunction:: file_zipper
 
@@ -81,6 +85,8 @@ Extra Methods
 .. autofunction:: get_svtype
 
 .. autofunction:: make_temp_filename
+
+.. autofunction:: merge_region_tree_overlaps
 
 .. autofunction:: msa2vcf
 

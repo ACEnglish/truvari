@@ -149,7 +149,7 @@ class VariantRecord:
 
             key = 'CI' + key
             idx = 0 if key == 'POS' else 1
-            if key in entry.info:  # Just CIPOS
+            if key in entry.info:
                 start -= abs(entry.info[key][idx])
                 end += abs(entry.info[key][idx])
 
@@ -159,7 +159,7 @@ class VariantRecord:
         ret.base = self
         ret.comp = other
 
-        # Only put start distance same chrom pos2
+        # Only annotate distance if same chrom
         if self.chrom != other.chrom:
             logging.debug("%s and %s BND CHROM", str(self), str(other))
             return ret
@@ -356,7 +356,7 @@ class VariantRecord:
             >>> import truvari
             >>> v = truvari.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
             >>> e = next(v)
-            >>> e.is_present()
+            >>> e.is_present(allow_missing=False)
             True
         """
         gt = self.gt(sample)
