@@ -19,11 +19,15 @@ Variant Handling
 .. autoclass:: VariantRecord
    :members:
 
+.. _variant_params:
+
 .. autoclass:: VariantParams
    :members:
 
 Objects
 -------
+
+.. _match_result:
 
 .. autoclass:: MatchResult
    :members:

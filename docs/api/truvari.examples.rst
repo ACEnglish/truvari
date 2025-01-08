@@ -42,7 +42,7 @@ The `truvari.VariantRecord` simplifies comparing two VCF entries.
     print("Entries' Size Similarity:", match.sizesim)
     print("Is the match above thresholds:", match.state)
 
-This returns a `truvari.MatchResult`. You can customize matching thresholds by providing `truvari.VariantParams` to the `truvari.VariantFile`.
+This returns a :ref:`truvari.MatchResult <match_result>`. You can customize matching thresholds by providing :ref:`truvari.VariantParams <variant_params>` to the `truvari.VariantFile`.
 
 .. code-block:: python
 

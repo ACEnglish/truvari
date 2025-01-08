@@ -10,6 +10,7 @@ from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
 
+
 class VariantRecord:
     """
     Wrapper around pysam.VariantRecords with helper functions of variant properties and basic comparisons
@@ -257,6 +258,79 @@ class VariantRecord:
             match.comp_gt_count = sum(1 for _ in match.comp_gt if _ == 1)
         match.gt_match = abs(match.base_gt_count - match.comp_gt_count)
 
+    def copy(self):
+        """
+        Copies this truvari.VariantRecord
+        """
+        return VariantRecord(self._record.copy(), params=self.params)
+
+    def cpx_match(self, other):
+        """
+        Attempt to match symbolic variants with a BND.
+        This is performed by decomposing the symbolic variant into its BND representations before calling bnd_match.
+        This will make at least two BNDs, so the MatchResults are sorted and the greater is returned.
+        """
+        return sorted([decomp.bnd_match(other) for decomp in self.decompose()], reverse=True)[0]
+
+    def decompose(self):
+        """
+        Decompose symbolic DEL, DUP, and INV variants into BNDs
+        Returns a list of new BND variant records
+        """
+        if not self.is_symbolic():
+            raise ValueError("Can only decompose symbolic variants")
+        svtype = self.var_type()
+        chrom = self.chrom
+        pos = self.pos
+        end = self.end
+        if svtype == truvari.SV.INV:
+            record1 = self.copy()
+            record1.alts = (f"N[chr{chrom}:{end + 1}[",)
+
+            record1.info["SVTYPE"] = "BND"
+
+            record2 = self.copy()
+            record2.alts = (f"N]chr{chrom}:{end}]",)
+            record2.info["SVTYPE"] = "BND"
+
+            record3 = self.copy()
+            record3.pos = end
+            record3.alts = (f"]chr{chrom}:{pos}]N",)
+            record3.info["SVTYPE"] = "BND"
+
+            record4 = self.copy()
+            record4.pos = end + 1
+            record4.alts = (f"[chr{chrom}:{pos}[N",)
+            record4.info["SVTYPE"] = "BND"
+
+            return [record1, record2, record3, record4]
+
+        if svtype == truvari.SV.DEL:
+            record1 = self.copy()
+            record1.alts = (f"N]chr{chrom}:{end}]",)
+            record1.info["SVTYPE"] = "BND"
+
+            record2 = self.copy()
+            record2.pos = end
+            record2.alts = (f"[chr{chrom}:{pos}[N",)
+            record2.info["SVTYPE"] = "BND"
+
+            return [record1, record2]
+
+        if svtype == truvari.SV.DUP:
+            record1 = self.copy()
+            record1.alts = (f"N]chr{chrom}:{end}]",)
+            record1.info["SVTYPE"] = "BND"
+
+            record2 = self.copy()
+            record2.pos = end
+            record2.alts = (f"[chr{chrom}:{pos}[N",)
+            record2.info["SVTYPE"] = "BND"
+
+            return [record1, record2]
+
+        return []
+
     def distance(self, other):
         """
         Calculate the start and end distances of the pair. Negative distances
@@ -369,6 +443,12 @@ class VariantRecord:
         Returns if a record is a single-end BND
         """
         return '.' in (self.alts[0][0], self.alts[0][-1])
+
+    def is_symbolic(self):
+        """
+        Returns if a record is a symbolic variant (e.g. ALT == <DEL>)
+        """
+        return self.alts[0][0] == '<'
 
     def is_resolved(self):
         """
