@@ -527,12 +527,7 @@ class Bench():
         logging.debug("Comparing chunk %s", chunk_id)
         result = self.compare_calls(
             chunk_dict["base"], chunk_dict["comp"], chunk_id)
-        # Not checking BNDs as part of refine_candidates because they can't be refined.
         self.check_refine_candidate(result)
-        # Check BNDs separately
-        if self.params.bnddist != -1 and (chunk_dict['base_BND'] or chunk_dict['comp_BND']):
-            result.extend(self.compare_calls(chunk_dict['base_BND'],
-                                             chunk_dict['comp_BND'], chunk_id))
         return result
 
     def compare_calls(self, base_variants, comp_variants, chunk_id=0):

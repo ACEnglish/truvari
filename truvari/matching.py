@@ -171,6 +171,11 @@ def chunker(params, *files):
             call_counts['__filtered'] += 1
             continue
 
+        if entry.is_bnd() and params.bnddist == -1:
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+
         if not entry.is_bnd() and entry.filter_size(key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
@@ -200,10 +205,7 @@ def chunker(params, *files):
         cur_chrom = entry.chrom
         cur_end = max(entry.end, cur_end)
 
-        if entry.is_bnd():
-            cur_chunk[f'{key}_BND'].append(entry)
-        else:
-            cur_chunk[key].append(entry)
+        cur_chunk[key].append(entry)
         call_counts[key] += 1
 
     chunk_count += 1

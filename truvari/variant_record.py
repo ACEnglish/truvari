@@ -202,7 +202,7 @@ class VariantRecord:
         # Score is percent of allowed distance needed to find this match
         if self.params.bnddist > 0:
             ret.score = max(0, (1 - ((abs(ret.st_dist) + abs(ret.ed_dist)) / 2)
-                                / self.params.bnddist) * 100)
+                                / (self.params.bnddist * 2)) * 100)
         else:
             ret.score = int(ret.state) * 100
 
@@ -270,7 +270,22 @@ class VariantRecord:
         This is performed by decomposing the symbolic variant into its BND representations before calling bnd_match.
         This will make at least two BNDs, so the MatchResults are sorted and the greater is returned.
         """
-        return sorted([decomp.bnd_match(other) for decomp in self.decompose()], reverse=True)[0]
+        if self.is_symbolic():
+            decomp = self.decompose()
+            matches = [d.bnd_match(other) for d in decomp]
+        else:
+            decomp = other.decompose()
+            matches = [self.bnd_match(d) for d in decomp]
+        # Not all symbolic variants can be decomposed
+        if not matches:
+            mat = truvari.MatchResult()
+            mat.base = self
+            mat.comp = other
+            return mat
+        mat = sorted(matches)[-1]
+        mat.base = self
+        mat.comp = other
+        return mat
 
     def decompose(self):
         """
@@ -279,28 +294,28 @@ class VariantRecord:
         """
         if not self.is_symbolic():
             raise ValueError("Can only decompose symbolic variants")
+
         svtype = self.var_type()
         chrom = self.chrom
         pos = self.pos
         end = self.end
         if svtype == truvari.SV.INV:
             record1 = self.copy()
-            record1.alts = (f"N[chr{chrom}:{end + 1}[",)
-
+            record1.alts = (f"[{chrom}:{end}[N",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.alts = (f"N]chr{chrom}:{end}]",)
+            record2.alts = (f"N]{chrom}:{end}]",)
             record2.info["SVTYPE"] = "BND"
 
             record3 = self.copy()
             record3.pos = end
-            record3.alts = (f"]chr{chrom}:{pos}]N",)
+            record3.alts = (f"N]{chrom}:{pos}]",)
             record3.info["SVTYPE"] = "BND"
 
             record4 = self.copy()
-            record4.pos = end + 1
-            record4.alts = (f"[chr{chrom}:{pos}[N",)
+            record4.pos = end
+            record4.alts = (f"[{chrom}:{pos}[N",)
             record4.info["SVTYPE"] = "BND"
 
             return [record1, record2, record3, record4]
@@ -545,14 +560,19 @@ class VariantRecord:
         Build a MatchResult from comparison of two VariantRecords
         If self and other are non-bnd, calls VariantRecord.var_match,
         If self and other are bnd, calls VariantRecord.bnd_match
-        Otherwise, raises a TypeError.
+        if one is symbolic and the other is bnd, calls VariantRecord.cpx_match
+        Otherwise, returns a default MatchResult
         """
         if not self.is_bnd() and not other.is_bnd():
             return self.var_match(other)
         if self.is_bnd() and other.is_bnd():
             return self.bnd_match(other)
-        raise TypeError(
-            "Incompatible Variants (BND and !BND) can't be matched")
+        if (self.is_symbolic() and other.is_bnd()) or (self.is_bnd() and other.is_symbolic()):
+            return self.cpx_match(other)
+        mat = truvari.MatchResult()
+        mat.base = self
+        mat.comp = other
+        return mat
 
     def move_record(self, out_vcf, sample=None):
         """
@@ -802,10 +822,16 @@ class VariantRecord:
         """
         if "SVLEN" in self.info:
             if type(self.info["SVLEN"]) in [list, tuple]:
-                size = abs(self.info["SVLEN"][0])
+                size = self.info["SVLEN"][0]
             else:
-                size = abs(self.info["SVLEN"])
-        elif self.alts is not None and self.alts[0].count("<"):
+                size = self.info["SVLEN"]
+            try:
+                size = abs(int(size))
+                return size
+            except ValueError:
+                pass
+
+        if self.alts is not None and self.alts[0].count("<"):
             start, end = self.boundaries()
             size = end - start
         else:
