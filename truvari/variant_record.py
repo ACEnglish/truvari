@@ -10,7 +10,7 @@ from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
 
-
+# pylint: disable=access-member-before-definition, attribute-defined-outside-init
 class VariantRecord:
     """
     Wrapper around pysam.VariantRecords with helper functions of variant properties and basic comparisons
@@ -24,6 +24,7 @@ class VariantRecord:
         self.resolved_ref = None
         self.resolved_alt = None
         self.end = record.stop
+        self.decomp_repr = None
         if params is None:
             self.params = truvari.VariantParams()
         else:
@@ -291,14 +292,17 @@ class VariantRecord:
         """
         Decompose symbolic DEL, DUP, and INV variants into BNDs
         Returns a list of new BND variant records
+        Stores decomposed variants in self.decomposed
         """
         if not self.is_symbolic():
             raise ValueError("Can only decompose symbolic variants")
-
+        if self.decomp_repr:
+            return self.decomp_repr
         svtype = self.var_type()
         chrom = self.chrom
         pos = self.pos
         end = self.end
+        ret = []
         if svtype == truvari.SV.INV:
             record1 = self.copy()
             record1.alts = (f"[{chrom}:{end}[N",)
@@ -318,9 +322,9 @@ class VariantRecord:
             record4.alts = (f"[{chrom}:{pos}[N",)
             record4.info["SVTYPE"] = "BND"
 
-            return [record1, record2, record3, record4]
+            ret = [record1, record2, record3, record4]
 
-        if svtype == truvari.SV.DEL:
+        elif svtype == truvari.SV.DEL:
             record1 = self.copy()
             record1.alts = (f"N]chr{chrom}:{end}]",)
             record1.info["SVTYPE"] = "BND"
@@ -330,9 +334,9 @@ class VariantRecord:
             record2.alts = (f"[chr{chrom}:{pos}[N",)
             record2.info["SVTYPE"] = "BND"
 
-            return [record1, record2]
+            ret = [record1, record2]
 
-        if svtype == truvari.SV.DUP:
+        elif svtype == truvari.SV.DUP:
             record1 = self.copy()
             record1.alts = (f"N]chr{chrom}:{end}]",)
             record1.info["SVTYPE"] = "BND"
@@ -342,9 +346,9 @@ class VariantRecord:
             record2.alts = (f"[chr{chrom}:{pos}[N",)
             record2.info["SVTYPE"] = "BND"
 
-            return [record1, record2]
-
-        return []
+            ret = [record1, record2]
+        self.decomp_repr = ret
+        return ret
 
     def distance(self, other):
         """
@@ -567,7 +571,8 @@ class VariantRecord:
             return self.var_match(other)
         if self.is_bnd() and other.is_bnd():
             return self.bnd_match(other)
-        if (self.is_symbolic() and other.is_bnd()) or (self.is_bnd() and other.is_symbolic()):
+        if self.params.decompose and ((self.is_symbolic() and other.is_bnd())  \
+                                      or (self.is_bnd() and other.is_symbolic())):
             return self.cpx_match(other)
         mat = truvari.MatchResult()
         mat.base = self

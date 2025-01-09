@@ -57,6 +57,8 @@ class VariantParams():
          - Whether to exclude single-end breakends (BNDs) from comparisons. Default: `True`.
        * - `write_resolved`
          - Whether to write resolved REF/ALT sequences to output. Default: `False`.
+       * - `decompose`
+         - Decompose symbolic variants (e.g. <DEL>) into BNDs when comparing with BNDs. Default: `True`
        * - `short_circuit`
          - Whether to enable short-circuit logic for early exits in comparisons. Default: `False`.
        * - `skip_gt`
@@ -88,6 +90,7 @@ class VariantParams():
         "check_monref": True,
         "no_single_bnd": True,
         "write_resolved": False,
+        "decompose": True,
         "short_circuit": False,
         "skip_gt": False,
     }

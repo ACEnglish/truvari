@@ -75,7 +75,7 @@ run bench_gtcomp_edgecase1 $truv bench -b $INDIR/variants/gtcomp_problem1_base.v
 if [ $bench_gtcomp_edgecase1 ]; then
     bench_assert _gtcomp_edgecase1
 fi
-run bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD
+run bench_badparams $truv bench -b nofile.vcf -c nofile.aga -f notref.fa -o $OD --refdist 0 --extend
 if [ $bench_badparams ]; then
     assert_exit_code 100
 fi
@@ -89,7 +89,15 @@ fi
 
 run bench_bnd $truv bench -b $INDIR/variants/bnd.base.vcf.gz \
                                -c $INDIR/variants/bnd.comp.vcf.gz \
-                               -p 0 -o $OD/bench_bnd/ --debug
+                               -p 0 -o $OD/bench_bnd/ --no-decompose
 if [ $bench_bnd ]; then
     bench_assert _bnd
+fi
+
+run bench_bnd_decomp $truv bench -b $INDIR/variants/bnd.base.vcf.gz \
+                                 -c $INDIR/variants/bnd.comp2.vcf.gz \
+                                 --sizemax 1000000000 -p 0 --pick multi \
+                                 -o $OD/bench_bnd_decomp/
+if [ $bench_bnd_decomp ]; then
+    bench_assert _bnd_decomp/
 fi

@@ -64,6 +64,8 @@ def parse_args(args):
                         help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
+    thresg.add_argument("--no-decompose", action="store_false",
+                        help="Disallow symbolic variant decomposition to BNDs")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
@@ -766,7 +768,7 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    params = truvari.VariantParams(args, short_circuit=args.short)
+    params = truvari.VariantParams(args, short_circuit=args.short, decompose=args.no_decompose)
 
     m_bench = Bench(params=params,
                     base_vcf=args.base,
