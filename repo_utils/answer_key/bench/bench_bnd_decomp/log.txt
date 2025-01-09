@@ -1,9 +1,9 @@
-2025-01-08 20:17:40,376 [INFO] Truvari v5.0.0
-2025-01-08 20:17:40,377 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
-2025-01-08 20:17:40,377 [INFO] Params:
+2025-01-09 16:25:00,733 [INFO] Truvari v5.0.0
+2025-01-09 16:25:00,733 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
+2025-01-09 16:25:00,734 [INFO] Params:
 {
-    "base": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.base.vcf.gz",
-    "comp": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.comp2.vcf.gz",
+    "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/bnd.comp2.vcf.gz",
     "output": "test_results/bench_bnd_decomp/",
     "includebed": null,
     "extend": 0,
@@ -35,33 +35,30 @@
     "short_circuit": false,
     "skip_gt": false
 }
-2025-01-08 20:17:40,408 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-08 20:17:45,964 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
-2025-01-08 20:17:45,965 [INFO] 20659 chunks of 30098 variants Counter({'comp': 29902, 'base': 186, '__filtered': 10})
-2025-01-08 20:17:49,303 [INFO] Stats: {
-    "TP-base": 144,
-    "TP-comp": 126,
-    "FP": 28404,
-    "FN": 42,
-    "precision": 0.004416403785488959,
-    "recall": 0.7741935483870968,
-    "f1": 0.008782706432809682,
+2025-01-09 16:25:00,783 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-01-09 16:25:12,483 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
+2025-01-09 16:25:12,483 [INFO] 20659 chunks of 30098 variants Counter({'comp': 29902, 'base': 186, '__filtered': 10})
+2025-01-09 16:25:15,625 [INFO] Stats: {
+    "TP-base": 140,
+    "TP-comp": 124,
+    "FP": 28406,
+    "FN": 46,
+    "precision": 0.0043463021381002455,
+    "recall": 0.7526881720430108,
+    "f1": 0.008642698114935937,
     "base cnt": 186,
     "comp cnt": 28530,
     "TP-comp_TP-gt": 1,
-    "TP-comp_FP-gt": 125,
+    "TP-comp_FP-gt": 123,
     "TP-base_TP-gt": 1,
-    "TP-base_FP-gt": 143,
-    "gt_concordance": 0.007936507936507936,
+    "TP-base_FP-gt": 139,
+    "gt_concordance": 0.008064516129032258,
     "gt_matrix": {
         "(0, 1)": {
             "(0, 0)": 132,
             "(0, 1)": 1
         },
         "(0, 0, 1)": {
-            "(0, 0)": 3
-        },
-        "(0, 1, 0)": {
             "(0, 0)": 2
         },
         "(0, 0, 0, 1)": {
@@ -70,12 +67,12 @@
         "(0, 0, 1, 0)": {
             "(0, 0)": 1
         },
-        "(0, 1, 1)": {
-            "(0, 0)": 2
+        "(0, 1, 0)": {
+            "(0, 0)": 1
         },
         "(1, 0)": {
             "(0, 0)": 2
         }
     }
 }
-2025-01-08 20:17:49,303 [INFO] Finished bench
+2025-01-09 16:25:15,626 [INFO] Finished bench

@@ -290,62 +290,75 @@ class VariantRecord:
 
     def decompose(self):
         """
-        Decompose symbolic DEL, DUP, and INV variants into BNDs
-        Returns a list of new BND variant records
-        Stores decomposed variants in self.decomposed
+        Decompose Symbolic Variants into BND Records
+
+        This method decomposes symbolic structural variants (SVs) of `<DEL>`, `<DUP>`, and `<INV>` into
+        Breakend (BND) records. The decomposed variants are stored internally and returned as a list.
+
+        Raises:
+            ValueError: If the variant is not symbolic.
+
+        Returns:
+            list: A list of new BND variant records.
+
+        Notes:
+            - For `INV` (Inversion) variants, four BND records are created
+            - For `DEL` (Deletion) variants, two BND records are created to represent the deletion breakpoints.
+            - For `DUP` (Duplication) variants, two BND records are created to represent the duplication breakpoints.
+            - Assumes `DUP` variants are of type `DUP:TANDEM`.
         """
         if not self.is_symbolic():
             raise ValueError("Can only decompose symbolic variants")
-        if self.decomp_repr:
+
+        # No need to make twice
+        if self.decomp_repr is not None:
             return self.decomp_repr
 
         svtype = self.var_type()
-        chrom = self.chrom
-        pos = self.pos
-        end = self.end
         ret = []
 
         if svtype == truvari.SV.INV:
             record1 = self.copy()
-            record1.alts = (f"[{chrom}:{end}[N",)
+            record1.alts = (f"[{self.chrom}:{self.end}[N",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.alts = (f"N]{chrom}:{end}]",)
+            record2.alts = (f"N]{self.chrom}:{self.end}]",)
             record2.info["SVTYPE"] = "BND"
 
             record3 = self.copy()
-            record3.pos = end
-            record3.alts = (f"N]{chrom}:{pos}]",)
+            record3.pos = self.end
+            record3.alts = (f"N]{self.chrom}:{self.pos}]",)
             record3.info["SVTYPE"] = "BND"
 
             record4 = self.copy()
-            record4.pos = end
-            record4.alts = (f"[{chrom}:{pos}[N",)
+            record4.pos = self.end
+            record4.alts = (f"[{self.chrom}:{self.pos}[N",)
             record4.info["SVTYPE"] = "BND"
 
             ret = [record1, record2, record3, record4]
 
         elif svtype == truvari.SV.DEL:
             record1 = self.copy()
-            record1.alts = (f"N]chr{chrom}:{end}]",)
+            record1.alts = (f"N]{self.chrom}:{self.end}]",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.pos = end
-            record2.alts = (f"[chr{chrom}:{pos}[N",)
+            record2.pos = self.end
+            record2.alts = (f"[{self.chrom}:{self.pos}[N",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
 
         elif svtype == truvari.SV.DUP:
+            # Assumes DUP:TANDEM
             record1 = self.copy()
-            record1.alts = (f"]{chrom}:{end}]N",)
-            record1.info["SVTYPE"] == "BND"
+            record1.alts = (f"N[{self.chrom}:{self.end}[",)
+            record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.pos = end
-            record2.alts = (f"N[{chrom}:{pos}[",)
+            record2.pos = self.end
+            record2.alts = (f"]{self.chrom}:{self.pos}]N",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
@@ -356,7 +369,7 @@ class VariantRecord:
     def distance(self, other):
         """
         Calculate the start and end distances of the pair. Negative distances
-        indicate entryA is upstream of entryB
+        indicate self is upstream of other
 
         :param `other`: Other to compare
         :type `other`: :class:`truvari.VariantRecord`
@@ -669,7 +682,7 @@ class VariantRecord:
 
     def same_type(self, other, dup_to_ins=False):
         """
-        Check if entryA svtype == entryB svtype
+        Check if self.var_type() == other.var_type() with extra handling for dup-to-ins
 
         :param `other`: Other entry to compare with
         :type `other`: :class:`truvari.VariantRecord`
