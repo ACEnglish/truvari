@@ -1,6 +1,6 @@
-2025-01-08 19:03:15,280 [INFO] Truvari v5.0.0
-2025-01-08 19:03:15,280 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
-2025-01-08 19:03:15,280 [INFO] Params:
+2025-01-08 20:16:32,128 [INFO] Truvari v5.0.0
+2025-01-08 20:16:32,129 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
+2025-01-08 20:16:32,129 [INFO] Params:
 {
     "base": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.base.vcf.gz",
     "comp": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.comp.vcf.gz",
@@ -35,33 +35,36 @@
     "short_circuit": false,
     "skip_gt": false
 }
-2025-01-08 19:03:15,294 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-08 19:03:15,364 [INFO] Zipped 418 variants Counter({'comp': 243, 'base': 175})
-2025-01-08 19:03:15,365 [INFO] 185 chunks of 418 variants Counter({'comp': 190, '__filtered': 115, 'base': 113})
-2025-01-08 19:03:15,412 [INFO] Stats: {
-    "TP-base": 85,
-    "TP-comp": 85,
-    "FP": 81,
-    "FN": 28,
-    "precision": 0.5120481927710844,
-    "recall": 0.7522123893805309,
-    "f1": 0.6093189964157706,
-    "base cnt": 113,
-    "comp cnt": 166,
-    "TP-comp_TP-gt": 68,
-    "TP-comp_FP-gt": 17,
-    "TP-base_TP-gt": 68,
-    "TP-base_FP-gt": 17,
+2025-01-08 20:16:32,143 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-01-08 20:16:32,220 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
+2025-01-08 20:16:32,220 [INFO] 202 chunks of 439 variants Counter({'comp': 190, 'base': 135, '__filtered': 114})
+2025-01-08 20:16:32,268 [INFO] Stats: {
+    "TP-base": 80,
+    "TP-comp": 80,
+    "FP": 88,
+    "FN": 55,
+    "precision": 0.47619047619047616,
+    "recall": 0.5925925925925926,
+    "f1": 0.528052805280528,
+    "base cnt": 135,
+    "comp cnt": 168,
+    "TP-comp_TP-gt": 64,
+    "TP-comp_FP-gt": 16,
+    "TP-base_TP-gt": 64,
+    "TP-base_FP-gt": 16,
     "gt_concordance": 0.8,
     "gt_matrix": {
         "(0, 1)": {
-            "(0, 1)": 65,
-            "(0, 0)": 16,
+            "(0, 1)": 59,
+            "(0, 0)": 15,
             "(1, 1)": 1
         },
         "(1, 0)": {
             "(0, 1)": 3
+        },
+        "(0, 0, 1)": {
+            "(0, 1)": 2
         }
     }
 }
-2025-01-08 19:03:15,412 [INFO] Finished bench
+2025-01-08 20:16:32,268 [INFO] Finished bench

@@ -119,7 +119,7 @@ class VariantRecord:
         """
         Extracts the chromosome and position from a BND ALT string.
 
-        Breakend (BND) ALT strings indicate structural variant breakpoints that span across chromosomes or positions. 
+        Breakend (BND) ALT strings indicate structural variant breakpoints that span across chromosomes or positions.
         This method parses the ALT string to extract the target chromosome and position of the breakpoint.
 
         :return: A tuple containing the chromosome (as a string) and the position (as an integer).
@@ -298,11 +298,13 @@ class VariantRecord:
             raise ValueError("Can only decompose symbolic variants")
         if self.decomp_repr:
             return self.decomp_repr
+
         svtype = self.var_type()
         chrom = self.chrom
         pos = self.pos
         end = self.end
         ret = []
+
         if svtype == truvari.SV.INV:
             record1 = self.copy()
             record1.alts = (f"[{chrom}:{end}[N",)
@@ -338,15 +340,16 @@ class VariantRecord:
 
         elif svtype == truvari.SV.DUP:
             record1 = self.copy()
-            record1.alts = (f"N]chr{chrom}:{end}]",)
-            record1.info["SVTYPE"] = "BND"
+            record1.alts = (f"]{chrom}:{end}]N",)
+            record1.info["SVTYPE"] == "BND"
 
             record2 = self.copy()
             record2.pos = end
-            record2.alts = (f"[chr{chrom}:{pos}[N",)
+            record2.alts = (f"N[{chrom}:{pos}[",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
+
         self.decomp_repr = ret
         return ret
 
