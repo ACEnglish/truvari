@@ -8,7 +8,8 @@
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
 Toolkit for benchmarking, merging, and annotating Structural Variants
 
-📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
+📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed user documentation.  
+🛠️ [Developer Docs](https://truvari.readthedocs.io/en/latest/) for the truvari API.  
 📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
 📝 Read our Papers ([#1](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6), [#2](https://rdcu.be/dFQNN)) to learn more.
 
