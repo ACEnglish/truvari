@@ -162,7 +162,6 @@ def chunker(params, *files):
     cur_chrom = None
     cur_end = 0
     cur_chunk = defaultdict(list)
-    unresolved_warned = False
     reference = pysam.FastaFile(params.reference) if params.reference is not None else None
 
     for key, entry in file_zipper(*files):
@@ -182,15 +181,8 @@ def chunker(params, *files):
             continue
 
         # check symbolic, resolve if needed/possible
-        if params.pctseq != 0 and entry.alts[0].startswith('<'):
-            was_resolved = entry.resolve(reference)
-            if not was_resolved:
-                if not unresolved_warned:
-                    logging.warning("Some symbolic SVs couldn't be resolved")
-                    unresolved_warned = True
-                cur_chunk['__filtered'].append(entry)
-                call_counts['__filtered'] += 1
-                continue
+        if entry.alts[0].startswith('<'):
+            entry.resolve(reference)
 
         new_chrom = cur_chrom and entry.chrom != cur_chrom
         new_chunk = cur_end and cur_end + params.chunksize < entry.start

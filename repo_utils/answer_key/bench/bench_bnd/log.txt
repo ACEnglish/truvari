@@ -1,9 +1,9 @@
-2025-01-08 20:16:32,128 [INFO] Truvari v5.0.0
-2025-01-08 20:16:32,129 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
-2025-01-08 20:16:32,129 [INFO] Params:
+2025-01-09 21:35:26,687 [INFO] Truvari v5.0.0
+2025-01-09 21:35:26,688 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
+2025-01-09 21:35:26,688 [INFO] Params:
 {
-    "base": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.base.vcf.gz",
-    "comp": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.comp.vcf.gz",
+    "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/bnd.comp.vcf.gz",
     "output": "test_results/bench_bnd/",
     "includebed": null,
     "extend": 0,
@@ -22,7 +22,7 @@
     "bnddist": 100,
     "sizemin": 50,
     "sizefilt": 30,
-    "sizemax": 50000,
+    "sizemax": -1,
     "passonly": false,
     "no_ref": false,
     "pick": "single",
@@ -33,30 +33,31 @@
     "write_resolved": false,
     "decompose": false,
     "short_circuit": false,
-    "skip_gt": false
+    "skip_gt": false,
+    "max_resolve": 25000
 }
-2025-01-08 20:16:32,143 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-08 20:16:32,220 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
-2025-01-08 20:16:32,220 [INFO] 202 chunks of 439 variants Counter({'comp': 190, 'base': 135, '__filtered': 114})
-2025-01-08 20:16:32,268 [INFO] Stats: {
-    "TP-base": 80,
-    "TP-comp": 80,
-    "FP": 88,
-    "FN": 55,
-    "precision": 0.47619047619047616,
-    "recall": 0.5925925925925926,
-    "f1": 0.528052805280528,
-    "base cnt": 135,
-    "comp cnt": 168,
-    "TP-comp_TP-gt": 64,
-    "TP-comp_FP-gt": 16,
-    "TP-base_TP-gt": 64,
-    "TP-base_FP-gt": 16,
-    "gt_concordance": 0.8,
+2025-01-09 21:35:26,723 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-01-09 21:35:26,898 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
+2025-01-09 21:35:26,899 [INFO] 223 chunks of 439 variants Counter({'comp': 243, 'base': 186, '__filtered': 10})
+2025-01-09 21:35:26,974 [INFO] Stats: {
+    "TP-base": 119,
+    "TP-comp": 119,
+    "FP": 102,
+    "FN": 67,
+    "precision": 0.5384615384615384,
+    "recall": 0.6397849462365591,
+    "f1": 0.5847665847665847,
+    "base cnt": 186,
+    "comp cnt": 221,
+    "TP-comp_TP-gt": 99,
+    "TP-comp_FP-gt": 20,
+    "TP-base_TP-gt": 99,
+    "TP-base_FP-gt": 20,
+    "gt_concordance": 0.8319327731092437,
     "gt_matrix": {
         "(0, 1)": {
-            "(0, 1)": 59,
-            "(0, 0)": 15,
+            "(0, 1)": 94,
+            "(0, 0)": 19,
             "(1, 1)": 1
         },
         "(1, 0)": {
@@ -67,4 +68,4 @@
         }
     }
 }
-2025-01-08 20:16:32,268 [INFO] Finished bench
+2025-01-09 21:35:26,974 [INFO] Finished bench

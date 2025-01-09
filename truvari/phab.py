@@ -139,11 +139,12 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     vcf_i = vcf.fetch_regions(tree, with_region=True)
 
     # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
+    # Note: max_size == -1 now that we're not capping by variant size.
     # pylint: disable=unnecessary-lambda-assignment
     entry_filter = lambda e: \
            e.is_resolved() \
            and (not passonly or not e.is_filtered()) \
-           and (e.var_size() <= max_size)
+           and (max_size == -1 or e.var_size() <= max_size)
     # pylint: enable=unnecessary-lambda-assignment
 
     cur_key = None
@@ -347,6 +348,9 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     :param `method`: Alignment method to use mafft or wfa
     :type `method`: :class:`str`
     """
+    if max_size == -1 or max_size >= 50000:
+        logging.warning("Harmonizing variants ≥50kbp is not recommended")
+
     logging.info("Preparing regions")
     region_fn = merged_region_file(var_regions, buffer)
 

@@ -23,7 +23,7 @@ class VariantFile:
         :param args: Additional positional arguments to pass to pysam.VariantFile.
         :param kwargs: Additional keyword arguments to pass to pysam.VariantFile.
         """
-        self.params = params
+        self.params = params if params else truvari.VariantParams()
         self._vcf = pysam.VariantFile(filename, *args, **kwargs)
 
     def __enter__(self):
@@ -121,7 +121,7 @@ class VariantFile:
         :type record: `truvari.VariantRecord`
         """
         out = record.get_record()
-        if self.params and self.params.write_resolved:
+        if self.params.write_resolved:
             out.ref = record.get_ref()
             out.alts = (record.get_alt(),)
         self._vcf.write(out)

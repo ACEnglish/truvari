@@ -10,7 +10,9 @@ from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
 
-# pylint: disable=access-member-before-definition, attribute-defined-outside-init
+# pylint: disable=attribute-defined-outside-init
+
+
 class VariantRecord:
     """
     Wrapper around pysam.VariantRecords with helper functions of variant properties and basic comparisons
@@ -290,9 +292,9 @@ class VariantRecord:
 
     def decompose(self):
         """
-        Decompose Symbolic Variants into BND Records
+        Decompose SVs into BND Records
 
-        This method decomposes symbolic structural variants (SVs) of `<DEL>`, `<DUP>`, and `<INV>` into
+        This method decomposes  structural variants (SVs) of `<DEL>`, `<DUP>`, and `<INV>` into
         Breakend (BND) records. The decomposed variants are stored internally and returned as a list.
 
         Raises:
@@ -307,9 +309,6 @@ class VariantRecord:
             - For `DUP` (Duplication) variants, two BND records are created to represent the duplication breakpoints.
             - Assumes `DUP` variants are of type `DUP:TANDEM`.
         """
-        if not self.is_symbolic():
-            raise ValueError("Can only decompose symbolic variants")
-
         # No need to make twice
         if self.decomp_repr is not None:
             return self.decomp_repr
@@ -493,9 +492,12 @@ class VariantRecord:
         :return: is_resolved
         :rtype: bool
         """
-        return self.alts and \
-            ('<' not in self.alts[0]) and (self.alts[0] not in (None, '*')) \
-            and self.alleles_variant_types[1] != 'BND'
+        orig_resolved = not self.is_monrefstar() and \
+                        not self.is_symbolic() and \
+                        not self.is_bnd()
+        truv_resolved = self.resolved_ref is not None \
+                        and self.resolved_alt is not None
+        return orig_resolved or truv_resolved
 
     def filter_call(self, base=False):
         """
@@ -560,12 +562,12 @@ class VariantRecord:
         :rtype: bool
 
         Filtering Logic:
-            - **Maximum Size:** If the size exceeds `sizemax`, the variant is filtered.
             - **Minimum Size (Base):** If `base=True` and the size is less than `sizemin`, the variant is filtered.
             - **Minimum Size (Comparison):** If `base=False` and the size is less than `sizefilt`, the variant is filtered.
+            - **Maximum Size:** If the size exceeds `sizemax`, the variant is filtered.
         """
         size = self.var_size()
-        return (size > self.params.sizemax) \
+        return (self.params.sizemax != -1 and size > self.params.sizemax) \
             or (base and size < self.params.sizemin) \
             or (not base and size < self.params.sizefilt)
 
@@ -580,15 +582,14 @@ class VariantRecord:
         Build a MatchResult from comparison of two VariantRecords
         If self and other are non-bnd, calls VariantRecord.var_match,
         If self and other are bnd, calls VariantRecord.bnd_match
-        if one is symbolic and the other is bnd, calls VariantRecord.cpx_match
+        If decompose is on, calls VariantRecord.cpx_match
         Otherwise, returns a default MatchResult
         """
         if not self.is_bnd() and not other.is_bnd():
             return self.var_match(other)
         if self.is_bnd() and other.is_bnd():
             return self.bnd_match(other)
-        if self.params.decompose and ((self.is_symbolic() and other.is_bnd())  \
-                                      or (self.is_bnd() and other.is_symbolic())):
+        if self.params.decompose:
             return self.cpx_match(other)
         mat = truvari.MatchResult()
         mat.base = self
@@ -660,7 +661,11 @@ class VariantRecord:
                 - **Duplication (`DUP`)** (when `self.params.dup_to_ins` is enabled): The REF is the first base of the fetched sequence, and the ALT is the full sequence. The `end` is adjusted to be `start + 1`.
             - Returns `False` if the variant type is unsupported or cannot be resolved.
         """
-        if ref is None or self.alts[0] in ['<CNV>', '<INS>'] or self.start > ref.get_reference_length(self.chrom):
+        # Can't resolve everything
+        if ref is None or self.is_monrefstar() \
+                or not self.is_symbolic() \
+                or self.start > ref.get_reference_length(self.chrom) \
+                or self.var_size() > self.params.max_resolve:
             return False
 
         seq = ref.fetch(self.chrom, self.start, self.end)
@@ -725,9 +730,9 @@ class VariantRecord:
             allele2 = other.get_alt()
             return truvari.seqsim(allele1, allele2)
 
-        a_seq = self.ref if self.var_type() == truvari.SV.DEL else self.get_alt()
+        a_seq = self.get_ref() if self.var_type() == truvari.SV.DEL else self.get_alt()
         a_seq = a_seq.upper()
-        b_seq = other.ref if other.var_type() == truvari.SV.DEL else other.get_alt()
+        b_seq = other.get_ref() if other.var_type() == truvari.SV.DEL else other.get_alt()
         b_seq = b_seq.upper()
         st_dist, ed_dist = self.distance(other)
 
@@ -808,7 +813,7 @@ class VariantRecord:
             if self.params.short_circuit:
                 return ret
 
-        if self.params.pctseq > 0:
+        if self.params.pctseq > 0 and self.is_resolved() and other.is_resolved():
             ret.seqsim = self.seqsim(other)
             if ret.seqsim < self.params.pctseq:
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",

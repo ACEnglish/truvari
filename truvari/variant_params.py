@@ -40,7 +40,7 @@ class VariantParams():
        * - `sizefilt`
          - Minimum size filter for comparison in the "comparison" dataset. Default: 30.
        * - `sizemax`
-         - Maximum variant size to consider. Default: 50000.
+         - Maximum variant size to consider. Default: -1, off.
        * - `passonly`
          - Whether to only consider variants with a "PASS" filter status. Default: `False`.
        * - `no_ref`
@@ -63,6 +63,8 @@ class VariantParams():
          - Whether to enable short-circuit logic for early exits in comparisons. Default: `False`.
        * - `skip_gt`
          - Whether to skip genotype comparisons. Default: `False`.
+       * - `max_resolve`
+         - Maximum size of a variant to attempt sequence resolving. Default: 25000.
 
     """
 
@@ -81,7 +83,7 @@ class VariantParams():
         "bnddist": 100,
         "sizemin": 50,
         "sizefilt": 30,
-        "sizemax": 50000,
+        "sizemax": -1,
         "passonly": False,
         "no_ref": False,
         "pick": "single",
@@ -93,6 +95,7 @@ class VariantParams():
         "decompose": True,
         "short_circuit": False,
         "skip_gt": False,
+        "max_resolve": 25000,
     }
 
     def __init__(self, args=None, **kwargs):
