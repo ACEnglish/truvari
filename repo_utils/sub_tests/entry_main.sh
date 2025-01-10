@@ -8,6 +8,6 @@ if [ $help ]; then
 fi
 
 run help_error $truv banch
-if [ $help ]; then
+if [ $help_error ]; then
     assert_exit_code 2
 fi
