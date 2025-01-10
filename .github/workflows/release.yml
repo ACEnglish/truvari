@@ -39,7 +39,7 @@ jobs:
           python3 -m build --wheel --sdist
       - name: Publish distribution 📦 to Test PyPI
         if: github.event.inputs.skip_test != 'skip'
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@v1
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
@@ -51,6 +51,6 @@ jobs:
           # if-no-files-found: ignore
       - name: Publish distribution 📦 to PyPI
         if: github.event.inputs.official == 'PUBLISH TO PYPI'
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
