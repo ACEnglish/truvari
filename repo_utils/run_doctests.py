@@ -13,9 +13,10 @@ from truvari import (
     comparisons,
     msatovcf,
     utils,
+    variant_file,
+    variant_record,
     vcf2df,
 )
-from truvari.annotations import af_calc
     
 
 def tester(module):
@@ -27,11 +28,12 @@ def tester(module):
     return ret.failed
 
 fails = 0
+fails += tester(variant_file)
+fails += tester(variant_record)
 fails += tester(comparisons)
 fails += tester(utils)
 fails += tester(vcf2df)
 fails += tester(msatovcf)
-fails += tester(af_calc)
 
 os.remove("log.txt")
 sys.exit(fails)

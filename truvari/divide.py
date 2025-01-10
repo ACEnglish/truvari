@@ -7,7 +7,6 @@ import logging
 import argparse
 import concurrent.futures
 
-import pysam
 import pandas as pd
 
 import truvari
@@ -41,7 +40,7 @@ def flush_stack(in_vcf, stack, out_name, compress=True):
     write the stack to out_name
     """
     logging.debug(f"{out_name} has {len(stack)} entries")
-    cur_out = pysam.VariantFile(out_name, mode='w', header=in_vcf.header)
+    cur_out = truvari.VariantFile(out_name, mode='w', header=in_vcf.header)
     for i in stack:
         cur_out.write(i)
     cur_out.close()
@@ -60,7 +59,7 @@ def divide_main(args):
         sys.exit(1)
     os.mkdir(args.output)
 
-    in_vcf = pysam.VariantFile(args.input)
+    in_vcf = truvari.VariantFile(args.input)
 
     oname = list(os.path.splitext(os.path.basename(args.input)))
     if oname[-1] == ".gz":

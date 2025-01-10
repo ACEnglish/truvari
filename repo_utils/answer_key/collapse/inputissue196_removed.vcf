@@ -16,5 +16,5 @@
 ##INFO=<ID=MatchId,Number=.,Type=String,Description="Tuple of base and comparison call ids which were matched">
 ##INFO=<ID=Multi,Number=0,Type=Flag,Description="Call is false due to non-multimatching">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
-chr21	14088212	chr21-14088113-DEL-223	T	<DEL>	.	.	END=14088828;SVTYPE=DEL;SVLEN=-393;PctSeqSimilarity=0;PctSizeSimilarity=0.5674;PctRecOverlap=0.5624;SizeDiff=-170;StartDistance=-100;EndDistance=-270;GTMatch=.;TruScore=37;MatchId=1.0	GT	1|0
-chr21	14088312	chr21-14088113-DEL-223	A	<DEL>	.	.	END=14089203;SVTYPE=DEL;SVLEN=-668;PctSeqSimilarity=0;PctSizeSimilarity=0.5883;PctRecOverlap=0.5796;SizeDiff=275;StartDistance=100;EndDistance=375;GTMatch=.;TruScore=38;MatchId=1.0	GT	1|0
+chr21	14088212	chr21-14088113-DEL-223	T	<DEL>	.	.	END=14088828;SVTYPE=DEL;SVLEN=-393;PctSeqSimilarity=0;PctSizeSimilarity=0.5674;PctRecOverlap=0.5624;SizeDiff=-170;StartDistance=-100;EndDistance=-270;TruScore=37;MatchId=1.0	GT	1|0
+chr21	14088312	chr21-14088113-DEL-223	A	<DEL>	.	.	END=14089203;SVTYPE=DEL;SVLEN=-668;PctSeqSimilarity=0;PctSizeSimilarity=0.5883;PctRecOverlap=0.5796;SizeDiff=275;StartDistance=100;EndDistance=375;TruScore=38;MatchId=1.0	GT	1|0

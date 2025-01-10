@@ -9,7 +9,6 @@ import argparse
 import itertools
 from enum import Enum
 
-import pysam
 import joblib
 import pandas as pd
 import truvari
@@ -48,7 +47,8 @@ class SV(Enum):
     DUP = 3
     INV = 4
     NON = 5  # Not a variant (monomorphic ref?)
-    UNK = 6  # Unknown type
+    BND = 6
+    UNK = 7  # Unknown type
 
 
 SZBINS = ['SNP', '[1,5)', '[5,10)', '[10,15)', '[15,20)', '[20,30)', '[30,40)',
@@ -76,7 +76,7 @@ def get_svtype(svtype):
         >>> truvari.get_svtype("INS")
         <SV.INS: 2>
         >>> truvari.get_svtype("foo")
-        <SV.UNK: 6>
+        <SV.UNK: 7>
     """
     try:
         return SV.__members__[svtype]
@@ -192,7 +192,7 @@ def get_files_from_truvdir(directory):
 
 def tags_to_ops(items):
     """
-    Given a list of  items from a :class:`pysam.VariantFile.header.[info|format].items`
+    Given a list of  items from a :class:`truvari.VariantFile.header.[info|format].items`
     build column names and operators for parsing
 
     :param `items`: SVTYPE string to turn into SV object
@@ -274,7 +274,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
                'NA12878_AD_ref', 'NA12878_AD_alt'],
               dtype='object')
     """
-    v = pysam.VariantFile(fn)
+    v = truvari.VariantFile(fn)
     if with_format and not sample:
         sample = list(v.header.samples)
     if sample and len(sample) > 1 and no_prefix:
@@ -314,18 +314,18 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         Yields the rows
         """
         for entry in v:
-            varsize = truvari.entry_size(entry)
-            cur_row = [truvari.entry_to_hash(entry),
+            varsize = entry.var_size()
+            cur_row = [entry.to_hash(),
                        entry.chrom,
                        entry.start,
                        entry.stop,
                        entry.id,
-                       truvari.entry_variant_type(entry).name,
+                       entry.var_type().name,
                        varsize,
                        truvari.get_sizebin(varsize),
                        entry.qual,
                        list(entry.filter),
-                       not truvari.entry_is_filtered(entry)
+                       not entry.is_filtered()
                        ]
 
             for i, op in info_ops:

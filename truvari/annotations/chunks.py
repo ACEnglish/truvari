@@ -6,7 +6,6 @@ Column 5: comma-deliminted number of sub-chunks after accounting for size and di
 """
 import sys
 import argparse
-import pysam
 
 import truvari
 from truvari.collapse import tree_size_chunker, tree_dist_chunker
@@ -19,14 +18,16 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("input", type=str,
                         help="Input VCF")
+    parser.add_argument("-b", "--bed", type=str, default=None,
+                        help="Bed file of variants to chunk")
     parser.add_argument("-o", "--output", type=str, default="/dev/stdout",
                         help="Output name")
     parser.add_argument("-c", "--chunksize", type=int, default=500,
                         help="Distance between variants to split chunks (%(default)s)")
     parser.add_argument("-s", "--sizemin", type=int, default=50,
-                        help="Minimum SV length")
+                        help="Minimum SV length (%(default)s)")
     parser.add_argument("-S", "--sizemax", type=int, default=50000,
-                        help="Maximum SV length")
+                        help="Maximum SV length (%(default)s)")
     args = parser.parse_args(args)
     truvari.setup_logging(show_version=True)
     return args
@@ -39,7 +40,7 @@ def get_bounds(cnk):
     mend = 0
     for i in cnk:
         mstart = min(mstart, i.start)
-        mend = max(mend, i.stop)
+        mend = max(mend, i.end)
     return mstart, mend
 
 def chunks_main(args):
@@ -47,14 +48,10 @@ def chunks_main(args):
     Main
     """
     args = parse_args(args)
-    v = pysam.VariantFile(args.input)
-    m = truvari.Matcher()
-    m.params.pctseq = 0
-    m.params.sizemin = args.sizemin
-    m.params.sizefilt = args.sizemin
-    m.params.sizemax = args.sizemax
-    m.params.chunksize = args.chunksize
-    m.params.refdist = args.chunksize
+    v = truvari.VariantFile(args.input)
+    m = truvari.VariantParams(args=args, pctseq=0)
+    if args.bed:
+        v = v.fetch_bed(args.bed)
     c = truvari.chunker(m, ('base', v))
 
     with open(args.output, 'w') as fout:

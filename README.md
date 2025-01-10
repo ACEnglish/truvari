@@ -2,13 +2,14 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.3.0)](https://github.com/ACEnglish/truvari/compare/v4.3.0...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v4.3.1)](https://github.com/ACEnglish/truvari/compare/v4.3.1...develop)
 [![Downloads](https://static.pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
 Toolkit for benchmarking, merging, and annotating Structural Variants
 
-📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed documentation.  
+📚 [WIKI page](https://github.com/acenglish/truvari/wiki) has detailed user documentation.  
+🛠️ [Developer Docs](https://truvari.readthedocs.io/en/latest/) for the truvari API.  
 📈 See [Updates](https://github.com/acenglish/truvari/wiki/Updates) on new versions.  
 📝 Read our Papers ([#1](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-022-02840-6), [#2](https://rdcu.be/dFQNN)) to learn more.
 

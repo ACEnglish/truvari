@@ -43,7 +43,7 @@ def add_gcpct(vcf, ref, n_header=None):
         n_header = edit_header(vcf)
 
     for entry in vcf:
-        start, end = truvari.entry_boundaries(entry)
+        start, end = entry.boundaries()
         span = abs(end - start)
         try:
             seq = ref.fetch(entry.chrom, start, end) if span >= len(
@@ -64,9 +64,9 @@ def gcpct_main(cmdargs):
     """
     args = parse_args(cmdargs)
     ref = pysam.FastaFile(args.reference)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     n_header = edit_header(vcf)
-    out = pysam.VariantFile(args.output, 'w', header=n_header)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
     for entry in add_gcpct(vcf, ref, n_header):
         out.write(entry)
     out.close()

@@ -1,9 +1,9 @@
-2024-08-01 19:48:18,699 [INFO] Truvari v4.3.0
-2024-08-01 19:48:18,699 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/star.base.vcf.gz -c repo_utils/test_files/variants/star.comp.vcf.gz -s 0 -o test_results/bench_starallele/
-2024-08-01 19:48:18,700 [INFO] Params:
+2025-01-06 03:04:05,241 [INFO] Truvari v5.0.0
+2025-01-06 03:04:05,241 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/star.base.vcf.gz -c repo_utils/test_files/variants/star.comp.vcf.gz -s 0 -o test_results/bench_starallele/
+2025-01-06 03:04:05,242 [INFO] Params:
 {
-    "base": "/Users/english/code/truvari/repo_utils/test_files/variants/star.base.vcf.gz",
-    "comp": "/Users/english/code/truvari/repo_utils/test_files/variants/star.comp.vcf.gz",
+    "base": "/data/repo_utils/test_files/variants/star.base.vcf.gz",
+    "comp": "/data/repo_utils/test_files/variants/star.comp.vcf.gz",
     "output": "test_results/bench_starallele/",
     "includebed": null,
     "extend": 0,
@@ -11,14 +11,15 @@
     "reference": null,
     "refdist": 500,
     "pctseq": 0.7,
-    "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "no_roll": true,
     "chunksize": 1000,
     "bSample": "HG002",
     "cSample": "HG002",
     "dup_to_ins": false,
+    "bnddist": 100,
     "sizemin": 0,
     "sizefilt": 0,
     "sizemax": 50000,
@@ -28,9 +29,9 @@
     "check_monref": true,
     "check_multi": true
 }
-2024-08-01 19:48:18,705 [INFO] Zipped 7 variants Counter({'base': 6, 'comp': 1})
-2024-08-01 19:48:18,705 [INFO] 1 chunks of 7 variants Counter({'base': 5, '__filtered': 1, 'comp': 1})
-2024-08-01 19:48:18,721 [INFO] Stats: {
+2025-01-06 03:04:05,258 [INFO] Zipped 7 variants Counter({'base': 6, 'comp': 1})
+2025-01-06 03:04:05,259 [INFO] 1 chunks of 7 variants Counter({'base': 5, '__filtered': 1, 'comp': 1})
+2025-01-06 03:04:05,296 [INFO] Stats: {
     "TP-base": 0,
     "TP-comp": 0,
     "FP": 1,
@@ -47,4 +48,4 @@
     "gt_concordance": 0,
     "gt_matrix": {}
 }
-2024-08-01 19:48:18,721 [INFO] Finished bench
+2025-01-06 03:04:05,297 [INFO] Finished bench

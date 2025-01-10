@@ -1,0 +1,25 @@
+#
+# Total 3516 calls across 3 VCFs
+#
+#File	NumCalls
+repo_utils/test_files/variants/input1.vcf.gz	2153
+repo_utils/test_files/variants/input2.vcf.gz	1783
+repo_utils/test_files/variants/input3.vcf.gz	2065
+#
+# Summary of consistency
+#
+#VCFs	Calls	Pct
+3	700	19.91%
+2	1085	30.86%
+1	1731	49.23%
+#
+# Breakdown of VCFs' consistency
+#
+#Group	Total	TotalPct	PctOfFileCalls
+111	700	19.91%	32.51% 39.26% 33.90%
+001	645	18.34%	0% 0% 31.23%
+100	601	17.09%	27.91% 0% 0%
+101	487	13.85%	22.62% 0% 23.58%
+010	485	13.79%	0% 27.20% 0%
+110	365	10.38%	16.95% 20.47% 0%
+011	233	6.63%	0% 13.07% 11.28%

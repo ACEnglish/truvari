@@ -1,6 +1,6 @@
-2024-01-09 03:55:06,577 [INFO] Truvari v4.2.0rc1
-2024-01-09 03:55:06,578 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/gtcomp_problem1_base.vcf.gz -c repo_utils/test_files/variants/gtcomp_problem1_comp.vcf.gz --pick ac -o test_results/bench_gtcomp_edgecase1/
-2024-01-09 03:55:06,579 [INFO] Params:
+2025-01-06 03:04:02,903 [INFO] Truvari v5.0.0
+2025-01-06 03:04:02,904 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/gtcomp_problem1_base.vcf.gz -c repo_utils/test_files/variants/gtcomp_problem1_comp.vcf.gz --pick ac -o test_results/bench_gtcomp_edgecase1/
+2025-01-06 03:04:02,905 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/gtcomp_problem1_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/gtcomp_problem1_comp.vcf.gz",
@@ -11,14 +11,15 @@
     "reference": null,
     "refdist": 500,
     "pctseq": 0.7,
-    "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "no_roll": true,
     "chunksize": 1000,
     "bSample": "HG002",
     "cSample": "HG002_30x.GRCh38.deepvariant.haplotagged",
     "dup_to_ins": false,
+    "bnddist": 100,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
@@ -28,10 +29,10 @@
     "check_monref": true,
     "check_multi": true
 }
-2024-01-09 03:55:06,627 [WARNING] Excluding 171 contigs present in comparison calls header but not baseline calls.
-2024-01-09 03:55:06,632 [INFO] Zipped 4 variants Counter({'base': 2, 'comp': 2})
-2024-01-09 03:55:06,632 [INFO] 1 chunks of 4 variants Counter({'base': 2, 'comp': 2})
-2024-01-09 03:55:06,749 [INFO] Stats: {
+2025-01-06 03:04:02,924 [WARNING] Excluding 171 contigs present in comparison calls header but not baseline calls.
+2025-01-06 03:04:02,930 [INFO] Zipped 4 variants Counter({'base': 2, 'comp': 2})
+2025-01-06 03:04:02,930 [INFO] 1 chunks of 4 variants Counter({'base': 2, 'comp': 2})
+2025-01-06 03:04:02,976 [INFO] Stats: {
     "TP-base": 1,
     "TP-comp": 1,
     "FP": 1,
@@ -50,26 +51,6 @@
         "(1, 1)": {
             "(1, 0)": 1
         }
-    },
-    "weighted": {
-        "sequence": {
-            "TP": 1.4081999957561493,
-            "FP": 0.5918000042438507,
-            "FN": 0.5918000042438507,
-            "precision": 0.7040999978780746,
-            "recall": 0.7040999978780746,
-            "f1": 0.7040999978780746,
-            "total": 2
-        },
-        "size": {
-            "TP": 1.5,
-            "FP": 0.5,
-            "FN": 0.5,
-            "precision": 0.75,
-            "recall": 0.75,
-            "f1": 0.75,
-            "total": 2
-        }
     }
 }
-2024-01-09 03:55:06,750 [INFO] Finished bench
+2025-01-06 03:04:02,976 [INFO] Finished bench

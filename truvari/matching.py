@@ -1,18 +1,49 @@
 """
 Comparison engine
 """
-import types
 import logging
 from collections import Counter, defaultdict
 from functools import total_ordering
 import pysam
-import truvari
 
 
 @total_ordering
 class MatchResult():  # pylint: disable=too-many-instance-attributes
     """
-    A base/comp match holder
+    Holds results from a matching operation
+
+    Attributes
+    ----------
+    .. list-table::
+       :header-rows: 1
+
+       * - Attribute
+         - Description
+       * - `base`
+         - The base (a.k.a. self) variant
+       * - `comp`
+         - The comp (a.k.a. other) variant
+       * - `state`
+         - Boolean of if variants match
+       * - `seqsim`
+         - Sequence similarity of variants
+       * - `sizesim`
+         - Size similarity of variants
+       * - `ovlpct`
+         - Reciprocal overlap ov variants
+       * - `sizediff`
+         - Base variant var_size minus comp variant var_size
+       * - `st_dist`
+         - Base variant start position minus comp variant start position
+       * - `ed_dist`
+         - Base variant end position minus comp variant end position
+       * - `gt_match`
+         -  Boolean of if genotypes match
+       * - `score`
+         - TruScore of matches
+       * - `matid`
+         - Place to put MatchIds, not populated by `truvari.VariantRecord.match`
+
     """
     __slots__ = ["base", "comp", "base_gt", "base_gt_count", "comp_gt", "comp_gt_count",
                  "state", "seqsim", "sizesim", "ovlpct", "sizediff", "st_dist", "ed_dist",
@@ -35,7 +66,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = 0
+        self.score = None
 
     def calc_score(self):
         """
@@ -48,7 +79,9 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         # Trues are always worth more
         if self.state != other.state:
             return self.state < other.state
-        return self.score < other.score
+        m_score = self.score if self.score is not None else -float('inf')
+        o_score = other.score if other.score is not None else -float('inf')
+        return m_score < o_score
 
     def __eq__(self, other):
         return self.state == other.state and self.score == other.score
@@ -61,192 +94,6 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         return f'<truvari.MatchResult ({self.state} {sc})>'
 
 
-class Matcher():
-    """
-    Holds matching parameters. Allows calls to be checked for filtering and matches to be made
-
-    Example
-        >>> import pysam
-        >>> import truvari
-        >>> mat = truvari.Matcher()
-        >>> mat.params.pctseq = 0
-        >>> v = pysam.VariantFile('repo_utils/test_files/variants/input1.vcf.gz')
-        >>> one = next(v); two = next(v)
-        >>> mat.build_match(one, two)
-        <truvari.bench.MatchResult (False 2.381)>
-
-    Look at `Matcher.make_match_params()` for a list of all params and their defaults
-    """
-
-    def __init__(self, args=None):
-        """
-        Initalize. args is a Namespace from argparse
-        """
-        if args is not None:
-            self.params = self.make_match_params_from_args(args)
-        else:
-            self.params = self.make_match_params()
-
-        self.reference = None
-        if self.params.reference is not None:
-            self.reference = pysam.FastaFile(self.params.reference)
-
-    @staticmethod
-    def make_match_params():
-        """
-        Makes a simple namespace of matching parameters. Holds defaults
-        """
-        params = types.SimpleNamespace()
-        params.reference = None
-        params.refdist = 500
-        params.pctseq = 0.70
-        params.minhaplen = 50
-        params.pctsize = 0.70
-        params.pctovl = 0.0
-        params.typeignore = False
-        params.chunksize = 1000
-        params.bSample = 0
-        params.cSample = 0
-        params.dup_to_ins = False
-        params.sizemin = 50
-        params.sizefilt = 30
-        params.sizemax = 50000
-        params.passonly = False
-        params.no_ref = False
-        params.pick = 'single'
-        params.ignore_monref = True
-        params.check_multi = True
-        params.check_monref = True
-        return params
-
-    @staticmethod
-    def make_match_params_from_args(args):
-        """
-        Makes a simple namespace of matching parameters
-        """
-        ret = types.SimpleNamespace()
-        ret.reference = args.reference
-        ret.refdist = args.refdist
-        ret.pctseq = args.pctseq
-        ret.minhaplen = args.minhaplen
-        ret.pctsize = args.pctsize
-        ret.pctovl = args.pctovl
-        ret.typeignore = args.typeignore
-        ret.chunksize = args.chunksize
-        ret.bSample = args.bSample if args.bSample else 0
-        ret.cSample = args.cSample if args.cSample else 0
-        ret.dup_to_ins = args.dup_to_ins if "dup_to_ins" in args else False
-        # filtering properties
-        ret.sizemin = args.sizemin
-        ret.sizefilt = args.sizefilt
-        ret.sizemax = args.sizemax
-        ret.passonly = args.passonly
-        ret.no_ref = args.no_ref
-        ret.pick = args.pick if "pick" in args else "single"
-        ret.check_monref = True
-        ret.check_multi = True
-        return ret
-
-    def filter_call(self, entry, base=False):
-        """
-        Returns True if the call should be filtered
-        Base has different filtering requirements, so let the method know
-        """
-        if self.params.check_monref and (not entry.alts or entry.alts[0] in (None, '*')):  # ignore monomorphic reference
-            return True
-
-        if self.params.check_multi and len(entry.alts) > 1:
-            raise ValueError(f"Cannot compare multi-allelic records. Please split\nline {str(entry)}")
-
-        if self.params.passonly and truvari.entry_is_filtered(entry):
-            return True
-
-        size = truvari.entry_size(entry)
-        if (size > self.params.sizemax) \
-           or (base and size < self.params.sizemin) \
-           or (not base and size < self.params.sizefilt):
-            return True
-
-        prefix = 'b' if base else 'c'
-        if self.params.no_ref in ["a", prefix] or self.params.pick == 'ac':
-            samp = self.params.bSample if base else self.params.cSample
-            if not truvari.entry_is_present(entry, samp):
-                return True
-
-        return False
-
-
-    def build_match(self, base, comp, matid=None, skip_gt=False, short_circuit=False):
-        """
-        Build a MatchResult
-        if skip_gt, don't do genotype comparison
-        if short_circuit, return after first failure
-        """
-        ret = MatchResult()
-        ret.base = base
-        ret.comp = comp
-
-        ret.matid = matid
-        ret.state = True
-
-        if not self.params.typeignore and not truvari.entry_same_variant_type(base, comp, self.params.dup_to_ins):
-            logging.debug("%s and %s are not the same SVTYPE",
-                          str(base), str(comp))
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        bstart, bend = truvari.entry_boundaries(base)
-        cstart, cend = truvari.entry_boundaries(comp)
-        if not truvari.overlaps(bstart - self.params.refdist, bend + self.params.refdist, cstart, cend):
-            logging.debug("%s and %s are not within REFDIST",
-                          str(base), str(comp))
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        ret.sizesim, ret.sizediff = truvari.entry_size_similarity(base, comp)
-        if ret.sizesim < self.params.pctsize:
-            logging.debug("%s and %s size similarity is too low (%.3f)",
-                          str(base), str(comp), ret.sizesim)
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        if not skip_gt:
-            if "GT" in base.samples[self.params.bSample]:
-                ret.base_gt = base.samples[self.params.bSample]["GT"]
-                ret.base_gt_count = sum(1 for _ in ret.base_gt if _ == 1)
-            if "GT" in comp.samples[self.params.cSample]:
-                ret.comp_gt = comp.samples[self.params.cSample]["GT"]
-                ret.comp_gt_count = sum(1 for _ in ret.comp_gt if _ == 1)
-            ret.gt_match = abs(ret.base_gt_count - ret.comp_gt_count)
-
-        ret.ovlpct = truvari.entry_reciprocal_overlap(base, comp)
-        if ret.ovlpct < self.params.pctovl:
-            logging.debug("%s and %s overlap percent is too low (%.3f)",
-                          str(base), str(comp), ret.ovlpct)
-            ret.state = False
-            if short_circuit:
-                return ret
-
-        if self.params.pctseq > 0:
-            ret.seqsim = truvari.entry_seq_similarity(
-                base, comp, self.reference, self.params.minhaplen)
-            if ret.seqsim < self.params.pctseq:
-                logging.debug("%s and %s sequence similarity is too low (%.3ff)",
-                              str(base), str(comp), ret.seqsim)
-                ret.state = False
-                if short_circuit:
-                    return ret
-        else:
-            ret.seqsim = 0
-
-        ret.st_dist, ret.ed_dist = bstart - cstart, bend - cend
-        ret.calc_score()
-
-        return ret
-
 ############################
 # Parsing and set building #
 ############################
@@ -254,13 +101,25 @@ class Matcher():
 
 def file_zipper(*start_files):
     """
-    Zip files to yield the entries in order.
-    Each file must be sorted in the same order.
-    start_files is a tuple of ('key', iterable)
-    where key is the identifier (so we know which file the yielded entry came from)
-    and iterable is usually a pysam.VariantFile
+    Zip multiple files to yield their entries in order.
 
-    yields key, pysam.VariantRecord
+    The function takes as input tuples of (`key`, `iterable`), where:
+
+    - `key` is an identifier (used to track which file the yielded entry comes from).
+    - `iterable` is an iterable object, typically a `truvari.VariantFile`.
+
+    The function iterates through all input files in a coordinated manner, yielding the entries in order.
+
+    :param start_files: A variable-length argument list of tuples (`key`, `iterable`).
+    :type start_files: tuple
+
+    :yields: A tuple of (`key`, `truvari.VariantRecord`), where `key` is the file identifier and the second element is the next record from the corresponding file.
+    :rtype: tuple
+
+    :raises StopIteration: Raised when all input files have been exhausted.
+
+    **Logs**:
+        - Logs a summary of the zipping process after all files have been processed.
     """
     markers = []  # list of lists: [name, file_handler, top_entry]
     file_counts = Counter()
@@ -288,13 +147,13 @@ def file_zipper(*start_files):
             # This file is done
             markers.pop(first_idx)
         yield name, entry
-    logging.info("Zipped %d variants %s", sum(
-        file_counts.values()), file_counts)
+    logging.info("Zipped %d variants %s", sum(file_counts.values()),
+                 file_counts)
 
 
-def chunker(matcher, *files):
+def chunker(params, *files):
     """
-    Given a Matcher and multiple files, zip them and create chunks
+    Given a `truvari.VariantParams` and multiple files, zip them and create chunks
 
     Yields tuple of the chunk of calls, and an identifier of the chunk
     """
@@ -303,18 +162,30 @@ def chunker(matcher, *files):
     cur_chrom = None
     cur_end = 0
     cur_chunk = defaultdict(list)
-    unresolved_warned = False
+    reference = pysam.FastaFile(params.reference) if params.reference is not None else None
+
     for key, entry in file_zipper(*files):
-        if matcher.params.pctseq != 0 and (entry.alts and entry.alts[0].startswith('<')):
-            if not unresolved_warned:
-                logging.warning(
-                    "Unresolved SVs (e.g. ALT=<DEL>) are filtered when `--pctseq != 0`")
-                unresolved_warned = True
+        if entry.filter_call(key == 'base'):
             cur_chunk['__filtered'].append(entry)
             call_counts['__filtered'] += 1
             continue
+
+        if entry.is_bnd() and params.bnddist == -1:
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+
+        if not entry.is_bnd() and entry.filter_size(key == 'base'):
+            cur_chunk['__filtered'].append(entry)
+            call_counts['__filtered'] += 1
+            continue
+
+        # check symbolic, resolve if needed/possible
+        if entry.alts[0].startswith('<'):
+            entry.resolve(reference)
+
         new_chrom = cur_chrom and entry.chrom != cur_chrom
-        new_chunk = cur_end and cur_end + matcher.params.chunksize < entry.start
+        new_chunk = cur_end and cur_end + params.chunksize < entry.start
         if new_chunk or new_chrom:
             chunk_count += 1
             yield cur_chunk, chunk_count
@@ -324,13 +195,11 @@ def chunker(matcher, *files):
             cur_chunk = defaultdict(list)
 
         cur_chrom = entry.chrom
-        if not matcher.filter_call(entry, key == 'base'):
-            cur_end = max(entry.stop, cur_end)
-            cur_chunk[key].append(entry)
-            call_counts[key] += 1
-        else:
-            cur_chunk['__filtered'].append(entry)
-            call_counts['__filtered'] += 1
+        cur_end = max(entry.end, cur_end)
+
+        cur_chunk[key].append(entry)
+        call_counts[key] += 1
+
     chunk_count += 1
     logging.info("%d chunks of %d variants %s", chunk_count,
                  sum(call_counts.values()), call_counts)

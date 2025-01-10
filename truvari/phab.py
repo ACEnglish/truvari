@@ -125,7 +125,7 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
     """
     vcf_fn, sample, prefix = data
     reference = pysam.FastaFile(ref_fn)
-    vcf = pysam.VariantFile(vcf_fn)
+    vcf = truvari.VariantFile(vcf_fn)
     o_samp = 'p:' + sample if prefix else sample
     ret = {}
 
@@ -136,15 +136,15 @@ def make_consensus(data, ref_fn, passonly=True, max_size=50000):
         end = int(end)
         tree[chrom].addi(start, end+1, data=ref)
 
-    vcf_i = truvari.region_filter(vcf, tree, with_region=True)
+    vcf_i = vcf.fetch_regions(tree, with_region=True)
 
     # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
+    # Note: max_size == -1 now that we're not capping by variant size.
     # pylint: disable=unnecessary-lambda-assignment
-    entry_filter = lambda entry: \
-           entry.alts is not None \
-           and (entry.alleles_variant_types[-1] in ['SNP', 'INDEL', 'OTHER']) \
-           and (not passonly or not truvari.entry_is_filtered(entry)) \
-           and (truvari.entry_size(entry) <= max_size)
+    entry_filter = lambda e: \
+           e.is_resolved() \
+           and (not passonly or not e.is_filtered()) \
+           and (max_size == -1 or e.var_size() <= max_size)
     # pylint: enable=unnecessary-lambda-assignment
 
     cur_key = None
@@ -180,12 +180,12 @@ def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, p
     """
     ret = []
     if bSamples is None:
-        bSamples = list(pysam.VariantFile(base_vcf).header.samples)
+        bSamples = list(truvari.VariantFile(base_vcf).header.samples)
     ret.extend([(base_vcf, samp, False) for samp in bSamples])
 
     if comp_vcf:
         if cSamples is None:
-            cSamples = list(pysam.VariantFile(comp_vcf).header.samples)
+            cSamples = list(truvari.VariantFile(comp_vcf).header.samples)
         ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples)
                     for samp in cSamples])
 
@@ -348,6 +348,9 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     :param `method`: Alignment method to use mafft or wfa
     :type `method`: :class:`str`
     """
+    if max_size == -1 or max_size >= 50000:
+        logging.warning("Harmonizing variants ≥50kbp is not recommended")
+
     logging.info("Preparing regions")
     region_fn = merged_region_file(var_regions, buffer)
 
@@ -369,7 +372,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
-        for ctg in pysam.VariantFile(base_vcf).header.contigs.values():
+        for ctg in truvari.VariantFile(base_vcf).header.contigs.values():
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")

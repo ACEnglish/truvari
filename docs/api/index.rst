@@ -17,7 +17,8 @@ https://github.com/ACEnglish/truvari/wiki
    :maxdepth: 2
    :caption: Contents:
 
-   truvari
+   truvari.examples
+   truvari.package
 
 
 Indices and tables

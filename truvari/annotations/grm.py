@@ -203,12 +203,12 @@ def line_to_entry(fields):
     ref = fields[3]
     alts = fields[4].split(",")
     start = int(fields[1]) - 1
-    return Entry(fields[0],  # chrom
+    return truvari.VariantRecord(Entry(fields[0],  # chrom
                  start,
                  start + len(ref),  # stop
                  ref,
                  alts,
-                 info_dict)
+                 info_dict))
 
 
 def read_vcf_lines(in_fn, ref_name, start, stop):
@@ -257,7 +257,7 @@ def process_entries(ref_section, grm_shared):
             continue
 
         ref_up, ref_dn, alt_up, alt_dn = kmers
-        ty = truvari.entry_variant_type(entry)
+        ty = entry.var_type()
 
         result = ["%s:%d-%d.%s" %  # pylint: disable=consider-using-f-string
                   (entry.chrom, entry.start, entry.stop, entry.alts[0])]

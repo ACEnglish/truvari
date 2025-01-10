@@ -1,6 +1,6 @@
-2023-12-19 15:33:53,701 [INFO] Truvari v4.2.0rc1
-2023-12-19 15:33:53,702 [INFO] Command /data/truvari/__main__.py refine -u -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_one
-2023-12-19 15:33:53,703 [INFO] Params:
+2025-01-06 03:04:56,953 [INFO] Truvari v5.0.0
+2025-01-06 03:04:56,953 [INFO] Command /data/truvari/__main__.py refine -u -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_one
+2025-01-06 03:04:56,954 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_one",
     "reference": "repo_utils/test_files/refine_data/chr20.fa.gz",
@@ -13,17 +13,16 @@
     "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2023-12-19 15:33:53,704 [INFO] Setting up regions
-2023-12-19 15:33:53,725 [INFO] Evaluating 225 regions
-2023-12-19 15:33:54,307 [INFO] 85 regions to be refined
-2023-12-19 15:33:54,344 [INFO] Preparing regions
-2023-12-19 15:33:54,354 [INFO] Extracting haplotypes
-2023-12-19 15:33:55,039 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:883: CoverageWarning:No data was collected. (no-data-collected)
-2023-12-19 15:33:55,041 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:883: CoverageWarning:No data was collected. (no-data-collected)
-2023-12-19 15:33:55,154 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:883: CoverageWarning:No data was collected. (no-data-collected)
-2023-12-19 15:33:55,162 [INFO] Harmonizing variants
-2023-12-19 15:33:57,833 [INFO] Running bench
-2023-12-19 15:33:57,887 [INFO] Including 85 bed regions
-2023-12-19 15:33:59,098 [INFO] Zipped 4106 variants Counter({'base': 2053, 'comp': 2053})
-2023-12-19 15:33:59,100 [INFO] 86 chunks of 4106 variants Counter({'__filtered': 3338, 'comp': 385, 'base': 383})
-2023-12-19 15:33:59,647 [INFO] Finished refine
+2025-01-06 03:04:56,954 [INFO] Setting up regions
+2025-01-06 03:04:56,964 [INFO] Evaluating 225 regions
+2025-01-06 03:04:57,464 [INFO] 75 regions to be refined
+2025-01-06 03:04:57,473 [INFO] Preparing regions
+2025-01-06 03:04:57,480 [INFO] Extracting haplotypes
+2025-01-06 03:04:57,954 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-01-06 03:04:57,956 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-01-06 03:04:57,966 [INFO] Harmonizing variants
+2025-01-06 03:04:59,358 [INFO] Running bench
+2025-01-06 03:04:59,376 [INFO] Including 75 bed regions
+2025-01-06 03:05:00,104 [INFO] Zipped 3930 variants Counter({'base': 1965, 'comp': 1965})
+2025-01-06 03:05:00,104 [INFO] 76 chunks of 3930 variants Counter({'__filtered': 3206, 'comp': 363, 'base': 361})
+2025-01-06 03:05:00,365 [INFO] Finished refine

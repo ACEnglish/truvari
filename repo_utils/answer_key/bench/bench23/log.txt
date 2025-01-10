@@ -1,6 +1,6 @@
-2024-01-09 03:54:55,929 [INFO] Truvari v4.2.0rc1
-2024-01-09 03:54:55,930 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input2.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa -o test_results/bench23/ --pick multi
-2024-01-09 03:54:55,932 [INFO] Params:
+2025-01-06 03:03:55,867 [INFO] Truvari v5.0.0
+2025-01-06 03:03:55,868 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/input2.vcf.gz -c repo_utils/test_files/variants/input3.vcf.gz -f repo_utils/test_files/references/reference.fa --dup-to-ins -o test_results/bench23/ --pick multi
+2025-01-06 03:03:55,868 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/input2.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/input3.vcf.gz",
@@ -11,14 +11,15 @@
     "reference": "/data/repo_utils/test_files/references/reference.fa",
     "refdist": 500,
     "pctseq": 0.7,
-    "minhaplen": 50,
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
+    "no_roll": true,
     "chunksize": 1000,
     "bSample": "NA12878",
     "cSample": "HG00733",
-    "dup_to_ins": false,
+    "dup_to_ins": true,
+    "bnddist": 100,
     "sizemin": 50,
     "sizefilt": 30,
     "sizemax": 50000,
@@ -28,9 +29,9 @@
     "check_monref": true,
     "check_multi": true
 }
-2024-01-09 03:54:56,137 [INFO] Zipped 3848 variants Counter({'comp': 2065, 'base': 1783})
-2024-01-09 03:54:56,139 [INFO] 15 chunks of 3848 variants Counter({'__filtered': 3816, 'comp': 21, 'base': 11})
-2024-01-09 03:54:56,258 [INFO] Stats: {
+2025-01-06 03:03:56,138 [INFO] Zipped 3848 variants Counter({'comp': 2065, 'base': 1783})
+2025-01-06 03:03:56,139 [INFO] 14 chunks of 3848 variants Counter({'__filtered': 3816, 'comp': 21, 'base': 11})
+2025-01-06 03:03:56,175 [INFO] Stats: {
     "TP-base": 7,
     "TP-comp": 8,
     "FP": 9,
@@ -54,26 +55,6 @@
             "(1, 1)": 2,
             "(1, 0)": 1
         }
-    },
-    "weighted": {
-        "sequence": {
-            "TP": 22.316199958324432,
-            "FP": 4.68560004234314,
-            "FN": 0.998199999332428,
-            "precision": 0.8264708263068649,
-            "recall": 0.9571852588466639,
-            "f1": 0.8870383684303801,
-            "total": 28
-        },
-        "size": {
-            "TP": 19.486500069499016,
-            "FP": 6.642999961972237,
-            "FN": 1.8704999685287476,
-            "precision": 0.7457662812540927,
-            "recall": 0.9124174759939045,
-            "f1": 0.8207174687955308,
-            "total": 28
-        }
     }
 }
-2024-01-09 03:54:56,259 [INFO] Finished bench
+2025-01-06 03:03:56,175 [INFO] Finished bench

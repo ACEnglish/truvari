@@ -1,6 +1,6 @@
-2024-02-21 18:25:15,649 [INFO] Truvari v4.2.2.dev0+detached
-2024-02-21 18:25:15,650 [INFO] Command /data/truvari/__main__.py refine -u -U -r repo_utils/test_files/refine_data/h2_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_two
-2024-02-21 18:25:15,651 [INFO] Params:
+2025-01-06 03:05:05,116 [INFO] Truvari v5.0.0
+2025-01-06 03:05:05,117 [INFO] Command /data/truvari/__main__.py refine -u -U -r repo_utils/test_files/refine_data/h2_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_two
+2025-01-06 03:05:05,117 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_two",
     "reference": "repo_utils/test_files/refine_data/chr20.fa.gz",
@@ -13,17 +13,17 @@
     "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2024-02-21 18:25:15,652 [INFO] Setting up regions
-2024-02-21 18:25:15,720 [INFO] 247 --regions reduced to 129 after intersecting with 225 from --includebed
-2024-02-21 18:25:15,720 [INFO] Extending the regions by 100 bases
-2024-02-21 18:25:16,323 [INFO] 52 regions to be refined
-2024-02-21 18:25:16,335 [INFO] Preparing regions
-2024-02-21 18:25:16,341 [INFO] Extracting haplotypes
-2024-02-21 18:25:16,882 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:887: CoverageWarning:No data was collected. (no-data-collected)
-2024-02-21 18:25:16,886 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:887: CoverageWarning:No data was collected. (no-data-collected)
-2024-02-21 18:25:16,898 [INFO] Harmonizing variants
-2024-02-21 18:25:30,993 [INFO] Running bench
-2024-02-21 18:25:31,053 [INFO] Including 52 bed regions
-2024-02-21 18:25:32,107 [INFO] Zipped 2704 variants Counter({'base': 1352, 'comp': 1352})
-2024-02-21 18:25:32,108 [INFO] 53 chunks of 2704 variants Counter({'__filtered': 2173, 'comp': 266, 'base': 265})
-2024-02-21 18:25:32,660 [INFO] Finished refine
+2025-01-06 03:05:05,118 [INFO] Setting up regions
+2025-01-06 03:05:05,152 [INFO] 247 --regions reduced to 129 after intersecting with 225 from --includebed
+2025-01-06 03:05:05,152 [INFO] Extending the regions by 101 bases
+2025-01-06 03:05:05,539 [INFO] 46 regions to be refined
+2025-01-06 03:05:05,548 [INFO] Preparing regions
+2025-01-06 03:05:05,551 [INFO] Extracting haplotypes
+2025-01-06 03:05:05,874 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-01-06 03:05:05,874 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-01-06 03:05:05,882 [INFO] Harmonizing variants
+2025-01-06 03:05:06,744 [INFO] Running bench
+2025-01-06 03:05:06,761 [INFO] Including 46 bed regions
+2025-01-06 03:05:07,252 [INFO] Zipped 2608 variants Counter({'base': 1304, 'comp': 1304})
+2025-01-06 03:05:07,252 [INFO] 47 chunks of 2608 variants Counter({'__filtered': 2111, 'comp': 249, 'base': 248})
+2025-01-06 03:05:07,484 [INFO] Finished refine

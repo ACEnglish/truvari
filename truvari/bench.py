@@ -12,7 +12,6 @@ import itertools
 
 from collections import defaultdict, OrderedDict, Counter
 
-import pysam
 import numpy as np
 
 import truvari
@@ -26,7 +25,7 @@ def parse_args(args):
     """
     Pull the command line parameters
     """
-    defaults = truvari.Matcher.make_match_params()
+    defaults = truvari.VariantParams()
     parser = argparse.ArgumentParser(prog="bench", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("-b", "--base", type=str, required=True,
@@ -36,7 +35,9 @@ def parse_args(args):
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Output directory")
     parser.add_argument("-f", "--reference", type=str, default=None,
-                        help="Fasta used to call variants. Turns on reference context sequence comparison")
+                        help="Fasta used to call variants. Only needed with symbolic variants.")
+    parser.add_argument("-w", "--write-resolved", action="store_true",
+                        help="Replace resolved symbolic variants with their sequence")
     parser.add_argument("--short", action="store_true",
                         help="Short circuit comparisions. Faster, but fewer annotations")
     parser.add_argument("--debug", action="store_true", default=False,
@@ -53,14 +54,20 @@ def parse_args(args):
                         help="Min reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Don't compare variant types (%(default)s)")
+    thresg.add_argument("-n", "--no-roll", action="store_false",
+                        help="Turn off rolling sequence similarity")
     thresg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
                         help="Number of matches reported per-call (%(default)s)")
-    thresg.add_argument("--dup-to-ins", action="store_true",
+    thresg.add_argument("-d", "--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
+    thresg.add_argument("-B", "--bnddist", type=int, default=defaults.bnddist,
+                        help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
     thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
                         help="Max reference distance to compare calls (%(default)s)")
-    thresg.add_argument("-B", "--minhaplen", type=truvari.restricted_int, default=defaults.minhaplen,
-                        help="Min haplotype sequence length to create (%(default)s)")
+    thresg.add_argument("-N", "--no-decompose", action="store_false",
+                        help="Disallow symbolic variant decomposition to BNDs")
+    thresg.add_argument("-m", "--max-resolve", type=int, default=defaults.max_resolve,
+                        help="Maximum size of variant to attempt to sequence resolve ($(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
@@ -75,8 +82,8 @@ def parse_args(args):
                         help="Minimum variant size to consider from --comp (%(default)s)")
     filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=None,
                         help="Minimum variant size to consider from --base (30)")
-    filteg.add_argument("--sizemax", type=truvari.restricted_int, default=defaults.sizemax,
-                        help="Maximum variant size to consider (%(default)s)")
+    filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
+                        help="Maximum variant size to consider (-1 = off)")
     filteg.add_argument("--no-ref", default=defaults.no_ref, choices=['a', 'b', 'c'],
                         help="Exclude 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
@@ -144,7 +151,6 @@ def check_params(args):
         logging.error("Include bed %s does not exist", args.includebed)
         check_fail = True
     if args.reference:
-        logging.warning("`--reference` is no longer recommended and will be deprecated by v5")
         if not os.path.exists(args.reference):
             logging.error("Reference %s does not exist", args.reference)
             check_fail = True
@@ -156,7 +162,7 @@ def check_sample(vcf_fn, sample_id=None):
     Checks that a sample is inside a vcf
     Returns True if check failed
     """
-    vcf_file = pysam.VariantFile(vcf_fn)
+    vcf_file = truvari.VariantFile(vcf_fn)
     check_fail = False
     if sample_id is not None and sample_id not in vcf_file.header.samples:
         logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
@@ -215,18 +221,25 @@ def annotate_entry(entry, match, header):
     Make a new entry with all the information
     """
     entry.translate(header)
-    entry.info["PctSeqSimilarity"] = round(
-        match.seqsim, 4) if match.seqsim is not None else None
-    entry.info["PctSizeSimilarity"] = round(
-        match.sizesim, 4) if match.sizesim is not None else None
-    entry.info["PctRecOverlap"] = round(
-        match.ovlpct, 4) if match.ovlpct is not None else None
-    entry.info["SizeDiff"] = match.sizediff
-    entry.info["StartDistance"] = match.st_dist
-    entry.info["EndDistance"] = match.ed_dist
-    entry.info["GTMatch"] = match.gt_match
-    entry.info["TruScore"] = int(match.score) if match.score else None
-    entry.info["MatchId"] = match.matid
+    # pylint: disable=unnecessary-lambda
+    attributes = [
+        ("seqsim", "PctSeqSimilarity", lambda x: round(x, 4)),
+        ("sizesim", "PctSizeSimilarity", lambda x: round(x, 4)),
+        ("ovlpct", "PctRecOverlap", lambda x: round(x, 4)),
+        ("sizediff", "SizeDiff", lambda x: x),
+        ("st_dist", "StartDistance", lambda x: x),
+        ("ed_dist", "EndDistance", lambda x: x),
+        ("gt_match", "GTMatch", lambda x: x),
+        ("score", "TruScore", lambda x: int(x)),
+        ("matid", "MatchId", lambda x: x),
+    ]
+    # pylint: enable=unnecessary-lambda
+
+    for attr, key, transform in attributes:
+        value = getattr(match, attr)
+        if value is not None:
+            entry.info[key] = transform(value)
+
     entry.info["Multi"] = match.multi
 
 
@@ -261,9 +274,9 @@ class StatsBox(OrderedDict):
         Calculate the precision/recall
         """
         if self["TP-base"] == 0 and self["FN"] == 0:
-            logging.warning("No TP or FN calls in base!")
+            logging.warning("No TP or FN calls in --base VCF!")
         elif self["TP-comp"] == 0 and self["FP"] == 0:
-            logging.warning("No TP or FP calls in comp!")
+            logging.warning("No TP or FP calls in --comp VCF!")
 
         precision, recall, f1 = truvari.performance_metrics(
             self["TP-base"], self["TP-comp"], self["FN"], self["FP"])
@@ -305,16 +318,16 @@ class BenchOutput():
     a :class:`StatsBox`.
     """
 
-    def __init__(self, bench, matcher):
+    def __init__(self, bench, params):
         """
         initialize
         """
         self.m_bench = bench
-        self.m_matcher = matcher
+        self.m_params = params
 
         os.mkdir(self.m_bench.outdir)
         param_dict = self.m_bench.param_dict()
-        param_dict.update(vars(self.m_matcher.params))
+        param_dict.update(vars(self.m_params))
 
         if self.m_bench.do_logging:
             truvari.setup_logging(self.m_bench.debug, truvari.LogFileStderr(
@@ -324,8 +337,10 @@ class BenchOutput():
         with open(os.path.join(self.m_bench.outdir, 'params.json'), 'w') as fout:
             json.dump(param_dict, fout)
 
-        b_vcf = pysam.VariantFile(self.m_bench.base_vcf)
-        c_vcf = pysam.VariantFile(self.m_bench.comp_vcf)
+        b_vcf = truvari.VariantFile(
+            self.m_bench.base_vcf, params=self.m_params)
+        c_vcf = truvari.VariantFile(
+            self.m_bench.comp_vcf, params=self.m_params)
         self.n_headers = {'b': edit_header(b_vcf),
                           'c': edit_header(c_vcf)}
 
@@ -335,11 +350,11 @@ class BenchOutput():
                               'fp': os.path.join(self.m_bench.outdir, "fp.vcf")}
         self.out_vcfs = {}
         for key in ['tpb', 'fn']:
-            self.out_vcfs[key] = pysam.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['b'])
+            self.out_vcfs[key] = truvari.VariantFile(
+                self.vcf_filenames[key], mode='w', header=self.n_headers['b'], params=self.m_params)
         for key in ['tpc', 'fp']:
-            self.out_vcfs[key] = pysam.VariantFile(
-                self.vcf_filenames[key], mode='w', header=self.n_headers['c'])
+            self.out_vcfs[key] = truvari.VariantFile(
+                self.vcf_filenames[key], mode='w', header=self.n_headers['c'], params=self.m_params)
 
         self.stats_box = StatsBox()
 
@@ -378,7 +393,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif truvari.entry_size(match.comp) >= self.m_matcher.params.sizemin:
+            elif match.comp.var_size() >= self.m_params.sizemin:
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
@@ -409,15 +424,14 @@ class Bench():
 
        m_bench = truvari.Bench()
 
-    If you'd like to customize the parameters, build and edit a :class:`Matcher` and pass it to the Bench init
+    If you'd like to customize the parameters, build and edit a :class:`VariantParams` and pass it to the Bench init
 
     .. code-block:: python
 
-       matcher = truvari.Matcher()
-       matcher.params.pctseq = 0.50
-       m_bench = truvari.Bench(matcher)
+       params = truvari.VariantParams(pctseq=0.50)
+       m_bench = truvari.Bench(params)
 
-    To run on a chunk of :class:`pysam.VariantRecord` already loaded, pass them in as lists to:
+    To run on a chunk of :class:`truvari.VariantRecord` already loaded, pass them in as lists to:
 
     .. code-block:: python
 
@@ -435,19 +449,20 @@ class Bench():
 
     .. code-block:: python
 
-        m_bench = truvari.Bench(matcher, base_vcf, comp_vcf, outdir)
+        m_bench = truvari.Bench(params, base_vcf, comp_vcf, outdir)
         output = m_bench.run()
 
-    Note that running on files must write to an output directory and is the only way to use things like 'includebed'.
-    However, the returned `BenchOutput` has attributes pointing to all the results.
+    .. note::
+        Running on files must write to an output directory and is the only way to use things like 'includebed'.
+        However, the returned `BenchOutput` has attributes pointing to all the results.
     """
 
-    def __init__(self, matcher=None, base_vcf=None, comp_vcf=None, outdir=None,
-                 includebed=None, extend=0, debug=False, do_logging=False, short_circuit=False):
+    def __init__(self, params=None, base_vcf=None, comp_vcf=None, outdir=None,
+                 includebed=None, extend=0, debug=False, do_logging=False):
         """
         Initilize
         """
-        self.matcher = matcher if matcher is not None else truvari.Matcher()
+        self.params = params if params is not None else truvari.VariantParams()
         self.base_vcf = base_vcf
         self.comp_vcf = comp_vcf
         self.outdir = outdir
@@ -455,7 +470,6 @@ class Bench():
         self.extend = extend
         self.debug = debug
         self.do_logging = do_logging
-        self.short_circuit = short_circuit
         self.refine_candidates = []
 
     def param_dict(self):
@@ -477,28 +491,29 @@ class Bench():
             raise RuntimeError(
                 "Cannot call Bench.run without base/comp vcf filenames and outdir")
 
-        output = BenchOutput(self, self.matcher)
+        output = BenchOutput(self, self.params)
 
-        base = pysam.VariantFile(self.base_vcf)
-        comp = pysam.VariantFile(self.comp_vcf)
+        base = truvari.VariantFile(self.base_vcf, params=self.params)
+        comp = truvari.VariantFile(self.comp_vcf, params=self.params)
 
         region_tree = truvari.build_region_tree(base, comp, self.includebed)
         truvari.merge_region_tree_overlaps(region_tree)
         regions_extended = (truvari.extend_region_tree(region_tree, self.extend)
                             if self.extend else region_tree)
 
-        base_i = truvari.region_filter(base, region_tree)
-        comp_i = truvari.region_filter(comp, regions_extended)
+        base_i = base.fetch_regions(region_tree)
+        comp_i = comp.fetch_regions(regions_extended)
 
-        chunks = truvari.chunker(
-            self.matcher, ('base', base_i), ('comp', comp_i))
+        chunks = truvari.chunker(self.params,
+                                 ('base', base_i),
+                                 ('comp', comp_i))
         for match in itertools.chain.from_iterable(map(self.compare_chunk, chunks)):
             # setting non-matched comp variants that are not fully contained in the original regions to None
             # These don't count as FP or TP and don't appear in the output vcf files
             if (self.extend
                 and (match.comp is not None)
                 and not match.state
-                and not truvari.entry_within_tree(match.comp, region_tree)):
+                    and not match.comp.within_tree(region_tree)):
                 match.comp = None
             output.write_match(match)
 
@@ -547,28 +562,29 @@ class Bench():
             return fns
 
         # 5k variants takes too long
-        if self.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
             pos = []
             cnt = 0
             chrom = None
             for i in base_variants:
                 cnt += 1
-                pos.extend(truvari.entry_boundaries(i))
+                pos.extend(i.boundaries())
                 chrom = i.chrom
             for i in comp_variants:
                 cnt += 1
-                pos.extend(truvari.entry_boundaries(i))
+                pos.extend(i.boundaries())
                 chrom = i.chrom
-            logging.warning("Skipping region %s:%d-%d with %d variants", chrom, min(*pos), max(*pos), cnt)
+            logging.warning("Skipping region %s:%d-%d with %d variants",
+                            chrom, min(*pos), max(*pos), cnt)
             return []
 
         match_matrix = self.build_matrix(
             base_variants, comp_variants, chunk_id)
         if isinstance(match_matrix, list):
             return match_matrix
-        return PICKERS[self.matcher.params.pick](match_matrix)
+        return PICKERS[self.params.pick](match_matrix)
 
-    def build_matrix(self, base_variants, comp_variants, chunk_id=0, skip_gt=False):
+    def build_matrix(self, base_variants, comp_variants, chunk_id=0):
         """
         Builds MatchResults, returns them as a numpy matrix
         """
@@ -576,12 +592,11 @@ class Bench():
             raise RuntimeError(
                 "Expected at least one base and one comp variant")
         match_matrix = []
-        for bid, b in enumerate(base_variants):
+        for bid, base in enumerate(base_variants):
             base_matches = []
-            for cid, c in enumerate(comp_variants):
-                mat = self.matcher.build_match(
-                    b, c, [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"],
-                    skip_gt, self.short_circuit)
+            for cid, comp in enumerate(comp_variants):
+                mat = base.match(comp)
+                mat.matid = [f"{chunk_id}.{bid}", f"{chunk_id}.{cid}"]
                 logging.debug("Made mat -> %s", mat)
                 base_matches.append(mat)
             match_matrix.append(base_matches)
@@ -597,21 +612,24 @@ class Bench():
         chrom = None
         for match in result:
             has_unmatched |= not match.state
-            if match.base is not None and truvari.entry_size(match.base) >= self.matcher.params.sizemin:
+            if match.base is not None and match.base.var_size() >= self.params.sizemin:
                 chrom = match.base.chrom
-                pos.extend(truvari.entry_boundaries(match.base))
+                pos.extend(match.base.boundaries())
             if match.comp is not None:
                 chrom = match.comp.chrom
-                pos.extend(truvari.entry_boundaries(match.comp))
+                pos.extend(match.comp.boundaries())
         if has_unmatched and pos:
-            buf = 10 # min(10, self.matcher.params.chunksize) need to make sure the refine covers the region
+            # min(10, self.matcher.chunksize) need to make sure the refine covers the region
+            buf = 10
             start = max(0, min(*pos) - buf)
-            self.refine_candidates.append(f"{chrom}\t{start}\t{max(*pos) + buf}")
-
+            end = max(*pos) + buf
+            self.refine_candidates.append(f"{chrom}\t{start}\t{end}")
 
 #################
 # Match Pickers #
 #################
+
+
 def pick_multi_matches(match_matrix):
     """
     Given a numpy array of MatchResults
@@ -752,17 +770,16 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    matcher = truvari.Matcher(args)
+    params = truvari.VariantParams(args, short_circuit=args.short, decompose=args.no_decompose)
 
-    m_bench = Bench(matcher=matcher,
+    m_bench = Bench(params=params,
                     base_vcf=args.base,
                     comp_vcf=args.comp,
                     outdir=args.output,
                     includebed=args.includebed,
                     extend=args.extend,
                     debug=args.debug,
-                    do_logging=True,
-                    short_circuit=args.short)
+                    do_logging=True)
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

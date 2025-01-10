@@ -111,8 +111,7 @@ class TRFAnno():
             for known in self.region["annos"]:
                 if truvari.sizesim(len(known["repeat"]), motif_len)[0] < self.motif_similarity:
                     continue
-                sq = truvari.unroll_compare(
-                    known["repeat"], anno["repeat"], anno["start"] - known["start"])
+                sq = truvari.best_seqsim(known["repeat"], anno["repeat"], anno["start"] - known["start"])
                 if sq >= self.motif_similarity and sq > best_score:
                     best_score = sq
                     best_pos = known
@@ -181,8 +180,8 @@ class TRFAnno():
         """
         Figure out the hit and return
         """
-        svtype = truvari.entry_variant_type(entry)
-        sz = truvari.entry_size(entry)
+        svtype = entry.var_type()
+        sz = entry.var_size()
         repeat = []
         if svtype == truvari.SV.DEL:
             repeat = self.del_annotate(entry, sz, score_filter)
@@ -223,8 +222,7 @@ class TRFAnno():
             partial = int(copy_diff % 1 * anno["period"])
             if partial:
                 faux_seq += anno["repeat"][:partial]
-            sim = truvari.unroll_compare(
-                faux_seq, entry.alts[0][1:], entry.start - anno["start"])
+            sim = truvari.best_seqsim(faux_seq, entry.alts[0][1:], entry.start - anno["start"])
 
             if sim < self.motif_similarity:
                 continue
@@ -366,7 +364,7 @@ def process_ref_region(region, args):
         f"Starting region {region['chrom']}:{region['start']}-{region['end']}")
     setproctitle(f"trf {region['chrom']}:{region['start']}-{region['end']}")
 
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -397,8 +395,8 @@ def process_ref_region(region, args):
                 out.write(str(entry))
                 continue
 
-            svtype = truvari.entry_variant_type(entry)
-            svlen = truvari.entry_size(entry)
+            svtype = entry.var_type()
+            svlen = entry.var_size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
@@ -445,7 +443,7 @@ def process_tr_region(region, args):
     ref = pysam.FastaFile(args.reference)
     ref_seq = ref.fetch(region["chrom"], region["start"], region["end"])
     tanno = TRFAnno(region, ref_seq, args.motif_similarity, args.buffer)
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
     out = StringIO()
 
@@ -461,8 +459,8 @@ def process_tr_region(region, args):
             # Variants must be entirely contained within region
             if not (entry.start >= region["start"] and entry.stop < region["end"]):
                 continue
-            svtype = truvari.entry_variant_type(entry)
-            svlen = truvari.entry_size(entry)
+            svtype = entry.var_type()
+            svlen = entry.var_size()
             if svlen < args.min_length or svtype not in [truvari.SV.DEL, truvari.SV.INS]:
                 out.write(str(edit_entry(entry, None, new_header)))
                 continue
@@ -522,6 +520,11 @@ def iter_tr_regions(fn, region=None):
         start = int(start)
         end = int(end)
         annos = json.loads(annos)
+        for i in annos:
+            try:
+                i['repeat'] = i['motif']
+            except KeyError:
+                pass
         yield {"chrom": chrom,
                "start": start,
                "end": end,
@@ -669,7 +672,7 @@ def trf_main(cmdargs):
             args.reference, chunk_size=int(args.chunk_size * 1e6))
         m_process = functools.partial(process_ref_region, args=args)
 
-    vcf = pysam.VariantFile(args.input)
+    vcf = truvari.VariantFile(args.input)
     new_header = edit_header(vcf.header)
 
     with multiprocessing.Pool(args.threads, maxtasksperchild=1) as pool:

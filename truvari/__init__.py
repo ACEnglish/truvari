@@ -1,82 +1,61 @@
 """
-
 Truvari - SV comparison and annotation toolkit
 
 See `help()` of specific functions / objects for details
-
-VariantRecord methods:
-
-:meth:`entry_boundaries`
-:meth:`entry_distance`
-:meth:`entry_gt_comp`
-:meth:`entry_is_filtered`
-:meth:`entry_is_present`
-:meth:`entry_reciprocal_overlap`
-:meth:`entry_same_variant_type`
-:meth:`entry_shared_ref_context`
-:meth:`entry_seq_similarity`
-:meth:`entry_size`
-:meth:`entry_size_similarity`
-:meth:`entry_to_hash`
-:meth:`entry_to_key`
-:meth:`entry_within`
-:meth:`entry_variant_type`
-
-Extra methods:
-
-:meth:`allele_freq_annos`
-:meth:`bed_ranges`
-:meth:`build_anno_tree`
-:meth:`calc_af`
-:meth:`calc_hwe`
-:meth:`compress_index_vcf`
-:meth:`create_pos_haplotype`
-:meth:`get_gt`
-:meth:`get_scalebin`
-:meth:`get_sizebin`
-:meth:`get_svtype`
-:meth:`msa2vcf`
-:meth:`overlap_percent`
-:meth:`overlaps`
-:meth:`phab`
-:meth:`reciprocal_overlap`
-:meth:`ref_ranges`
-:meth:`seqsim`
-:meth:`sizesim`
-:meth:`unroll_compare`
-:meth:`vcf_ranges`
-
-Dev methods:
-
-:meth:`benchdir_count_entries`
-:meth:`chunker`
-:meth:`cmd_exe`
-:meth:`consolidate_phab_vcfs`
-:meth:`coords_within`
-:meth:`count_entries`
-:meth:`file_zipper`
-:meth:`help_unknown_cmd`
-:meth:`make_temp_filename`
-:meth:`opt_gz_open`
-:meth:`optimize_df_memory`
-:meth:`performance_metrics`
-:meth:`region_filter`
-:meth:`restricted_float`
-:meth:`restricted_int`
-:meth:`setup_logging`
-:meth:`vcf_to_df`
 
 Objects:
 
 :class:`Bench`
 :class:`BenchOutput`
 :class:`GT`
-:class:`RegionVCFIterator`
 :class:`LogFileStderr`
 :class:`MatchResult`
-:class:`Matcher`
 :class:`StatsBox`
 :class:`SV`
+:class:`VariantFile`
+:class:`VariantRecord`
+:class:`VariantParams`
+
+Extra methods:
+
+:meth:`bed_ranges`
+:meth:`benchdir_count_entries`
+:meth:`best_seqsim`
+:meth:`build_region_tree`
+:meth:`check_vcf_index`
+:meth:`chunker`
+:meth:`cmd_exe`
+:meth:`compress_index_vcf`
+:meth:`coords_within`
+:meth:`count_entries`
+:meth:`extend_region_tree`
+:meth:`file_zipper`
+:meth:`help_unknown_cmd`
+:meth:`get_gt`
+:meth:`get_scalebin`
+:meth:`get_sizebin`
+:meth:`get_svtype`
+:meth:`make_temp_filename`
+:meth:`merge_region_tree_overlaps`
+:meth:`msa2vcf`
+:meth:`opt_gz_open`
+:meth:`optimize_df_memory`
+:meth:`overlap_percent`
+:meth:`overlaps`
+:meth:`performance_metrics`
+:meth:`phab`
+:meth:`read_bed_tree`
+:meth:`reciprocal_overlap`
+:meth:`restricted_float`
+:meth:`restricted_int`
+:meth:`ref_ranges`
+:meth:`roll_seqsim`
+:meth:`seqsim`
+:meth:`setup_logging`
+:meth:`sizesim`
+:meth:`unroll_seqsim`
+:meth:`vcf_ranges`
+:meth:`vcf_to_df`
 
 Data:
 
@@ -88,14 +67,8 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '4.3.1'
+__version__ = '5.0.0'
 
-
-from truvari.annotations.af_calc import (
-    allele_freq_annos,
-    calc_af,
-    calc_hwe
-)
 
 from truvari.bench import (
     Bench,
@@ -104,35 +77,19 @@ from truvari.bench import (
 )
 
 from truvari.comparisons import (
+    best_seqsim,
     coords_within,
-    create_pos_haplotype,
-    entry_boundaries,
-    entry_distance,
-    entry_gt_comp,
-    entry_is_filtered,
-    entry_is_present,
-    entry_reciprocal_overlap,
-    entry_same_variant_type,
-    entry_shared_ref_context,
-    entry_seq_similarity,
-    entry_size,
-    entry_size_similarity,
-    entry_to_hash,
-    entry_to_key,
-    entry_variant_type,
-    entry_within_tree,
-    entry_within,
     overlap_percent,
     overlaps,
     reciprocal_overlap,
+    roll_seqsim,
     seqsim,
     sizesim,
-    unroll_compare,
+    unroll_seqsim,
 )
 
 from truvari.matching import (
     MatchResult,
-    Matcher,
     chunker,
     file_zipper
 )
@@ -147,12 +104,9 @@ from truvari.phab import (
 
 from truvari.region_vcf_iter import (
     build_region_tree,
-    build_anno_tree,
+    read_bed_tree,
     merge_region_tree_overlaps,
     extend_region_tree,
-    region_filter,
-    region_filter_fetch,
-    region_filter_stream,
 )
 
 from truvari.stratify import (
@@ -177,6 +131,10 @@ from truvari.utils import (
     setup_logging,
     vcf_ranges,
 )
+
+from truvari.variant_file import VariantFile
+from truvari.variant_params import VariantParams
+from truvari.variant_record import VariantRecord
 
 from truvari.vcf2df import (
     GT,

@@ -3,7 +3,6 @@ One off unittests
 """
 import os
 import sys
-import pysam
 from collections import defaultdict
 from intervaltree import IntervalTree
 
@@ -12,6 +11,7 @@ sys.path.insert(0, os.getcwd())
 
 import truvari
 
+from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 # Assume we're running in truvari root directory
 
 """
@@ -22,10 +22,10 @@ bed_fn = "repo_utils/test_files/beds/boundary.bed"
 region_start = 10
 region_end = 20
 
-vcf = pysam.VariantFile(vcf_fn)
+vcf = truvari.VariantFile(vcf_fn)
 for entry in vcf:
     state = entry.info['include'] == 'in'
-    assert state == truvari.entry_within(entry, region_start, region_end), f"Bad Boundary {str(entry)}"
+    assert state == entry.within(region_start, region_end), f"Bad Boundary {str(entry)}"
 
 # removed
 #regions = truvari.RegionVCFIterator(vcf, includebed=bed_fn)
@@ -50,38 +50,35 @@ with open(bed_fn, 'r') as fh:
         data = line.strip().split()
         tree[data[0]].addi(int(data[1]), int(data[2]) + 1)
 
-vcf = pysam.VariantFile(vcf_fn)
-for entry in truvari.region_filter(vcf, tree, True, False):
+vcf = truvari.VariantFile(vcf_fn)
+for entry in vcf.regions_fetch(tree, True, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()
-for entry in truvari.region_filter(vcf, tree, False, False):
+for entry in vcf.regions_fetch(tree, False, False):
     assert entry.info['include'] == 'out', f"Bad out {str(entry)}"
 
 
-vcf = pysam.VariantFile(vcf_fn)
-for entry in truvari.region_filter_stream(vcf, tree, True, False):
+vcf = truvari.VariantFile(vcf_fn)
+for entry in region_filter_stream(vcf, tree, True, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 vcf.reset()
-for entry in truvari.region_filter_stream(vcf, tree, False, False):
+for entry in region_filter_stream(vcf, tree, False, False):
     assert entry.info['include'] == 'out', f"Bad out {str(entry)}"
 
-vcf = pysam.VariantFile(vcf_fn)
-for entry in truvari.region_filter_fetch(vcf, tree, False):
+vcf = truvari.VariantFile(vcf_fn)
+for entry in region_filter_fetch(vcf, tree, False):
     assert entry.info['include'] == 'in', f"Bad in {str(entry)}"
 
 
 """
 Filtering logic
 """
-vcf = pysam.VariantFile("repo_utils/test_files/variants/filter.vcf")
-matcher = truvari.Matcher()
-matcher.params.sizemin = 0
-matcher.params.sizefilt = 0
-matcher.params.passonly = True
+p = truvari.VariantParams(sizemin=0, sizefilt=0, passonly=True)
+vcf = truvari.VariantFile("repo_utils/test_files/variants/filter.vcf", params=p)
 for entry in vcf:
     try:
-        assert matcher.filter_call(entry), f"Didn't filter {str(entry)}"
+        assert entry.filter_call(), f"Didn't filter {str(entry)}"
     except ValueError as e:
         assert e.args[0].startswith("Cannot compare multi-allelic"), f"Unknown exception {str(entry)}"

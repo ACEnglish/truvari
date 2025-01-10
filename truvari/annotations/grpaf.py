@@ -5,9 +5,9 @@ import sys
 import logging
 import argparse
 
-import pysam
 import pandas as pd
 import truvari
+from truvari.annotations.af_calc import calc_af
 
 
 def parse_args(args):
@@ -91,7 +91,7 @@ def grpaf_main(cmd_args):
             logging.error("Use 'all' or %s", " ".join(all_tags))
             sys.exit(1)
 
-    in_vcf = pysam.VariantFile(args.input)
+    in_vcf = truvari.VariantFile(args.input)
 
     # setup masks
     vcf_samples = pd.Series(list(in_vcf.header.samples))
@@ -107,14 +107,14 @@ def grpaf_main(cmd_args):
 
     # edit header
     n_header = edit_header(in_vcf.header.copy(), args.tags, groups)
-    out = pysam.VariantFile(args.output, 'w', header=n_header)
+    out = truvari.VariantFile(args.output, 'w', header=n_header)
 
     # process
     for entry in in_vcf:
         entry.translate(n_header)
         gt_series = pd.Series([_["GT"] for _ in entry.samples.values()])
         for grp, mask in group_lookup.items():
-            af = truvari.calc_af(gt_series[mask])
+            af = calc_af(gt_series[mask])
             af["AC"] = af["AC"][1]
             for anno in args.tags:
                 entry.info[f"{anno}_{grp}"] = af[anno]

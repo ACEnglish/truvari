@@ -11,7 +11,6 @@ import multiprocessing as mp
 from argparse import Namespace
 from collections import defaultdict
 
-import pysam
 import pandas as pd
 from pysam import bcftools
 from intervaltree import IntervalTree
@@ -62,24 +61,25 @@ def resolve_regions(params, args):
         logging.error("Unable to run refine")
         sys.exit(1)
     elif args.regions is None:
-        reeval_trees, new_count = truvari.build_anno_tree(
-            params.includebed, idxfmt="")
+        reeval_trees, new_count = truvari.read_bed_tree(params.includebed,
+                                                          idxfmt="")
         logging.info("Evaluating %d regions", new_count)
     elif args.regions is not None and params.includebed is not None:
-        a_trees, regi_count = truvari.build_anno_tree(args.regions, idxfmt="")
-        b_trees, orig_count = truvari.build_anno_tree(
-            params.includebed, idxfmt="")
+        a_trees, regi_count = truvari.read_bed_tree(args.regions, idxfmt="")
+        b_trees, orig_count = truvari.read_bed_tree(params.includebed,
+                                                    idxfmt="")
         if args.use_region_coords:
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                          regi_count, new_count, orig_count)
-            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER)
+            # +1 for safety
+            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER + 1)
         else:
             reeval_trees, new_count = intersect_beds(b_trees, a_trees)
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
                          orig_count, new_count, regi_count)
     else:
-        reeval_trees, count = truvari.build_anno_tree(args.regions, idxfmt="")
+        reeval_trees, count = truvari.read_bed_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
 
     return [[chrom, intv.begin, intv.end - 1]
@@ -185,20 +185,20 @@ def recount_variant_report(orig_dir, phab_dir, regions):
         summary.update(json.load(fh))
 
     # Adding the original counts to the updated phab counts
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
-    tpb = len(list(truvari.region_filter(vcf, tree, False)))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
+    tpb = len(list(vcf.fetch_regions(tree, False)))
     summary["TP-base"] += tpb
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
-    tpc = len(list(truvari.region_filter(vcf, tree, False)))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
+    tpc = len(list(vcf.fetch_regions(tree, False)))
     summary["TP-comp"] += tpc
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
-    fp = len(list(truvari.region_filter(vcf, tree, False)))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
+    fp = len(list(vcf.fetch_regions(tree, False)))
     summary["FP"] += fp
 
-    vcf = pysam.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
-    fn = len(list(truvari.region_filter(vcf, tree, False)))
+    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
+    fn = len(list(vcf.fetch_regions(tree, False)))
     summary["FN"] += fn
 
     summary["comp cnt"] += tpc + fp
@@ -420,11 +420,10 @@ def refine_main(cmdargs):
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
-    matcher = truvari.Matcher(params)
-    matcher.params.no_ref = 'a'
+    var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
-    m_bench = truvari.Bench(matcher=matcher, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
-                            includebed=reeval_bed, short_circuit=True)
+    m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
+                            includebed=reeval_bed)
     m_bench.run()
 
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
