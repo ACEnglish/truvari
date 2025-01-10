@@ -41,8 +41,7 @@ jobs:
         if: github.event.inputs.skip_test != 'skip'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
+          repository-url: https://test.pypi.org/legacy/
       - name: Archive release tarball
         uses: actions/upload-artifact@v4
         with:
@@ -52,5 +51,3 @@ jobs:
       - name: Publish distribution 📦 to PyPI
         if: github.event.inputs.official == 'PUBLISH TO PYPI'
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
