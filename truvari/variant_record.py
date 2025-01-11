@@ -960,6 +960,8 @@ class VariantRecord:
         Extract entry and tree boundaries to call `truvari.coords_within`
         """
         qstart, qend = self.boundaries()
+        if self.chrom not in tree:
+            return False
         m_ovl = tree[self.chrom].overlap(qstart, qend)
         if len(m_ovl) != 1:
             return False
