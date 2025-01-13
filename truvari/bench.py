@@ -770,7 +770,9 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    params = truvari.VariantParams(args, short_circuit=args.short, decompose=args.no_decompose)
+    params = truvari.VariantParams(args,
+                                   short_circuit=args.short,
+                                   decompose=args.no_decompose)
 
     m_bench = Bench(params=params,
                     base_vcf=args.base,
@@ -780,6 +782,7 @@ def bench_main(cmdargs):
                     extend=args.extend,
                     debug=args.debug,
                     do_logging=True)
+
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))

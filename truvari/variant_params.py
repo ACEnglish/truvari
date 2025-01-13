@@ -1,7 +1,9 @@
 """
 Truvari main parameters
 """
-#pylint: disable=too-few-public-methods
+# pylint: disable=too-few-public-methods
+
+
 class VariantParams():
     """
     Holds variant parsing and matching parameters.
