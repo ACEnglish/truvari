@@ -515,6 +515,9 @@ def parse_args(args):
                         help="Maximum size of variant to attempt to sequence resolve ($(default)s)")
     thresg.add_argument("-D", "--decompose", action="store_true",
                         help="Allow decomposition for SV to BND comparison (%(default)s)")
+    thresg.add_argument("-d", "--dup-to-ins", action="store_true",
+                        help="Assume DUP svtypes are INS (%(default)s)")
+
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
