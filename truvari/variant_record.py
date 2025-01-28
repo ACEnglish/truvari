@@ -334,12 +334,12 @@ class VariantRecord:
 
         elif svtype == truvari.SV.DEL:
             record1 = self.copy()
-            record1.alts = (f"N]{self.chrom}:{self.end}]",)
+            record1.alts = (f"N[{self.chrom}:{self.end}[",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
             record2.pos = self.end
-            record2.alts = (f"[{self.chrom}:{self.pos}[N",)
+            record2.alts = (f"]{self.chrom}:{self.pos}]N",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
@@ -347,12 +347,12 @@ class VariantRecord:
         elif svtype == truvari.SV.DUP:
             # Assumes DUP:TANDEM
             record1 = self.copy()
-            record1.alts = (f"N[{self.chrom}:{self.end}[",)
+            record1.alts = (f"]{self.chrom}:{self.end}]N",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
             record2.pos = self.end
-            record2.alts = (f"]{self.chrom}:{self.pos}]N",)
+            record2.alts = (f"N[{self.chrom}:{self.pos}[",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
