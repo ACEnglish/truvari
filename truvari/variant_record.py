@@ -404,7 +404,7 @@ class VariantRecord:
         """
         Returns if a record is a resolved BND
         """
-        return self.alleles_variant_types[1] == 'BND'
+        return '[' in self._record.alts[0] or ']' in self._record.alts[0]
 
     def is_filtered(self, values=None):
         """
