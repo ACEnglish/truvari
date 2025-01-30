@@ -1,6 +1,6 @@
-2025-01-30 21:40:22,568 [INFO] Truvari v5.0.1.dev0+664fd5b
-2025-01-30 21:40:22,569 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
-2025-01-30 21:40:22,570 [INFO] Params:
+2025-01-30 22:47:16,962 [INFO] Truvari v5.0.1.dev0+664fd5b
+2025-01-30 22:47:16,963 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
+2025-01-30 22:47:16,964 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/bnd.comp2.vcf.gz",
@@ -36,10 +36,10 @@
     "skip_gt": false,
     "max_resolve": 25000
 }
-2025-01-30 21:40:22,652 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-30 21:40:43,051 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
-2025-01-30 21:40:43,051 [INFO] 20660 chunks of 30098 variants Counter({'comp': 29902, 'base': 195, '__filtered': 1})
-2025-01-30 21:40:47,691 [INFO] Stats: {
+2025-01-30 22:47:17,047 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-01-30 22:47:38,251 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
+2025-01-30 22:47:38,252 [INFO] 20660 chunks of 30098 variants Counter({'comp': 29902, 'base': 195, '__filtered': 1})
+2025-01-30 22:47:42,922 [INFO] Stats: {
     "TP-base": 152,
     "TP-comp": 131,
     "FP": 28401,
@@ -79,4 +79,4 @@
         }
     }
 }
-2025-01-30 21:40:47,692 [INFO] Finished bench
+2025-01-30 22:47:42,923 [INFO] Finished bench
