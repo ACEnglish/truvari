@@ -47,7 +47,10 @@ def best_seqsim(a_seq, b_seq, st_dist):
     else:
         rssm = 0
     return max(rssm, unroll_seqsim(a_seq, b_seq, st_dist),
-               unroll_seqsim(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
+               unroll_seqsim(a_seq, b_seq, -st_dist),
+               unroll_seqsim(b_seq, a_seq, st_dist),
+               unroll_seqsim(b_seq, a_seq, -st_dist),
+               seqsim(a_seq, b_seq))
 
 
 def roll_seqsim(a_seq, b_seq):

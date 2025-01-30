@@ -313,11 +313,12 @@ class VariantRecord:
 
         if svtype == truvari.SV.INV:
             record1 = self.copy()
-            record1.alts = (f"[{self.chrom}:{self.end}[N",)
+            record1.alts = (f"N]{self.chrom}:{self.end}]",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.alts = (f"N]{self.chrom}:{self.end}]",)
+            record2.pos += 1
+            record2.alts = (f"[{self.chrom}:{self.end + 1}[N",)
             record2.info["SVTYPE"] = "BND"
 
             record3 = self.copy()
@@ -326,19 +327,19 @@ class VariantRecord:
             record3.info["SVTYPE"] = "BND"
 
             record4 = self.copy()
-            record4.pos = self.end
-            record4.alts = (f"[{self.chrom}:{self.pos}[N",)
+            record4.pos = self.end + 1
+            record4.alts = (f"[{self.chrom}:{self.pos + 1}[N",)
             record4.info["SVTYPE"] = "BND"
 
             ret = [record1, record2, record3, record4]
 
         elif svtype == truvari.SV.DEL:
             record1 = self.copy()
-            record1.alts = (f"N[{self.chrom}:{self.end}[",)
+            record1.alts = (f"N[{self.chrom}:{self.end + 1}[",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.pos = self.end
+            record2.pos = self.end + 1
             record2.alts = (f"]{self.chrom}:{self.pos}]N",)
             record2.info["SVTYPE"] = "BND"
 
@@ -347,12 +348,13 @@ class VariantRecord:
         elif svtype == truvari.SV.DUP:
             # Assumes DUP:TANDEM
             record1 = self.copy()
+            record1.pos += 1
             record1.alts = (f"]{self.chrom}:{self.end}]N",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
             record2.pos = self.end
-            record2.alts = (f"N[{self.chrom}:{self.pos}[",)
+            record2.alts = (f"N[{self.chrom}:{self.pos + 1}[",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
@@ -733,11 +735,6 @@ class VariantRecord:
 
         if not roll or st_dist == 0 or ed_dist == 0:
             return truvari.seqsim(a_seq, b_seq)
-
-        if st_dist < 0:
-            st_dist *= -1
-        else:
-            a_seq, b_seq = b_seq, a_seq
 
         # Return best of rolled, unrolled from both ends, and direct similarity
         # Whichever is highest is how similar these sequences can be
