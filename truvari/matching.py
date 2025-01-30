@@ -66,7 +66,7 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
         self.gt_match = None
         self.multi = None
         self.state = False
-        self.score = 0
+        self.score = None
 
     def calc_score(self):
         """
@@ -82,8 +82,8 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
             """
             return -abs(value) if value is not None else -float('inf')
         return (
-            (self.state, self.score, s_abs(self.st_dist), s_abs(self.ed_dist)) <
-            (other.state, other.score, s_abs(other.st_dist), s_abs(other.ed_dist))
+            (self.state, self.score if self.score is not None else 0, s_abs(self.st_dist), s_abs(self.ed_dist)) <
+            (other.state, other.score if other.score is not None else 0, s_abs(other.st_dist), s_abs(other.ed_dist))
         )
 
     def __eq__(self, other):
