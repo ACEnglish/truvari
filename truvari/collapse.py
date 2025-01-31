@@ -95,24 +95,31 @@ class CollapsedCalls():
             self.genotype_mask |= other.genotype_mask
 
 
-def chain_collapse(cur_collapse, all_collapse):
+def find_new_matches(base, remaining_calls, dest_collapse, params):
     """
-    Perform transitive matching of cur_collapse to all_collapse
-    Check the cur_collapse's entry to all other collapses' consolidated entries
+    Pull variants from remaining calls that match to the base entry into the destination collapse
+    Updates everything in place
     """
-    for m_collap in all_collapse:
-        for other in m_collap.matches:
-            mat = cur_collapse.entry.match(other.comp)
-            mat.matid = m_collap.match_id
-            if mat.state:
-                # The other's representative entry will report its
-                # similarity to the matched call that pulled it in
-                mat.base, mat.comp = mat.comp, mat.base
-                m_collap.matches.append(mat)
-                m_collap.combine(cur_collapse)
-                return True  # you can just ignore it later
-    return False  # You'll have to add it to your set of collapsed calls
-
+    # Sort based on size difference to current call
+    remaining_calls.sort(key=partial(relative_size_sorter, base))
+    i = 0
+    while i < len(remaining_calls):
+        candidate = remaining_calls[i]
+        mat = base.match(candidate)
+        mat.matid = dest_collapse.match_id
+        if params.hap and not hap_resolve(base,  candidate):
+            mat.state = False
+        if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
+            mat.state = False
+        if mat.state:
+            dest_collapse.matches.append(mat)
+            remaining_calls.pop(i)
+        else:
+            # move to next one
+            i += 1
+            # short circuit
+            if mat.sizesim is not None and mat.sizesim < params.pctsize:
+                return
 
 def collapse_chunk(chunk, params):
     """
@@ -121,7 +128,6 @@ def collapse_chunk(chunk, params):
     chunk_dict, chunk_id = chunk
     remaining_calls = sorted(chunk_dict['base'], key=params.sorter)
 
-    remaining_calls.sort(key=params.sorter)
     call_id = -1
     ret = []  # list of Collapses
     while remaining_calls:
@@ -132,33 +138,27 @@ def collapse_chunk(chunk, params):
         m_collap.genotype_mask = m_collap.make_genotype_mask(m_collap.entry,
                                                              params.gt)
 
-        # Sort based on size difference to current call
-        for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
-            mat = m_collap.entry.match(candidate)
-            mat.matid = m_collap.match_id
-            if params.hap and not hap_resolve(m_collap.entry,  candidate):
-                mat.state = False
-            if mat.state and m_collap.gt_conflict(candidate, params.gt):
-                mat.state = False
-            if mat.state:
-                m_collap.matches.append(mat)
-            elif mat.sizesim is not None and mat.sizesim < params.pctsize:
-                # The sort tells us that we're going through most->least
-                # similar size. So the next one will only be worse...
-                break
-
-        # Does this collap need to go into a previous collap?
-        if not params.chain or not chain_collapse(m_collap, ret):
-            ret.append(m_collap)
+        find_new_matches(m_collap.entry, remaining_calls, m_collap, params)
+        # Chain will only operate once to prevent 'sliding'
+        # e.g. collapsing integers within 5 of 1, 4, 6, 8
+        # without a single operation 1
+        # with a single operation 1, 8
+        # not chaining at all 1, 6
+        if params.chain:
+            i = 0
+            while remaining_calls and i < len(m_collap.matches):
+                find_new_matches(m_collap.matches[i].comp, remaining_calls, m_collap, params)
+                i += 1
 
         # If hap, only allow the best match
+        # put the rest of the remaining calls back
         if params.hap and m_collap.matches:
             mats = sorted(m_collap.matches, reverse=True)
             m_collap.matches = [mats.pop(0)]
-
-        # Remove everything that was used
-        to_rm = [_.comp for _ in m_collap.matches]
-        remaining_calls = [_ for _ in remaining_calls if _ not in to_rm]
+            remaining_calls.extend(mats)
+        ret.append(m_collap)
+        # Sort back to where they need to be to choose the next to evaluate
+        remaining_calls.sort(key=params.sorter)
 
     if params.no_consolidate:
         for val in ret:
@@ -771,12 +771,12 @@ class LinkedList:
 
 def merge_intervals(intervals):
     """
-    Merge sorted list of tuples
+    Merge list of tuples
     """
     if not intervals:
         return []
+    intervals.sort(key=lambda x: (x[0], x[1]))
     merged = []
-
     current_start, current_end, current_data = intervals[0]
     for i in range(1, len(intervals)):
         next_start, next_end, next_data = intervals[i]
