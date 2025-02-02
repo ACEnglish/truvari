@@ -107,13 +107,9 @@ def make_haplotypes(sequence, entries, o_samp, ref, start, sample):
     Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
     Make the two haplotypes
     """
-    unphased_warn = False
     haps = (list(sequence), list(sequence))
     correction = [-start, -start]
     for entry in entries:
-        if not unphased_warn and not entry.samples[sample].phased:
-            logging.warning("Harmonizing unphased variants may have undesired behavior!!")
-            unphased_warn = True
         if entry.samples[sample]['GT'][0] == 1:
             correction[0] = incorporate(haps[0], entry, correction[0])
         if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
