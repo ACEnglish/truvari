@@ -1,5 +1,36 @@
+# Truvari 5.1.0
+*February 2, 2025*
+
+* `bench`
+  *  new automatic hook into the refine step via `truvari bench --refine`
+* `refine`
+  * completely reworked UI in favor of easier whole-genome SV refinement. See wiki for details
+  * Now writes a consolidated `refine.base.vcf.gz` and `refine.comp.vcf.gz` for easier tracking of variants' final states.
+  * Default behavior count original variant representations instead of the `phab` variant representations 
+* `collapse`
+  * Add `--dup-to-ins`
+  * Fixed bug where regions with >100 variants would sometimes not have all variants compared
+  * `--chain` functionality now capped to do only 1 transitive match, preventing uncontrolled over-merging
+* `ga4gh`
+  * New/renamed parameters as part of general improvement work
+  * Output suffixes are now `.base.vcf.gz` and `.comp.vcf.gz` for consistency.
+* `stratify` 
+  * 1--complement` now outputs a single line of total variant counts outside of the regions instead of arbitrarily assigning variants to their nearest region
+
+* misc
+  * Fix BND bugs
+    * `pysam.VariantFile.allele_variant_types` falsely identified some BNDs as INDELs, causing incorrect filtering by Truvari
+    * SVs Decomposed to BNDs strandedness flipped to be more representative of original SV 
+  * unroll seqsim checks all directions
+  * Match sorting breaks seq/size ties with start/end distance
+  * Long SV roll limit speeds - ≥500bp, rolling is turned off
+  * `truvari.VariantRecord.within` edge case fix
+
+
+
+
 # Truvari 5.0
-*in progress*
+*January 9, 2025*
 
 * Reference context sequence comparison is now deprecated and sequence similarity calculation improved by also checking lexicographically minimum rotation's similarity. [details](https://github.com/ACEnglish/truvari/wiki/bench#comparing-sequences-of-variants)
 * Symbolic variants (`<DEL>`, `<INV>`, `<DUP>`) can now be resolved for sequence comparison when a `--reference` is provided. The function for resolving the sequences is largely similar to [this discussion](https://github.com/ACEnglish/truvari/discussions/216)

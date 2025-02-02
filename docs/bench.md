@@ -178,17 +178,33 @@ Truvari can replace the symbolic alt of resolved SVs in the output VCF with the 
 
 BND Comparison
 ==============
-Breakend (BND) variants are compared by checking a few conditions using a single threshold of `--bnddist` which holds the maximum distance around a breakpoint position to search for a match. Similar to the `--refdist` parameter, truvari looks for overlaps between the `dist` 'buffered' boundaries (e.g. `overlaps( POS_base - dist, POS_base + dist, POS_comp - dist, POS_comp + dist)` 
+Breakend (BND) variants are compared by checking a few conditions using a single threshold of `--bnddist` which holds the maximum distance around a breakpoint position to search for a match. Similar to the `--refdist` parameter, truvari looks for overlaps between the `dist` 'buffered' boundaries (e.g. `overlaps( POS_base - dist, POS_base + dist, POS_comp - dist, POS_comp + dist)` Additionally, if the CIPOS and and CIEND info tags are available in the entry, the e.g. POS is further buffered by `-abs(CIPOS[0])` and `+(abs(CIPOS[1])`.
 
 The baseline and comparison BNDs' POS and their joined position must both be within `--bnddist` to be a match candidate (i.e. no partial matches). Furthermore, the direction and strand of the two BNDs must match, for example `t[p[` (piece extending to the right of p is joined after t) only matches with `t[p[` and won't match to `[p[t` (reverse comp piece extending right of p is joined before t). 
 
 BND's are annotated in the truvari output with fields:  StartDistance (baseline minus comparison POS); EndDistance (baseline minus comparison join position);  TruScore which describes the percent of the allowed distance needed to find this match (`(1 - ((abs(StartDistance) + abs(EndDistance)) / 2) / (bnddist*2)) * 100`). For example, two BNDs 20bp apart with bnddist of 100 makes a score of 90.
 
-Another complication for matching BNDs is that they may represent an event which could be 'resolved' in another VCFs. For example, a tandem duplication between `start-end` could be represented as two BNDs of `start to N[{chrom}:{end}[` and `end to ]{self.chrom}:{start}]N`. Therefore, truvari also attempts to compare symbolic alt SVs (ALT = `<DEL>`, `<INV>`, `<DUP>`) to a BND by decomposing the symbolic alt into its breakpoints. These decomposed BNDs are then each checked against a comparison BND and the highest TruScore match kept. 
+BND comparison can be turned off by setting `--bnddist -1`. Single-end BNDs (e.g. ALT=`TTT.`) are still ignored.
 
-Note that DUPs are always decomposed to DUP:TANDEM breakpoints. Note that with `--pick single`, a decomposed SV will only match to one BND, so `--pick multi` is recommended to ensure all BNDs will match to a single decomposed SV.
+Cross-Representation Matching
+=============================
 
-BND comparison can be turned off by setting `--bnddist -1`. Symbolic ALT decomposition can be turned off with `--no-decompose`. Single-end BNDs (e.g. ALT=`TTT.`) are still ignored.
+Truvari considers there to be three possible representation styles of SVs. 
+
+1. Resolved: SVs with the full REF and ALT sequences, most frequently representing INS and DEL. 
+2. Symbolic: SVs without the REF or ALT sequences having an ALT of e.g. `<DEL>, <DUP>`, etc. 
+3. BNDs: SV breakends represented with the e.g. `t[p[` ALT field.
+
+Comparing SVs across these representation styles have the following caveats:
+
+1. When comparing Resolved and Symbolic SVs, sequence similarity is turned off for thresholding matches. If a user provides a `--reference`, symbolic SVs shorter than the `--max-resolve` parameter (default 25kbp) can be turned into Resolved SVs [details in API docs](https://truvari.readthedocs.io/en/latest/truvari.package.html#truvari.VariantRecord.resolve) and therefore the sequence similarity thresholds are still enforced.
+2. When a BND is compared to a with Resolved or Symbolic SV, the SV is 'decomposed' into a set of BNDs and each is compared with the original BND. If any of the decomposed BNDs matches to the original BND, the Resolved/Symbolic SV and BND are considered matching. Details of SV decomposition are [in the API docs](https://truvari.readthedocs.io/en/latest/truvari.package.html#truvari.VariantRecord.decompose)
+
+Note that only Deletions (symbolic or resolved), INV (symbolic or resolved), and symbolic DUPs can be decomposed into BNDs. DUPs are always decomposed into DUP:TANDEM breakends. 
+
+Because SVs decompose into multiple BNDs (2 for DEL/DUP, 4 for INV), and because `--pick single` is the default, a decomposed SV will only match to one BND and the BNDs 'mate' will be a FN. To enable all BNDs to match to a decomposed SV, specify `--pick multi`.
+
+SV decomposition into BNDs can be turned off with `--no-decompose`. 
 
 Controlling the number of matches
 =================================

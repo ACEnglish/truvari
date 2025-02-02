@@ -8,6 +8,7 @@ To start, we merge multiple VCFs (each with their own sample) and ensure there a
 ```bash
 bcftools merge -m none one.vcf.gz two.vcf.gz | bgzip > merge.vcf.gz
 ```
+WARNING! If you have symbolic variants, see [the below section](https://github.com/ACEnglish/truvari/wiki/collapse#symbolic-variants) on using bcftools.
 
 This will `paste` SAMPLE information between vcfs when calls have the exact same chrom, pos, ref, and alt.
 For example, consider two vcfs:
@@ -39,6 +40,26 @@ For example, if we collapsed our example merge.vcf by matching any calls within 
     chr1 5 ... GT 1/1 0/1
     >> truvari_collapsed.vcf
     chr1 7 ... GT ./. 0/1    
+
+Symbolic Variants
+=================
+bcftools may not handle symbolic variants correctly since it doesn't consider their END position. To correct for this, ensure that every input variant has a unique ID and use `bcftools merge -m id`. For example:
+```
+# A.vcf
+chr1	147022730	SV1	N	<DEL>	.	PASS	SVLEN=-570334;END=147593064
+# B.vcf
+chr1	147022730	SV2	N	<DEL>	.	PASS	SVLEN=-990414;END=148013144
+
+# bcftools merge -m none A.vcf B.vcf
+# Premature collapse
+chr1	147022730	SV1;SV2	N	<DEL>	.	PASS	SVLEN=-570334;END=147593064
+
+# bcftools merge -m id A.vcf B.vcf
+chr1	147022730	SV1	N	<DEL>	.	PASS	SVLEN=-570334;END=147593064
+chr1	147022730	SV2	N	<DEL>	.	PASS	SVLEN=-990414;END=148013144
+```
+
+This bug has been replicated with bcftools 1.18 and 1.21.
 
 --choose behavior
 =================
@@ -89,18 +110,22 @@ will become:
 Normally, every variant in a set of variants that are collapsed together matches every other variant in the set. However, when using `--chain` mode, we allow 'transitive matching'. This means that all variants match to only at least one other variant in the set. In situations where a 'middle' variant has two matches that don't match each other, without `--chain` the locus will produce two variants whereas using `--chain` will produce one.
 For example, if we have
 
-    chr1 5 ..
+    chr1 1 ..
+    chr1 4 ..
     chr1 7 ..
-    chr1 9 ..
+    chr1 10 ..
 
-When we collapse anything within 2bp of each other, without `--chain`, we output:
+We take the `chr1 1` variant and find all its matches. When we collapse anything within 5bp of each other, without `--chain`, we output:
 
-    chr1 5 ..
-    chr1 9 ..
+    chr1 1 ..
+    chr1 7 ..
 
-With `--chain`, we would collapse `chr1 9` as well, producing
+With `--chain`, we would allow one level of transitive matching. This means that after finding the `chr1 1 -> chr1 4` match, we check `chr1 4` against all the remaining variants and would output
 
-    chr1 5 ..
+    chr1 1 ..
+    chr1 10 ..
+
+Note that this leaves `chr1 10` because we don't do multiple levels of transitive matching, meaning we never compare `chr1 7` to `chr1 10`. This is preferred because otherwise variants which have a continuous range of similarity could all be collapsed into a single variant. e.g., if the position in this example were sizes and, we wouldn't want the 1bp variant being a kept representation for all the variants.
 
 Annotations
 ===========
@@ -112,54 +137,3 @@ The output file has only two annotations added to the `INFO`.
 - `NumConsolidated` - Number of samples' genotypes consolidated into this call's genotypes
 
 The collapsed file has all of the annotations added by [[bench|bench#definition-of-annotations-added-to-tp-vcfs]]. Note that `MatchId` is tied to the output file's `CollapseId`. See [MatchIds](https://github.com/spiralgenetics/truvari/wiki/MatchIds) for details.
-
-```
-usage: collapse [-h] -i INPUT [-o OUTPUT] [-c COLLAPSED_OUTPUT] [-f REFERENCE] [-k {first,maxqual,common}] [--debug]
-                [-r REFDIST] [-p PCTSIM] [-B MINHAPLEN] [-P PCTSIZE] [-O PCTOVL] [-t] [--use-lev] [--hap] [--chain]
-                [--no-consolidate] [--null-consolidate NULL_CONSOLIDATE] [-s SIZEMIN] [-S SIZEMAX] [--passonly]
-
-Structural variant collapser
-
-Will collapse all variants within sizemin/max that match over thresholds
-
-options:
-  -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Comparison set of calls
-  -o OUTPUT, --output OUTPUT
-                        Output vcf (stdout)
-  -c COLLAPSED_OUTPUT, --collapsed-output COLLAPSED_OUTPUT
-                        Where collapsed variants are written (collapsed.vcf)
-  -f REFERENCE, --reference REFERENCE
-                        Indexed fasta used to call variants
-  -k {first,maxqual,common}, --keep {first,maxqual,common}
-                        When collapsing calls, which one to keep (first)
-  --debug               Verbose logging
-  --hap                 Collapsing a single individual's haplotype resolved calls (False)
-  --chain               Chain comparisons to extend possible collapsing (False)
-  --no-consolidate      Skip consolidation of sample genotype fields (True)
-  --null-consolidate NULL_CONSOLIDATE
-                        Comma separated list of FORMAT fields to consolidate into the kept entry by taking the first non-null
-                        from all neighbors (None)
-
-Comparison Threshold Arguments:
-  -r REFDIST, --refdist REFDIST
-                        Max reference location distance (500)
-  -p PCTSIM, --pctsim PCTSIM
-                        Min percent allele sequence similarity. Set to 0 to ignore. (0.95)
-  -B MINHAPLEN, --minhaplen MINHAPLEN
-                        Minimum haplotype sequence length to create (50)
-  -P PCTSIZE, --pctsize PCTSIZE
-                        Min pct allele size similarity (minvarsize/maxvarsize) (0.95)
-  -O PCTOVL, --pctovl PCTOVL
-                        Min pct reciprocal overlap (0.0) for DEL events
-  -t, --typeignore      Variant types don't need to match to compare (False)
-  --use-lev             Use the Levenshtein distance ratio instead of edlib editDistance ratio (False)
-
-Filtering Arguments:
-  -s SIZEMIN, --sizemin SIZEMIN
-                        Minimum variant size to consider for comparison (50)
-  -S SIZEMAX, --sizemax SIZEMAX
-                        Maximum variant size to consider for comparison (50000)
-  --passonly            Only consider calls with FILTER == PASS
-```
