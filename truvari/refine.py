@@ -416,5 +416,6 @@ def refine_main(cmdargs):
                         write_phab=args.write_phab)
     with open(os.path.join(args.benchdir, 'refine.variant_summary.json'), 'w') as fout:
         fout.write(json.dumps(output.stats, indent=4))
-
+    
+    logging.info("Stats: %s", json.dumps(output.stats, indent=4))
     logging.info("Finished refine")

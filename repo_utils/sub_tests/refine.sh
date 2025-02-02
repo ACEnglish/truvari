@@ -44,8 +44,7 @@ run refine_three $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
               --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
               -s 5 -o $OD/refine_output_three
 
-run refine_three $truv refine --recount -U -r $OD/refine_output_three/candidate.refine.bed \
-               -f $INDIR/refine_data/chr20.fa.gz \
+run refine_three $truv refine -w -f $INDIR/refine_data/chr20.fa.gz \
                $OD/refine_output_three
 
 if [ $refine_three ]; then
