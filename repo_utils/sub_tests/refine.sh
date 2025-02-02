@@ -6,7 +6,8 @@ run refine_one $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
                                 --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
                                 -s 5 -o $OD/refine_output_one
 
-run refine_one $truv refine -u -f $INDIR/refine_data/chr20.fa.gz $OD/refine_output_one
+run refine_one $truv refine --write-phab --coords O --use-original-vcfs \
+               -f $INDIR/refine_data/chr20.fa.gz $OD/refine_output_one
 
 if [ $refine_one ]; then
     assert_exit_code 0
@@ -23,7 +24,8 @@ run refine_two $truv bench -b $INDIR/refine_data/hg002_base.vcf.gz \
               --includebed $INDIR/refine_data/h1_hc_tr_hg002.bed \
               -s 5 -o $OD/refine_output_two
 
-run refine_two $truv refine -u -U -r $INDIR/refine_data/h2_hc_tr_hg002.bed \
+run refine_two $truv refine --buffer 101 --write-phab --use-original-vcfs --subset \
+               --regions $INDIR/refine_data/h2_hc_tr_hg002.bed \
                -f $INDIR/refine_data/chr20.fa.gz \
                $OD/refine_output_two
 

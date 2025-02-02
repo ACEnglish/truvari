@@ -28,23 +28,11 @@ def parse_args(args):
                         help="Don't pull from refined results")
     parser.add_argument("-w", "--write-phab", action="store_true",
                         help="Count/Write the phab variant representations")
-
+    parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=0,
+                        help="Amount of buffer used around refined regions (%(default))")
     args = parser.parse_args(args)
     return args
 
-
-def edit_header(header, sample):
-    """
-    Add INFO for new fields to vcf
-    """
-    header.add_line(('##INFO=<ID=IsRefined,Number=0,Type=Flag,'
-                     'Description="True if variant was pulled from refinement">'))
-    header.add_line(('##FORMAT=<ID=BD,Number=1,Type=String,'
-                     'Description="Decision for call (TP/FP/FN/N)">'))
-    header.add_line(('##FORMAT=<ID=BK,Number=1,Type=String,'
-                     'Description="Sub-type for decision (match/mismatch type) lm variants had any counterpart to which it could compare">'))
-    header.samples = [sample]
-    return header
 
 
 def build_tree(regions, buffer=0):
@@ -69,38 +57,6 @@ def get_truvari_filenames(in_dir):
             'fp': os.path.join(in_dir, 'fp.vcf.gz'),
             'params': os.path.join(in_dir, 'params.json')}
 
-
-def parse_bench_dir(in_dir, t_vcf, q_vcf, tree, is_refined):
-    """
-    Pull relevant entries from relevant files
-    """
-    in_vcfs = get_truvari_filenames(in_dir)
-    params = None
-    with open(in_vcfs['params'], 'r') as fh:
-        params = json.load(fh)
-    bsamp = params['bSample']
-    csamp = params['cSample']
-    ops_to_do = [("tp-base", "TP", t_vcf, bsamp), ("fn", "FN", t_vcf, bsamp),
-                 ("tp-comp", "TP", q_vcf, csamp), ("fp", "FP", q_vcf, csamp)]
-    for filename, bdkey, out_vcf, samp in ops_to_do:
-        m_vcf = truvari.VariantFile(in_vcfs[filename])
-        m_iter = m_vcf if tree is None else m_vcf.fetch_regions(
-            tree, is_refined)
-        for entry in m_iter:
-            n_entry = entry.move_record(out_vcf, samp)
-            n_entry.info["IsRefined"] = is_refined
-            n_entry.samples[0]["BD"] = bdkey
-            if bdkey.startswith('T'):
-                if "GTMatch" in entry.info and entry.info["GTMatch"] == 0:
-                    n_entry.samples[0]["BK"] = 'gm'
-                else:
-                    n_entry.samples[0]["BK"] = 'am'
-            else:
-                if "TruScore" in entry.info:
-                    n_entry.samples[0]["BK"] = 'lm'
-                else:
-                    n_entry.samples[0]["BK"] = '.'
-            out_vcf.write(n_entry)
 
 
 def check_bench_dir(dirname):
@@ -176,7 +132,7 @@ class Ga4ghOutput():
     """
     Helper class for consolidating benchmark vcfs into a ga4gh output format
     """
-    def __init__(self, in_base, in_comp, out_prefix, bSample, cSample):
+    def __init__(self, in_base, in_comp, out_prefix, bSample, cSample, buffer=0):
         # You gotta do the header copy stuff..
         # And also add the new FORMAT tags
         self.bSample = bSample
@@ -190,6 +146,7 @@ class Ga4ghOutput():
             out_prefix + '.comp.vcf', 'w', header=c_header)
         self.stats = {'TP-base': 0, 'TP-comp': 0, 'FP': 0, 'FN': 0, 'precision': None,
                       'recall': None, 'f1': None, 'base cnt': 0, 'comp cnt': 0}
+        self.buffer = buffer
 
     def pull_annotate(self, vcf, out_vcf, f_sample, t_sample, bdkey, is_refined=False):
         """
@@ -229,7 +186,7 @@ class Ga4ghOutput():
                 return x
         else:
             # TODO: hard coding buffer again
-            refine_tree = build_tree(regions[regions['refined']], 100)
+            refine_tree = build_tree(regions[regions['refined']], self.buffer)
             def puller(x):
                 return x.fetch_regions(refine_tree, inside=within)
 
@@ -313,7 +270,8 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False):
             phab_dir = os.path.join(input_dir, 'phab_bench')
             output.pull_from_dir(phab_dir, regions, within=True,
                                  from_b=params['bSample'],
-                                 from_c='p:' + params['cSample'])
+                                 from_c='p:' + params['cSample'],
+                                 is_refined=True)
         else:
             subset_regions = regions[regions['state'] == 'TP']
             # Reannotate the state is TP

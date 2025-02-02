@@ -38,8 +38,7 @@ from intervaltree import IntervalTree
 import truvari
 from truvari.phab import check_requirements as phab_check_requirements
 from truvari.phab import DEFAULT_MAFFT_PARAM
-
-PHAB_BUFFER = 100  # hard-coded parameter :(
+from truvari.make_ga4gh import make_ga4gh
 
 
 def intersect_beds(bed_a, bed_b):
@@ -82,18 +81,16 @@ def resolve_regions(params, args):
         sys.exit(1)
     elif args.regions is None:
         reeval_trees, new_count = truvari.read_bed_tree(params.includebed,
-                                                          idxfmt="")
+                                                        idxfmt="")
         logging.info("Evaluating %d regions", new_count)
     elif args.regions is not None and params.includebed is not None:
         a_trees, regi_count = truvari.read_bed_tree(args.regions, idxfmt="")
         b_trees, orig_count = truvari.read_bed_tree(params.includebed,
                                                     idxfmt="")
-        if args.use_region_coords:
+        if args.coords == 'R':
             reeval_trees, new_count = intersect_beds(a_trees, b_trees)
             logging.info("%d --regions reduced to %d after intersecting with %d from --includebed",
                          regi_count, new_count, orig_count)
-            # +1 for safety
-            reeval_trees = truvari.extend_region_tree(reeval_trees, PHAB_BUFFER + 1)
         else:
             reeval_trees, new_count = intersect_beds(b_trees, a_trees)
             logging.info("%d --includebed reduced to %d after intersecting with %d from --regions",
@@ -101,6 +98,9 @@ def resolve_regions(params, args):
     else:
         reeval_trees, count = truvari.read_bed_tree(args.regions, idxfmt="")
         logging.info("%d --regions loaded", count)
+
+    if args.buffer:
+        reeval_trees = truvari.extend_region_tree(reeval_trees, args.buffer)
 
     return [[chrom, intv.begin, intv.end - 1]
             for chrom, all_intv in reeval_trees.items()
@@ -173,58 +173,6 @@ def refined_stratify(outdir, to_eval_coords, regions, threads=1):
         regions[f"out_{i}"] = regions[f"in_{i}"].where(
             ~regions['refined'], regions[f"out_{i}"].fillna(0).astype(int))
     return regions
-
-
-def make_variant_report(regions):
-    """
-    Count all the variants, log and write to output
-    """
-    summary = truvari.StatsBox()
-    summary["TP-base"] = int(regions["out_tpbase"].sum())
-    summary["TP-comp"] = int(regions["out_tp"].sum())
-    summary["FP"] = int(regions["out_fp"].sum())
-    summary["FN"] = int(regions["out_fn"].sum())
-    summary["base cnt"] = summary["TP-base"] + summary["FN"]
-    summary["comp cnt"] = summary["TP-comp"] + summary["FP"]
-    summary.calc_performance()
-    return summary
-
-
-def recount_variant_report(orig_dir, phab_dir, regions):
-    """
-    Count original variants not in refined regions and
-    consolidate with the refined counts.
-    """
-    tree = defaultdict(IntervalTree)
-    n_regions = regions[regions["refined"]].copy()
-    for _, row in n_regions.iterrows():
-        tree[row['chrom']].addi(row['start'], row['end'] + 1)
-
-    summary = truvari.StatsBox()
-    with open(os.path.join(phab_dir, "summary.json")) as fh:
-        summary.update(json.load(fh))
-
-    # Adding the original counts to the updated phab counts
-    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-base.vcf.gz'))
-    tpb = len(list(vcf.fetch_regions(tree, False)))
-    summary["TP-base"] += tpb
-
-    vcf = truvari.VariantFile(os.path.join(orig_dir, 'tp-comp.vcf.gz'))
-    tpc = len(list(vcf.fetch_regions(tree, False)))
-    summary["TP-comp"] += tpc
-
-    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fp.vcf.gz'))
-    fp = len(list(vcf.fetch_regions(tree, False)))
-    summary["FP"] += fp
-
-    vcf = truvari.VariantFile(os.path.join(orig_dir, 'fn.vcf.gz'))
-    fn = len(list(vcf.fetch_regions(tree, False)))
-    summary["FN"] += fn
-
-    summary["comp cnt"] += tpc + fp
-    summary["base cnt"] += tpb + fn
-    summary.calc_performance()
-    return summary
 
 
 def make_region_report(data):
@@ -317,18 +265,18 @@ def parse_args(args):
                         help="Alignment method for phab (%(default)s)")
     parser.add_argument("-u", "--use-original-vcfs", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
-    parser.add_argument("-w", "--write-phab", actions="store_true",
-                        help="Use phab variant representations in outputs")
+    parser.add_argument("-w", "--write-phab", action="store_true",
+                        help="Use phab variant representations for counting/outputs")
     parser.add_argument("-t", "--threads", default=4, type=int,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=100,
-                        help="Amount of buffer around refined regions (%(default))")
+                        help="Amount of buffer around refined regions (%(default)s)")
     parser.add_argument("-f", "--reference", type=str,
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
-                        help="Regions to process (candidate.refine.bed)")
-    parser.add_argument("-c", "--coords", choices=['reg', 'orig'], default='reg',
-                        help="Which bed file coordinates to use (%(default)s)")
+                        help="Regions to refine (candidate.refine.bed)")
+    parser.add_argument("-c", "--coords", choices=['R', 'O'], default='reg',
+                        help="Which bed file coordinates to use (Regions or includbed Original) (%(default)s)")
     parser.add_argument("-S", "--subset", action="store_true",
                         help="Only report metrics from the refined regions")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
@@ -386,6 +334,13 @@ def check_params(args):
             check_fail = True
             logging.error("Benchdir doesn't have compressed/indexed %s", i)
 
+    # candidate.refine.bed becomes the default
+    if args.regions is None and args.coords == 'R':
+        args.regions = os.path.join(args.benchdir, 'candidate.refine.bed')
+    if args.regions is not None and not os.path.exists(args.regions):
+        check_fail = True
+        logging.error("--regions does not exist")
+
     if check_fail:
         logging.error("Please fix parameters")
         sys.exit(1)
@@ -432,9 +387,9 @@ def refine_main(cmdargs):
     to_eval_coords = (regions[regions["refined"]][["chrom", "start", "end"]]
                       .to_numpy()
                       .tolist())
-    # Except if there aren't any regions. Then we need to do all that accounting...
-    # And then skip the benchmarking
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0 if args.use_region_coords else PHAB_BUFFER,
+
+    # refine's call to phab will never buffer
+    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
                  threads=args.threads, method=args.align, passonly=params.passonly,
                  max_size=params.sizemax)
@@ -448,26 +403,18 @@ def refine_main(cmdargs):
     m_bench.run()
 
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
-    # Here we need this to be...
-    # a call to ga4gh. So let's refactor that, I think
-    # And then we parse those ga4gh files to figure out..
-    # The counts - and I can use MatchIds to update genotype concordance..
-    # No, because it might be split variants or whatever.
-    # And I want to rename refine.variant_summary.json to refine.summary.json
-    # And refine.regions.txt
-    # And refine.region_summary.json
-    # And refine.base.vcf.gz
-    # And refine.comp.vcf.gz
-    summary = (recount_variant_report(args.benchdir, outdir, regions)
-               if args.recount else make_variant_report(regions))
-    summary.clean_out()
-    summary.write_json(os.path.join(
-        args.benchdir, 'refine.variant_summary.json'))
-
     report = make_region_report(regions)
-    regions.to_csv(os.path.join(
-        args.benchdir, 'refine.regions.txt'), sep='\t', index=False)
+    regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'),
+                   sep='\t', index=False)
+
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
         fout.write(json.dumps(report, indent=4))
+
+    output = make_ga4gh(args.benchdir,
+                        os.path.join(args.benchdir, 'refine'),
+                        pull_refine=True,
+                        write_phab=args.write_phab)
+    with open(os.path.join(args.benchdir, 'refine.variant_summary.json'), 'w') as fout:
+        fout.write(json.dumps(output.stats, indent=4))
 
     logging.info("Finished refine")
