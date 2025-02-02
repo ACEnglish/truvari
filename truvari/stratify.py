@@ -27,7 +27,7 @@ def parse_args(args):
                         help="Truvari bench result directory or a single VCF")
     parser.add_argument("-o", "--output", metavar="OUT", default="/dev/stdout",
                         help="Output bed-like file")
-    parser.add_argument("--header", action="store_true",
+    parser.add_argument("-H", "--header", action="store_true",
                         help="Input regions have header to preserve in output")
     parser.add_argument("-v", "--complement", action="store_false",
                         help="Only count variants not within region boundaries")
@@ -100,7 +100,11 @@ def stratify_main(cmdargs):
         counts = count_entries(truvari.VariantFile(args.in_vcf),
                                chroms, intvs, args.complement)
         counts = pd.Series(counts, name="count").to_frame()
-    counts.index = regions.index
-    regions = regions.join(counts)
-    regions.to_csv(args.output, header=args.header, index=False, sep='\t')
+    if not args.complement:
+        total = counts.sum(axis=0).to_frame().T
+        total.to_csv(args.output, header=args.header, index=False, sep='\t')
+    else:
+        counts.index = regions.index
+        regions = regions.join(counts)
+        regions.to_csv(args.output, header=args.header, index=False, sep='\t')
     logging.info("Finished")

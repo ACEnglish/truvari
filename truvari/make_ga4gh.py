@@ -246,12 +246,14 @@ class Ga4ghOutput():
         self.comp.close()
 
 
-def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False):
+def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subset=False):
     """
     Grab all the files from a bench directory
     refined_regions are the set of regions which underwent refinement, if None, tries to pull candidate.refine.bed
     write_phab will pull the variants from the result/phab_bench instead of update the annotation based
     on the refined_regions
+
+    If subset, counts only from the refine.regions.txt are used. Only possible when pull_refine == True
     """
     bench_vcfs = get_truvari_filenames(input_dir)
 
@@ -286,10 +288,11 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False):
                                  from_c=params['cSample'],
                                  is_refined=True)
         # Already handled everything touched by refine
-        # Now grab the rest
-        output.pull_from_dir(input_dir, regions, within=False,
-                             from_b=params['bSample'],
-                             from_c=params['cSample'])
+        # Now grab the rest if we're not subsetting
+        if not subset:
+            output.pull_from_dir(input_dir, regions, within=False,
+                                 from_b=params['bSample'],
+                                 from_c=params['cSample'])
 
     output.close()
     truvari.compress_index_vcf(output.base.filename.decode())

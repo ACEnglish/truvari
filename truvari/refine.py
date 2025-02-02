@@ -1,25 +1,5 @@
 """
-Automated Truvari bench result refinement with phab
-
-ToDo:
-    All the region logic needs to be worked out. This includes the coords/intersect
-    Need easy hooks into ga4gh
-    We're now setting buffer in a parameter - so deal with that
-    And - then I have to work on the counter...
-    But really that becomes easier when I can do the ga4gh. Like, just get those counts while building the VCF.
-    I would like genotype concordance worked out eventually, too
-
-DevLog:
-    Sat Feb  1 10:34:55 EST 2025
-    `truvari refine bench_result/` as the parameters now works. But none of the functionality
-
-    Sat Feb  1 11:08:45 EST 2025
-    More notes. Got a better idea of the pieces. Main point is refactoring ga4gh first and then allowing a call to that
-    will make the refactoring in refine easier. But that isn't going to be easy because I also need to deal with
-    the header. I think multi-sample comp VCF header is contaminating the phab output.
-    But whatever
-
-    Okay - step 1... go to ga4gh
+Automated Truvari bench result refinement with phab variant harmonization
 """
 import os
 import sys
@@ -272,11 +252,11 @@ def parse_args(args):
     parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=100,
                         help="Amount of buffer around refined regions (%(default)s)")
     parser.add_argument("-f", "--reference", type=str,
-                        help="Indexed fasta used to call variants")
+                        help="Indexed fasta used to call variants (optional if bench -f was used)")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to refine (candidate.refine.bed)")
     parser.add_argument("-c", "--coords", choices=['R', 'O'], default='reg',
-                        help="Which bed file coordinates to use (Regions or includbed Original) (%(default)s)")
+                        help="Which bed file coordinates to use, Regions or includebed Original (%(default)s)")
     parser.add_argument("-S", "--subset", action="store_true",
                         help="Only report metrics from the refined regions")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
@@ -388,7 +368,8 @@ def refine_main(cmdargs):
                       .to_numpy()
                       .tolist())
 
-    # refine's call to phab will never buffer
+    # refine's call to phab will never buffer because we assume the regions to be refined
+    # have already been buffered
     truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0,
                  mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
                  threads=args.threads, method=args.align, passonly=params.passonly,
@@ -401,7 +382,8 @@ def refine_main(cmdargs):
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
                             includebed=reeval_bed)
     m_bench.run()
-
+    
+    # Count what's happened over the regions
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
     report = make_region_report(regions)
     regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'),
@@ -409,11 +391,13 @@ def refine_main(cmdargs):
 
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
         fout.write(json.dumps(report, indent=4))
-
+    
+    # Make the output VCFs
     output = make_ga4gh(args.benchdir,
                         os.path.join(args.benchdir, 'refine'),
                         pull_refine=True,
-                        write_phab=args.write_phab)
+                        write_phab=args.write_phab,
+                        subset=args.subset)
     with open(os.path.join(args.benchdir, 'refine.variant_summary.json'), 'w') as fout:
         fout.write(json.dumps(output.stats, indent=4))
     

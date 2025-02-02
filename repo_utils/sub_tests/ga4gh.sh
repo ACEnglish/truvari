@@ -8,7 +8,7 @@ if [ $ga4gh ]; then
     assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_norefine_query.vcf.gz) $(fn_md5 $OD/ga4gh_norefine_query.vcf.gz)
 fi
 
-run ga4gh_refine $truv ga4gh -B 0 -w -i $ANSDIR/refine/refine_output_three/ -o $OD/ga4gh_withrefine
+run ga4gh_refine $truv ga4gh -b 0 -w -i $ANSDIR/refine/refine_output_three/ -o $OD/ga4gh_withrefine
 if [ $ga4gh_refine ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/ga4gh/ga4gh_withrefine_truth.vcf.gz) $(fn_md5 $OD/ga4gh_withrefine_truth.vcf.gz)
