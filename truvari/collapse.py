@@ -85,34 +85,32 @@ class CollapsedCalls():
         self.genotype_mask |= o_mask
         return False
 
-    def combine(self, other):
-        """
-        Add other's calls/matches to self's matches
-        """
-        self.matches.extend(other.matches)
-        self.gt_consolidate_count += other.gt_consolidate_count
-        if self.genotype_mask is not None and other.genotype_mask is not None:
-            self.genotype_mask |= other.genotype_mask
 
-
-def chain_collapse(cur_collapse, all_collapse):
+def find_new_matches(base, remaining_calls, dest_collapse, params):
     """
-    Perform transitive matching of cur_collapse to all_collapse
-    Check the cur_collapse's entry to all other collapses' consolidated entries
+    Pull variants from remaining calls that match to the base entry into the destination collapse
+    Updates everything in place
     """
-    for m_collap in all_collapse:
-        for other in m_collap.matches:
-            mat = cur_collapse.entry.match(other.comp)
-            mat.matid = m_collap.match_id
-            if mat.state:
-                # The other's representative entry will report its
-                # similarity to the matched call that pulled it in
-                mat.base, mat.comp = mat.comp, mat.base
-                m_collap.matches.append(mat)
-                m_collap.combine(cur_collapse)
-                return True  # you can just ignore it later
-    return False  # You'll have to add it to your set of collapsed calls
-
+    # Sort based on size difference to current call
+    remaining_calls.sort(key=partial(relative_size_sorter, base))
+    i = 0
+    while i < len(remaining_calls):
+        candidate = remaining_calls[i]
+        mat = base.match(candidate)
+        mat.matid = dest_collapse.match_id
+        if params.hap and not hap_resolve(base,  candidate):
+            mat.state = False
+        if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
+            mat.state = False
+        if mat.state:
+            dest_collapse.matches.append(mat)
+            remaining_calls.pop(i)
+        else:
+            # move to next one
+            i += 1
+            # short circuit
+            if mat.sizesim is not None and mat.sizesim < params.pctsize:
+                return
 
 def collapse_chunk(chunk, params):
     """
@@ -121,7 +119,6 @@ def collapse_chunk(chunk, params):
     chunk_dict, chunk_id = chunk
     remaining_calls = sorted(chunk_dict['base'], key=params.sorter)
 
-    remaining_calls.sort(key=params.sorter)
     call_id = -1
     ret = []  # list of Collapses
     while remaining_calls:
@@ -132,33 +129,27 @@ def collapse_chunk(chunk, params):
         m_collap.genotype_mask = m_collap.make_genotype_mask(m_collap.entry,
                                                              params.gt)
 
-        # Sort based on size difference to current call
-        for candidate in sorted(remaining_calls, key=partial(relative_size_sorter, m_collap.entry)):
-            mat = m_collap.entry.match(candidate)
-            mat.matid = m_collap.match_id
-            if params.hap and not hap_resolve(m_collap.entry,  candidate):
-                mat.state = False
-            if mat.state and m_collap.gt_conflict(candidate, params.gt):
-                mat.state = False
-            if mat.state:
-                m_collap.matches.append(mat)
-            elif mat.sizesim is not None and mat.sizesim < params.pctsize:
-                # The sort tells us that we're going through most->least
-                # similar size. So the next one will only be worse...
-                break
-
-        # Does this collap need to go into a previous collap?
-        if not params.chain or not chain_collapse(m_collap, ret):
-            ret.append(m_collap)
+        find_new_matches(m_collap.entry, remaining_calls, m_collap, params)
+        # Chain will only operate once to prevent 'sliding'
+        # e.g. collapsing integers within 5 of 1, 4, 6, 8
+        # without a single operation 1
+        # with a single operation 1, 8
+        # not chaining at all 1, 6
+        if params.chain:
+            i = 0
+            while remaining_calls and i < len(m_collap.matches):
+                find_new_matches(m_collap.matches[i].comp, remaining_calls, m_collap, params)
+                i += 1
 
         # If hap, only allow the best match
+        # put the rest of the remaining calls back
         if params.hap and m_collap.matches:
             mats = sorted(m_collap.matches, reverse=True)
             m_collap.matches = [mats.pop(0)]
-
-        # Remove everything that was used
-        to_rm = [_.comp for _ in m_collap.matches]
-        remaining_calls = [_ for _ in remaining_calls if _ not in to_rm]
+            remaining_calls.extend(mats)
+        ret.append(m_collap)
+        # Sort back to where they need to be to choose the next to evaluate
+        remaining_calls.sort(key=params.sorter)
 
     if params.no_consolidate:
         for val in ret:
@@ -239,44 +230,6 @@ def collapse_into_entry(entry, others, hap_mode=False):
             # pass along phase
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
-
-
-def gt_conflict(cur_collapse, entry, which_gt):
-    """
-    Return true if entry's genotypes conflict with any of the current collapse
-    which_gt all prevents variants present in the same sample from being collapsed
-    which_gt het only prevents two het variants from being collapsed.
-    Might be deprecated, now?
-    """
-    if which_gt == 'off':
-        return False
-
-    def checker(base, comp):
-        """
-        Return true if a conflict
-        """
-        i = 0
-        samps = list(base.samples)
-        while i < len(samps):
-            sample = samps[i]
-            gtA = base.samples[sample].allele_indices
-            gtB = comp.samples[sample].allele_indices
-            if which_gt == 'all':
-                if 1 in gtA and 1 in gtB:
-                    return True
-            elif gtA.count(1) == 1 and gtB.count(1) == 1:
-                return True
-            i += 1
-        return False
-    # Need to check the kept entry
-    if checker(cur_collapse.entry, entry):
-        return True
-    # And all removed entries
-    for mat in cur_collapse.matches:
-        if checker(entry, mat.comp):
-            return True
-
-    return False
 
 
 def get_ac(gt):
@@ -515,6 +468,9 @@ def parse_args(args):
                         help="Maximum size of variant to attempt to sequence resolve ($(default)s)")
     thresg.add_argument("-D", "--decompose", action="store_true",
                         help="Allow decomposition for SV to BND comparison (%(default)s)")
+    thresg.add_argument("-d", "--dup-to-ins", action="store_true",
+                        help="Assume DUP svtypes are INS (%(default)s)")
+
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
@@ -768,12 +724,12 @@ class LinkedList:
 
 def merge_intervals(intervals):
     """
-    Merge sorted list of tuples
+    Merge list of tuples
     """
     if not intervals:
         return []
+    intervals.sort(key=lambda x: (x[0], x[1]))
     merged = []
-
     current_start, current_end, current_data = intervals[0]
     for i in range(1, len(intervals)):
         next_start, next_end, next_data = intervals[i]

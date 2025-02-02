@@ -38,9 +38,19 @@ def coords_within(qstart, qend, rstart, rend, end_within):
 def best_seqsim(a_seq, b_seq, st_dist):
     """
     Returns best of roll, unroll, and direct sequence similarity
+    .. warning::
+        `roll_seqsim` is only called when both sequences are < 500bp in length
     """
-    return max(roll_seqsim(a_seq, b_seq), unroll_seqsim(a_seq, b_seq, st_dist),
-               unroll_seqsim(b_seq, a_seq, -st_dist), seqsim(a_seq, b_seq))
+    # Only allow rolling on < 500bp sequences, otherwise, it gets huge/slow
+    if len(a_seq) < 500 and len(b_seq) < 500:
+        rssm = roll_seqsim(a_seq, b_seq)
+    else:
+        rssm = 0
+    return max(rssm, unroll_seqsim(a_seq, b_seq, st_dist),
+               unroll_seqsim(a_seq, b_seq, -st_dist),
+               unroll_seqsim(b_seq, a_seq, st_dist),
+               unroll_seqsim(b_seq, a_seq, -st_dist),
+               seqsim(a_seq, b_seq))
 
 
 def roll_seqsim(a_seq, b_seq):

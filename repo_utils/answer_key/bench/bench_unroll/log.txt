@@ -1,6 +1,6 @@
-2025-01-06 03:04:00,136 [INFO] Truvari v5.0.0
-2025-01-06 03:04:00,137 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/real_small_base.vcf.gz -c repo_utils/test_files/variants/real_small_comp.vcf.gz -o test_results/bench_unroll/
-2025-01-06 03:04:00,138 [INFO] Params:
+2025-01-30 23:04:30,949 [INFO] Truvari v5.0.1.dev0+664fd5b
+2025-01-30 23:04:30,950 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/real_small_base.vcf.gz -c repo_utils/test_files/variants/real_small_comp.vcf.gz -o test_results/bench_unroll/
+2025-01-30 23:04:30,951 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/real_small_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/real_small_comp.vcf.gz",
@@ -22,16 +22,23 @@
     "bnddist": 100,
     "sizemin": 50,
     "sizefilt": 30,
-    "sizemax": 50000,
+    "sizemax": -1,
     "passonly": false,
     "no_ref": false,
     "pick": "single",
+    "ignore_monref": true,
+    "check_multi": true,
     "check_monref": true,
-    "check_multi": true
+    "no_single_bnd": true,
+    "write_resolved": false,
+    "decompose": true,
+    "short_circuit": false,
+    "skip_gt": false,
+    "max_resolve": 25000
 }
-2025-01-06 03:04:00,182 [INFO] Zipped 71 variants Counter({'base': 43, 'comp': 28})
-2025-01-06 03:04:00,182 [INFO] 45 chunks of 71 variants Counter({'base': 43, 'comp': 28})
-2025-01-06 03:04:00,226 [INFO] Stats: {
+2025-01-30 23:04:31,028 [INFO] Zipped 71 variants Counter({'base': 43, 'comp': 28})
+2025-01-30 23:04:31,029 [INFO] 45 chunks of 71 variants Counter({'base': 43, 'comp': 28})
+2025-01-30 23:04:31,098 [INFO] Stats: {
     "TP-base": 18,
     "TP-comp": 18,
     "FP": 1,
@@ -58,4 +65,4 @@
         }
     }
 }
-2025-01-06 03:04:00,227 [INFO] Finished bench
+2025-01-30 23:04:31,099 [INFO] Finished bench

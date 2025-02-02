@@ -1,6 +1,6 @@
-2025-01-06 03:05:08,778 [INFO] Truvari v5.0.0
-2025-01-06 03:05:08,778 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -s 5 -o test_results/refine_output_three
-2025-01-06 03:05:08,779 [INFO] Params:
+2025-02-02 20:17:55,316 [INFO] Truvari v5.0.1.dev0+895b8e1.uc
+2025-02-02 20:17:55,317 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
+2025-02-02 20:17:55,318 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
@@ -8,7 +8,7 @@
     "includebed": "/data/repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed",
     "extend": 0,
     "debug": false,
-    "reference": null,
+    "reference": "/data/repo_utils/test_files/refine_data/chr20.fa.gz",
     "refdist": 500,
     "pctseq": 0.7,
     "pctsize": 0.7,
@@ -22,17 +22,24 @@
     "bnddist": 100,
     "sizemin": 5,
     "sizefilt": 5,
-    "sizemax": 50000,
+    "sizemax": -1,
     "passonly": false,
     "no_ref": false,
     "pick": "single",
+    "ignore_monref": true,
+    "check_multi": true,
     "check_monref": true,
-    "check_multi": true
+    "no_single_bnd": true,
+    "write_resolved": false,
+    "decompose": true,
+    "short_circuit": false,
+    "skip_gt": false,
+    "max_resolve": 25000
 }
-2025-01-06 03:05:08,811 [INFO] Including 225 bed regions
-2025-01-06 03:05:10,635 [INFO] Zipped 7157 variants Counter({'comp': 5302, 'base': 1855})
-2025-01-06 03:05:10,635 [INFO] 211 chunks of 7157 variants Counter({'__filtered': 6137, 'base': 569, 'comp': 451})
-2025-01-06 03:05:10,707 [INFO] Stats: {
+2025-02-02 20:17:55,368 [INFO] Including 225 bed regions
+2025-02-02 20:17:58,694 [INFO] Zipped 7157 variants Counter({'comp': 5302, 'base': 1855})
+2025-02-02 20:17:58,694 [INFO] 211 chunks of 7157 variants Counter({'__filtered': 6137, 'base': 569, 'comp': 451})
+2025-02-02 20:17:58,796 [INFO] Stats: {
     "TP-base": 387,
     "TP-comp": 387,
     "FP": 64,
@@ -64,4 +71,272 @@
         }
     }
 }
-2025-01-06 03:05:10,707 [INFO] Finished bench
+2025-02-02 20:17:58,796 [INFO] Finished bench
+2025-02-02 20:17:58,805 [INFO] Truvari v5.0.1.dev0+895b8e1.uc
+2025-02-02 20:17:58,806 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
+2025-02-02 20:17:58,807 [INFO] Params:
+{
+    "benchdir": "test_results/refine_output_three",
+    "align": "mafft",
+    "use_original_vcfs": false,
+    "write_phab": false,
+    "threads": 4,
+    "buffer": 100,
+    "reference": "/data/repo_utils/test_files/refine_data/chr20.fa.gz",
+    "regions": null,
+    "coords": "reg",
+    "subset": false,
+    "mafft_params": "--auto --thread 1",
+    "debug": false
+}
+2025-02-02 20:17:58,807 [INFO] Setting up regions
+2025-02-02 20:17:58,819 [INFO] Evaluating 225 regions
+2025-02-02 20:17:58,820 [INFO] Extending the regions by 100 bases
+2025-02-02 20:17:58,855 [INFO] Found 1 chromosomes with overlapping regions
+2025-02-02 20:17:59,243 [INFO] 72 regions to be refined
+2025-02-02 20:17:59,251 [WARNING] Harmonizing variants ≥50kbp is not recommended
+2025-02-02 20:17:59,252 [INFO] Preparing regions
+2025-02-02 20:17:59,259 [INFO] Extracting haplotypes
+2025-02-02 20:17:59,582 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-02 20:17:59,588 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-02 20:17:59,601 [INFO] Harmonizing variants
+2025-02-02 20:17:59,869 [ERROR] Unable to run MAFFT
+2025-02-02 20:17:59,871 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_ec5d80ac0a1dbfe4aab8a18704a7acb6.msa'
+
+2025-02-02 20:17:59,876 [ERROR] Unable to run MAFFT
+2025-02-02 20:17:59,878 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_bf0cfa1a74a2ace677ba54158a31794c.msa'
+
+2025-02-02 20:17:59,944 [ERROR] Unable to run MAFFT
+2025-02-02 20:17:59,945 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_68f7651af1f392f0171258d1d98c2bae.msa'
+
+2025-02-02 20:17:59,958 [ERROR] Unable to run MAFFT
+2025-02-02 20:17:59,960 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_43b034c367f81971df3f2ceefd0d0498.msa'
+
+2025-02-02 20:17:59,998 [ERROR] Unable to run MAFFT
+2025-02-02 20:17:59,998 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_1c9cee45b56773ece0f43b63ecaacd4a.msa'
+
+2025-02-02 20:18:00,010 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,011 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_ed037f1a240914e923cef1158041118e.msa'
+
+2025-02-02 20:18:00,125 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,126 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_5648f8a1fbabd9309dca37da72d8b7fa.msa'
+
+2025-02-02 20:18:00,208 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,208 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_0353f5754d15f9cd1d01027950743e93.msa'
+
+2025-02-02 20:18:00,287 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,288 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_d240fb9856e6cc6a192b27e30537acc8.msa'
+
+2025-02-02 20:18:00,314 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,314 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_4a5685b7a0e970451e006ddc17b60e61.msa'
+
+2025-02-02 20:18:00,343 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,344 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_fdeec905ef358294841a2106ca811162.msa'
+
+2025-02-02 20:18:00,355 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,356 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_faa16e0bf525f30b24ba6a7fc2228d52.msa'
+
+2025-02-02 20:18:00,372 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,373 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_07b8d6dc61d493fb69efa67cb81d580e.msa'
+
+2025-02-02 20:18:00,384 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,385 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_be993f2a4b297a98926d38bb0d786873.msa'
+
+2025-02-02 20:18:00,426 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,427 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_9bb18f395d7f7e2b825c09ff781e634f.msa'
+
+2025-02-02 20:18:00,437 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,437 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_89d1fcc2fda4cbbf9653ff1918a83afa.msa'
+
+2025-02-02 20:18:00,488 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,489 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_221935e0ac3dfcf7881eb18335a00e41.msa'
+
+2025-02-02 20:18:00,546 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,547 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_9273887b24ce123bb00e8b9a5db164d6.msa'
+
+2025-02-02 20:18:00,557 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,558 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_e2a9548390714df551334d79b74b8af6.msa'
+
+2025-02-02 20:18:00,566 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,567 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_2aa692ace74441003b823761654f7787.msa'
+
+2025-02-02 20:18:00,619 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,619 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_0eb35e6ab922c08d2f046187607573af.msa'
+
+2025-02-02 20:18:00,726 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,726 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_899b4def4f653e5c68f2f862c41bb91f.msa'
+
+2025-02-02 20:18:00,786 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,787 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_c4db08acfae1ffdcd9843e6de29ee6fb.msa'
+
+2025-02-02 20:18:00,812 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,813 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_d9106722080a50f519c93a361b1a4834.msa'
+
+2025-02-02 20:18:00,824 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,825 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_6b94b98f04df7cdd463c2adf8f42cc1d.msa'
+
+2025-02-02 20:18:00,840 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,840 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,841 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_83843f6385b51be08ea3e16d743f672f.msa'
+
+2025-02-02 20:18:00,842 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_bcf34199d1f24a0ab694ccaca0d3b99b.msa'
+
+2025-02-02 20:18:00,867 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,868 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_9306f938e3b1a8c53bda6835f61a9d5a.msa'
+
+2025-02-02 20:18:00,895 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:00,899 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_aa4a555eea544572be438e30e3c66174.msa'
+
+2025-02-02 20:18:01,000 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:01,001 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_3d6501f04c22b0dc2a63a1da3923d828.msa'
+
+2025-02-02 20:18:01,004 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:01,005 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_3fb0e44be0176f95b520e6f1ae04c835.msa'
+
+2025-02-02 20:18:01,053 [ERROR] Unable to run MAFFT
+2025-02-02 20:18:01,054 [ERROR] stderr: Running fake MAFFT
+Traceback (most recent call last):
+  File "/data/repo_utils/test_files/external/fake_mafft/mafft", line 20, in <module>
+    with open(fn) as result:
+FileNotFoundError: [Errno 2] No such file or directory: '/data/repo_utils/test_files/external/fake_mafft/lookup/fm_4b379debed5821f1449941900182a906.msa'
+
+2025-02-02 20:18:01,209 [INFO] Running bench
+2025-02-02 20:18:01,233 [INFO] Including 72 bed regions
+2025-02-02 20:18:02,273 [INFO] Zipped 3018 variants Counter({'base': 1509, 'comp': 1509})
+2025-02-02 20:18:02,274 [INFO] 41 chunks of 3018 variants Counter({'__filtered': 2649, 'base': 194, 'comp': 175})
+2025-02-02 20:18:03,318 [INFO] Stats: {
+    "TP-base": 439,
+    "TP-comp": 409,
+    "FP": 42,
+    "FN": 130,
+    "precision": 0.9068736141906873,
+    "recall": 0.7715289982425307,
+    "f1": 0.8337442826960135,
+    "base cnt": 569,
+    "comp cnt": 451
+}
+2025-02-02 20:18:03,318 [INFO] Finished refine

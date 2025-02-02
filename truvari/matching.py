@@ -76,12 +76,15 @@ class MatchResult():  # pylint: disable=too-many-instance-attributes
             self.score = (self.seqsim + self.sizesim + self.ovlpct) / 3.0 * 100
 
     def __lt__(self, other):
-        # Trues are always worth more
-        if self.state != other.state:
-            return self.state < other.state
-        m_score = self.score if self.score is not None else -float('inf')
-        o_score = other.score if other.score is not None else -float('inf')
-        return m_score < o_score
+        def s_abs(value):
+            """
+            Negative because we want them to be closer
+            """
+            return -abs(value) if value is not None else -float('inf')
+        return (
+            (self.state, self.score if self.score is not None else 0, s_abs(self.st_dist), s_abs(self.ed_dist)) <
+            (other.state, other.score if other.score is not None else 0, s_abs(other.st_dist), s_abs(other.ed_dist))
+        )
 
     def __eq__(self, other):
         return self.state == other.state and self.score == other.score

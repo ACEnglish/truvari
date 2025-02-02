@@ -15,6 +15,7 @@ from collections import defaultdict, OrderedDict, Counter
 import numpy as np
 
 import truvari
+from truvari.refine import refine_main
 
 ##############
 # Parameters #
@@ -40,6 +41,8 @@ def parse_args(args):
                         help="Replace resolved symbolic variants with their sequence")
     parser.add_argument("--short", action="store_true",
                         help="Short circuit comparisions. Faster, but fewer annotations")
+    parser.add_argument("--refine", action="store_true",
+                        help="Run refinement with defaults on the result (requires --reference)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -154,6 +157,8 @@ def check_params(args):
         if not os.path.exists(args.reference):
             logging.error("Reference %s does not exist", args.reference)
             check_fail = True
+    elif args.refine:
+        logging.error("Hooking into `truvari refine` only possible with `--reference`")
     return check_fail
 
 
@@ -287,19 +292,6 @@ class StatsBox(OrderedDict):
         if self["TP-comp_TP-gt"] + self["TP-comp_FP-gt"] != 0:
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
-
-    def clean_out(self):
-        """
-        When reusing a StatsBox (typically inside refine), gt numbers
-        are typically invalidated. This removes those numbers from self to make
-        a cleaner report
-        """
-        del self["TP-comp_TP-gt"]
-        del self["TP-comp_FP-gt"]
-        del self["TP-base_TP-gt"]
-        del self["TP-base_FP-gt"]
-        del self["gt_concordance"]
-        del self["gt_matrix"]
 
     def write_json(self, out_name):
         """
@@ -770,7 +762,9 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    params = truvari.VariantParams(args, short_circuit=args.short, decompose=args.no_decompose)
+    params = truvari.VariantParams(args,
+                                   short_circuit=args.short,
+                                   decompose=args.no_decompose)
 
     m_bench = Bench(params=params,
                     base_vcf=args.base,
@@ -780,7 +774,11 @@ def bench_main(cmdargs):
                     extend=args.extend,
                     debug=args.debug,
                     do_logging=True)
+
     output = m_bench.run()
 
     logging.info("Stats: %s", json.dumps(output.stats_box, indent=4))
     logging.info("Finished bench")
+
+    if args.refine:
+        refine_main([args.output])

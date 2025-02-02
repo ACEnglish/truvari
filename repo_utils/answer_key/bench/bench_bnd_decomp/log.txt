@@ -1,6 +1,6 @@
-2025-01-09 16:25:00,733 [INFO] Truvari v5.0.0
-2025-01-09 16:25:00,733 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
-2025-01-09 16:25:00,734 [INFO] Params:
+2025-01-30 22:47:16,962 [INFO] Truvari v5.0.1.dev0+664fd5b
+2025-01-30 22:47:16,963 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
+2025-01-30 22:47:16,964 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/bnd.comp2.vcf.gz",
@@ -33,46 +33,50 @@
     "write_resolved": false,
     "decompose": true,
     "short_circuit": false,
-    "skip_gt": false
+    "skip_gt": false,
+    "max_resolve": 25000
 }
-2025-01-09 16:25:00,783 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-09 16:25:12,483 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
-2025-01-09 16:25:12,483 [INFO] 20659 chunks of 30098 variants Counter({'comp': 29902, 'base': 186, '__filtered': 10})
-2025-01-09 16:25:15,625 [INFO] Stats: {
-    "TP-base": 140,
-    "TP-comp": 124,
-    "FP": 28406,
-    "FN": 46,
-    "precision": 0.0043463021381002455,
-    "recall": 0.7526881720430108,
-    "f1": 0.008642698114935937,
-    "base cnt": 186,
-    "comp cnt": 28530,
+2025-01-30 22:47:17,047 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-01-30 22:47:38,251 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
+2025-01-30 22:47:38,252 [INFO] 20660 chunks of 30098 variants Counter({'comp': 29902, 'base': 195, '__filtered': 1})
+2025-01-30 22:47:42,922 [INFO] Stats: {
+    "TP-base": 152,
+    "TP-comp": 131,
+    "FP": 28401,
+    "FN": 43,
+    "precision": 0.004591336043740362,
+    "recall": 0.7794871794871795,
+    "f1": 0.009128901026932595,
+    "base cnt": 195,
+    "comp cnt": 28532,
     "TP-comp_TP-gt": 1,
-    "TP-comp_FP-gt": 123,
+    "TP-comp_FP-gt": 130,
     "TP-base_TP-gt": 1,
-    "TP-base_FP-gt": 139,
-    "gt_concordance": 0.008064516129032258,
+    "TP-base_FP-gt": 151,
+    "gt_concordance": 0.007633587786259542,
     "gt_matrix": {
         "(0, 1)": {
-            "(0, 0)": 132,
+            "(0, 0)": 137,
             "(0, 1)": 1
         },
         "(0, 0, 1)": {
+            "(0, 0)": 3
+        },
+        "(0, 1, 0)": {
             "(0, 0)": 2
         },
         "(0, 0, 0, 1)": {
-            "(0, 0)": 1
+            "(0, 0)": 2
         },
         "(0, 0, 1, 0)": {
             "(0, 0)": 1
         },
-        "(0, 1, 0)": {
-            "(0, 0)": 1
+        "(0, 1, 1)": {
+            "(0, 0)": 4
         },
         "(1, 0)": {
             "(0, 0)": 2
         }
     }
 }
-2025-01-09 16:25:15,626 [INFO] Finished bench
+2025-01-30 22:47:42,923 [INFO] Finished bench

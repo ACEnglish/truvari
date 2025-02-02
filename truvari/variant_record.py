@@ -23,10 +23,10 @@ class VariantRecord:
         Initialize with just the internal record
         """
         self._record = record
-        self.resolved_ref = None
-        self.resolved_alt = None
+        self._resolved_ref = None
+        self._resolved_alt = None
+        self._decomp_repr = None
         self.end = record.stop
-        self.decomp_repr = None
         if params is None:
             self.params = truvari.VariantParams()
         else:
@@ -269,23 +269,22 @@ class VariantRecord:
 
     def cpx_match(self, other):
         """
-        Attempt to match symbolic variants with a BND.
-        This is performed by decomposing the symbolic variant into its BND representations before calling bnd_match.
+        Attempt to match non-BND variants with a BND.
+        This is performed by decomposing the non-BND into its BND representations before calling bnd_match.
         This will make at least two BNDs, so the MatchResults are sorted and the greater is returned.
         """
-        if self.is_symbolic():
-            decomp = self.decompose()
-            matches = [d.bnd_match(other) for d in decomp]
-        else:
+        if self.is_bnd():
             decomp = other.decompose()
             matches = [self.bnd_match(d) for d in decomp]
-        # Not all symbolic variants can be decomposed
+        else:
+            decomp = self.decompose()
+            matches = [d.bnd_match(other) for d in decomp]
+
+        # Not all variants can be decomposed
         if not matches:
             mat = truvari.MatchResult()
-            mat.base = self
-            mat.comp = other
-            return mat
-        mat = sorted(matches)[-1]
+        else:
+            mat = sorted(matches)[-1]
         mat.base = self
         mat.comp = other
         return mat
@@ -297,32 +296,29 @@ class VariantRecord:
         This method decomposes  structural variants (SVs) of `<DEL>`, `<DUP>`, and `<INV>` into
         Breakend (BND) records. The decomposed variants are stored internally and returned as a list.
 
-        Raises:
-            ValueError: If the variant is not symbolic.
-
         Returns:
-            list: A list of new BND variant records.
+            list: A list of new BND variant records. List will be empty when no valid decomposition
 
         Notes:
-            - For `INV` (Inversion) variants, four BND records are created
-            - For `DEL` (Deletion) variants, two BND records are created to represent the deletion breakpoints.
-            - For `DUP` (Duplication) variants, two BND records are created to represent the duplication breakpoints.
-            - Assumes `DUP` variants are of type `DUP:TANDEM`.
+            - For `INV`, four BNDs are created.
+            - For `DEL` and `DUP`, two BNDs are created.
+            - `DUP` are assumed to be of type `DUP:TANDEM`.
         """
         # No need to make twice
-        if self.decomp_repr is not None:
-            return self.decomp_repr
+        if self._decomp_repr is not None:
+            return self._decomp_repr
 
         svtype = self.var_type()
         ret = []
 
         if svtype == truvari.SV.INV:
             record1 = self.copy()
-            record1.alts = (f"[{self.chrom}:{self.end}[N",)
+            record1.alts = (f"N]{self.chrom}:{self.end}]",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.alts = (f"N]{self.chrom}:{self.end}]",)
+            record2.pos += 1
+            record2.alts = (f"[{self.chrom}:{self.end + 1}[N",)
             record2.info["SVTYPE"] = "BND"
 
             record3 = self.copy()
@@ -331,20 +327,20 @@ class VariantRecord:
             record3.info["SVTYPE"] = "BND"
 
             record4 = self.copy()
-            record4.pos = self.end
-            record4.alts = (f"[{self.chrom}:{self.pos}[N",)
+            record4.pos = self.end + 1
+            record4.alts = (f"[{self.chrom}:{self.pos + 1}[N",)
             record4.info["SVTYPE"] = "BND"
 
             ret = [record1, record2, record3, record4]
 
         elif svtype == truvari.SV.DEL:
             record1 = self.copy()
-            record1.alts = (f"N]{self.chrom}:{self.end}]",)
+            record1.alts = (f"N[{self.chrom}:{self.end + 1}[",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
-            record2.pos = self.end
-            record2.alts = (f"[{self.chrom}:{self.pos}[N",)
+            record2.pos = self.end + 1
+            record2.alts = (f"]{self.chrom}:{self.pos}]N",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
@@ -352,17 +348,18 @@ class VariantRecord:
         elif svtype == truvari.SV.DUP:
             # Assumes DUP:TANDEM
             record1 = self.copy()
-            record1.alts = (f"N[{self.chrom}:{self.end}[",)
+            record1.pos += 1
+            record1.alts = (f"]{self.chrom}:{self.end}]N",)
             record1.info["SVTYPE"] = "BND"
 
             record2 = self.copy()
             record2.pos = self.end
-            record2.alts = (f"]{self.chrom}:{self.pos}]N",)
+            record2.alts = (f"N[{self.chrom}:{self.pos + 1}[",)
             record2.info["SVTYPE"] = "BND"
 
             ret = [record1, record2]
 
-        self.decomp_repr = ret
+        self._decomp_repr = ret
         return ret
 
     def distance(self, other):
@@ -383,7 +380,7 @@ class VariantRecord:
     def gt(self, sample=0):
         """
         Returns the raw GT field from a record for a specific sample.
-        Returns None if GT is not present
+        Returns None if GT is not in FORMAT
         """
         if "GT" not in self.samples[sample]:
             return None
@@ -393,28 +390,28 @@ class VariantRecord:
         """
         Returns either the resolved REF or _record.ref
         """
-        if self.resolved_ref:
-            return self.resolved_ref
+        if self._resolved_ref:
+            return self._resolved_ref
         return self._record.ref
 
     def get_alt(self):
         """
         Returns either the resolved ALT or _record.alt[0]
         """
-        if self.resolved_alt:
-            return self.resolved_alt
+        if self._resolved_alt:
+            return self._resolved_alt
         return self._record.alts[0]
 
     def is_bnd(self):
         """
         Returns if a record is a resolved BND
         """
-        return self.alleles_variant_types[1] == 'BND'
+        return '[' in self._record.alts[0] or ']' in self._record.alts[0]
 
     def is_filtered(self, values=None):
         """
         Checks if entry should be filtered given the filter values provided.
-        If values is None, assume that filter must have PASS or be blank '.'
+        If `values` is None, assume that filter must have PASS or be blank '.'
 
         :param `values`: set of filter values for intersection
         :type `values`: set, optional
@@ -493,10 +490,10 @@ class VariantRecord:
         :rtype: bool
         """
         orig_resolved = not self.is_monrefstar() and \
-                        not self.is_symbolic() and \
-                        not self.is_bnd()
-        truv_resolved = self.resolved_ref is not None \
-                        and self.resolved_alt is not None
+            not self.is_symbolic() and \
+            not self.is_bnd()
+        truv_resolved = self._resolved_ref is not None \
+            and self._resolved_alt is not None
         return orig_resolved or truv_resolved
 
     def filter_call(self, base=False):
@@ -596,16 +593,20 @@ class VariantRecord:
         mat.comp = other
         return mat
 
-    def move_record(self, out_vcf, sample=None):
+    def move_record(self, out_vcf, take_samples=None, into_samples=None):
         """
         Similar to pysam.VariantRecord.translate, except this allows adding new
         FORMAT fields and optionally selects a subset of samples
         """
         ret = out_vcf.new_record(contig=self.contig, start=self.start, stop=self.stop, alleles=self.alleles,
                                  id=self.id, qual=self.qual, filter=self.filter, info=self.info)
-
-        for k, v in self.samples[sample].items():
-            ret.samples[0][k] = v
+        if take_samples is None:
+            take_samples = self.samples.keys()
+        if into_samples is None:
+            into_samples = list(range(len(take_samples)))
+        for t, i in zip(take_samples, into_samples):
+            for k, v in self.samples[t].items():
+                ret.samples[i][k] = v
         return VariantRecord(ret)
 
     def recovl(self, other, ins_inflate=True):
@@ -638,7 +639,7 @@ class VariantRecord:
 
         This method tries to reconstruct the REF and ALT sequences for specific types of structural variants
         (e.g., deletions, inversions, duplications) based on the provided reference genome sequence. If successful,
-        it stores the resolved sequences in `self.resolved_ref` and `self.resolved_alt`, and may adjust `self.end`.
+        it stores the resolved sequences in `self._resolved_ref` and `self._resolved_alt`, and may adjust `self.end`.
 
         :param ref: The reference genome used to resolve the structural variant.
                     Typically a `pysam.FastaFile` or equivalent object providing access to reference sequences.
@@ -648,8 +649,8 @@ class VariantRecord:
         :rtype: bool
 
         Updates:
-            - `self.resolved_ref`: The resolved REF sequence.
-            - `self.resolved_alt`: The resolved ALT sequence.
+            - `self._resolved_ref`: The resolved REF sequence.
+            - `self._resolved_alt`: The resolved ALT sequence.
             - `self.end`: May be adjusted for specific variant types (e.g., duplications).
 
         Resolution Logic:
@@ -671,14 +672,14 @@ class VariantRecord:
         seq = ref.fetch(self.chrom, self.start, self.end)
         svtype = self.var_type()
         if svtype == truvari.SV.DEL:
-            self.resolved_ref = seq
-            self.resolved_alt = seq[0]
+            self._resolved_ref = seq
+            self._resolved_alt = seq[0]
         elif svtype == truvari.SV.INV:
-            self.resolved_ref = seq
-            self.resolved_alt = seq.translate(RC)[::-1]
+            self._resolved_ref = seq
+            self._resolved_alt = seq.translate(RC)[::-1]
         elif svtype == truvari.SV.DUP and self.params.dup_to_ins:
-            self.resolved_ref = seq[0]
-            self.resolved_alt = seq
+            self._resolved_ref = seq[0]
+            self._resolved_alt = seq
             self.end = self.start + 1
         else:
             return False
@@ -739,11 +740,6 @@ class VariantRecord:
         if not roll or st_dist == 0 or ed_dist == 0:
             return truvari.seqsim(a_seq, b_seq)
 
-        if st_dist < 0:
-            st_dist *= -1
-        else:
-            a_seq, b_seq = b_seq, a_seq
-
         # Return best of rolled, unrolled from both ends, and direct similarity
         # Whichever is highest is how similar these sequences can be
         return truvari.best_seqsim(a_seq, b_seq, st_dist)
@@ -775,7 +771,6 @@ class VariantRecord:
         ret = truvari.MatchResult()
         ret.base = self
         ret.comp = other
-
         ret.state = True
 
         if not self.params.typeignore and not self.same_type(other):
