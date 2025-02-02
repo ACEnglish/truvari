@@ -2,6 +2,7 @@
 Consolidate truvari by truth/query and annotate with GA4GH intermediates tags
 """
 import os
+import sys
 import json
 import logging
 import argparse
@@ -263,6 +264,7 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
     else:
         regions = pd.read_csv(os.path.join(
             input_dir, "refine.regions.txt"), sep='\t')
+        regions = regions[regions['refined']] # Only interested in this subset
         if write_phab:
             phab_dir = os.path.join(input_dir, 'phab_bench')
             output.pull_from_dir(phab_dir, regions, within=True,
@@ -270,7 +272,7 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
                                  from_c='p:' + params['cSample'],
                                  is_refined=True)
         else:
-            mask = (regions['state'] == 'TP') & regions['refined']
+            mask = regions['state'] == 'TP'
             # Reannotate the state as TP
             output.pull_from_dir(input_dir, regions[mask], within=True, force_tp=True,
                                  from_b=params['bSample'],

@@ -355,7 +355,13 @@ def refine_main(cmdargs):
         regions["refined"] = original_stratify(base_vcf, comp_vcf, regions)
     else:
         base_vcf, comp_vcf = consolidate_bench_vcfs(args.benchdir)
+        # If they both have F calls, should try to refine
         regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
+        # Only refine base that have some comp calls to refine with
+        regions["refined"] |= (regions['in_fn'] > 0) & (regions[["in_tp", "in_fp"]].sum(axis=1) > 0)
+        # And vice-versa
+        regions["refined"] |= (regions['in_fp'] > 0) & (regions[["in_tpbase", "in_fn"]].sum(axis=1) > 0)
+
     logging.info("%d regions to be refined", regions["refined"].sum())
 
     reeval_bed = truvari.make_temp_filename(suffix=".bed")
@@ -382,7 +388,7 @@ def refine_main(cmdargs):
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
                             includebed=reeval_bed)
     m_bench.run()
-    
+
     # Count what's happened over the regions
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
     report = make_region_report(regions)
@@ -391,7 +397,7 @@ def refine_main(cmdargs):
 
     with open(os.path.join(args.benchdir, "refine.region_summary.json"), 'w') as fout:
         fout.write(json.dumps(report, indent=4))
-    
+
     # Make the output VCFs
     output = make_ga4gh(args.benchdir,
                         os.path.join(args.benchdir, 'refine'),
@@ -400,6 +406,6 @@ def refine_main(cmdargs):
                         subset=args.subset)
     with open(os.path.join(args.benchdir, 'refine.variant_summary.json'), 'w') as fout:
         fout.write(json.dumps(output.stats, indent=4))
-    
+
     logging.info("Stats: %s", json.dumps(output.stats, indent=4))
     logging.info("Finished refine")
