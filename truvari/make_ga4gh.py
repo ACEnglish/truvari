@@ -29,7 +29,7 @@ def parse_args(args):
     parser.add_argument("-w", "--write-phab", action="store_true",
                         help="Count/Write the phab variant representations")
     parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=0,
-                        help="Amount of buffer used around refined regions (%(default))")
+                        help="Amount of buffer used around refined regions (%(default)s)")
     args = parser.parse_args(args)
     return args
 
@@ -84,20 +84,14 @@ def check_args(args):
     else:
         check_fail |= check_bench_dir(args.input)
 
-    if os.path.exists(args.output + '_truth.vcf.gz'):
-        logging.error("%s_truth.vcf.gz already exists", args.output)
+    if os.path.exists(args.output + '.base.vcf.gz'):
+        logging.error("%s.base.vcf.gz already exists", args.output)
         check_fail = True
-    if os.path.exists(args.output + '_truth.vcf.gz.tbi'):
-        logging.error("%s_truth.vcf.gz.tbi already exists", args.output)
-        check_fail = True
-    if os.path.exists(args.output + '_query.vcf.gz'):
-        logging.error("%s_query.vcf.gz already exists", args.output)
-        check_fail = True
-    if os.path.exists(args.output + '_query.vcf.gz.tbi'):
-        logging.error("%s_query.vcf.gz.tbi already exists", args.output)
+    if os.path.exists(args.output + '.comp.vcf.gz'):
+        logging.error("%s.comp.vcf.gz already exists", args.output)
         check_fail = True
 
-    if not args.with_refine:
+    if args.no_refine:
         return check_fail
 
     pdir = os.path.join(args.input, 'phab_bench')
@@ -117,7 +111,9 @@ def pull_new_header(vcf_fn, sample):
     vcf = pysam.VariantFile(vcf_fn)
     header = pysam.VariantHeader()
     for i in vcf.header.records:
-        header.add_line(str(i))
+        out = str(i)
+        if not out.startswith("##fileformat"):
+            header.add_line(str(i))
     header.add_sample(sample)
     header.add_line(('##INFO=<ID=IsRefined,Number=0,Type=Flag,'
                      'Description="True if variant was pulled from refinement">'))
@@ -185,8 +181,7 @@ class Ga4ghOutput():
             def puller(x):
                 return x
         else:
-            # TODO: hard coding buffer again
-            refine_tree = build_tree(regions[regions['refined']], self.buffer)
+            refine_tree = build_tree(regions, self.buffer)
             def puller(x):
                 return x.fetch_regions(refine_tree, inside=within)
 
@@ -275,15 +270,14 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
                                  from_c='p:' + params['cSample'],
                                  is_refined=True)
         else:
-            subset_regions = regions[regions['state'] == 'TP']
-            # Reannotate the state is TP
-            output.pull_from_dir(input_dir, subset_regions, within=True, force_tp=True,
+            mask = (regions['state'] == 'TP') & regions['refined']
+            # Reannotate the state as TP
+            output.pull_from_dir(input_dir, regions[mask], within=True, force_tp=True,
                                  from_b=params['bSample'],
                                  from_c=params['cSample'],
                                  is_refined=True)
             # Keep the original states
-            subset_regions = regions[regions['state'] != 'TP']
-            output.pull_from_dir(input_dir, subset_regions, within=True,
+            output.pull_from_dir(input_dir, regions[~mask], within=True,
                                  from_b=params['bSample'],
                                  from_c=params['cSample'],
                                  is_refined=True)
@@ -309,20 +303,14 @@ def make_ga4gh_main(args):
     args = parse_args(args)
     truvari.setup_logging()
 
-    # TODO: turn this back on
-    # if check_args(args):
-    # logging.error("Unable to do conversion")
-    # sys.exit(1)
+    if check_args(args):
+        logging.error("Unable to do conversion")
+        sys.exit(1)
 
-    # Need to figure out the refine logic...
-    # I can default to no-refine, easy
-    # And for refine, I ... idk
-    # But need a way to read, I think
     logging.info("Consolidating VCFs")
     output = make_ga4gh(args.input,
                         args.output,
                         pull_refine=args.no_refine,
                         write_phab=args.write_phab)
     logging.info("Stats: %s", json.dumps(output.stats, indent=4))
-
     logging.info("Finished")
