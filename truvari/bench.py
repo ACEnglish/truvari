@@ -293,19 +293,6 @@ class StatsBox(OrderedDict):
             self["gt_concordance"] = float(self["TP-comp_TP-gt"]) / (self["TP-comp_TP-gt"] +
                                                                      self["TP-comp_FP-gt"])
 
-    def clean_out(self):
-        """
-        When reusing a StatsBox (typically inside refine), gt numbers
-        are typically invalidated. This removes those numbers from self to make
-        a cleaner report
-        """
-        del self["TP-comp_TP-gt"]
-        del self["TP-comp_FP-gt"]
-        del self["TP-base_TP-gt"]
-        del self["TP-base_FP-gt"]
-        del self["gt_concordance"]
-        del self["gt_matrix"]
-
     def write_json(self, out_name):
         """
         Write stats as json to file

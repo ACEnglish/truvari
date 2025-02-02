@@ -85,15 +85,6 @@ class CollapsedCalls():
         self.genotype_mask |= o_mask
         return False
 
-    def combine(self, other):
-        """
-        Add other's calls/matches to self's matches
-        """
-        self.matches.extend(other.matches)
-        self.gt_consolidate_count += other.gt_consolidate_count
-        if self.genotype_mask is not None and other.genotype_mask is not None:
-            self.genotype_mask |= other.genotype_mask
-
 
 def find_new_matches(base, remaining_calls, dest_collapse, params):
     """
@@ -239,44 +230,6 @@ def collapse_into_entry(entry, others, hap_mode=False):
             # pass along phase
             entry.samples[sample].phased = o_entry.samples[sample].phased
     return entry, n_consolidate
-
-
-def gt_conflict(cur_collapse, entry, which_gt):
-    """
-    Return true if entry's genotypes conflict with any of the current collapse
-    which_gt all prevents variants present in the same sample from being collapsed
-    which_gt het only prevents two het variants from being collapsed.
-    Might be deprecated, now?
-    """
-    if which_gt == 'off':
-        return False
-
-    def checker(base, comp):
-        """
-        Return true if a conflict
-        """
-        i = 0
-        samps = list(base.samples)
-        while i < len(samps):
-            sample = samps[i]
-            gtA = base.samples[sample].allele_indices
-            gtB = comp.samples[sample].allele_indices
-            if which_gt == 'all':
-                if 1 in gtA and 1 in gtB:
-                    return True
-            elif gtA.count(1) == 1 and gtB.count(1) == 1:
-                return True
-            i += 1
-        return False
-    # Need to check the kept entry
-    if checker(cur_collapse.entry, entry):
-        return True
-    # And all removed entries
-    for mat in cur_collapse.matches:
-        if checker(entry, mat.comp):
-            return True
-
-    return False
 
 
 def get_ac(gt):
