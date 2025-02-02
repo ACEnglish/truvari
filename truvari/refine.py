@@ -1,5 +1,25 @@
 """
 Automated Truvari bench result refinement with phab
+
+ToDo:
+    All the region logic needs to be worked out. This includes the coords/intersect
+    Need easy hooks into ga4gh
+    We're now setting buffer in a parameter - so deal with that
+    And - then I have to work on the counter...
+    But really that becomes easier when I can do the ga4gh. Like, just get those counts while building the VCF.
+    I would like genotype concordance worked out eventually, too
+
+DevLog:
+    Sat Feb  1 10:34:55 EST 2025
+    `truvari refine bench_result/` as the parameters now works. But none of the functionality
+
+    Sat Feb  1 11:08:45 EST 2025
+    More notes. Got a better idea of the pieces. Main point is refactoring ga4gh first and then allowing a call to that
+    will make the refactoring in refine easier. But that isn't going to be easy because I also need to deal with
+    the header. I think multi-sample comp VCF header is contaminating the phab output.
+    But whatever
+
+    Okay - step 1... go to ga4gh
 """
 import os
 import sys
@@ -293,23 +313,24 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
+                        help="Alignment method for phab (%(default)s)")
+    parser.add_argument("-u", "--use-original-vcfs", action="store_true",
+                        help="Use original input VCFs instead of filtered tp/fn/fps")
+    parser.add_argument("-w", "--write-phab", actions="store_true",
+                        help="Use phab variant representations in outputs")
+    parser.add_argument("-t", "--threads", default=4, type=int,
+                        help="Number of threads to use (%(default)s)")
+    parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=100,
+                        help="Amount of buffer around refined regions (%(default))")
     parser.add_argument("-f", "--reference", type=str,
                         help="Indexed fasta used to call variants")
     parser.add_argument("-r", "--regions", default=None,
-                        help="Regions to process")
-    parser.add_argument("-u", "--use-original-vcfs", action="store_true",
-                        help="Use original input VCFs instead of filtered tp/fn/fps")
-    parser.add_argument("-U", "--use-region-coords", action="store_true",
-                        help="When subsetting the includebed with regions, use region coordinates")
-    parser.add_argument("-R", "--recount", action="store_true",
-                        help=("Recount all variants for refine.variant_summary instead of only "
-                              "those in analyzed regions"))
-    parser.add_argument("-t", "--threads", default=4, type=int,
-                        help="Number of threads to use (%(default)s)")
-    #parser.add_argument("-b", "--buffer", type=truvari.restricted_int, default=100,
-    #                    help="Amount of buffer around refined regions (%(default))")
-    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
-                        help="Alignment method for phab (%(default)s)")
+                        help="Regions to process (candidate.refine.bed)")
+    parser.add_argument("-c", "--coords", choices=['reg', 'orig'], default='reg',
+                        help="Which bed file coordinates to use (%(default)s)")
+    parser.add_argument("-S", "--subset", action="store_true",
+                        help="Only report metrics from the refined regions")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -427,7 +448,16 @@ def refine_main(cmdargs):
     m_bench.run()
 
     regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
-
+    # Here we need this to be...
+    # a call to ga4gh. So let's refactor that, I think
+    # And then we parse those ga4gh files to figure out..
+    # The counts - and I can use MatchIds to update genotype concordance..
+    # No, because it might be split variants or whatever.
+    # And I want to rename refine.variant_summary.json to refine.summary.json
+    # And refine.regions.txt
+    # And refine.region_summary.json
+    # And refine.base.vcf.gz
+    # And refine.comp.vcf.gz
     summary = (recount_variant_report(args.benchdir, outdir, regions)
                if args.recount else make_variant_report(regions))
     summary.clean_out()

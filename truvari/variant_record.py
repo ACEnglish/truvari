@@ -593,16 +593,20 @@ class VariantRecord:
         mat.comp = other
         return mat
 
-    def move_record(self, out_vcf, sample=None):
+    def move_record(self, out_vcf, take_samples=None, into_samples=None):
         """
         Similar to pysam.VariantRecord.translate, except this allows adding new
         FORMAT fields and optionally selects a subset of samples
         """
         ret = out_vcf.new_record(contig=self.contig, start=self.start, stop=self.stop, alleles=self.alleles,
                                  id=self.id, qual=self.qual, filter=self.filter, info=self.info)
-
-        for k, v in self.samples[sample].items():
-            ret.samples[0][k] = v
+        if take_samples is None:
+            take_samples = self.samples.keys()
+        if into_samples is None:
+            into_samples = list(range(len(take_samples)))
+        for t, i in zip(take_samples, into_samples):
+            for k, v in self.samples[t].items():
+                ret.samples[i][k] = v
         return VariantRecord(ret)
 
     def recovl(self, other, ins_inflate=True):
