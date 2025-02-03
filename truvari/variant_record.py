@@ -606,7 +606,11 @@ class VariantRecord:
             into_samples = list(range(len(take_samples)))
         for t, i in zip(take_samples, into_samples):
             for k, v in self.samples[t].items():
-                ret.samples[i][k] = v
+                try:
+                    ret.samples[i][k] = v
+                except TypeError:
+                    # Somtimes they're supposed to be tuples.
+                    pass
         return VariantRecord(ret)
 
     def recovl(self, other, ins_inflate=True):
