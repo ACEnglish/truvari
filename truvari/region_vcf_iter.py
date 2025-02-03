@@ -218,14 +218,17 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
     The region associated with the entry can be retuned also when using with_region.
     with_region returns (entry, (chrom, Interval))
     """
-    chroms = sorted(tree.keys())
+    if not inside:
+        chroms = sorted(list(vcf.header.contigs))
+    else:
+        chroms = sorted(tree.keys())
     ret_type = (lambda x, y, z: (x, (y, z))
                 ) if with_region else (lambda x, y, z: x)
     for chrom in chroms:
         cur_tree = deque(sorted(tree[chrom]))
         try:
             cur_intv = cur_tree.popleft()
-        except IndexError:
+        except (IndexError, KeyError):
             # region-less chromosome
             if not inside:
                 try:
