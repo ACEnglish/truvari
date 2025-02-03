@@ -225,8 +225,8 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
     ret_type = (lambda x, y, z: (x, (y, z))
                 ) if with_region else (lambda x, y, z: x)
     for chrom in chroms:
-        cur_tree = deque(sorted(tree[chrom]))
         try:
+            cur_tree = deque(sorted(tree[chrom]))
             cur_intv = cur_tree.popleft()
         except (IndexError, KeyError):
             # region-less chromosome
