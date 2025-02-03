@@ -95,7 +95,7 @@ def grpaf_main(cmd_args):
 
     # setup masks
     vcf_samples = pd.Series(list(in_vcf.header.samples))
-    groups = pd.read_csv(args.labels, sep='\t', names=["sample", "group"])
+    groups = pd.read_csv(args.labels, sep='\t', names=["sample", "group"], dtype=str)
     presence = groups["sample"].isin(vcf_samples)
     if args.strict and not presence.all():
         logging.error("Samples in --labels not in VCF header")
