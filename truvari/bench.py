@@ -70,7 +70,7 @@ def parse_args(args):
     thresg.add_argument("-N", "--no-decompose", action="store_false",
                         help="Disallow symbolic variant decomposition to BNDs")
     thresg.add_argument("-m", "--max-resolve", type=int, default=defaults.max_resolve,
-                        help="Maximum size of variant to attempt to sequence resolve ($(default)s)")
+                        help="Maximum size of variant to attempt to sequence resolve (%(default)s)")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,

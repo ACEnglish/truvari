@@ -7,47 +7,60 @@ Basic
 -----
 After making a `bench` result:
 ```bash
-truvari bench -b base.vcf.gz -c comp.vcf.gz -o result/
+truvari bench -b base.vcf.gz -c comp.vcf.gz -f ref.fa -o result/
 ```
 Use `refine` on the `result/`
 ```bash
-truvari refine -r subset.bed -f ref.fa result/
+truvari refine result/
 ```
 
-The regions spanned by `subset.bed` should be shorter and focused around the breakpoints of putative FNs/FPs. Haplotypes from these boundaries are fed into a realignment procedure which can take an extremely long time on e.g entire chromosomes. Also, the genotypes within these regions must be phased.
-
-Whole genome
-------------
-After making a `bench` result:
-```bash
-truvari bench -b base.vcf.gz -c comp.vcf.gz --includebed hc_regions.bed -o result/
-```
-Use `refine` on the `result/` analyzing only the regions with putative FP/FN that would benefit from harmonization
-```bash
-truvari refine -R -U -f ref.fa --regions result/candidate.refine.bed result/
-```
-
-Tandem Repeats
---------------
-For benchmarks such as the [GIAB TR](https://www.biorxiv.org/content/10.1101/2023.10.29.564632v1), a TR caller may analyze a different subset of regions. In order to avoid unnecessarily penalizing the performance with FNs from unanalyzed regions:
-
-```bash
-truvari bench -b base.vcf.gz -c comp.vcf.gz --includebed hc_regions.bed -o result/
-```
-
-Use `refine` on the `result/` analyzing only the `hc_regions.bed` covered by the TR caller's `tool_regions.bed`
-```
-truvari refine -f ref.fa --regions tool_regions.bed result/
-```
+Optionally, you may automatically hook into refine via `truvari bench --refine ...`.
 
 Output
 ======
-* `refine.variant_summary.json` - result of re-evaluating calls within the specified regions. Same structure as [[summary.json|bench#summaryjson]]
-* `refine.regions.txt` - Tab-delimited file with per-region variant counts
+* `refine.base.vcf.gz` - ga4gh refinement result with keys such as FORMAT/BD annotating TP/FN/FP from the baseline variants.
+* `refine.comp.vcf.gz - ga4gh refinement result with keys such as FORMAT/BD annotating TP/FN/FP from the comparison variants.
+* `refine.variant_summary.json` - result with nearly the same structure as [[summary.json|bench#summaryjson]]
+* `refine.regions.txt` - Tab-delimited file with variant counts of refined regions
 * `refine.region_summary.json` - Per-region performance metrics
 * `phab_bench/` - Bench results on the subset of variants harmonized
 
-To see an example output, look at [test data](https://github.com/ACEnglish/truvari/tree/develop/answer_key/refine/refine_output_one)
+To see an example output, look at [test data](https://github.com/ACEnglish/truvari/tree/develop/answer_key/refine/refine_output_three)
+
+Recounting Variants
+===================
+
+`refine` will try to turn FN and FP variants into TP variants. It does this by running `phab` to harmonize variant representations and then rerunning `bench`. In order for an originally FN/FP variant to become TP, all variants in the `phab` harmonized region must become TP. Otherwise, variants are left with their original `bench` state.
+
+The option `--write-phab` will ignore the original variant representations and will count/write the `phab` harmonized variant representations. Note that this may cause some variants to split/combine in such a manner that the variant counts will shift. For example, two technical replicate comparison variants benchmarked against the same baseline with `refine --write-phab` my end up with different "base cnt" SVs.
+
+`--align`
+=========
+By default, Truvari will make the haplotypes and use an external call `mafft` to perform a multiple sequence alignment between them and the reference to harmonize the variants. While this is the most accurate alignment technique, it isn't fast. If you're willing to sacrifice some accuracy for a huge speed increase, you can use `--align wfa`, which also doesn't require an external tool. Another option is `--align poa` which performs a partial order alignment which is faster than mafft but less accurate and slower than wfa but more accurate. However, `poa` appears to be non-deterministic which is not ideal for some benchmarking purposes.
+
+`--use-original-vcfs`
+=====================
+
+By default, `refine` will use the base/comparison variants from the `bench` results `tp-base.vcf.gz`, `fn.vcf.gz`, `tp-comp.vcf.gz`, and `fp.vcf.gz` as input for `phab`. However, this contains a filtered subset of variants originally provided to `bench` since it removes variants e.g. below `--sizemin` or not `--passonly`. 
+
+With the `--use-original-vcfs` parameter, all of the original calls from the input vcfs are fetched. This parameter is useful in recovering matches in situations when variants in one call set are split into two variants which are smaller than the minimum size analyzed by `bench`. For example, imagine a base VCF with a 20bp DEL, a comp VCF with two 10bp DEL, and `bench --sizemin 20` was used. `--use-original-vcfs` will consider the two 10bp comp variants during phab harmonization with the 20bp base DEL.
+
+`--regions`
+===========
+
+This parameter specifies which regions to re-evaluate. If this is not provided, the original `bench` result's `candidate.refine.bed` is used. 
+
+Note that the larger these regions are the slower MAFFT (used by `phab`) will run. 
+
+`--coords`
+==========
+
+The default of, `refine --coords R` will harmonize the bed file coordinates in `--regions` ± `--buffer` base-pairs. If the original `bench --includebed` has coordinates which span the regions that should be harmonized (as is the case in the GIABTR benchmark), then `--coords O` should be used.
+
+`--subset`
+==========
+
+By default, refine will still count all variants from the original `bench` results. One may count/report only the variants that are part of the `refine --regions` (default candidate.refine.bed) by specifying `--subset`. This is useful for situations such as the TR benchmarking where the set of regions analyzed by a tool isn't equal to the set of variants inside the benchmark.  In this case, we only want to benchmark the regions that are both in the benchmark and analyzed by the tool, therefore we use `--subset`.
 
 Using `refine.regions.txt`
 ==========================
@@ -60,13 +73,14 @@ Using `refine.regions.txt`
 | in_tp             | Input's True Positive comparison count  |
 | in_fp             | Input's false positive count            |
 | in_fn             | Input's false negative count            |
-| refined           | Boolean for if region was re-evaluated  |
+| refined           | Boolean for if region was refined       |
 | out_tpbase        | Output's true positive base count       |
 | out_tp            | Output's true positive comparison count |
 | out_fn            | Outputs false positive count            |
 | out_fp            | Output's false negative count           |
 | state             | True/False state of the region          |
 
+Note that the `out_*` holds variants counts either from the `phab` harmonized variants when `refined == True` or will be equal to their `in_*` counterpart for regions which were not refined.
 
 Performance by Regions
 ======================
@@ -109,34 +123,3 @@ These by-region state counts are summarized and written to `refine.region_summar
 | UND    | Regions without an undetermined state        |                                 |
 
 Even though PPV is synonymous with precision, we use these abbreviated names when dealing with per-region performance in order to help users differentiate from the by-variant performance reports.
-
-`--align`
-=========
-By default, Truvari will make the haplotypes and use an external call `mafft` to perform a multiple sequence alignment between them and the reference to harmonize the variants. While this is the most accurate alignment technique, it isn't fast. If you're willing to sacrifice some accuracy for a huge speed increase, you can use `--align wfa`, which also doesn't require an external tool. Another option is `--align poa` which performs a partial order alignment which is faster than mafft but less accurate and slower than wfa but more accurate. However, `poa` appears to be non-deterministic which is not ideal for some benchmarking purposes.
-
-`--use-original-vcfs`
-=====================
-
-By default, `refine` will use the base/comparison variants from the `bench` results `tp-base.vcf.gz`, `fn.vcf.gz`, `tp-comp.vcf.gz`, and `fp.vcf.gz` as input for `phab`. However, this contains a filtered subset of variants originally provided to `bench` since it removes variants e.g. below `--sizemin` or not `--passonly`. 
-
-With the `--use-original-vcfs` parameter, all of the original calls from the input vcfs are fetched. This parameter is useful in recovering matches in situations when variants in one call set are split into two variants which are smaller than the minimum size analyzed by `bench`. For example, imagine a base VCF with a 20bp DEL, a comp VCF with two 10bp DEL, and `bench --sizemin 20` was used. `--use-original-vcfs` will consider the two 10bp comp variants during phab harmonization with the 20bp base DEL.
-
-
-`--regions`
-===========
-
-This parameter specifies which regions to re-evaluate. If this is not provided, the original `bench` result's `--includebed` is used. If both `--regions` and `--includebed` are provided, the `--includebed` is subset to only those intersecting `--regions`.
-
-This parameter is helpful for cases when the `--includebed` is not the same set of regions that a caller analyzes. For example, if a TR caller only discovers short tandem repeats (STR), but a benchmark has TRs of all lengths, it isn't useful to benchmark against the non-STR variants. Therefore, you can run `bench` on the full benchmark's regions (`--includebed`), and automatically subset to only the regions analyzed by the caller with `refine --regions`.
-
-Note that the larger these regions are the slower MAFFT (used by `phab`) will run. Also, when performing the intersection as described above, there may be edge effects in the reported `refine.variant_summary.json`. For example, if a `--region` partially overlaps an `--includebed` region, you may not be analyzing a subset of calls looked at during the original `bench` run. Therefore, the `*summary.json` should be compared with caution.
-
-`--use-region-coords`
-=====================
-
-When intersecting `--includebed` with `--regions`, use `--regions` coordinates. By default, `refine` will prefer the `--includebed` coordinates. However, the region's coordinates should be used when using the `candidates.refine.bed` to limit analysis to only the regions with putative FP/FN that would benefit from harmonization - for example, when performing whole genome benchmarking.
-
-`--reference`
-=============
-
-By default, the reference is pulled from the original `bench` result's `params.json`. If a reference wasn't used with `bench`, it must be specified with `refine` as it's used by `phab` to realign variants.

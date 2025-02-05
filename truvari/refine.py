@@ -255,7 +255,7 @@ def parse_args(args):
                         help="Indexed fasta used to call variants (optional if bench -f was used)")
     parser.add_argument("-r", "--regions", default=None,
                         help="Regions to refine (candidate.refine.bed)")
-    parser.add_argument("-c", "--coords", choices=['R', 'O'], default='reg',
+    parser.add_argument("-c", "--coords", choices=['R', 'O'], default='R',
                         help="Which bed file coordinates to use, Regions or includebed Original (%(default)s)")
     parser.add_argument("-S", "--subset", action="store_true",
                         help="Only report metrics from the refined regions")
