@@ -26,12 +26,12 @@ Each sub-command contains help documentation. Start with `truvari -h` to see ava
 
 The current most common Truvari use case is for structural variation benchmarking:
 ```
-  truvari bench -b base.vcf.gz -c comp.vcf.gz -o output_dir/
+  truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fa -o output_dir/
 ```
 
 Find more matches by harmonizing phased varians using refine:
 ```
-   truvari refine -R -U -r reference.fa --regions output_dir/candidate.refine.bed output_dir/
+   truvari refine output_dir/
 ```
 
 Use Truvari's comparison engine to consolidate redundant variants in a merged multi-sample VCF:
