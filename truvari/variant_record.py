@@ -690,7 +690,7 @@ class VariantRecord:
 
         return True
 
-    def same_type(self, other, dup_to_ins=False):
+    def same_type(self, other):
         """
         Check if self.var_type() == other.var_type() with extra handling for dup-to-ins
 
@@ -704,9 +704,9 @@ class VariantRecord:
         """
         a_type = self.var_type()
         b_type = other.var_type()
-        if dup_to_ins and a_type == truvari.SV.DUP:
+        if self.params.dup_to_ins and a_type == truvari.SV.DUP:
             a_type = truvari.SV.INS
-        if dup_to_ins and b_type == truvari.SV.DUP:
+        if self.params.dup_to_ins and b_type == truvari.SV.DUP:
             b_type = truvari.SV.INS
         return a_type == b_type
 
