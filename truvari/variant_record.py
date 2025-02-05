@@ -710,7 +710,7 @@ class VariantRecord:
             b_type = truvari.SV.INS
         return a_type == b_type
 
-    def seqsim(self, other, roll=True):
+    def seqsim(self, other):
         """
         Calculate sequence similarity of two entries. If reference is not None,
         compare their shared reference context. Otherwise, use the unroll technique.
@@ -741,7 +741,7 @@ class VariantRecord:
         b_seq = b_seq.upper()
         st_dist, ed_dist = self.distance(other)
 
-        if not roll or st_dist == 0 or ed_dist == 0:
+        if not self.params.no_roll or st_dist == 0 or ed_dist == 0:
             return truvari.seqsim(a_seq, b_seq)
 
         # Return best of rolled, unrolled from both ends, and direct similarity
