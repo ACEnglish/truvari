@@ -1,5 +1,5 @@
-# Truvari 5.1.0
-*February 2, 2025*
+# Truvari 5.1.1
+*in progress*
 
 * `bench`
   *  new automatic hook into the refine step via `truvari bench --refine`
