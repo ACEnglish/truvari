@@ -650,56 +650,65 @@ def pick_ac_matches(match_matrix):
     match_matrix = np.ravel(match_matrix)
     match_matrix.sort()
     used_comp = Counter()
+    written_comp = defaultdict(bool)
     used_base = Counter()
+    written_base = defaultdict(bool)
+
+    # Make a pass for TPs only
     for match in match_matrix[::-1]:
-        # No more matches to find
-        if base_cnt == 0 and comp_cnt == 0:
-            break
+        if not match.state:
+            continue
+
         b_key = str(match.base)
         c_key = str(match.comp)
-        # This is a trick
+
         base_is_used = used_base[b_key] >= match.base_gt_count
         comp_is_used = used_comp[c_key] >= match.comp_gt_count
-        # Only write the comp (FP)
-        if base_cnt == 0 and not comp_is_used:
+        if base_is_used or comp_is_used:
+            match.state = False
+            match.multi = True
+            continue
+
+        # How often this variant has been used is updated
+        used_comp[c_key] += match.base_gt_count
+        used_base[b_key] += match.comp_gt_count
+
+        # Only write once
+        if not written_comp[c_key]:
+            written_comp[c_key] = True
             to_process = copy.copy(match)
             to_process.base = None
-            to_process.multi = to_process.state
-            to_process.state = False
-            comp_cnt -= 1
-            if used_comp[c_key] == 0:  # Only write as F if it hasn't been a T
-                ret.append(to_process)
-            used_comp[c_key] = 9
-        # Only write the base (FN)
-        elif comp_cnt == 0 and not base_is_used:
+            ret.append(to_process)
+        if not written_base[b_key]:
+            written_base[b_key] = True
             to_process = copy.copy(match)
             to_process.comp = None
-            to_process.multi = to_process.state
-            to_process.state = False
-            base_cnt -= 1
-            if used_base[b_key] == 0:  # Only write as F if it hasn't been a T
-                ret.append(to_process)
-            used_base[b_key] = 9
-        # Write both (any state)
-        elif not base_is_used and not comp_is_used:
+            ret.append(to_process)
+
+    # Make a pass for all remaining FP/FNs
+    for match in match_matrix[::-1]:
+        if match.state:
+            continue
+
+        b_key = str(match.base)
+        c_key = str(match.comp)
+
+        # Only write once
+        if not written_comp[c_key]:
+            written_comp[c_key] = True
             to_process = copy.copy(match)
-            # Don't write twice
-            if used_base[b_key] != 0:
-                to_process.base = None
-            if used_comp[c_key] != 0:
-                to_process.comp = None
+            to_process.base = None
+            ret.append(to_process)
 
-            used_base[b_key] += match.comp_gt_count
-            used_comp[c_key] += match.base_gt_count
-            # All used up
-            if used_base[b_key] >= match.base_gt_count:
-                base_cnt -= 1
-            if used_comp[c_key] >= match.comp_gt_count:
-                comp_cnt -= 1
+        if not written_base[b_key]:
+            written_base[b_key] = True
+            to_process = copy.copy(match)
+            to_process.comp = None
+            ret.append(to_process)
 
-            # Safety edge case check
-            if to_process.base is not None or to_process.comp is not None:
-                ret.append(to_process)
+        if len(written_comp) >= comp_cnt and len(written_base) >= base_cnt:
+            break
+
     return ret
 
 

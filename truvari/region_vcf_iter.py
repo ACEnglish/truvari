@@ -211,6 +211,7 @@ def region_filter_fetch(vcf, tree, with_region=False):
                                 chrom, vcf.filename)
 
 
+# pylint: disable=too-many-statements
 def region_filter_stream(vcf, tree, inside=True, with_region=False):
     """
     Given a VariantRecord iter and defaultdict(IntervalTree),
