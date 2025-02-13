@@ -337,6 +337,9 @@ def refine_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
+    if args.align == 'mafft' and not args.use_original_vcfs:
+        logging.warning("--align poa works better than mafft when not --use-original-vcfs")
+
     params = check_params(args)
     truvari.setup_logging(args.debug,
                           truvari.LogFileStderr(os.path.join(
