@@ -296,7 +296,7 @@ def check_params(args):
     elif args.reference is None:
         args.reference = params["reference"]
 
-    if not os.path.exists(args.reference):
+    if args.reference is not None and not os.path.exists(args.reference):
         check_fail = True
         logging.error("Reference %s does not exist", args.reference)
 
