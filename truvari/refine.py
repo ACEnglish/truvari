@@ -343,9 +343,6 @@ def refine_main(cmdargs):
                               args.benchdir, "refine.log.txt")),
                           show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
-    if args.align == 'mafft' and not args.use_original_vcfs:
-        logging.warning("--align poa works better than mafft when not --use-original-vcfs")
-
 
     # Stratify.
     regions = initial_stratify(args.benchdir,
