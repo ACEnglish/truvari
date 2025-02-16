@@ -1,6 +1,6 @@
-2025-01-30 22:47:16,962 [INFO] Truvari v5.0.1.dev0+664fd5b
-2025-01-30 22:47:16,963 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
-2025-01-30 22:47:16,964 [INFO] Params:
+2025-02-16 22:44:28,882 [INFO] Truvari v5.2.1.dev0+ec2fc3c.uc
+2025-02-16 22:44:28,883 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp2.vcf.gz --sizemax 1000000000 -p 0 --pick multi -o test_results/bench_bnd_decomp/
+2025-02-16 22:44:28,884 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/bnd.comp2.vcf.gz",
@@ -36,19 +36,19 @@
     "skip_gt": false,
     "max_resolve": 25000
 }
-2025-01-30 22:47:17,047 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-30 22:47:38,251 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
-2025-01-30 22:47:38,252 [INFO] 20660 chunks of 30098 variants Counter({'comp': 29902, 'base': 195, '__filtered': 1})
-2025-01-30 22:47:42,922 [INFO] Stats: {
+2025-02-16 22:44:28,971 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-02-16 22:44:50,577 [INFO] Zipped 30098 variants Counter({'comp': 29902, 'base': 196})
+2025-02-16 22:44:50,577 [INFO] 20660 chunks of 30098 variants Counter({'comp': 29902, 'base': 195, '__filtered': 1})
+2025-02-16 22:44:55,998 [INFO] Stats: {
     "TP-base": 152,
     "TP-comp": 131,
-    "FP": 28401,
+    "FP": 29558,
     "FN": 43,
-    "precision": 0.004591336043740362,
+    "precision": 0.004412408636195224,
     "recall": 0.7794871794871795,
-    "f1": 0.009128901026932595,
+    "f1": 0.008775144201329448,
     "base cnt": 195,
-    "comp cnt": 28532,
+    "comp cnt": 29689,
     "TP-comp_TP-gt": 1,
     "TP-comp_FP-gt": 130,
     "TP-base_TP-gt": 1,
@@ -79,4 +79,4 @@
         }
     }
 }
-2025-01-30 22:47:42,923 [INFO] Finished bench
+2025-02-16 22:44:55,999 [INFO] Finished bench

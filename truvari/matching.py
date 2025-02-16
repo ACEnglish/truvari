@@ -166,7 +166,6 @@ def chunker(params, *files):
     cur_end = 0
     cur_chunk = defaultdict(list)
     reference = pysam.FastaFile(params.reference) if params.reference is not None else None
-
     for key, entry in file_zipper(*files):
         if entry.filter_call(key == 'base'):
             cur_chunk['__filtered'].append(entry)

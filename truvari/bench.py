@@ -385,7 +385,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif match.comp.var_size() >= self.m_params.sizemin:
+            elif match.comp.var_size() >= self.m_params.sizemin or match.comp.is_bnd():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1

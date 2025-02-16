@@ -1,6 +1,6 @@
-2025-01-29 01:41:34,415 [INFO] Truvari v5.0.1.dev0+24859cf.uc
-2025-01-29 01:41:34,416 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
-2025-01-29 01:41:34,418 [INFO] Params:
+2025-02-16 22:44:26,757 [INFO] Truvari v5.2.1.dev0+ec2fc3c.uc
+2025-02-16 22:44:26,758 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
+2025-02-16 22:44:26,759 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
     "comp": "/data/repo_utils/test_files/variants/bnd.comp.vcf.gz",
@@ -36,19 +36,19 @@
     "skip_gt": false,
     "max_resolve": 25000
 }
-2025-01-29 01:41:34,484 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-01-29 01:41:34,766 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
-2025-01-29 01:41:34,767 [INFO] 226 chunks of 439 variants Counter({'comp': 243, 'base': 195, '__filtered': 1})
-2025-01-29 01:41:34,907 [INFO] Stats: {
+2025-02-16 22:44:26,818 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2025-02-16 22:44:27,079 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
+2025-02-16 22:44:27,080 [INFO] 226 chunks of 439 variants Counter({'comp': 243, 'base': 195, '__filtered': 1})
+2025-02-16 22:44:27,201 [INFO] Stats: {
     "TP-base": 120,
     "TP-comp": 120,
-    "FP": 102,
+    "FP": 123,
     "FN": 75,
-    "precision": 0.5405405405405406,
+    "precision": 0.49382716049382713,
     "recall": 0.6153846153846154,
-    "f1": 0.5755395683453237,
+    "f1": 0.547945205479452,
     "base cnt": 195,
-    "comp cnt": 222,
+    "comp cnt": 243,
     "TP-comp_TP-gt": 100,
     "TP-comp_FP-gt": 20,
     "TP-base_TP-gt": 100,
@@ -68,4 +68,4 @@
         }
     }
 }
-2025-01-29 01:41:34,908 [INFO] Finished bench
+2025-02-16 22:44:27,202 [INFO] Finished bench
