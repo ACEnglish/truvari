@@ -690,7 +690,7 @@ class VariantRecord:
 
         return True
 
-    def same_type(self, other, dup_to_ins=False):
+    def same_type(self, other):
         """
         Check if self.var_type() == other.var_type() with extra handling for dup-to-ins
 
@@ -704,13 +704,13 @@ class VariantRecord:
         """
         a_type = self.var_type()
         b_type = other.var_type()
-        if dup_to_ins and a_type == truvari.SV.DUP:
+        if self.params.dup_to_ins and a_type == truvari.SV.DUP:
             a_type = truvari.SV.INS
-        if dup_to_ins and b_type == truvari.SV.DUP:
+        if self.params.dup_to_ins and b_type == truvari.SV.DUP:
             b_type = truvari.SV.INS
         return a_type == b_type
 
-    def seqsim(self, other, roll=True):
+    def seqsim(self, other):
         """
         Calculate sequence similarity of two entries. If reference is not None,
         compare their shared reference context. Otherwise, use the unroll technique.
@@ -741,7 +741,7 @@ class VariantRecord:
         b_seq = b_seq.upper()
         st_dist, ed_dist = self.distance(other)
 
-        if not roll or st_dist == 0 or ed_dist == 0:
+        if not self.params.no_roll or st_dist == 0 or ed_dist == 0:
             return truvari.seqsim(a_seq, b_seq)
 
         # Return best of rolled, unrolled from both ends, and direct similarity

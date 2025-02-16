@@ -2,7 +2,7 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v5.0.0)](https://github.com/ACEnglish/truvari/compare/v5.0.0...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v5.1.1)](https://github.com/ACEnglish/truvari/compare/v5.1.1...develop)
 [![Downloads](https://static.pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
@@ -26,12 +26,12 @@ Each sub-command contains help documentation. Start with `truvari -h` to see ava
 
 The current most common Truvari use case is for structural variation benchmarking:
 ```
-  truvari bench -b base.vcf.gz -c comp.vcf.gz -o output_dir/
+  truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fa -o output_dir/
 ```
 
 Find more matches by harmonizing phased varians using refine:
 ```
-   truvari refine -R -U -r reference.fa --regions output_dir/candidate.refine.bed output_dir/
+   truvari refine output_dir/
 ```
 
 Use Truvari's comparison engine to consolidate redundant variants in a merged multi-sample VCF:

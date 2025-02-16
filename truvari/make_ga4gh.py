@@ -315,4 +315,6 @@ def make_ga4gh_main(args):
                         pull_refine=args.no_refine,
                         write_phab=args.write_phab)
     logging.info("Stats: %s", json.dumps(output.stats, indent=4))
+    with open(args.output + '.summary.json' ,'w') as fout:
+        json.dump(output.stats, fout, indent=4)
     logging.info("Finished")

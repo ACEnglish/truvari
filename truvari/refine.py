@@ -241,7 +241,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
-    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
                         help="Alignment method for phab (%(default)s)")
     parser.add_argument("-u", "--use-original-vcfs", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
@@ -296,7 +296,7 @@ def check_params(args):
     elif args.reference is None:
         args.reference = params["reference"]
 
-    if not os.path.exists(args.reference):
+    if args.reference is not None and not os.path.exists(args.reference):
         check_fail = True
         logging.error("Reference %s does not exist", args.reference)
 

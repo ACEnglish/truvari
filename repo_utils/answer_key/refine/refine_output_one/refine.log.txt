@@ -1,9 +1,9 @@
-2025-02-02 06:13:50,924 [INFO] Truvari v5.0.1.dev0+aef4e1a.uc
-2025-02-02 06:13:50,924 [INFO] Command /data/truvari/__main__.py refine --write-phab --coords O --buffer 100 --use-original-vcfs -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_one
-2025-02-02 06:13:50,925 [INFO] Params:
+2025-02-16 01:48:25,954 [INFO] Truvari v5.1.1
+2025-02-16 01:48:25,954 [INFO] Command /data/truvari/__main__.py refine --write-phab --coords O --use-original-vcfs -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_one
+2025-02-16 01:48:25,956 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_one",
-    "align": "mafft",
+    "align": "poa",
     "use_original_vcfs": true,
     "write_phab": true,
     "threads": 4,
@@ -15,19 +15,30 @@
     "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2025-02-02 06:13:50,925 [INFO] Setting up regions
-2025-02-02 06:13:50,941 [INFO] Evaluating 225 regions
-2025-02-02 06:13:50,942 [INFO] Extending the regions by 100 bases
-2025-02-02 06:13:50,979 [INFO] Found 1 chromosomes with overlapping regions
-2025-02-02 06:13:51,987 [INFO] 75 regions to be refined
-2025-02-02 06:13:51,997 [WARNING] Harmonizing variants ≥50kbp is not recommended
-2025-02-02 06:13:51,998 [INFO] Preparing regions
-2025-02-02 06:13:52,006 [INFO] Extracting haplotypes
-2025-02-02 06:13:53,095 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-02 06:13:53,099 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-02 06:13:53,110 [INFO] Harmonizing variants
-2025-02-02 06:13:55,109 [INFO] Running bench
-2025-02-02 06:13:55,134 [INFO] Including 75 bed regions
-2025-02-02 06:13:57,321 [INFO] Zipped 4134 variants Counter({'base': 2067, 'comp': 2067})
-2025-02-02 06:13:57,322 [INFO] 76 chunks of 4134 variants Counter({'__filtered': 3405, 'comp': 366, 'base': 363})
-2025-02-02 06:13:58,488 [INFO] Finished refine
+2025-02-16 01:48:25,956 [INFO] Setting up regions
+2025-02-16 01:48:25,970 [INFO] Evaluating 225 regions
+2025-02-16 01:48:25,971 [INFO] Extending the regions by 100 bases
+2025-02-16 01:48:26,011 [INFO] Found 1 chromosomes with overlapping regions
+2025-02-16 01:48:27,023 [INFO] 75 regions to be refined
+2025-02-16 01:48:27,034 [WARNING] Harmonizing variants ≥50kbp is not recommended
+2025-02-16 01:48:27,035 [INFO] Preparing regions
+2025-02-16 01:48:27,043 [INFO] Extracting haplotypes
+2025-02-16 01:48:28,113 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:28,116 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:28,130 [INFO] Harmonizing variants
+2025-02-16 01:48:30,259 [INFO] Running bench
+2025-02-16 01:48:30,288 [INFO] Including 75 bed regions
+2025-02-16 01:48:32,225 [INFO] Zipped 4226 variants Counter({'base': 2113, 'comp': 2113})
+2025-02-16 01:48:32,226 [INFO] 77 chunks of 4226 variants Counter({'__filtered': 3575, 'comp': 329, 'base': 322})
+2025-02-16 01:48:33,331 [INFO] Stats: {
+    "TP-base": 555,
+    "TP-comp": 555,
+    "FP": 20,
+    "FN": 2,
+    "precision": 0.9652173913043478,
+    "recall": 0.9964093357271095,
+    "f1": 0.980565371024735,
+    "base cnt": 557,
+    "comp cnt": 575
+}
+2025-02-16 01:48:33,332 [INFO] Finished refine
