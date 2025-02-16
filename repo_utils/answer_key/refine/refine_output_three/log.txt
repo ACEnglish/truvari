@@ -1,6 +1,6 @@
-2025-02-03 00:52:06,929 [INFO] Truvari v5.1.0
-2025-02-03 00:52:06,930 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
-2025-02-03 00:52:06,930 [INFO] Params:
+2025-02-16 01:48:46,734 [INFO] Truvari v5.1.1
+2025-02-16 01:48:46,735 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
+2025-02-16 01:48:46,736 [INFO] Params:
 {
     "base": "/data/repo_utils/test_files/refine_data/hg002_base.vcf.gz",
     "comp": "/data/repo_utils/test_files/refine_data/hg002_comp.vcf.gz",
@@ -36,10 +36,10 @@
     "skip_gt": false,
     "max_resolve": 25000
 }
-2025-02-03 00:52:06,974 [INFO] Including 225 bed regions
-2025-02-03 00:52:10,396 [INFO] Zipped 7157 variants Counter({'comp': 5302, 'base': 1855})
-2025-02-03 00:52:10,397 [INFO] 211 chunks of 7157 variants Counter({'__filtered': 6137, 'base': 569, 'comp': 451})
-2025-02-03 00:52:10,500 [INFO] Stats: {
+2025-02-16 01:48:46,783 [INFO] Including 225 bed regions
+2025-02-16 01:48:50,423 [INFO] Zipped 7157 variants Counter({'comp': 5302, 'base': 1855})
+2025-02-16 01:48:50,424 [INFO] 211 chunks of 7157 variants Counter({'__filtered': 6137, 'base': 569, 'comp': 451})
+2025-02-16 01:48:50,541 [INFO] Stats: {
     "TP-base": 387,
     "TP-comp": 387,
     "FP": 64,
@@ -71,13 +71,13 @@
         }
     }
 }
-2025-02-03 00:52:10,500 [INFO] Finished bench
-2025-02-03 00:52:10,509 [INFO] Truvari v5.1.0
-2025-02-03 00:52:10,511 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
-2025-02-03 00:52:10,512 [INFO] Params:
+2025-02-16 01:48:50,542 [INFO] Finished bench
+2025-02-16 01:48:50,551 [INFO] Truvari v5.1.1
+2025-02-16 01:48:50,552 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/refine_data/hg002_base.vcf.gz -c repo_utils/test_files/refine_data/hg002_comp.vcf.gz --includebed repo_utils/test_files/refine_data/h1_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz -s 5 -o test_results/refine_output_three --refine
+2025-02-16 01:48:50,553 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_three",
-    "align": "mafft",
+    "align": "poa",
     "use_original_vcfs": false,
     "write_phab": false,
     "threads": 4,
@@ -89,29 +89,29 @@
     "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2025-02-03 00:52:10,513 [INFO] Setting up regions
-2025-02-03 00:52:10,546 [INFO] 82 --regions reduced to 82 after intersecting with 225 from --includebed
-2025-02-03 00:52:10,547 [INFO] Extending the regions by 100 bases
-2025-02-03 00:52:10,885 [INFO] 72 regions to be refined
-2025-02-03 00:52:10,891 [WARNING] Harmonizing variants ≥50kbp is not recommended
-2025-02-03 00:52:10,892 [INFO] Preparing regions
-2025-02-03 00:52:10,899 [INFO] Extracting haplotypes
-2025-02-03 00:52:11,228 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-03 00:52:11,231 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-03 00:52:11,240 [INFO] Harmonizing variants
-2025-02-03 00:52:26,723 [INFO] Running bench
-2025-02-03 00:52:26,746 [INFO] Including 72 bed regions
-2025-02-03 00:52:28,444 [INFO] Zipped 5070 variants Counter({'base': 2535, 'comp': 2535})
-2025-02-03 00:52:28,445 [INFO] 71 chunks of 5070 variants Counter({'__filtered': 4520, 'base': 290, 'comp': 260})
-2025-02-03 00:52:29,625 [INFO] Stats: {
-    "TP-base": 465,
-    "TP-comp": 411,
-    "FP": 40,
-    "FN": 104,
-    "precision": 0.9113082039911308,
-    "recall": 0.8172231985940246,
-    "f1": 0.861705149535365,
+2025-02-16 01:48:50,553 [INFO] Setting up regions
+2025-02-16 01:48:50,587 [INFO] 82 --regions reduced to 82 after intersecting with 225 from --includebed
+2025-02-16 01:48:50,588 [INFO] Extending the regions by 100 bases
+2025-02-16 01:48:50,947 [INFO] 72 regions to be refined
+2025-02-16 01:48:50,953 [WARNING] Harmonizing variants ≥50kbp is not recommended
+2025-02-16 01:48:50,954 [INFO] Preparing regions
+2025-02-16 01:48:50,962 [INFO] Extracting haplotypes
+2025-02-16 01:48:51,342 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:51,345 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:51,358 [INFO] Harmonizing variants
+2025-02-16 01:48:52,687 [INFO] Running bench
+2025-02-16 01:48:52,727 [INFO] Including 72 bed regions
+2025-02-16 01:48:54,465 [INFO] Zipped 4340 variants Counter({'base': 2170, 'comp': 2170})
+2025-02-16 01:48:54,466 [INFO] 74 chunks of 4340 variants Counter({'__filtered': 3806, 'base': 282, 'comp': 252})
+2025-02-16 01:48:55,604 [INFO] Stats: {
+    "TP-base": 477,
+    "TP-comp": 414,
+    "FP": 37,
+    "FN": 92,
+    "precision": 0.917960088691796,
+    "recall": 0.8383128295254832,
+    "f1": 0.876330451105298,
     "base cnt": 569,
     "comp cnt": 451
 }
-2025-02-03 00:52:29,625 [INFO] Finished refine
+2025-02-16 01:48:55,605 [INFO] Finished refine

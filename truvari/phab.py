@@ -407,8 +407,8 @@ def parse_args(args):
                         help="Output VCF")
     parser.add_argument("--buffer", type=int, default=100,
                         help="Number of reference bases before/after region to add to MSA (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
-                        help="Alignment method accurate (mafft), fast (wfa), medium (poa) (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
+                        help="Alignment method (%(default)s)")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--bSamples", type=str, default=None,

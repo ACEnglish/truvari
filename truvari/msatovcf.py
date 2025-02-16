@@ -140,7 +140,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> import truvari
         >>> from truvari.phab import fasta_reader
         >>> msa_dir = "repo_utils/test_files/external/fake_mafft/lookup/"
-        >>> msa_file = "fm_0c8572a4abbd43dfe7727d1bbe104e58.msa"
+        >>> msa_file = "fm_03ffe346bf2196b0ceebee5beb9a6acb.msa"
         >>> seqs = open(msa_dir + msa_file).read()
         >>> fasta = dict(fasta_reader(seqs))
         >>> m_entries_str = truvari.msa2vcf(fasta)

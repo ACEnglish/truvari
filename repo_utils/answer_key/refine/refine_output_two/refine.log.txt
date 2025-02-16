@@ -1,89 +1,43 @@
-2025-02-02 20:26:18,864 [INFO] Truvari v5.0.1.dev0+895b8e1.uc
-2025-02-02 20:26:18,865 [INFO] Command /data/truvari/__main__.py refine --buffer 101 --write-phab --use-original-vcfs --subset --regions repo_utils/test_files/refine_data/h2_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_two
-2025-02-02 20:26:18,866 [INFO] Params:
+2025-02-16 01:48:40,286 [INFO] Truvari v5.1.1
+2025-02-16 01:48:40,299 [INFO] Command /data/truvari/__main__.py refine --buffer 101 --write-phab --use-original-vcfs --subset --regions repo_utils/test_files/refine_data/h2_hc_tr_hg002.bed -f repo_utils/test_files/refine_data/chr20.fa.gz test_results/refine_output_two
+2025-02-16 01:48:40,300 [INFO] Params:
 {
     "benchdir": "test_results/refine_output_two",
-    "align": "mafft",
+    "align": "poa",
     "use_original_vcfs": true,
     "write_phab": true,
     "threads": 4,
     "buffer": 101,
     "reference": "repo_utils/test_files/refine_data/chr20.fa.gz",
     "regions": "repo_utils/test_files/refine_data/h2_hc_tr_hg002.bed",
-    "coords": "reg",
+    "coords": "R",
     "subset": true,
     "mafft_params": "--auto --thread 1",
     "debug": false
 }
-2025-02-02 20:26:18,867 [INFO] Setting up regions
-2025-02-02 20:26:18,916 [INFO] 225 --includebed reduced to 129 after intersecting with 247 from --regions
-2025-02-02 20:26:18,917 [INFO] Extending the regions by 101 bases
-2025-02-02 20:26:19,632 [INFO] 46 regions to be refined
-2025-02-02 20:26:19,642 [WARNING] Harmonizing variants ≥50kbp is not recommended
-2025-02-02 20:26:19,643 [INFO] Preparing regions
-2025-02-02 20:26:19,648 [INFO] Extracting haplotypes
-2025-02-02 20:26:19,854 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,864 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,882 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,891 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,898 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,906 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,921 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,930 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,942 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,956 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:19,997 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,025 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,035 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,039 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,041 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,045 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,055 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,063 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,067 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,070 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,075 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,082 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,093 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,104 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,114 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,126 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,135 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,140 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,146 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,155 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,160 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,164 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,167 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,170 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,173 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,177 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,181 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,186 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,195 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,200 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,206 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,214 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,223 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,245 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,258 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,286 [WARNING] Harmonizing unphased variants may have undesired behavior!!
-2025-02-02 20:26:20,344 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-02 20:26:20,347 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:888: CoverageWarning:No data was collected. (no-data-collected)
-2025-02-02 20:26:20,364 [INFO] Harmonizing variants
-2025-02-02 20:26:21,549 [INFO] Running bench
-2025-02-02 20:26:21,573 [INFO] Including 46 bed regions
-2025-02-02 20:26:22,984 [INFO] Zipped 2608 variants Counter({'base': 1304, 'comp': 1304})
-2025-02-02 20:26:22,985 [INFO] 47 chunks of 2608 variants Counter({'__filtered': 2111, 'comp': 249, 'base': 248})
-2025-02-02 20:26:23,721 [INFO] Stats: {
-    "TP-base": 247,
-    "TP-comp": 247,
+2025-02-16 01:48:40,322 [INFO] Setting up regions
+2025-02-16 01:48:40,371 [INFO] 247 --regions reduced to 129 after intersecting with 225 from --includebed
+2025-02-16 01:48:40,372 [INFO] Extending the regions by 101 bases
+2025-02-16 01:48:41,160 [INFO] 46 regions to be refined
+2025-02-16 01:48:41,171 [WARNING] Harmonizing variants ≥50kbp is not recommended
+2025-02-16 01:48:41,172 [INFO] Preparing regions
+2025-02-16 01:48:41,176 [INFO] Extracting haplotypes
+2025-02-16 01:48:41,902 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:41,905 [WARNING] /usr/local/lib/python3.10/dist-packages/coverage/control.py:892: CoverageWarning:No data was collected. (no-data-collected)
+2025-02-16 01:48:41,921 [INFO] Harmonizing variants
+2025-02-16 01:48:43,237 [INFO] Running bench
+2025-02-16 01:48:43,257 [INFO] Including 46 bed regions
+2025-02-16 01:48:44,462 [INFO] Zipped 2400 variants Counter({'base': 1200, 'comp': 1200})
+2025-02-16 01:48:44,463 [INFO] 48 chunks of 2400 variants Counter({'__filtered': 1985, 'comp': 208, 'base': 207})
+2025-02-16 01:48:45,078 [INFO] Stats: {
+    "TP-base": 206,
+    "TP-comp": 206,
     "FP": 2,
     "FN": 1,
-    "precision": 0.9919678714859438,
-    "recall": 0.9959677419354839,
-    "f1": 0.993963782696177,
-    "base cnt": 248,
-    "comp cnt": 249
+    "precision": 0.9903846153846154,
+    "recall": 0.9951690821256038,
+    "f1": 0.9927710843373494,
+    "base cnt": 207,
+    "comp cnt": 208
 }
-2025-02-02 20:26:23,722 [INFO] Finished refine
+2025-02-16 01:48:45,079 [INFO] Finished refine

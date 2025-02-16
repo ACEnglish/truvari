@@ -241,7 +241,7 @@ def parse_args(args):
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("benchdir", metavar="DIR",
                         help="Truvari bench directory")
-    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="mafft",
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
                         help="Alignment method for phab (%(default)s)")
     parser.add_argument("-u", "--use-original-vcfs", action="store_true",
                         help="Use original input VCFs instead of filtered tp/fn/fps")
@@ -337,15 +337,15 @@ def refine_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    if args.align == 'mafft' and not args.use_original_vcfs:
-        logging.warning("--align poa works better than mafft when not --use-original-vcfs")
-
     params = check_params(args)
     truvari.setup_logging(args.debug,
                           truvari.LogFileStderr(os.path.join(
                               args.benchdir, "refine.log.txt")),
                           show_version=True)
     logging.info("Params:\n%s", json.dumps(vars(args), indent=4))
+    if args.align == 'mafft' and not args.use_original_vcfs:
+        logging.warning("--align poa works better than mafft when not --use-original-vcfs")
+
 
     # Stratify.
     regions = initial_stratify(args.benchdir,
