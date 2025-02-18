@@ -85,7 +85,7 @@ class VariantParams():
         "bnddist": 100,
         "sizemin": 50,
         "sizefilt": 30,
-        "sizemax": -1,
+        "sizemax": 50000,
         "passonly": False,
         "no_ref": False,
         "pick": "single",

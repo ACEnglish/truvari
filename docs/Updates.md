@@ -1,5 +1,18 @@
-# Truvari 5.1.1
+# Truvari 5.2.1
 *in progress*
+
+* Fixed FP BNDs being dropped [details](https://github.com/ACEnglish/truvari/discussions/263). 
+
+# Truvari 5.2.0
+*February 16, 2025*
+
+* The default `--align` method for `phab` and `bench` switched to POA. See [discussion](https://github.com/ACEnglish/truvari/discussions/261) for details.
+* Fix bug in `--pick ac` where FN/FP variants were not being counted/output.
+* Fix `--dup-to-ins` Ticket [#258](https://github.com/ACEnglish/truvari/issues/258)
+* `ga4gh` now also writes a variant count summary json
+
+# Truvari 5.1.1
+*February 5, 2025*
 
 * `bench`
   *  new automatic hook into the refine step via `truvari bench --refine`

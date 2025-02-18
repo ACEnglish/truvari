@@ -149,13 +149,18 @@ Refining bench output
 =====================
 As described in the [[refine wiki|refine]], a limitation of Truvari bench is 1-to-1 variant comparison. However, `truvari refine` can harmonize the variants to give them more consistent representations. A bed file named `candidate.refine.bed` is created by `truvari bench` and holds a set of regions which may benefit from refinement. To use it, simply run
 ```bash
-truvari bench -b base.vcf.gz -c comp.vcf.gz -o result/
-truvari refine --regions result/candidate.refine.bed \
-               --reference reference.fasta \
-               --recount --use-region-coords \
-               result/
+truvari bench -b base.vcf.gz -c comp.vcf.gz --reference reference.fasta  -o result/
+truvari refine result/
 ```
-See [[refine wiki|refine]] for details.
+
+Refine has a few parameters detailed in the [[refine wiki|refine]]. But if you'd ike to run refinement automatically with defaults, you can simply use
+```bash
+truvari bench -b base.vcf.gz 
+     -c comp.vcf.gz 
+     --reference reference.fasta 
+     -o result/
+     --refine
+```
 
 Comparing Sequences of Variants
 ===============================
