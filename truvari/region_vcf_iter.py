@@ -233,6 +233,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
             # region-less chromosome
             if not inside:
                 try:
+                    cur_intv = None
                     for cur_entry in vcf.fetch(chrom):
                         yield ret_type(cur_entry, chrom, cur_intv)
                 except ValueError:
