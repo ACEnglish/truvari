@@ -7,8 +7,8 @@ import sys
 import shutil
 import logging
 import argparse
+import functools
 import multiprocessing
-from functools import partial
 from io import BytesIO, StringIO
 from collections import defaultdict
 
@@ -220,7 +220,7 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True, max_size=5
     all_haps = defaultdict(BytesIO)
     m_ref = pysam.FastaFile(ref_haps_fn)
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly, max_size=max_size)
+        to_call = functools.partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly, max_size=max_size)
         # Keep imap because determinism
         for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
             for location, fasta_entry in haplotypes.items():
@@ -232,7 +232,7 @@ def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True, max_size=5
                     all_haps[location] = cur.read()
         pool.close()
         pool.join()
-    return all_haps.values()
+    return all_haps.items()
 
 
 def expand_cigar(seq, ref, cigar):
@@ -258,6 +258,21 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
+def safe_align_method(func):
+    """
+    Decorator for safely calling the alignment method
+    """
+    @functools.wraps(func)
+    def wrapper(data):
+        name, seqbytes = data
+        try:
+            return func(seqbytes)
+        except Exception as e: #pylint: disable=broad-exception-caught
+            return f"ERROR: {name} {e}"
+    return wrapper
+
+
+@safe_align_method
 def run_wfa(seq_bytes):
     """
     Align haplotypes independently with WFA
@@ -277,6 +292,7 @@ def run_wfa(seq_bytes):
     return truvari.msa2vcf(fasta)
 
 
+@safe_align_method
 def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
@@ -301,6 +317,7 @@ def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
     return truvari.msa2vcf(fasta)
 
 
+@safe_align_method
 def run_poa(seq_bytes):
     """
     Run partial order alignment to create msa
@@ -313,6 +330,34 @@ def run_poa(seq_bytes):
     aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, False, True)
     return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
+
+
+
+def monitored_pool(method, haplotypes, fout, threads):
+    """
+    Create a pool of workers, monitor the results
+    """
+    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
+        results = []  # Store async result objects
+
+        # Step 1: Submit all jobs asynchronously
+        for haplotype in haplotypes:
+            result = pool.apply_async(method, (haplotype,))
+            results.append((haplotype[0], result))  # Store result for later retrieval
+
+        # Step 2: Retrieve results (this allows parallel execution)
+        for haplotype, result in results:
+            try:
+                output = result.get(timeout=30)  # Wait for each task to complete (or timeout)
+            except multiprocessing.TimeoutError:
+                output = "ERROR: Timeout occurred"
+            except Exception as e: #pylint: disable=broad-exception-caught
+                output = f"ERROR: {e}"
+
+            if isinstance(output, str) and output.startswith("ERROR:"):
+                logging.error(f"{output}")  # Log errors
+            else:
+                fout.write(output)
 
 
 # pylint: disable=too-many-arguments, too-many-locals
@@ -363,7 +408,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
 
     logging.info("Harmonizing variants")
     if method == "mafft":
-        align_method = partial(run_mafft, params=mafft_params)
+        align_method = functools.partial(run_mafft, params=mafft_params)
     elif method == "wfa":
         align_method = run_wfa
     else:
@@ -377,11 +422,7 @@ def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(samp_names) + "\n")
 
-        with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-            for result in pool.imap_unordered(align_method, haplotypes):
-                fout.write(result)
-            pool.close()
-            pool.join()
+        monitored_pool(align_method, haplotypes, fout, threads)
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 # pylint: enable=too-many-arguments, too-many-locals
