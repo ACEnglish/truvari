@@ -172,10 +172,7 @@ def check_sample(vcf_fn, sample_id=None):
     if sample_id is not None and sample_id not in vcf_file.header.samples:
         logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
         check_fail = True
-    if len(vcf_file.header.samples) == 0:
-        logging.error("No SAMPLE columns found in vcf (%s)", vcf_fn)
-        check_fail = True
-    if sample_id is None:
+    if len(vcf_file.header.samples) != 0 and sample_id is None:
         sample_id = vcf_file.header.samples[0]
     return check_fail, sample_id
 
@@ -771,7 +768,16 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
+    if args.bSample is None or args.cSample is None:
+        if args.refine:
+            sys.stderr.write("Cannot hook to `--refine` on VCFs without SAMPLE columns")
+            sys.exit(100)
+        skip_gt = True
+    else:
+        skip_gt = False
+
     params = truvari.VariantParams(args,
+                                   skip_gt=skip_gt,
                                    short_circuit=args.short,
                                    decompose=args.no_decompose)
 
