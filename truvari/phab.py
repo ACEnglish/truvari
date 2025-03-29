@@ -7,6 +7,7 @@ import sys
 import time
 import atexit
 import pickle
+import psutil
 import shutil
 import logging
 import argparse
@@ -139,25 +140,6 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
-def safe_align_method(job, func):
-    """
-    Wrapper safely calling the alignment method on a PhabJob or dictionary
-    Will then return a call to truvari.msa2vcf on the align method's result
-    Note, if the MSA fails, this return s a string "ERROR: {e}" instead of raising an exception
-    """
-    if isinstance(job, PhabJob):
-        work = job.build_haplotypes()
-    elif isinstance(job, dict):
-        work = job
-    else:
-        raise TypeError(f"Unknown job type {type(job)}")
-
-    try:
-        msa = func(work)
-    except Exception as e:  # pylint: disable=broad-exception-caught
-        return f"ERROR: {e}"
-
-    return truvari.msa2vcf(msa)
 
 def run_wfa(haplotypes, aligner=None):
     """
@@ -364,37 +346,93 @@ class PhabJob():
         return vcf_info.get_haplotypes(self.name)
 # pylint: enable=too-few-public-methods
 
+def safe_align_method(job, func, heartbeat_dict):
+    """
+    Wrapper safely calling the alignment method with heartbeat tracking.
+    Instead of spawning a child process, this updates the heartbeat directly.
+    """
+    job_id = os.getpid()  # Identify this worker by its PID
+
+    if isinstance(job, PhabJob):
+        work = job.build_haplotypes()
+    elif isinstance(job, dict):
+        work = job
+    else:
+        raise TypeError(f"Unknown job type {type(job)}")
+
+    try:
+        # Send heartbeats periodically while running
+        start_time = time.time()
+        while True:
+            heartbeat_dict[job_id] = time.time()
+
+            if time.time() - start_time > 1:  # Run the actual function after short delay
+                break
+            time.sleep(0.1)
+
+        msa = func(work)
+        return truvari.msa2vcf(msa)
+
+    except Exception as e:
+        return f"ERROR: {e}"
+
+def watchdog(heartbeat_dict, processes, timeout=5):
+    """
+    Monitors workers to detect crashes or unresponsiveness.
+    Terminates jobs if they stop sending heartbeats.
+    """
+    while True:
+        time.sleep(2)
+        current_time = time.time()
+        to_kill = []
+
+        for job_id, last_beat in list(heartbeat_dict.items()):
+            worker = processes.get(job_id)
+
+            if worker and not worker.is_alive():  # Process has died
+                logging.error(f"Worker {job_id} crashed! Cleaning up...")
+                to_kill.append(job_id)
+                continue
+
+            if current_time - last_beat > timeout:
+                logging.error(f"Worker {job_id} is unresponsive. Terminating...")
+                to_kill.append(job_id)
+
+        for job_id in to_kill:
+            if job_id in processes:
+                processes[job_id].terminate()
+                processes[job_id].join()
+                del processes[job_id]
+            heartbeat_dict.pop(job_id, None)
 
 def monitored_pool(method, locus_jobs, threads):
     """
-    Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
+    Create a pool of workers, send jobs to a safe_align_method, monitor crashes.
     """
-    # given timeout in minutes, figure out how many retries are given
-    if "PHAB_TIMEOUT" in os.environ:
-        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12
-    else:
-        MAXRETRIES = 60
-    WAITINTERVAL = 5
-    FAILTIME = time.strftime(
-        "%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
+    manager = multiprocessing.Manager()
+    heartbeat_dict = manager.dict()
+    processes = {}
+
+    watchdog_process = multiprocessing.Process(target=watchdog, args=(heartbeat_dict, processes))
+    watchdog_process.start()
+
     n_completed = 0
     prev_completed = 0.05
     n_failed = 0
-    to_call = functools.partial(safe_align_method, func=method)
+
+    to_call = functools.partial(safe_align_method, func=method, heartbeat_dict=heartbeat_dict)
+
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        results = [pool.apply_async(to_call, (job,)) for job in locus_jobs]
-        pending = {idx: (result, 0)
-                   for idx, result in enumerate(results)}  # Tracks retries
+        results = {idx: pool.apply_async(to_call, (job,))
+                   for idx, job in enumerate(locus_jobs)}
 
-        while pending:
-            for idx in list(pending.keys()):
-                result, retries = pending[idx]
-
-                try:
-                    if result.ready():
-                        output = result.get()
-                        del pending[idx]
-
+        while results:
+            time.sleep(2)
+            completed = []
+            for idx, async_result in list(results.items()):
+                if async_result.ready():
+                    try:
+                        output = async_result.get()
                         if isinstance(output, str) and output.startswith("ERROR:"):
                             job = locus_jobs[idx]
                             logging.error(f"{job.name} {output}")
@@ -402,34 +440,28 @@ def monitored_pool(method, locus_jobs, threads):
                         else:
                             n_completed += 1
                             yield output
-                    # only penalize jobs that had a reasonable chance to start
-                    elif idx < (n_completed + n_failed + threads):
-                        if retries < MAXRETRIES:
-                            pending[idx] = (result, retries + 1)
-                        else:
-                            del pending[idx]
-                            n_failed += 1
-                            job = locus_jobs[idx]
-                            logging.error(
-                                f"{job.name} ERROR: Timeout after {FAILTIME}")
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    # Remove failed job
-                    del pending[idx]
-                    n_failed += 1
-                    job = locus_jobs[idx]
-                    logging.error(f"{job.name} ERROR: {e}")
+                        completed.append(idx)
+                    except Exception as e:
+                        n_failed += 1
+                        job = locus_jobs[idx]
+                        logging.error(f"{job.name} ERROR: {e}")
+                        completed.append(idx)
 
-            if pending:
-                pct_completed = (n_completed + n_failed) / len(locus_jobs)
-                if pct_completed >= prev_completed:
-                    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                                 n_completed, len(locus_jobs),
-                                 pct_completed * 100, n_failed)
-                    prev_completed = min(1, pct_completed + 0.05)
-                time.sleep(WAITINTERVAL)  # Wait before retrying
+            # Remove completed jobs
+            for idx in completed:
+                del results[idx]
 
-    # I should perhaps exit non-zero if too many jobs fail...
+            # Progress logging
+            pct_completed = (n_completed + n_failed) / len(locus_jobs)
+            if pct_completed >= prev_completed:
+                logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                             n_completed, len(locus_jobs),
+                             pct_completed * 100, n_failed)
+                prev_completed = min(1, pct_completed + 0.05)
 
+    # Cleanup watchdog
+    watchdog_process.terminate()
+    watchdog_process.join()
 
 def cleanup_shared_memory(shared_info):
     """
