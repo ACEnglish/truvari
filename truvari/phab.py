@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import time
+import atexit
 import pickle
 import shutil
 import logging
@@ -124,7 +125,6 @@ def make_haplotypes(sequence, entries, ref, start, in_sample, out_sample):
             correction[0] = incorporate(haps[0], entry, correction[0])
         if len(entry.samples[in_sample]['GT']) > 1 and entry.samples[in_sample]['GT'][1] == 1:
             correction[1] = incorporate(haps[1], entry, correction[1])
-    # TODO - dict
     return {f"{out_sample}_1_{ref}": ''.join(haps[0]),
             f"{out_sample}_2_{ref}": ''.join(haps[1])}
 
@@ -258,7 +258,7 @@ def monitored_pool(method, locus_jobs, threads):
     """
     # given timeout in minutes, figure out how many retries are given
     if "PHAB_TIMEOUT" in os.environ:
-        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12 # 
+        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12
     else:
         MAXRETRIES = 60
     WAITINTERVAL = 5
@@ -282,6 +282,7 @@ def monitored_pool(method, locus_jobs, threads):
                         if isinstance(output, str) and output.startswith("ERROR:"):
                             job = locus_jobs[idx]
                             logging.error(f"{job.name} {output}")
+                            n_failed += 1
                         else:
                             n_completed += 1
                             yield output
@@ -293,8 +294,8 @@ def monitored_pool(method, locus_jobs, threads):
                             del pending[idx]
                             n_failed += 1
                             job = locus_jobs[idx]
-                            logging.error(f"{job.name} ERROR: Timeout after {FAILTIME}s")
-                except Exception as e:
+                            logging.error(f"{job.name} ERROR: Timeout after {FAILTIME}")
+                except Exception as e: # pylint: disable=broad-exception-caught
                     # Remove failed job
                     del pending[idx]
                     n_failed += 1
@@ -309,7 +310,7 @@ def monitored_pool(method, locus_jobs, threads):
                                  pct_completed * 100, n_failed)
                     prev_completed = min(1, pct_completed + 0.05)
                 time.sleep(WAITINTERVAL)  # Wait before retrying
-                
+
     # I should perhaps exit non-zero if too many jobs fail...
 
 # pylint: disable=too-few-public-methods
@@ -429,6 +430,16 @@ class PhabJob():
         return haplotypes
 # pylint: enable=too-few-public-methods
 
+def cleanup_shared_memory(shared_info):
+    """
+    cleans shm
+    """
+    try:
+        shared_info.close()
+        shared_info.unlink()
+    except Exception as e: # pylint: disable=broad-exception-caught
+        print(f"Error cleaning up shared memory: {e}")
+
 
 def run_phab(vcf_info, regions, reference_fn, output_fn, buffer=100,
              align_method=run_poa, threads=1):
@@ -465,6 +476,8 @@ def run_phab(vcf_info, regions, reference_fn, output_fn, buffer=100,
     shared_info.buf[:len(data)] = data
     mem_vcf_info = (shared_info.name, shared_info.size)
 
+    # Cleanup shared memory on exit
+    atexit.register(cleanup_shared_memory, shared_info)
     # Now we can build the jobs and they're small enough
     refhaps = pysam.FastaFile(ref_haps_fn)
     jobs = [PhabJob(name, mem_vcf_info, ref_haps_fn)
@@ -480,10 +493,6 @@ def run_phab(vcf_info, regions, reference_fn, output_fn, buffer=100,
 
         for entry_set in monitored_pool(align_method, jobs, threads):
             fout.write(entry_set)
-
-    # Cleanup shared memory
-    shared_info.close()
-    shared_info.unlink()
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 # pylint: enable=too-many-arguments, too-many-locals
