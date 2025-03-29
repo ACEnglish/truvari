@@ -128,17 +128,17 @@ class TestPhab(unittest.TestCase):
         vcfhap.set_regions(regions)
         haps = next(vcfhap.build_all())
 
-        result = phab.run_wfa(haps[1])
+        result = phab.safe_align_method(haps[1], phab.run_wfa)
         self.assertFalse(result.startswith("ERROR"), f"WFA failed: {result}")
 
-        result = phab.run_poa(haps[1])
+        result = phab.safe_align_method(haps[1], phab.run_poa)
         self.assertFalse(result.startswith("ERROR"), f"POA failed: {result}")
 
         result = phab.run_mafft(haps[1])
-        self.assertFalse(result.startswith("ERROR"), f"MAFFT failed: {result}")
+        self.assertTrue(isinstance(result, dict), f"MAFFT failed: {result}")
 
         with self.assertRaises(TypeError):
-            phab.run_poa(haps)
+            phab.safe_align_method(haps, phab.run_wfa)
 
         with self.assertRaises(ValueError):
             phab.get_align_method("bob")

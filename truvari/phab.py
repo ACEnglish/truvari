@@ -139,27 +139,26 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
-def safe_align_method(func):
+def safe_align_method(job, func):
     """
-    Decorator for safely calling the alignment method on a PhabJob or dictionary
+    Wrapper safely calling the alignment method on a PhabJob or dictionary
+    Will then return a call to truvari.msa2vcf on the align method's result
+    Note, if the MSA fails, this return s a string "ERROR: {e}" instead of raising an exception
     """
-    @functools.wraps(func)
-    def wrapper(job, *args, **kwargs):
-        if isinstance(job, PhabJob):
-            work = job.build_haplotypes()
-        elif isinstance(job, dict):
-            work = job
-        else:
-            raise TypeError(f"Unknown job type {type(job)}")
+    if isinstance(job, PhabJob):
+        work = job.build_haplotypes()
+    elif isinstance(job, dict):
+        work = job
+    else:
+        raise TypeError(f"Unknown job type {type(job)}")
 
-        try:
-            return func(work, *args, **kwargs)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            return f"ERROR: {e}"
-    return wrapper
+    try:
+        msa = func(work)
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        return f"ERROR: {e}"
 
+    return truvari.msa2vcf(msa)
 
-@safe_align_method
 def run_wfa(haplotypes):
     """
     Align haplotypes independently with WFA
@@ -176,10 +175,8 @@ def run_wfa(haplotypes):
         aligner.wavefront_align(seq)
         haplotypes[haplotype] = expand_cigar(
             seq, reference, aligner.cigartuples)
-    return truvari.msa2vcf(haplotypes)
+    return haplotypes
 
-
-@safe_align_method
 def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
     """
     Run mafft on the provided haplotypes dictionary
@@ -204,10 +201,9 @@ def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
             fout.write(ret.stdout)
 
     fasta = dict(fasta_reader(ret.stdout))
-    return truvari.msa2vcf(fasta)
+    return fasta
 
 
-@safe_align_method
 def run_poa(haplotypes):
     """
     Run partial order alignment of haplotypes to create msa
@@ -219,7 +215,7 @@ def run_poa(haplotypes):
     _, seqs, names = zip(*parts)
     aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, False, True)
-    return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
+    return dict(zip(names, aln_result.msa_seq))
 
 
 class VCFtoHaplotypes():
@@ -380,8 +376,9 @@ def monitored_pool(method, locus_jobs, threads):
     n_completed = 0
     prev_completed = 0.05
     n_failed = 0
+    to_call = functools.partial(safe_align_method, func=method)
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        results = [pool.apply_async(method, (job,)) for job in locus_jobs]
+        results = [pool.apply_async(to_call, (job,)) for job in locus_jobs]
         pending = {idx: (result, 0)
                    for idx, result in enumerate(results)}  # Tracks retries
 
