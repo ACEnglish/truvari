@@ -376,60 +376,32 @@ def safe_align_method(job, func, heartbeat_dict):
     except Exception as e:
         return f"ERROR: {e}"
 
-def watchdog(heartbeat_dict, processes, timeout=5):
+def monitored_pool(method, locus_jobs, threads, timeout=5):
     """
-    Monitors workers to detect crashes or unresponsiveness.
-    Terminates jobs if they stop sending heartbeats.
-    """
-    while True:
-        time.sleep(2)
-        current_time = time.time()
-        to_kill = []
-
-        for job_id, last_beat in list(heartbeat_dict.items()):
-            worker = processes.get(job_id)
-
-            if worker and not worker.is_alive():  # Process has died
-                logging.error(f"Worker {job_id} crashed! Cleaning up...")
-                to_kill.append(job_id)
-                continue
-
-            if current_time - last_beat > timeout:
-                logging.error(f"Worker {job_id} is unresponsive. Terminating...")
-                to_kill.append(job_id)
-
-        for job_id in to_kill:
-            if job_id in processes:
-                processes[job_id].terminate()
-                processes[job_id].join()
-                del processes[job_id]
-            heartbeat_dict.pop(job_id, None)
-
-def monitored_pool(method, locus_jobs, threads):
-    """
-    Create a pool of workers, send jobs to a safe_align_method, monitor crashes.
+    Create a pool of workers, send jobs to a safe_align_method, and monitor crashes.
     """
     manager = multiprocessing.Manager()
     heartbeat_dict = manager.dict()
     processes = {}
 
-    watchdog_process = multiprocessing.Process(target=watchdog, args=(heartbeat_dict, processes))
-    watchdog_process.start()
-
     n_completed = 0
-    prev_completed = 0.05
+    INC = 0.01
+    prev_completed = INC
     n_failed = 0
 
     to_call = functools.partial(safe_align_method, func=method, heartbeat_dict=heartbeat_dict)
 
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        results = {idx: pool.apply_async(to_call, (job,))
-                   for idx, job in enumerate(locus_jobs)}
+        results = {idx: pool.apply_async(to_call, (job,)) for idx, job in enumerate(locus_jobs)}
+        worker_pids = {idx: None for idx in results}  # Track worker PIDs
 
         while results:
             time.sleep(2)
             completed = []
+            current_time = time.time()
+
             for idx, async_result in list(results.items()):
+                # Check if job is done
                 if async_result.ready():
                     try:
                         output = async_result.get()
@@ -446,10 +418,35 @@ def monitored_pool(method, locus_jobs, threads):
                         job = locus_jobs[idx]
                         logging.error(f"{job.name} ERROR: {e}")
                         completed.append(idx)
+                    continue
 
-            # Remove completed jobs
+                # Get worker PID if not set
+                if worker_pids[idx] is None:
+                    worker_pids[idx] = async_result._job  # Internal ID (not PID)
+                
+            # Detect dead workers
+            worker_pid = worker_pids[idx]
+            if worker_pid in heartbeat_dict:
+                try:
+                    process = psutil.Process(worker_pid)
+                    # Check if the worker is still running and not just "idle"
+                    if not process.is_running() or process.status() in (psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD):
+                        # And should be logging
+                        logging.error(f"Worker {worker_pid} has crashed! Removing job {idx}.")
+                        n_failed += 1
+                        completed.append(idx)
+
+                except psutil.NoSuchProcess:
+                    # And should be logging job.name
+                    logging.error(f"Worker {worker_pid} no longer exists! Removing job {idx}.")
+                    n_failed += 1
+                    completed.append(idx)
+
+            # Remove completed/hung jobs
             for idx in completed:
                 del results[idx]
+                worker_pids.pop(idx, None)
+                heartbeat_dict.pop(worker_pids.get(idx, None), None)
 
             # Progress logging
             pct_completed = (n_completed + n_failed) / len(locus_jobs)
@@ -457,11 +454,10 @@ def monitored_pool(method, locus_jobs, threads):
                 logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
                              n_completed, len(locus_jobs),
                              pct_completed * 100, n_failed)
-                prev_completed = min(1, pct_completed + 0.05)
+                prev_completed = min(1, pct_completed + INC)
 
-    # Cleanup watchdog
-    watchdog_process.terminate()
-    watchdog_process.join()
+    logging.info("Processing complete. %d successful, %d failed.", n_completed, n_failed)
+
 
 def cleanup_shared_memory(shared_info):
     """
