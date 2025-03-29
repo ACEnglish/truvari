@@ -4,6 +4,7 @@ Wrapper around MAFFT and other tools to harmonize phased variants
 import os
 import re
 import sys
+import time
 import pickle
 import shutil
 import logging
@@ -255,24 +256,60 @@ def monitored_pool(method, locus_jobs, threads):
     """
     Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
     """
+    # given timeout in minutes, figure out how many retries are given
+    if "PHAB_TIMEOUT" in os.environ:
+        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12 # 
+    else:
+        MAXRETRIES = 60
+    WAITINTERVAL = 5
+    FAILTIME = time.strftime("%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
+    n_completed = 0
+    prev_completed = 0.05
+    n_failed = 0
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
         results = [pool.apply_async(method, (job,)) for job in locus_jobs]
+        pending = {idx: (result, 0) for idx, result in enumerate(results)}  # Tracks retries
 
-        # Step 2: Retrieve results (this allows parallel execution)
-        for idx, result in enumerate(results):
-            try:
-                # Wait for each task to complete (or timeout)
-                output = result.get(timeout=30)
-            except multiprocessing.TimeoutError:
-                output = "ERROR: Timeout occurred"
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                output = f"ERROR: {e}"
+        while pending:
+            for idx in list(pending.keys()):
+                result, retries = pending[idx]
 
-            if isinstance(output, str) and output.startswith("ERROR:"):
-                job = locus_jobs[idx]
-                logging.error(f"{job.name} {output}")  # Log errors
-            else:
-                yield output
+                try:
+                    if result.ready():
+                        output = result.get()
+                        del pending[idx]
+
+                        if isinstance(output, str) and output.startswith("ERROR:"):
+                            job = locus_jobs[idx]
+                            logging.error(f"{job.name} {output}")
+                        else:
+                            n_completed += 1
+                            yield output
+                    # only penalize jobs that had a reasonable chance to start
+                    elif idx < (n_completed + n_failed + threads):
+                        if retries < MAXRETRIES:
+                            pending[idx] = (result, retries + 1)
+                        else:
+                            del pending[idx]
+                            n_failed += 1
+                            job = locus_jobs[idx]
+                            logging.error(f"{job.name} ERROR: Timeout after {FAILTIME}s")
+                except Exception as e:
+                    # Remove failed job
+                    del pending[idx]
+                    n_failed += 1
+                    job = locus_jobs[idx]
+                    logging.error(f"{job.name} ERROR: {e}")
+
+            if pending:
+                pct_completed = (n_completed + n_failed) / len(locus_jobs)
+                if pct_completed >= prev_completed:
+                    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                                 n_completed, len(locus_jobs),
+                                 pct_completed * 100, n_failed)
+                    prev_completed = min(1, pct_completed + 0.05)
+                time.sleep(WAITINTERVAL)  # Wait before retrying
+                
     # I should perhaps exit non-zero if too many jobs fail...
 
 # pylint: disable=too-few-public-methods
