@@ -16,8 +16,7 @@ from pysam import bcftools
 from intervaltree import IntervalTree
 
 import truvari
-from truvari.phab import check_requirements as phab_check_requirements
-from truvari.phab import DEFAULT_MAFFT_PARAM
+from truvari import phab
 from truvari.make_ga4gh import make_ga4gh
 
 
@@ -259,7 +258,7 @@ def parse_args(args):
                         help="Which bed file coordinates to use, Regions or includebed Original (%(default)s)")
     parser.add_argument("-S", "--subset", action="store_true",
                         help="Only report metrics from the refined regions")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+    parser.add_argument("-m", "--mafft-params", type=str, default=phab.DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
@@ -333,7 +332,7 @@ def refine_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-    if phab_check_requirements(args.align):
+    if phab.check_requirements(args.align):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
@@ -376,10 +375,15 @@ def refine_main(cmdargs):
 
     # refine's call to phab will never buffer because we assume the regions to be refined
     # have already been buffered
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0,
-                 mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
-                 threads=args.threads, method=args.align, passonly=params.passonly,
-                 max_size=params.sizemax)
+    m_vcf_info = phab.PhabVCF(base_fn=base_vcf,
+                              comp_fn=comp_vcf,
+                              prefix_comp=True,
+                              passonly=params.passonly,
+                              max_size=params.sizemax)
+    align_method = phab.get_align_method(args.align, args.mafft_params)
+
+    phab.run_phab(m_vcf_info, to_eval_coords, args.reference, phab_vcf, buffer=0,
+                  align_method=align_method, threads=args.threads)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")

@@ -105,6 +105,9 @@ def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
         for variant in aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
             final_vars[variant].append(cur_samp_hap)
+    # This sorting is doing a lot of work
+    # Prevents phab from needing to keep track of sample order
+    # because it just writes the header SAMPLE names sorted
     return sorted(list(sample_names)), final_vars
 
 

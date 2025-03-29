@@ -104,8 +104,6 @@ Extra Methods
 
 .. autofunction:: performance_metrics
 
-.. autofunction:: phab
-
 .. autofunction:: reciprocal_overlap
 
 .. autofunction:: restricted_float
