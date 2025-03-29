@@ -159,15 +159,17 @@ def safe_align_method(job, func):
 
     return truvari.msa2vcf(msa)
 
-def run_wfa(haplotypes):
+def run_wfa(haplotypes, aligner=None):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
+    a pre-build `WavefrontAligner` may be passed
     """
     ref_key = [_ for _ in haplotypes.keys() if _.startswith("ref_")][0]
     reference = haplotypes[ref_key]
-    aligner = WavefrontAligner(reference, span="end-to-end",
-                               heuristic="adaptive")
+    if aligner is None:
+        aligner = WavefrontAligner(reference, span="end-to-end",
+                                  heuristic="adaptive")
     for haplotype in haplotypes:
         if haplotype == ref_key:
             continue
@@ -204,17 +206,19 @@ def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
     return fasta
 
 
-def run_poa(haplotypes):
+def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     """
     Run partial order alignment of haplotypes to create msa
+    a pre-build pyabpoa.msa_aligner may be passed
     """
     parts = []
     for k, v in haplotypes.items():
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
     _, seqs, names = zip(*parts)
-    aligner = pyabpoa.msa_aligner()
-    aln_result = aligner.msa(seqs, False, True)
+    if aligner is None:
+        aligner = pyabpoa.msa_aligner()
+    aln_result = aligner.msa(seqs, out_cons, out_msa)
     return dict(zip(names, aln_result.msa_seq))
 
 
