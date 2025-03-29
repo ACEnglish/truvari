@@ -62,42 +62,6 @@ def parse_regions(argument):
     return ret
 
 
-def merged_region_file(regions, buff=100):
-    """
-    Write a file for extracting reference regions with samtools
-    returns the name of the temporary file made
-    """
-    m_dict = defaultdict(list)
-    for i in regions:
-        m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
-
-    out_file_name = truvari.make_temp_filename()
-    n_reg = 0
-    with open(out_file_name, 'w') as fout:
-        for chrom in sorted(m_dict.keys()):
-            intvs = IntervalTree.from_tuples(m_dict[chrom])
-            intvs.merge_overlaps()
-            for i in sorted(intvs):
-                fout.write(f"{chrom}:{i.begin}-{i.end}\n")
-                n_reg += 1
-    if n_reg == 0:
-        logging.critical("No regions to be refined. Exiting")
-        sys.exit(0)
-    return out_file_name
-
-
-def extract_reference(reg_fn, ref_fn):
-    """
-    Pull the reference
-    """
-    out_fn = truvari.make_temp_filename(suffix='.fa')
-    with open(out_fn, 'w') as fout:
-        fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
-    # Facilitate fetching
-    samtools.faidx(out_fn)
-    return out_fn
-
-
 def incorporate(consensus_sequence, entry, correction):
     """
     Incorporate a variant into a haplotype returning the new correction field
@@ -262,13 +226,15 @@ def monitored_pool(method, locus_jobs, threads):
     else:
         MAXRETRIES = 60
     WAITINTERVAL = 5
-    FAILTIME = time.strftime("%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
+    FAILTIME = time.strftime(
+        "%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
     n_completed = 0
     prev_completed = 0.05
     n_failed = 0
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
         results = [pool.apply_async(method, (job,)) for job in locus_jobs]
-        pending = {idx: (result, 0) for idx, result in enumerate(results)}  # Tracks retries
+        pending = {idx: (result, 0)
+                   for idx, result in enumerate(results)}  # Tracks retries
 
         while pending:
             for idx in list(pending.keys()):
@@ -294,8 +260,9 @@ def monitored_pool(method, locus_jobs, threads):
                             del pending[idx]
                             n_failed += 1
                             job = locus_jobs[idx]
-                            logging.error(f"{job.name} ERROR: Timeout after {FAILTIME}")
-                except Exception as e: # pylint: disable=broad-exception-caught
+                            logging.error(
+                                f"{job.name} ERROR: Timeout after {FAILTIME}")
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     # Remove failed job
                     del pending[idx]
                     n_failed += 1
@@ -313,18 +280,24 @@ def monitored_pool(method, locus_jobs, threads):
 
     # I should perhaps exit non-zero if too many jobs fail...
 
-# pylint: disable=too-few-public-methods
-class PhabVCF():
+
+class VCFtoHaplotypes():
     """
     Class for holding input VCFs with helpers for fetching/filtering
     variants and writing the output header
     """
 
-    def __init__(self, base_fn, bSamples=None, comp_fn=None, cSamples=None, prefix_comp=False, passonly=True, max_size=50000):
+    def __init__(self, reference_fn, base_fn, bSamples=None, comp_fn=None, cSamples=None,
+                 passonly=True, max_size=50000):
+        self.reference_fn = reference_fn
         self.base_fn = base_fn
         self.comp_fn = comp_fn
         self.passonly = passonly
         self.max_size = max_size
+
+        # Filled in later
+        self.regions_fn = None
+        self.ref_haps_fn = None
 
         if bSamples is None:
             bSamples = list(truvari.VariantFile(self.base_fn).header.samples)
@@ -342,8 +315,7 @@ class PhabVCF():
 
             self.cSamples = []
             for samp in cSamples:
-                pname = (
-                    'p:' if prefix_comp or samp in self.samples else "") + samp
+                pname = ('p:' if samp in self.samples else "") + samp
                 self.cSamples.append((samp, pname))
 
             self.samples.extend([_[1] for _ in self.cSamples])
@@ -353,18 +325,65 @@ class PhabVCF():
         # Must be sorted for the msa2vcf later
         self.samples.sort()
 
-    def get_haplotypes(self, chrom, start, end, ref_name, ref_seq):
+    def merged_region_file(self, regions, buff=100):
+        """
+        Write a file for extracting reference regions with samtools
+        returns the name of the temporary file made
+        """
+        m_dict = defaultdict(list)
+        for i in regions:
+            m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
+
+        out_file_name = truvari.make_temp_filename()
+        n_reg = 0
+        with open(out_file_name, 'w') as fout:
+            for chrom in sorted(m_dict.keys()):
+                intvs = IntervalTree.from_tuples(m_dict[chrom])
+                intvs.merge_overlaps()
+                for i in sorted(intvs):
+                    fout.write(f"{chrom}:{i.begin}-{i.end}\n")
+                    n_reg += 1
+        if n_reg == 0:
+            logging.critical("No regions to be refined. Exiting")
+            sys.exit(0)
+        self.regions_fn = out_file_name
+
+    def extract_reference(self):
+        """
+        Pull the reference
+        """
+        out_fn = truvari.make_temp_filename(suffix='.fa')
+        with open(out_fn, 'w') as fout:
+            fout.write(samtools.faidx(
+                self.reference_fn, "-r", self.regions_fn))
+        # Facilitate fetching
+        samtools.faidx(out_fn)
+        self.ref_haps_fn = out_fn
+
+    def get_haplotypes(self, refname):
         """
         Fetches the variants and builds the haplotypes of all the self.samples_lookup
         returns the fasta dictionary
         """
-        ret = self.__vcf_to_seq(
-            self.base_fn, self.bSamples, chrom, start, end, ref_name, ref_seq)
+        chrom, start, end = re.split(':|-', refname)
+        start = int(start)
+        end = int(end)
+        refseq = pysam.FastaFile(self.ref_haps_fn).fetch(refname)
+
+        ret = self.__vcf_to_seq(self.base_fn, self.bSamples,
+                                chrom, start, end, refname, refseq)
         if self.comp_fn:
             ret.update(self.__vcf_to_seq(self.comp_fn, self.cSamples,
-                       chrom, start, end, ref_name, ref_seq))
-
+                       chrom, start, end, refname, refseq))
+        ret[f"ref_{refname}"] = refseq
         return ret
+
+    def build_all(self):
+        """
+        Yields each locus' name and haplotypes as a dict
+        """
+        for name in list(pysam.FastaFile(self.ref_haps_fn).references):
+            yield name, self.get_haplotypes(name)
 
     def __keep_entry(self, e, start, end):
         """
@@ -394,18 +413,18 @@ class PhabVCF():
         return ret
 
 
+# pylint: disable=too-few-public-methods
 class PhabJob():
     """
-    This holds all the information needed to run one task through PhabVCF
-    It is responsible for fetching reference sequence, sending to PhabVCF,
+    This holds all the information needed to run one task through VCFtoHaplotypes
+    It is responsible for fetching reference sequence, sending to VCFtoHaplotypes,
     and then passing that consolidated set of sequences to the align_method
     # This could have a .run that is safe_align_method.. but whatever
     """
 
-    def __init__(self, name, mem_vcf_info, ref_haps_fn):
+    def __init__(self, name, mem_vcf_info):
         self.name = name
         self.mem_vcf_info = mem_vcf_info
-        self.ref_haps_fn = ref_haps_fn
 
     def build_haplotypes(self):
         """
@@ -418,17 +437,9 @@ class PhabJob():
         data = bytes(existing_shm.buf[:shm_size])
         vcf_info = pickle.loads(data)
 
-        chrom, start, end = re.split(':|-', self.name)
-        start = int(start)
-        end = int(end)
-        refseq = pysam.FastaFile(self.ref_haps_fn).fetch(self.name)
-
-        haplotypes = vcf_info.get_haplotypes(
-            chrom, start, end, self.name, refseq)
-        haplotypes[f"ref_{self.name}"] = refseq
-
-        return haplotypes
+        return vcf_info.get_haplotypes(self.name)
 # pylint: enable=too-few-public-methods
+
 
 def cleanup_shared_memory(shared_info):
     """
@@ -437,18 +448,18 @@ def cleanup_shared_memory(shared_info):
     try:
         shared_info.close()
         shared_info.unlink()
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error cleaning up shared memory: {e}")
 
 
-def run_phab(vcf_info, regions, reference_fn, output_fn, buffer=100,
+def run_phab(vcf_info, regions, output_fn, buffer=100,
              align_method=run_poa, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
 
-    :param `vcf_info` : Handler of input VCF(s)
-    :type `vcf_info` : :class:`PhabVCF`
+    :param `vcf_info` : VCF to Haplotype maker
+    :type `vcf_info` : :class:`VCFtoHaplotypes`
     :param `regions`: List of tuples of region's (chrom, start, end)
     :type `regions`: :class:`list`
     :param `reference_fn`: Reference file name
@@ -463,25 +474,23 @@ def run_phab(vcf_info, regions, reference_fn, output_fn, buffer=100,
     :type `threads`: :class:`int`
     """
     logging.info("Preparing regions")
-    region_fn = merged_region_file(regions, buffer)
+    vcf_info.merged_region_file(regions, buffer)
 
     logging.info("Preparing reference")
-    ref_haps_fn = extract_reference(region_fn, reference_fn)
+    vcf_info.extract_reference()
 
     logging.info("Harmonizing variants")
-
     # Shared memory for vcf_info to reduce copies/memory
     data = pickle.dumps(vcf_info)
     shared_info = shm.SharedMemory(create=True, size=len(data))
     shared_info.buf[:len(data)] = data
     mem_vcf_info = (shared_info.name, shared_info.size)
-
     # Cleanup shared memory on exit
     atexit.register(cleanup_shared_memory, shared_info)
-    # Now we can build the jobs and they're small enough
-    refhaps = pysam.FastaFile(ref_haps_fn)
-    jobs = [PhabJob(name, mem_vcf_info, ref_haps_fn)
-            for name in list(refhaps.references)]
+
+    # Now we build all the jobs
+    jobs = [PhabJob(name, mem_vcf_info) for name in
+            list(pysam.FastaFile(vcf_info.ref_haps_fn).references)]
 
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
@@ -625,17 +634,18 @@ def phab_main(cmdargs):
     if args.comp and args.cSamples is not None:
         args.cSamples = args.cSamples.split(',')
 
-    m_vcf_info = PhabVCF(args.base, args.bSamples,
-                         args.comp, args.cSamples,
-                         passonly=args.passonly,
-                         max_size=args.maxsize)
+    m_vcf_info = VCFtoHaplotypes(args.reference,
+                                 args.base, args.bSamples,
+                                 args.comp, args.cSamples,
+                                 passonly=args.passonly,
+                                 max_size=args.maxsize)
 
     all_regions = parse_regions(args.region)
     method = get_align_method(args.align, args.mafft_params)
 
-    run_phab(m_vcf_info, all_regions, args.reference, args.output,
-        buffer=args.buffer,
-        align_method=method,
-        threads=args.threads)
+    run_phab(m_vcf_info, all_regions, args.output,
+             buffer=args.buffer,
+             align_method=method,
+             threads=args.threads)
 
     logging.info("Finished phab")

@@ -300,8 +300,6 @@ def check_params(args):
         logging.error("Reference %s does not exist", args.reference)
 
     # Setup prefix
-    params["cSample"] = "p:" + params["cSample"]
-
     bhdir = os.path.join(args.benchdir, 'phab_bench')
     if os.path.exists(bhdir):
         check_fail = True
@@ -357,9 +355,11 @@ def refine_main(cmdargs):
         # If they both have F calls, should try to refine
         regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
         # Only refine base that have some comp calls to refine with
-        regions["refined"] |= (regions['in_fn'] > 0) & (regions[["in_tp", "in_fp"]].sum(axis=1) > 0)
+        regions["refined"] |= (regions['in_fn'] > 0) & (
+            regions[["in_tp", "in_fp"]].sum(axis=1) > 0)
         # And vice-versa
-        regions["refined"] |= (regions['in_fp'] > 0) & (regions[["in_tpbase", "in_fn"]].sum(axis=1) > 0)
+        regions["refined"] |= (regions['in_fp'] > 0) & (
+            regions[["in_tpbase", "in_fn"]].sum(axis=1) > 0)
 
     logging.info("%d regions to be refined", regions["refined"].sum())
 
@@ -375,18 +375,25 @@ def refine_main(cmdargs):
 
     # refine's call to phab will never buffer because we assume the regions to be refined
     # have already been buffered
-    m_vcf_info = phab.PhabVCF(base_fn=base_vcf,
-                              comp_fn=comp_vcf,
-                              prefix_comp=True,
-                              passonly=params.passonly,
-                              max_size=params.sizemax)
+    m_vcf_info = phab.VCFtoHaplotypes(reference_fn=args.reference,
+                                      base_fn=base_vcf,
+                                      bSamples=[params.bSample],
+                                      comp_fn=comp_vcf,
+                                      cSamples=[params.cSample],
+                                      passonly=params.passonly,
+                                      max_size=params.sizemax)
     align_method = phab.get_align_method(args.align, args.mafft_params)
-
-    phab.run_phab(m_vcf_info, to_eval_coords, args.reference, phab_vcf, buffer=0,
+    phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
                   align_method=align_method, threads=args.threads)
+
+    # phab may have prefixed the cSample
+    if params.bSample == params.cSample:
+        params.cSample = 'p:' + params.cSample
+        logging.critical(params.cSample)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
+
     var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,

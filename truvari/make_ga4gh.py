@@ -269,7 +269,7 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
             phab_dir = os.path.join(input_dir, 'phab_bench')
             output.pull_from_dir(phab_dir, regions, within=True,
                                  from_b=params['bSample'],
-                                 from_c='p:' + params['cSample'],
+                                 from_c=params['cSample'],
                                  is_refined=True)
         else:
             mask = regions['state'] == 'TP'
