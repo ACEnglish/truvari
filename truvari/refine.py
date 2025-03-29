@@ -376,19 +376,17 @@ def refine_main(cmdargs):
     # refine's call to phab will never buffer because we assume the regions to be refined
     # have already been buffered
     m_vcf_info = phab.VCFtoHaplotypes(reference_fn=args.reference,
-                                      base_fn=base_vcf,
-                                      bSamples=[params.bSample],
-                                      comp_fn=comp_vcf,
-                                      cSamples=[params.cSample],
+                                      vcf_fns=[base_vcf, comp_vcf],
+                                      samples=[params.bSample, params.cSample],
                                       passonly=params.passonly,
                                       max_size=params.sizemax)
     align_method = phab.get_align_method(args.align, args.mafft_params)
     phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
                   align_method=align_method, threads=args.threads)
 
-    # phab may have prefixed the cSample
+    # phab may have suffixed the cSample
     if params.bSample == params.cSample:
-        params.cSample = 'p:' + params.cSample
+        params.cSample = params.cSample + ':1'
         logging.critical(params.cSample)
 
     # Now run bench on the phab harmonized variants

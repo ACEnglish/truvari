@@ -141,13 +141,19 @@ def expand_cigar(seq, ref, cigar):
 
 def safe_align_method(func):
     """
-    Decorator for safely calling the alignment method on a PhabJob
-    Returning the result
+    Decorator for safely calling the alignment method on a PhabJob or dictionary
     """
     @functools.wraps(func)
     def wrapper(job, *args, **kwargs):
+        if isinstance(job, PhabJob):
+            work = job.build_haplotypes()
+        elif isinstance(job, dict):
+            work = job
+        else:
+            raise TypeError(f"Unknown job type {type(job)}")
+
         try:
-            return func(job.build_haplotypes(), *args, **kwargs)
+            return func(work, *args, **kwargs)
         except Exception as e:  # pylint: disable=broad-exception-caught
             return f"ERROR: {e}"
     return wrapper
@@ -176,7 +182,7 @@ def run_wfa(haplotypes):
 @safe_align_method
 def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
     """
-    Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
+    Run mafft on the provided haplotypes dictionary
     """
     seq_bytes = "".join(
         [f'>{k}\n{v}\n' for k, v in haplotypes.items()]).encode()
@@ -222,56 +228,52 @@ class VCFtoHaplotypes():
     variants and writing the output header
     """
 
-    def __init__(self, reference_fn, base_fn, bSamples=None, comp_fn=None, cSamples=None,
-                 passonly=True, max_size=50000):
+    def __init__(self, reference_fn, vcf_fns, samples=None, passonly=True, max_size=50000):
         self.reference_fn = reference_fn
-        self.base_fn = base_fn
-        self.comp_fn = comp_fn
+        self.vcf_fns = vcf_fns
         self.passonly = passonly
         self.max_size = max_size
-
-        # Filled in later
-        self.regions_fn = None
+        # Filled in later by `self.set_regions`
         self.ref_haps_fn = None
 
-        if bSamples is None:
-            bSamples = list(truvari.VariantFile(self.base_fn).header.samples)
-
-        # Need to make old to new name mapping
-        self.bSamples = [(_, _) for _ in bSamples]
-
-        # Need to make a collection of new names
-        self.samples = bSamples
-
-        if self.comp_fn:
-            if cSamples is None:
-                cSamples = list(truvari.VariantFile(
-                    self.comp_fn).header.samples)
-
-            self.cSamples = []
-            for samp in cSamples:
-                pname = ('p:' if samp in self.samples else "") + samp
-                self.cSamples.append((samp, pname))
-
-            self.samples.extend([_[1] for _ in self.cSamples])
-        else:
-            self.cSamples = None
+        self.sample_lookup = {}
+        # Counter for unique suffix on output names
+        seen_samples = {}
+        self.out_samples = []
+        for i in vcf_fns:
+            self.sample_lookup[i] = []
+            for old_sample in list(truvari.VariantFile(i).header.samples):
+                # Only grab the requested samples
+                if samples is not None and old_sample not in samples:
+                    continue
+                # --force-sample when needed
+                if old_sample in seen_samples:
+                    new_sample = old_sample + ':' + str(seen_samples[old_sample])
+                    seen_samples[old_sample] += 1
+                else:
+                    new_sample = old_sample
+                    seen_samples[old_sample] = 1
+                # For the output vcf
+                self.out_samples.append(new_sample)
+                # For parsing input vcfs
+                self.sample_lookup[i].append((old_sample, new_sample))
 
         # Must be sorted for the msa2vcf later
-        self.samples.sort()
+        self.out_samples.sort()
 
-    def merged_region_file(self, regions, buff=100):
+    def set_regions(self, regions, buff=100):
         """
         Write a file for extracting reference regions with samtools
-        returns the name of the temporary file made
+        Then extracts those regions.
+        Sets the class's x/y variables
         """
         m_dict = defaultdict(list)
         for i in regions:
             m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
 
-        out_file_name = truvari.make_temp_filename()
+        regions_file_name = truvari.make_temp_filename()
         n_reg = 0
-        with open(out_file_name, 'w') as fout:
+        with open(regions_file_name, 'w') as fout:
             for chrom in sorted(m_dict.keys()):
                 intvs = IntervalTree.from_tuples(m_dict[chrom])
                 intvs.merge_overlaps()
@@ -281,16 +283,12 @@ class VCFtoHaplotypes():
         if n_reg == 0:
             logging.critical("No regions to be refined. Exiting")
             sys.exit(0)
-        self.regions_fn = out_file_name
 
-    def extract_reference(self):
-        """
-        Pull the reference
-        """
+        # Pull sequences
         out_fn = truvari.make_temp_filename(suffix='.fa')
         with open(out_fn, 'w') as fout:
             fout.write(samtools.faidx(
-                self.reference_fn, "-r", self.regions_fn))
+                self.reference_fn, "-r", regions_file_name))
         # Facilitate fetching
         samtools.faidx(out_fn)
         self.ref_haps_fn = out_fn
@@ -305,11 +303,17 @@ class VCFtoHaplotypes():
         end = int(end)
         refseq = pysam.FastaFile(self.ref_haps_fn).fetch(refname)
 
-        ret = self.__vcf_to_seq(self.base_fn, self.bSamples,
-                                chrom, start, end, refname, refseq)
-        if self.comp_fn:
-            ret.update(self.__vcf_to_seq(self.comp_fn, self.cSamples,
-                       chrom, start, end, refname, refseq))
+        filt = functools.partial(self.__keep_entry, start=start, end=end)
+
+        ret = {}
+        for vcf_fn in self.vcf_fns:
+            vcf = truvari.VariantFile(vcf_fn)
+            entries = list(filter(filt, vcf.fetch(chrom, start, end)))
+            for in_samp, out_samp in self.sample_lookup[vcf_fn]:
+                ret.update(make_haplotypes(refseq, entries, refname,
+                                           start, in_samp, out_samp))
+            vcf.close()
+
         ret[f"ref_{refname}"] = refseq
         return ret
 
@@ -328,24 +332,6 @@ class VCFtoHaplotypes():
             and (not self.passonly or not e.is_filtered()) \
             and (self.max_size == -1 or e.var_size() <= self.max_size) \
             and e.within(start, end)
-
-    def __vcf_to_seq(self, vcf_fn, samples, chrom, start, end, ref_name, ref_seq):
-        """
-        Actually builds the haplotypes
-        """
-        vcf = truvari.VariantFile(vcf_fn)
-
-        filt = functools.partial(self.__keep_entry, start=start, end=end)
-        entries = list(filter(filt, vcf.fetch(chrom, start, end)))
-
-        ret = {}
-        for in_samp, out_samp in samples:
-            # You are iterating the entries multiple times. Can refactor that later
-            ret.update(make_haplotypes(ref_seq, entries,
-                       ref_name, start, in_samp, out_samp))
-
-        vcf.close()
-        return ret
 
 ##################
 # Infrastructure #
@@ -476,11 +462,8 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     :param `threads`: Number of threads to use
     :type `threads`: :class:`int`
     """
-    logging.info("Preparing regions")
-    vcf_info.merged_region_file(regions, buffer)
-
-    logging.info("Preparing reference")
-    vcf_info.extract_reference()
+    logging.info("Preparing reference/regions")
+    vcf_info.set_regions(regions, buffer)
 
     logging.info("Harmonizing variants")
     # Shared memory for vcf_info to reduce copies/memory
@@ -498,10 +481,10 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
-        for ctg in truvari.VariantFile(vcf_info.base_fn).header.contigs.values():
+        for ctg in truvari.VariantFile(vcf_info.vcf_fns[0]).header.contigs.values():
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
-        fout.write("\t".join(vcf_info.samples) + '\n')
+        fout.write("\t".join(vcf_info.out_samples) + '\n')
 
         for entry_set in monitored_pool(align_method, jobs, threads):
             fout.write(entry_set)
@@ -521,26 +504,22 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="phab", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("input", metavar="INPUT", type=str, nargs="+",
+                        help="Input VCFs to harmonize")
     parser.add_argument("-r", "--region", type=str, required=True,
                         help="Bed filename or comma-separated list of chrom:start-end regions to process")
-    parser.add_argument("-b", "--base", type=str, required=True,
-                        help="Baseline vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
     parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
                         help="Output VCF")
     parser.add_argument("--buffer", type=int, default=100,
                         help="Number of reference bases before/after region to add to MSA (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
+    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
                         help="Alignment method (%(default)s)")
     parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("--bSamples", type=str, default=None,
-                        help="Subset of samples to MSA from base-VCF")
-    parser.add_argument("-c", "--comp", type=str, default=None,
-                        help="Comparison vcf to MSA")
-    parser.add_argument("--cSamples", type=str, default=None,
-                        help="Subset of samples to MSA from comp-VCF")
+    parser.add_argument("-s", "--samples", type=str, default=None,
+                        help="Subset of samples to MSA")
     parser.add_argument("-t", "--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--maxsize", type=int, default=50000,
@@ -550,6 +529,9 @@ def parse_args(args):
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
+    if args.samples is not None:
+        args.samples = args.samples.split(',')
+
     return args
 
 
@@ -576,36 +558,29 @@ def check_params(args):
     if os.path.exists(args.output):
         logging.error("Output file already exists")
         check_fail = True
-    if args.comp is not None and not os.path.exists(args.comp):
-        logging.error("File %s does not exist", args.comp)
-        check_fail = True
-    if not os.path.exists(args.base):
-        logging.error("File %s does not exist", args.base)
-        check_fail = True
-    if args.comp is not None and not args.comp.endswith(".gz"):
-        logging.error(
-            "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
-        check_fail = True
-    if args.comp is not None and not truvari.check_vcf_index(args.comp):
-        logging.error(
-            "Comparison vcf %s must be indexed", args.comp)
-        check_fail = True
-    if not args.base.endswith(".gz"):
-        logging.error(
-            "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
-        check_fail = True
-    if not truvari.check_vcf_index(args.base):
-        logging.error(
-            "Base vcf %s must be indexed", args.base)
-        check_fail = True
+
     if not os.path.exists(args.reference):
         logging.error("Reference %s does not exist", args.reference)
         check_fail = True
 
+    for i in args.input:
+        if not os.path.exists(i):
+            logging.error("File %s does not exist", i)
+            check_fail = True
+        else:
+            if not i.endswith(".gz"):
+                logging.error("File %s does not end with .gz. Must be bgzip'd", i)
+                check_fail = True
+            if not truvari.check_vcf_index(i):
+                logging.error("File %s must be indexed", i)
+                check_fail = True
+    if not args.samples is None and not len(args.samples) == len(set(args.samples)):
+        logging.error("Redundant sample names in --samples")
+        check_fail = True
     return check_fail
 
 
-def get_align_method(method, params):
+def get_align_method(method, params=DEFAULT_MAFFT_PARAM):
     """
     Helper for organizing how to get the different alignment methods
     """
@@ -616,8 +591,7 @@ def get_align_method(method, params):
     elif method == "poa":
         align_method = run_poa
     else:
-        logging.error("Unknown alignment method %s", method)
-        sys.exit(1)
+        raise ValueError(f"Unknown alignment method {method}")
     return align_method
 
 
@@ -631,15 +605,8 @@ def phab_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    if args.bSamples is not None:
-        args.bSamples = args.bSamples.split(',')
-
-    if args.comp and args.cSamples is not None:
-        args.cSamples = args.cSamples.split(',')
-
     m_vcf_info = VCFtoHaplotypes(args.reference,
-                                 args.base, args.bSamples,
-                                 args.comp, args.cSamples,
+                                 args.input, args.samples,
                                  passonly=args.passonly,
                                  max_size=args.maxsize)
 
