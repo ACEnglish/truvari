@@ -418,11 +418,21 @@ def status_marker(job_id, pid_dict, func, job):
     pid_dict[job_id] = -1 # Mark as finished
     return ret
 
+def is_process_alive(pid):
+    """Check if a process is running and not a zombie/failed state."""
+    if not psutil.pid_exists(pid):
+        return False  # PID doesn't exist
+
+    try:
+        proc = psutil.Process(pid)
+        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD}
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False  # Process was removed or is inaccessible
+
 def monitored_pool(method, locus_jobs, threads):
     """
     Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
     """
-
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
@@ -441,8 +451,8 @@ def monitored_pool(method, locus_jobs, threads):
                 if pid in (0, -2):
                     continue
 
-                if pid == -1 or not psutil.pid_exists(pid):
-                    # Either finished or failed
+                # Either finished or failed
+                if pid == -1:
                     try:
                         output = results[job_id].get()
                     except Exception as e: # pylint: disable=broad-exception-caught
@@ -457,6 +467,11 @@ def monitored_pool(method, locus_jobs, threads):
                         yield output
                     # Mark as completed
                     pid_dict[job_id] = -2  
+                elif not is_process_alive(pid):
+                    job = locus_jobs[job_id]
+                    logging.error(f"{job.name} ERROR: Failed")
+                    n_failed += 1
+                    pid_dict[job_id] = -2
 
             # Manual progress bars
             pct_completed = (n_completed + n_failed) / len(locus_jobs)
@@ -465,6 +480,12 @@ def monitored_pool(method, locus_jobs, threads):
                              n_completed, len(locus_jobs),
                              pct_completed * 100, n_failed)
                 prev_completed = min(1, pct_completed + 0.05)
+            # Don't thrash the manager
+            time.sleep(1)
+    # Close up progress
+    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                 n_completed, len(locus_jobs),
+                 pct_completed * 100, n_failed)
 
     # I should perhaps exit non-zero if too many jobs fail...
 
