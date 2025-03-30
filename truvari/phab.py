@@ -7,7 +7,6 @@ import sys
 import time
 import atexit
 import pickle
-import psutil
 import shutil
 import logging
 import argparse
@@ -17,8 +16,8 @@ from collections import defaultdict
 import multiprocessing
 import multiprocessing.shared_memory as shm
 
-
 import pysam
+import psutil
 import pyabpoa
 from pysam import samtools
 from intervaltree import IntervalTree
@@ -425,7 +424,7 @@ def is_process_alive(pid):
 
     try:
         proc = psutil.Process(pid)
-        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD}
+        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD, psutil.STATUS_STOPPED}
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False  # Process was removed or is inaccessible
 
@@ -442,9 +441,8 @@ def monitored_pool(method, locus_jobs, threads):
 
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
                     for jid, job in enumerate(locus_jobs)]
-        
+
         time.sleep(1)
-        pid_dict.update({_: 0 for _ in range(len(locus_jobs))})
         while any(v != -2 for v in pid_dict.values()):
             for job_id, pid in pid_dict.items():
                 # Not started or already handled
@@ -466,7 +464,7 @@ def monitored_pool(method, locus_jobs, threads):
                         n_completed += 1
                         yield output
                     # Mark as completed
-                    pid_dict[job_id] = -2  
+                    pid_dict[job_id] = -2
                 elif not is_process_alive(pid):
                     job = locus_jobs[job_id]
                     logging.error(f"{job.name} ERROR: Failed")
@@ -483,9 +481,10 @@ def monitored_pool(method, locus_jobs, threads):
             # Don't thrash the manager
             time.sleep(1)
     # Close up progress
-    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                 n_completed, len(locus_jobs),
-                 pct_completed * 100, n_failed)
+    if (n_completed + n_failed) / len(locus_jobs) != prev_completed:
+        logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                     n_completed, len(locus_jobs),
+                     100, n_failed)
 
     # I should perhaps exit non-zero if too many jobs fail...
 
@@ -577,8 +576,8 @@ def parse_args(args):
                         help="Maximum size of variant to incorporate into haplotypes (%(default)s)")
     parser.add_argument("--passonly", action="store_true",
                         help="Only incorporate passing variants (%(default)s)")
-    parser.add_argument("--dedup", action="store_true",
-                        help="Dedupicate haplotypes before MSA")
+    parser.add_argument("--no-dedup", action="store_false",
+                        help="Don't dedupicate haplotypes before MSA")
     parser.add_argument("--buffer", type=int, default=100,
                         help="Number of reference bases before/after region to add to MSA (%(default)s)")
     parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
@@ -679,7 +678,7 @@ def phab_main(cmdargs):
     run_phab(m_vcf_info, all_regions, args.output,
              buffer=args.buffer,
              align_method=method,
-             dedup=args.dedup,
+             dedup=args.no_dedup,
              threads=args.threads)
 
     logging.info("Finished phab")
