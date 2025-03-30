@@ -175,7 +175,7 @@ def deduplicate_haps(d):
 
     return dedup_dict, key_mapping
 
-def safe_align_method(job, func, dedup=True):
+def safe_align_method(job, func, dedup=False):
     """
     Wrapper safely calling the alignment method on a PhabJob or dictionary
     Will then return a call to truvari.msa2vcf on the align method's result
@@ -501,7 +501,7 @@ def cleanup_shared_memory(shared_info):
 
 
 def run_phab(vcf_info, regions, output_fn, buffer=100,
-             align_method=run_poa, dedup=True, threads=1):
+             align_method=run_poa, dedup=False, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
