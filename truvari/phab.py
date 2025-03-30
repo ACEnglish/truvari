@@ -148,7 +148,25 @@ def deduplicate_haps(d):
 
     for key, value in d.items():
         if value in value_to_key:
-            key_mapping[key] = value_to_key[value]
+            # Get the currently assigned dedup key
+            current_key = value_to_key[value]
+
+            # If the new key is a 'ref_' key and the current key isn't, update preference
+            if key.startswith("ref_") and not current_key.startswith("ref_"):
+                dedup_dict[key] = value  # Store value under the preferred key
+                del dedup_dict[current_key]  # Remove old non-ref key
+                value_to_key[value] = key  # Update mapping to prefer 'ref_' key
+
+                # Update all previous key mappings that pointed to the old key
+                for k, v in key_mapping.items():
+                    if v == current_key:
+                        key_mapping[k] = key
+
+                key_mapping[key] = key  # Ensure ref_ key points to itself
+
+            else:
+                key_mapping[key] = current_key  # Keep existing key mapping
+
         else:
             dedup_key = key  # Use the first occurrence as the deduplicated key
             value_to_key[value] = dedup_key
@@ -183,7 +201,7 @@ def safe_align_method(job, func, dedup=True):
 
     return truvari.msa2vcf(msa)
 
-def run_wfa(haplotypes, aligner=None):
+def run_wfa(haplotypes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
@@ -198,8 +216,9 @@ def run_wfa(haplotypes, aligner=None):
             continue
         seq = haplotypes[haplotype]
         aligner.wavefront_align(seq)
-        haplotypes[haplotype] = expand_cigar(
-            seq, reference, aligner.cigartuples)
+        haplotypes[haplotype] = expand_cigar(seq,
+                                             reference,
+                                             aligner.cigartuples)
     return haplotypes
 
 def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
