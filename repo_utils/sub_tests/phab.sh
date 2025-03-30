@@ -25,7 +25,7 @@ fi
 run phab_poa $truv phab -o $OD/phab_result_poa.vcf.gz \
                         -r chr1:700-900 --align poa \
                         -f $INDIR/references/phab_ref.fa \
-                        $INDIR/variants/phab_base.vcf.gz \
+                        --dedup $INDIR/variants/phab_base.vcf.gz \
                         $INDIR/variants/phab_comp.vcf.gz
 if [ $phab_poa ]; then
     assert_exit_code 0

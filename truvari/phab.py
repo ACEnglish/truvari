@@ -138,8 +138,26 @@ def expand_cigar(seq, ref, cigar):
             ref_pos += span
     return "".join(ref), "".join(seq)
 
+def deduplicate_haps(d):
+    """
+    Deduplicates a dictionary by replacing duplicate values with a single key.
+    """
+    value_to_key = {}
+    dedup_dict = {}
+    key_mapping = {}
 
-def safe_align_method(job, func):
+    for key, value in d.items():
+        if value in value_to_key:
+            key_mapping[key] = value_to_key[value]
+        else:
+            dedup_key = key  # Use the first occurrence as the deduplicated key
+            value_to_key[value] = dedup_key
+            dedup_dict[dedup_key] = value
+            key_mapping[key] = dedup_key
+
+    return dedup_dict, key_mapping
+
+def safe_align_method(job, func, dedup=True):
     """
     Wrapper safely calling the alignment method on a PhabJob or dictionary
     Will then return a call to truvari.msa2vcf on the align method's result
@@ -152,10 +170,16 @@ def safe_align_method(job, func):
     else:
         raise TypeError(f"Unknown job type {type(job)}")
 
+    if dedup:
+        work, key_map = deduplicate_haps(work)
+
     try:
         msa = func(work)
     except Exception as e:  # pylint: disable=broad-exception-caught
         return f"ERROR: {e}"
+
+    if dedup:
+        msa = {key: msa[val] for key,val in key_map.items()}
 
     return truvari.msa2vcf(msa)
 
@@ -167,8 +191,7 @@ def run_wfa(haplotypes, aligner=None):
     """
     ref_key = [_ for _ in haplotypes.keys() if _.startswith("ref_")][0]
     reference = haplotypes[ref_key]
-    if aligner is None:
-        aligner = WavefrontAligner(reference, span="end-to-end",
+    aligner = WavefrontAligner(reference, span="end-to-end",
                                   heuristic="adaptive")
     for haplotype in haplotypes:
         if haplotype == ref_key:
@@ -380,9 +403,8 @@ def monitored_pool(method, locus_jobs, threads):
     n_completed = 0
     prev_completed = 0.05
     n_failed = 0
-    to_call = functools.partial(safe_align_method, func=method)
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        results = [pool.apply_async(to_call, (job,)) for job in locus_jobs]
+        results = [pool.apply_async(method, (job,)) for job in locus_jobs]
         pending = {idx: (result, 0)
                    for idx, result in enumerate(results)}  # Tracks retries
 
@@ -443,7 +465,7 @@ def cleanup_shared_memory(shared_info):
 
 
 def run_phab(vcf_info, regions, output_fn, buffer=100,
-             align_method=run_poa, threads=1):
+             align_method=run_poa, dedup=True, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -479,6 +501,7 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     jobs = [PhabJob(name, mem_vcf_info) for name in
             list(pysam.FastaFile(vcf_info.ref_haps_fn).references)]
 
+    to_call = functools.partial(safe_align_method, func=align_method, dedup=dedup)
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
@@ -487,7 +510,7 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(vcf_info.out_samples) + '\n')
 
-        for entry_set in monitored_pool(align_method, jobs, threads):
+        for entry_set in monitored_pool(to_call, jobs, threads):
             fout.write(entry_set)
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
@@ -513,20 +536,22 @@ def parse_args(args):
                         help="Reference")
     parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
                         help="Output VCF")
-    parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
-    parser.add_argument("-a", "--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
-                        help="Alignment method (%(default)s)")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
-                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("-s", "--samples", type=str, default=None,
-                        help="Subset of samples to MSA")
-    parser.add_argument("-t", "--threads", type=int, default=1,
-                        help="Number of threads (%(default)s)")
     parser.add_argument("--maxsize", type=int, default=50000,
                         help="Maximum size of variant to incorporate into haplotypes (%(default)s)")
     parser.add_argument("--passonly", action="store_true",
                         help="Only incorporate passing variants (%(default)s)")
+    parser.add_argument("--dedup", action="store_true",
+                        help="Dedupicate haplotypes before MSA")
+    parser.add_argument("--buffer", type=int, default=100,
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
+                        help="Alignment method (%(default)s)")
+    parser.add_argument("--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("--samples", type=str, default=None,
+                        help="Subset of samples to MSA")
+    parser.add_argument("--threads", type=int, default=1,
+                        help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -617,6 +642,7 @@ def phab_main(cmdargs):
     run_phab(m_vcf_info, all_regions, args.output,
              buffer=args.buffer,
              align_method=method,
+             dedup=args.dedup,
              threads=args.threads)
 
     logging.info("Finished phab")

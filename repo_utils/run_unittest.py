@@ -19,7 +19,9 @@ from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 
 class TestBoundaries(unittest.TestCase):
     def test_boundary_issues(self):
-        """Test if variants are correctly classified as within or outside a boundary."""
+        """
+        Test if variants are correctly classified as within or outside a boundary.
+        """
         vcf_fn = "repo_utils/test_files/variants/boundary.vcf.gz"
         region_start = 10
         region_end = 20
@@ -34,8 +36,10 @@ class TestBoundaries(unittest.TestCase):
                     f"Bad Boundary {str(entry)}"
                 )
 
-    def test_new_region_filtering(self):
-        """Test if regions are correctly filtered based on the provided BED file."""
+    def test_region_filtering(self):
+        """
+        Test if regions are correctly filtered based on the provided BED file.
+        """
         vcf_fn = "repo_utils/test_files/variants/boundary_cpx.vcf.gz"
         bed_fn = "repo_utils/test_files/beds/boundary_cpx.bed"
 
@@ -131,7 +135,7 @@ class TestPhab(unittest.TestCase):
         result = phab.safe_align_method(haps[1], phab.run_wfa)
         self.assertFalse(result.startswith("ERROR"), f"WFA failed: {result}")
 
-        result = phab.safe_align_method(haps[1], phab.run_poa)
+        result = phab.safe_align_method(haps[1], phab.run_poa, dedup=True)
         self.assertFalse(result.startswith("ERROR"), f"POA failed: {result}")
 
         result = phab.run_mafft(haps[1])
