@@ -3,6 +3,7 @@
 # ------------------------------------------------------------
 run phab $truv phab -o $OD/phab_result.vcf.gz \
                     -r chr1:700-900 --align mafft \
+                    --no-dedup \
                     -f $INDIR/references/phab_ref.fa \
                     $INDIR/variants/phab_base.vcf.gz \
                     $INDIR/variants/phab_comp.vcf.gz

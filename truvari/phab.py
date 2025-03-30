@@ -17,7 +17,6 @@ import multiprocessing
 import multiprocessing.shared_memory as shm
 
 import pysam
-import psutil
 import pyabpoa
 from pysam import samtools
 from intervaltree import IntervalTree
@@ -407,84 +406,68 @@ class PhabJob():
 # pylint: enable=too-few-public-methods
 
 
-def status_marker(job_id, pid_dict, func, job):
-    """
-    Before running the function with whatever args/kwargs
-    set a status
-    """
-    pid_dict[job_id] = os.getpid()  # Register PID
-    ret = func(job)
-    pid_dict[job_id] = -1 # Mark as finished
-    return ret
-
-def is_process_alive(pid):
-    """Check if a process is running and not a zombie/failed state."""
-    if not psutil.pid_exists(pid):
-        return False  # PID doesn't exist
-
-    try:
-        proc = psutil.Process(pid)
-        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD, psutil.STATUS_STOPPED}
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
-        return False  # Process was removed or is inaccessible
 
 def monitored_pool(method, locus_jobs, threads):
     """
     Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
     """
+    # given timeout in minutes, figure out how many retries are given
+    if "PHAB_TIMEOUT" in os.environ:
+        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12
+    else:
+        MAXRETRIES = 60
+    WAITINTERVAL = 5
+    FAILTIME = time.strftime(
+        "%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
     n_completed = 0
-    n_failed = 0
     prev_completed = 0.05
-    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
-        pid_dict = manager.dict()
-        pid_dict.update({_: 0 for _ in range(len(locus_jobs))})
+    n_failed = 0
+    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
+        results = [pool.apply_async(method, (job,)) for job in locus_jobs]
+        pending = {idx: (result, 0)
+                   for idx, result in enumerate(results)}  # Tracks retries
 
-        results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
-                    for jid, job in enumerate(locus_jobs)]
+        while pending:
+            for idx in list(pending.keys()):
+                result, retries = pending[idx]
 
-        time.sleep(1)
-        while any(v != -2 for v in pid_dict.values()):
-            for job_id, pid in pid_dict.items():
-                # Not started or already handled
-                if pid in (0, -2):
-                    continue
+                try:
+                    if result.ready():
+                        output = result.get()
+                        del pending[idx]
 
-                # Either finished or failed
-                if pid == -1:
-                    try:
-                        output = results[job_id].get()
-                    except Exception as e: # pylint: disable=broad-exception-caught
-                        output = f"ERROR: {e}"
-
-                    if isinstance(output, str) and output.startswith("ERROR:"):
-                        job = locus_jobs[job_id]
-                        logging.error(f"{job.name} {output}")
-                        n_failed += 1
-                    else:
-                        n_completed += 1
-                        yield output
-                    # Mark as completed
-                    pid_dict[job_id] = -2
-                elif not is_process_alive(pid):
-                    job = locus_jobs[job_id]
-                    logging.error(f"{job.name} ERROR: Failed")
+                        if isinstance(output, str) and output.startswith("ERROR:"):
+                            job = locus_jobs[idx]
+                            logging.error(f"{job.name} {output}")
+                            n_failed += 1
+                        else:
+                            n_completed += 1
+                            yield output
+                    # only penalize jobs that had a reasonable chance to start
+                    elif idx < (n_completed + n_failed + threads):
+                        if retries < MAXRETRIES:
+                            pending[idx] = (result, retries + 1)
+                        else:
+                            del pending[idx]
+                            n_failed += 1
+                            job = locus_jobs[idx]
+                            logging.error(
+                                f"{job.name} ERROR: Timeout after {FAILTIME}")
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    # Remove failed job
+                    del pending[idx]
                     n_failed += 1
-                    pid_dict[job_id] = -2
+                    job = locus_jobs[idx]
+                    logging.error(f"{job.name} ERROR: {e}")
 
-            # Manual progress bars
-            pct_completed = (n_completed + n_failed) / len(locus_jobs)
-            if pct_completed >= prev_completed:
-                logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                             n_completed, len(locus_jobs),
-                             pct_completed * 100, n_failed)
-                prev_completed = min(1, pct_completed + 0.05)
-            # Don't thrash the manager
-            time.sleep(1)
-    # Close up progress
-    if (n_completed + n_failed) / len(locus_jobs) != prev_completed:
-        logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                     n_completed, len(locus_jobs),
-                     100, n_failed)
+            if pending:
+                pct_completed = (n_completed + n_failed) / len(locus_jobs)
+                if pct_completed >= prev_completed:
+                    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                                 n_completed, len(locus_jobs),
+                                 pct_completed * 100, n_failed)
+                    prev_completed = min(1, pct_completed + 0.05)
+                time.sleep(WAITINTERVAL)  # Wait before retrying
 
     # I should perhaps exit non-zero if too many jobs fail...
 
