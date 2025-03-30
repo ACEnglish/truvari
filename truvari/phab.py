@@ -7,6 +7,7 @@ import sys
 import time
 import atexit
 import pickle
+import psutil
 import shutil
 import logging
 import argparse
@@ -407,67 +408,63 @@ class PhabJob():
 # pylint: enable=too-few-public-methods
 
 
+def status_marker(job_id, pid_dict, func, job):
+    """
+    Before running the function with whatever args/kwargs
+    set a status
+    """
+    pid_dict[job_id] = os.getpid()  # Register PID
+    ret = func(job)
+    pid_dict[job_id] = -1 # Mark as finished
+    return ret
+
 def monitored_pool(method, locus_jobs, threads):
     """
     Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
     """
-    # given timeout in minutes, figure out how many retries are given
-    if "PHAB_TIMEOUT" in os.environ:
-        MAXRETRIES = int(os.environ["PHAB_TIMEOUT"]) * 12
-    else:
-        MAXRETRIES = 60
-    WAITINTERVAL = 5
-    FAILTIME = time.strftime(
-        "%H:%M:%S", time.gmtime(MAXRETRIES * WAITINTERVAL))
+
     n_completed = 0
-    prev_completed = 0.05
     n_failed = 0
-    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        results = [pool.apply_async(method, (job,)) for job in locus_jobs]
-        pending = {idx: (result, 0)
-                   for idx, result in enumerate(results)}  # Tracks retries
+    prev_completed = 0.05
+    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
+        pid_dict = manager.dict()
+        pid_dict.update({_: 0 for _ in range(len(locus_jobs))})
 
-        while pending:
-            for idx in list(pending.keys()):
-                result, retries = pending[idx]
+        results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
+                    for jid, job in enumerate(locus_jobs)]
+        
+        time.sleep(1)
+        pid_dict.update({_: 0 for _ in range(len(locus_jobs))})
+        while any(v != -2 for v in pid_dict.values()):
+            for job_id, pid in pid_dict.items():
+                # Not started or already handled
+                if pid in (0, -2):
+                    continue
 
-                try:
-                    if result.ready():
-                        output = result.get()
-                        del pending[idx]
+                if pid == -1 or not psutil.pid_exists(pid):
+                    # Either finished or failed
+                    try:
+                        output = results[job_id].get()
+                    except Exception as e: # pylint: disable=broad-exception-caught
+                        output = f"ERROR: {e}"
 
-                        if isinstance(output, str) and output.startswith("ERROR:"):
-                            job = locus_jobs[idx]
-                            logging.error(f"{job.name} {output}")
-                            n_failed += 1
-                        else:
-                            n_completed += 1
-                            yield output
-                    # only penalize jobs that had a reasonable chance to start
-                    elif idx < (n_completed + n_failed + threads):
-                        if retries < MAXRETRIES:
-                            pending[idx] = (result, retries + 1)
-                        else:
-                            del pending[idx]
-                            n_failed += 1
-                            job = locus_jobs[idx]
-                            logging.error(
-                                f"{job.name} ERROR: Timeout after {FAILTIME}")
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    # Remove failed job
-                    del pending[idx]
-                    n_failed += 1
-                    job = locus_jobs[idx]
-                    logging.error(f"{job.name} ERROR: {e}")
+                    if isinstance(output, str) and output.startswith("ERROR:"):
+                        job = locus_jobs[job_id]
+                        logging.error(f"{job.name} {output}")
+                        n_failed += 1
+                    else:
+                        n_completed += 1
+                        yield output
+                    # Mark as completed
+                    pid_dict[job_id] = -2  
 
-            if pending:
-                pct_completed = (n_completed + n_failed) / len(locus_jobs)
-                if pct_completed >= prev_completed:
-                    logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                                 n_completed, len(locus_jobs),
-                                 pct_completed * 100, n_failed)
-                    prev_completed = min(1, pct_completed + 0.05)
-                time.sleep(WAITINTERVAL)  # Wait before retrying
+            # Manual progress bars
+            pct_completed = (n_completed + n_failed) / len(locus_jobs)
+            if pct_completed >= prev_completed:
+                logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                             n_completed, len(locus_jobs),
+                             pct_completed * 100, n_failed)
+                prev_completed = min(1, pct_completed + 0.05)
 
     # I should perhaps exit non-zero if too many jobs fail...
 
