@@ -26,75 +26,9 @@ import truvari
 
 DEFAULT_MAFFT_PARAM = "--auto --thread 1"
 
-##################
-# phab utilities #
-##################
-
-
-def parse_regions(argument):
-    """
-    Parse the --region argument
-    returns list of regions
-    """
-    ret = []
-    if not argument:
-        return ret
-    if os.path.exists(argument):
-        for i in truvari.opt_gz_open(argument):
-            try:
-                chrom, start, end = i.strip().split('\t')[:3]
-                start = int(start)
-                end = int(end)
-            except Exception:  # pylint: disable=broad-except
-                logging.error("Unable to parse bed line %s", i)
-                sys.exit(1)
-            ret.append((chrom, start, end))
-    else:
-        for i in argument.split(','):
-            try:
-                chrom, start, end = re.split(':|-', i)
-                start = int(start)
-                end = int(end)
-            except ValueError:
-                logging.error("Unable to parse region line %s", i)
-                sys.exit(1)
-            ret.append((chrom, start, end))
-    return ret
-
-
-def incorporate(consensus_sequence, entry, correction):
-    """
-    Incorporate a variant into a haplotype returning the new correction field
-    """
-    if entry.alts[0] == '*':
-        return correction
-
-    ref_len = len(entry.ref)
-    alt_len = len(entry.alts[0]) if entry.alts else 0
-    # Need to check it doesn't overlap previous position
-    position = entry.pos + correction
-    consensus_sequence[position:position + ref_len] = list(entry.alts[0])
-    return correction + (alt_len - ref_len)
-
-
-def make_haplotypes(sequence, entries, ref, start, in_sample, out_sample):
-    """
-    Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
-    Make the two haplotypes
-    """
-    haps = (list(sequence), list(sequence))
-    correction = [-start, -start]
-    for entry in entries:
-        if entry.samples[in_sample]['GT'][0] == 1:
-            correction[0] = incorporate(haps[0], entry, correction[0])
-        if len(entry.samples[in_sample]['GT']) > 1 and entry.samples[in_sample]['GT'][1] == 1:
-            correction[1] = incorporate(haps[1], entry, correction[1])
-    return {f"{out_sample}_1_{ref}": ''.join(haps[0]),
-            f"{out_sample}_2_{ref}": ''.join(haps[1])}
-
-#####################
-# aligner utilities #
-#####################
+############
+# aligners #
+############
 
 
 def fasta_reader(fa_str):
@@ -149,7 +83,6 @@ def deduplicate_haps(d):
 
     for key, value in d.items():
         if value in value_to_key:
-            # Get the currently assigned dedup key
             current_key = value_to_key[value]
 
             # If the new key is a 'ref_' key and the current key isn't, update preference
@@ -164,10 +97,10 @@ def deduplicate_haps(d):
 
                 key_mapping[key] = key
             else:
-                key_mapping[key] = current_key  # Keep existing key mapping
+                key_mapping[key] = current_key
 
         else:
-            dedup_key = key  # Use the first occurrence as the deduplicated key
+            dedup_key = key
             value_to_key[value] = dedup_key
             dedup_dict[dedup_key] = value
             key_mapping[key] = dedup_key
@@ -177,7 +110,8 @@ def deduplicate_haps(d):
 
 def safe_align_method(job, func, dedup=False):
     """
-    Wrapper safely calling the alignment method on a PhabJob or dictionary
+    Wrapper for safely calling the alignment method.
+    Can optionally perform dedup for the alignment method.
     Will then return a call to truvari.msa2vcf on the align method's result
     Note, if the MSA fails, this return s a string "ERROR: {e}" instead of raising an exception
     """
@@ -210,7 +144,9 @@ def run_wfa(haplotypes):
     """
     ref_key = [_ for _ in haplotypes.keys() if _.startswith("ref_")][0]
     reference = haplotypes[ref_key]
-    aligner = WavefrontAligner(reference, distance="affine2p", span="end-to-end",
+    aligner = WavefrontAligner(reference,
+                               distance="affine2p",
+                               span="end-to-end",
                                heuristic="adaptive")
     for haplotype in haplotypes:
         if haplotype == ref_key:
@@ -259,12 +195,49 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     for k, v in haplotypes.items():
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
+
     _, seqs, names = zip(*parts)
+
     if aligner is None:
         # aln_mode='g', extra_f=0.25, extra_b=50)
         aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, out_cons, out_msa)
+
     return dict(zip(names, aln_result.msa_seq))
+
+#############
+# data prep #
+#############
+
+
+def make_haplotypes(sequence, entries, ref, start, in_sample, out_sample):
+    """
+    Make the two haplotypes
+    """
+    def incorporate(consensus_sequence, entry, correction):
+        """
+        Incorporate a variant into a haplotype returning the new correction field
+        """
+        if entry.alts[0] == '*':
+            return correction
+
+        ref_len = len(entry.ref)
+        alt_len = len(entry.alts[0]) if entry.alts else 0
+        # Need to check it doesn't overlap previous position
+        position = entry.pos + correction
+        consensus_sequence[position:position + ref_len] = list(entry.alts[0])
+        return correction + (alt_len - ref_len)
+
+    haps = (list(sequence), list(sequence))
+    # Correction from the input sequence's start (0) to the actual start
+    correction = [-start, -start]
+    for entry in entries:
+        if entry.samples[in_sample]['GT'][0] == 1:
+            correction[0] = incorporate(haps[0], entry, correction[0])
+        if len(entry.samples[in_sample]['GT']) > 1 and entry.samples[in_sample]['GT'][1] == 1:
+            correction[1] = incorporate(haps[1], entry, correction[1])
+    return {f"{out_sample}_1_{ref}": ''.join(haps[0]),
+            f"{out_sample}_2_{ref}": ''.join(haps[1])}
 
 
 class VCFtoHaplotypes():
@@ -281,8 +254,8 @@ class VCFtoHaplotypes():
         # Filled in later by `self.set_regions`
         self.ref_haps_fn = None
 
+        # Need to know sample names for output
         self.sample_lookup = {}
-        # Counter for unique suffix on output names
         seen = {}
         self.out_samples = []
         for i in vcf_fns:
@@ -382,35 +355,6 @@ class VCFtoHaplotypes():
 # Infrastructure #
 ##################
 
-# pylint: disable=too-few-public-methods
-
-
-class PhabJob():
-    """
-    This holds all the information needed to run one task through VCFtoHaplotypes
-    It is responsible for fetching reference sequence, sending to VCFtoHaplotypes,
-    and then passing that consolidated set of sequences to the align_method
-    # This could have a .run that is safe_align_method.. but whatever
-    """
-
-    def __init__(self, name, mem_vcf_info):
-        self.name = name
-        self.mem_vcf_info = mem_vcf_info
-
-    def build_haplotypes(self):
-        """
-        Returns the fasta dict of haplotypes for this job
-        This is essentially my collect_haplotypes
-        """
-        # Attach shared memory
-        shm_name, shm_size = self.mem_vcf_info
-        existing_shm = shm.SharedMemory(name=shm_name)
-        data = bytes(existing_shm.buf[:shm_size])
-        vcf_info = pickle.loads(data)
-
-        return vcf_info.get_haplotypes(self.name)
-# pylint: enable=too-few-public-methods
-
 
 def status_marker(job_id, pid_dict, func, job):
     """
@@ -433,18 +377,18 @@ def is_process_alive(pid):
         return False  # Process was removed or is inaccessible
 
 
-def monitored_pool(method, locus_jobs, threads):
+def monitored_pool(method, jobs, threads):
     """
-    Create a pool of workers, send jobs to a safe_align_method, monitor the results for yielding
+    Create a pool of workers, send them the method/jobs, monitor the results for yielding
     """
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
-        pid_dict = manager.dict({_: 0 for _ in range(len(locus_jobs))})
+        pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
 
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
-                   for jid, job in enumerate(locus_jobs)]
+                   for jid, job in enumerate(jobs)]
 
         time.sleep(1)
         while any(v != -2 for v in pid_dict.values()):
@@ -461,33 +405,31 @@ def monitored_pool(method, locus_jobs, threads):
                         output = f"ERROR: {e}"
 
                     if isinstance(output, str) and output.startswith("ERROR:"):
-                        job = locus_jobs[job_id]
-                        logging.error(f"{job.name} {output}")
                         n_failed += 1
+                        logging.error(f"{jobs[job_id].name} {output}")
                     else:
                         n_completed += 1
                         yield output
                     # Mark as completed
                     pid_dict[job_id] = -2
                 elif not is_process_alive(pid):
-                    job = locus_jobs[job_id]
-                    logging.error(f"{job.name} ERROR: Failed")
+                    logging.error(f"{jobs[job_id].name} ERROR: Failed")
                     n_failed += 1
                     pid_dict[job_id] = -2
 
             # Manual progress bars
-            pct_completed = (n_completed + n_failed) / len(locus_jobs)
+            pct_completed = (n_completed + n_failed) / len(jobs)
             if pct_completed >= prev_completed:
                 logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                             n_completed, len(locus_jobs),
+                             n_completed, len(jobs),
                              pct_completed * 100, n_failed)
                 prev_completed = min(1, pct_completed + 0.05)
             # Don't thrash the manager
             time.sleep(1)
     # Close up progress
-    if (n_completed + n_failed) / len(locus_jobs) != prev_completed:
+    if (n_completed + n_failed) / len(jobs) != prev_completed:
         logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
-                     n_completed, len(locus_jobs),
+                     n_completed, len(jobs),
                      100, n_failed)
 
     # I should perhaps exit non-zero if too many jobs fail...
@@ -502,6 +444,32 @@ def cleanup_shared_memory(shared_info):
         shared_info.unlink()
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error cleaning up shared memory: {e}")
+
+
+# pylint: disable=too-few-public-methods
+class PhabJob():
+    """
+    This holds all the information needed to run one task through VCFtoHaplotypes
+    Its only responsibility is to attach to shared memory before calling it
+    """
+
+    def __init__(self, name, mem_vcf_info):
+        self.name = name
+        self.mem_vcf_info = mem_vcf_info
+
+    def build_haplotypes(self):
+        """
+        Returns the fasta dict of haplotypes for this job
+        This is essentially my collect_haplotypes
+        """
+        # Attach shared memory
+        shm_name, shm_size = self.mem_vcf_info
+        existing_shm = shm.SharedMemory(name=shm_name)
+        data = bytes(existing_shm.buf[:shm_size])
+        vcf_info = pickle.loads(data)
+
+        return vcf_info.get_haplotypes(self.name)
+# pylint: enable=too-few-public-methods
 
 
 def run_phab(vcf_info, regions, output_fn, buffer=100,
@@ -645,6 +613,38 @@ def check_params(args):
         logging.error("Redundant sample names in --samples")
         check_fail = True
     return check_fail
+
+
+def parse_regions(argument):
+    """
+    Parse the --region, be it None, a file, or csv
+    """
+    ret = []
+    if not argument:
+        return ret
+
+    if os.path.exists(argument):
+        for i in truvari.opt_gz_open(argument):
+            try:
+                chrom, start, end = i.strip().split('\t')[:3]
+                start = int(start)
+                end = int(end)
+            except Exception:  # pylint: disable=broad-except
+                logging.error("Unable to parse bed line %s", i)
+                sys.exit(1)
+            ret.append((chrom, start, end))
+        return ret
+
+    for i in argument.split(','):
+        try:
+            chrom, start, end = re.split(':|-', i)
+            start = int(start)
+            end = int(end)
+        except ValueError:
+            logging.error("Unable to parse region line %s", i)
+            sys.exit(1)
+        ret.append((chrom, start, end))
+    return ret
 
 
 def get_align_method(method, params=DEFAULT_MAFFT_PARAM):
