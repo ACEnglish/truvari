@@ -138,6 +138,7 @@ def expand_cigar(seq, ref, cigar):
             ref_pos += span
     return "".join(ref), "".join(seq)
 
+
 def deduplicate_haps(d):
     """
     Deduplicates a dictionary by replacing duplicate values with a single key.
@@ -153,17 +154,15 @@ def deduplicate_haps(d):
 
             # If the new key is a 'ref_' key and the current key isn't, update preference
             if key.startswith("ref_") and not current_key.startswith("ref_"):
-                dedup_dict[key] = value  # Store value under the preferred key
-                del dedup_dict[current_key]  # Remove old non-ref key
-                value_to_key[value] = key  # Update mapping to prefer 'ref_' key
+                dedup_dict[key] = value
+                del dedup_dict[current_key]
+                value_to_key[value] = key
 
-                # Update all previous key mappings that pointed to the old key
                 for k, v in key_mapping.items():
                     if v == current_key:
                         key_mapping[k] = key
 
-                key_mapping[key] = key  # Ensure ref_ key points to itself
-
+                key_mapping[key] = key
             else:
                 key_mapping[key] = current_key  # Keep existing key mapping
 
@@ -174,6 +173,7 @@ def deduplicate_haps(d):
             key_mapping[key] = dedup_key
 
     return dedup_dict, key_mapping
+
 
 def safe_align_method(job, func, dedup=False):
     """
@@ -197,9 +197,10 @@ def safe_align_method(job, func, dedup=False):
         return f"ERROR: {e}"
 
     if dedup:
-        msa = {key: msa[val] for key,val in key_map.items()}
+        msa = {key: msa[val] for key, val in key_map.items()}
 
     return truvari.msa2vcf(msa)
+
 
 def run_wfa(haplotypes):
     """
@@ -209,8 +210,8 @@ def run_wfa(haplotypes):
     """
     ref_key = [_ for _ in haplotypes.keys() if _.startswith("ref_")][0]
     reference = haplotypes[ref_key]
-    aligner = WavefrontAligner(reference, span="end-to-end",
-                                  heuristic="adaptive")
+    aligner = WavefrontAligner(reference, distance="affine2p", span="end-to-end",
+                               heuristic="adaptive")
     for haplotype in haplotypes:
         if haplotype == ref_key:
             continue
@@ -220,6 +221,7 @@ def run_wfa(haplotypes):
                                              reference,
                                              aligner.cigartuples)
     return haplotypes
+
 
 def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
     """
@@ -259,6 +261,7 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     parts.sort(reverse=True)
     _, seqs, names = zip(*parts)
     if aligner is None:
+        # aln_mode='g', extra_f=0.25, extra_b=50)
         aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, out_cons, out_msa)
     return dict(zip(names, aln_result.msa_seq))
@@ -280,7 +283,7 @@ class VCFtoHaplotypes():
 
         self.sample_lookup = {}
         # Counter for unique suffix on output names
-        seen_samples = {}
+        seen = {}
         self.out_samples = []
         for i in vcf_fns:
             self.sample_lookup[i] = []
@@ -289,12 +292,12 @@ class VCFtoHaplotypes():
                 if samples is not None and old_sample not in samples:
                     continue
                 # --force-sample when needed
-                if old_sample in seen_samples:
-                    new_sample = old_sample + ':' + str(seen_samples[old_sample])
-                    seen_samples[old_sample] += 1
+                if old_sample in seen:
+                    new_sample = old_sample + ':' + str(seen[old_sample])
+                    seen[old_sample] += 1
                 else:
                     new_sample = old_sample
-                    seen_samples[old_sample] = 1
+                    seen[old_sample] = 1
                 # For the output vcf
                 self.out_samples.append(new_sample)
                 # For parsing input vcfs
@@ -380,6 +383,8 @@ class VCFtoHaplotypes():
 ##################
 
 # pylint: disable=too-few-public-methods
+
+
 class PhabJob():
     """
     This holds all the information needed to run one task through VCFtoHaplotypes
@@ -409,24 +414,24 @@ class PhabJob():
 
 def status_marker(job_id, pid_dict, func, job):
     """
-    Before running the function with whatever args/kwargs
-    set a status
+    Before running the function set a status
     """
     pid_dict[job_id] = os.getpid()  # Register PID
     ret = func(job)
-    pid_dict[job_id] = -1 # Mark as finished
+    pid_dict[job_id] = -1  # Mark as finished
     return ret
+
 
 def is_process_alive(pid):
     """Check if a process is running and not a zombie/failed state."""
     if not psutil.pid_exists(pid):
         return False  # PID doesn't exist
-
     try:
         proc = psutil.Process(pid)
         return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD, psutil.STATUS_STOPPED}
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False  # Process was removed or is inaccessible
+
 
 def monitored_pool(method, locus_jobs, threads):
     """
@@ -436,11 +441,10 @@ def monitored_pool(method, locus_jobs, threads):
     n_failed = 0
     prev_completed = 0.05
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
-        pid_dict = manager.dict()
-        pid_dict.update({_: 0 for _ in range(len(locus_jobs))})
+        pid_dict = manager.dict({_: 0 for _ in range(len(locus_jobs))})
 
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
-                    for jid, job in enumerate(locus_jobs)]
+                   for jid, job in enumerate(locus_jobs)]
 
         time.sleep(1)
         while any(v != -2 for v in pid_dict.values()):
@@ -453,7 +457,7 @@ def monitored_pool(method, locus_jobs, threads):
                 if pid == -1:
                     try:
                         output = results[job_id].get()
-                    except Exception as e: # pylint: disable=broad-exception-caught
+                    except Exception as e:  # pylint: disable=broad-exception-caught
                         output = f"ERROR: {e}"
 
                     if isinstance(output, str) and output.startswith("ERROR:"):
@@ -537,7 +541,9 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     jobs = [PhabJob(name, mem_vcf_info) for name in
             list(pysam.FastaFile(vcf_info.ref_haps_fn).references)]
 
-    to_call = functools.partial(safe_align_method, func=align_method, dedup=dedup)
+    to_call = functools.partial(safe_align_method,
+                                func=align_method,
+                                dedup=dedup)
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
@@ -550,7 +556,6 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
             fout.write(entry_set)
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
-# pylint: enable=too-many-arguments, too-many-locals
 
 
 ######
@@ -631,7 +636,7 @@ def check_params(args):
             check_fail = True
         else:
             if not i.endswith(".gz"):
-                logging.error("File %s does not end with .gz. Must be bgzip'd", i)
+                logging.error("File %s must be bgzip'd (.gz)", i)
                 check_fail = True
             if not truvari.check_vcf_index(i):
                 logging.error("File %s must be indexed", i)
