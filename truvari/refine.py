@@ -266,7 +266,7 @@ def parse_args(args):
     return args
 
 
-def check_params(args):
+def check_params(args):  # pragma: no cover
     """
     Sets up all the parameters from the bench/params.json
 

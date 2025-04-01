@@ -148,7 +148,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> fasta = dict(fasta_reader(seqs))
         >>> m_entries_str = truvari.msa2vcf(fasta)
     """
-    ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
+    ref_key = next((k for k in msa if k.startswith("ref_")))
     chrom, rest = ref_key[len("ref_"):].split(':')
     ref_seq = msa[ref_key].upper() if isinstance(msa[ref_key], str) else None
     start_pos = int(rest.split('-')[0])

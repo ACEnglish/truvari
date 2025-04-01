@@ -162,7 +162,7 @@ def check_params(args):
     return check_fail
 
 
-def check_sample(vcf_fn, sample_id=None):
+def check_sample(vcf_fn, sample_id=None):  # pragma: no cover
     """
     Checks that a sample is inside a vcf
     Returns True if check failed
@@ -551,7 +551,7 @@ class Bench():
             return fns
 
         # 5k variants takes too long
-        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:  # pragma: no cover
             pos = []
             cnt = 0
             chrom = None

@@ -19,14 +19,14 @@ import pandas as pd
 try:
     from bwapy import BwaAligner
     HASBWALIB = True
-except (OSError,  ModuleNotFoundError):
+except (OSError,  ModuleNotFoundError):  # pragma: no cover
     HASBWALIB = False
 
 import truvari
 
 try:
     from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
-except ModuleNotFoundError:
+except ModuleNotFoundError:  # pragma: no cover
     def setproctitle(_):
         """ dummy function """
         return
@@ -56,7 +56,7 @@ def make_kmers(ref, entry, kmer=25):
         # alternate
         hap = up[:kmer] + seq + dn[-kmer:]
         return up, dn, hap[:kmer * 2], hap[-kmer * 2:]
-    except Exception as e:  # pylint: disable=broad-except
+    except Exception as e:  # pylint: disable=broad-except  pragma: no cover
         logging.warning(f"{e} for {str(entry)[:20]}...")
         return None
 
@@ -220,7 +220,7 @@ def read_vcf_lines(in_fn, ref_name, start, stop):
     tb = tabix.open(in_fn)
     try:
         yield from tb.query(ref_name, start, stop)
-    except tabix.TabixError as e:
+    except tabix.TabixError as e:  # pragma: no cover
         logging.warning(f"Region {ref_name}:{start}-{stop} failed: {e}")
     setproctitle(f"grm done {ref_name}:{start}-{stop}")
     logging.debug(f"Done region {ref_name}:{start}-{stop}")
@@ -295,7 +295,7 @@ def grm_main(cmdargs):
     - document the bwa package and how to install
     - better column names along with documentation
     """
-    if not HASBWALIB:
+    if not HASBWALIB:  # pragma: no cover
         logging.error("bwapy isn't available on this machine")
         sys.exit(1)
     args = parse_args(cmdargs)

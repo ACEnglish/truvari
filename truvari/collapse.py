@@ -215,7 +215,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
             for key in set(entry.samples[sample].keys() + o_entry.samples[sample].keys()):
                 try:
                     entry.samples[sample][key] = o_entry.samples[sample][key]
-                except TypeError:
+                except TypeError:  # pragma: no cover
                     # Happens for things like PL when one is null but its expecting a tuple
                     logging.debug("Unable to set FORMAT %s for sample %s",
                                   key, sample)
@@ -223,7 +223,7 @@ def collapse_into_entry(entry, others, hap_mode=False):
                                   entry.chrom, entry.pos, entry.id)
                     logging.debug("Colap entry: %s:%d %s",
                                   o_entry.chrom, o_entry.pos, o_entry.id)
-                except KeyError:
+                except KeyError:  # pragma: no cover
                     logging.debug("Unshared format %s in sample %s ignored for pair %s:%d %s %s:%d %s",
                                   key, sample, entry.chrom, entry.pos, entry.id, o_entry.chrom,
                                   o_entry.pos, o_entry.id)

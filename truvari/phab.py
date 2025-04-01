@@ -127,7 +127,7 @@ def safe_align_method(job, func, dedup=False):
 
     try:
         msa = func(work)
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
         return f"ERROR: {e}"
 
     if dedup:
@@ -142,7 +142,7 @@ def run_wfa(haplotypes):
     Much faster than mafft, but may be less accurate at finding parsimonous representations
     a pre-build `WavefrontAligner` may be passed
     """
-    ref_key = [_ for _ in haplotypes.keys() if _.startswith("ref_")][0]
+    ref_key = next((k for k in haplotypes if k.startswith("ref_")))
     reference = haplotypes[ref_key]
     aligner = WavefrontAligner(reference,
                                distance="affine2p",
@@ -168,17 +168,17 @@ def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
 
     # Dev only method for overwriting test answers - don't use until code is good
     dev_name = None
-    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
+    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":  # pragma: no cover
         import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes, usedforsecurity=False).hexdigest()
 
     ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
-    if ret.ret_code != 0:
+    if ret.ret_code != 0:  # pragma: no cover
         logging.error("Unable to run MAFFT")
         logging.error("stderr: %s", ret.stderr)
         return ""
 
-    if dev_name is not None:
+    if dev_name is not None:  # pragma: no cover
         with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + dev_name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
 
@@ -210,7 +210,7 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
 #############
 
 
-def make_haplotypes(sequence, entries, ref, start, in_sample, out_sample):
+def make_haplotypes(sequence, entries, reg_name, start, in_sample, out_sample):
     """
     Make the two haplotypes
     """
@@ -236,8 +236,8 @@ def make_haplotypes(sequence, entries, ref, start, in_sample, out_sample):
             correction[0] = incorporate(haps[0], entry, correction[0])
         if len(entry.samples[in_sample]['GT']) > 1 and entry.samples[in_sample]['GT'][1] == 1:
             correction[1] = incorporate(haps[1], entry, correction[1])
-    return {f"{out_sample}_1_{ref}": ''.join(haps[0]),
-            f"{out_sample}_2_{ref}": ''.join(haps[1])}
+    return {f"{out_sample}_1_{reg_name}": ''.join(haps[0]),
+            f"{out_sample}_2_{reg_name}": ''.join(haps[1])}
 
 
 class VCFtoHaplotypes():
@@ -356,7 +356,7 @@ class VCFtoHaplotypes():
 ##################
 
 
-def status_marker(job_id, pid_dict, func, job):
+def status_marker(job_id, pid_dict, func, job):  # pragma: no cover
     """
     Before running the function set a status
     """
@@ -366,7 +366,7 @@ def status_marker(job_id, pid_dict, func, job):
     return ret
 
 
-def is_process_alive(pid):
+def is_process_alive(pid):  # pragma: no cover
     """Check if a process is running and not a zombie/failed state."""
     if not psutil.pid_exists(pid):
         return False  # PID doesn't exist
@@ -576,7 +576,7 @@ def check_requirements(align):
     """
     check_fail = False
     if align == "mafft":
-        if not shutil.which("mafft"):
+        if not shutil.which("mafft"):  # pragma: no cover
             logging.error("Unable to find mafft in PATH")
             check_fail = True
     return check_fail
@@ -629,7 +629,7 @@ def parse_regions(argument):
                 chrom, start, end = i.strip().split('\t')[:3]
                 start = int(start)
                 end = int(end)
-            except Exception:  # pylint: disable=broad-except
+            except Exception:  # pylint: disable=broad-except  pragma: no cover
                 logging.error("Unable to parse bed line %s", i)
                 sys.exit(1)
             ret.append((chrom, start, end))
@@ -640,7 +640,7 @@ def parse_regions(argument):
             chrom, start, end = re.split(':|-', i)
             start = int(start)
             end = int(end)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             logging.error("Unable to parse region line %s", i)
             sys.exit(1)
         ret.append((chrom, start, end))

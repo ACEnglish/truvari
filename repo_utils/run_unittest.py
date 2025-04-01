@@ -147,6 +147,26 @@ class TestPhab(unittest.TestCase):
         with self.assertRaises(ValueError):
             phab.get_align_method("bob")
 
+        d = {'O':'A', 'ref_':'A'}
+        self.assertTrue(phab.deduplicate_haps(d)[0] == {'ref_':'A'}, "Phab dedup failed")
+
+        import pickle
+        import multiprocessing.shared_memory as shm
+        vcf_info = FakeVCFI()
+        data = pickle.dumps(vcf_info)
+        shared_info = shm.SharedMemory(create=True, size=len(data))
+        shared_info.buf[:len(data)] = data
+        mem_vcf_info = (shared_info.name, shared_info.size)
+        job = phab.PhabJob("fake", mem_vcf_info)
+        self.assertTrue(phab.safe_align_method(job, "not a function") == "ERROR: 'str' object is not callable", "PhabJob")
+        phab.cleanup_shared_memory(shared_info)
+
+
+class FakeVCFI():
+    def __init__(self):
+        pass
+    def get_haplotypes(self, _):
+        return "A"
 
 if __name__ == "__main__":
     unittest.main()
