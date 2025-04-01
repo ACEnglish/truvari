@@ -29,7 +29,7 @@ The current most common Truvari use case is for structural variation benchmarkin
   truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fa -o output_dir/
 ```
 
-Find more matches by harmonizing phased varians using refine:
+Find more matches by harmonizing phased variants using refine:
 ```
    truvari refine output_dir/
 ```
