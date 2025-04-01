@@ -384,7 +384,7 @@ def monitored_pool(method, jobs, threads):
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
-    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
+    with multiprocessing.Pool(threads, maxtasksperchild=10) as pool, multiprocessing.Manager() as manager:
         pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
 
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
