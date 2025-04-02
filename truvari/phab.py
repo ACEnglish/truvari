@@ -12,7 +12,7 @@ import logging
 import argparse
 import functools
 from io import StringIO
-from collections import defaultdict
+from collections import defaultdict, Counter
 import multiprocessing
 import multiprocessing.shared_memory as shm
 
@@ -372,7 +372,7 @@ def is_process_alive(pid):  # pragma: no cover
         return False  # PID doesn't exist
     try:
         proc = psutil.Process(pid)
-        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD, psutil.STATUS_STOPPED}
+        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD}
     except (psutil.NoSuchProcess, psutil.AccessDenied):
         return False  # Process was removed or is inaccessible
 
@@ -381,15 +381,17 @@ def monitored_pool(method, jobs, threads):
     """
     Create a pool of workers, send them the method/jobs, monitor the results for yielding
     """
+    # Allow jobs to fail upto 5 times
+    MAXFAIL = 5
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
     with multiprocessing.Pool(threads, maxtasksperchild=10) as pool, multiprocessing.Manager() as manager:
         pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
-
+        
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
                    for jid, job in enumerate(jobs)]
-
+        fail_count = Counter()
         time.sleep(1)
         while any(v != -2 for v in pid_dict.values()):
             for job_id, pid in pid_dict.items():
@@ -413,9 +415,11 @@ def monitored_pool(method, jobs, threads):
                     # Mark as completed
                     pid_dict[job_id] = -2
                 elif not is_process_alive(pid):
-                    logging.error(f"{jobs[job_id].name} ERROR: Failed")
-                    n_failed += 1
-                    pid_dict[job_id] = -2
+                    fail_count[job_id] += 1
+                    if fail_count[job_id] >= MAXFAIL:
+                        logging.error(f"{jobs[job_id].name} ERROR: Failed")
+                        n_failed += 1
+                        pid_dict[job_id] = -2
 
             # Manual progress bars
             pct_completed = (n_completed + n_failed) / len(jobs)
