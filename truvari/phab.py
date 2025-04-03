@@ -345,7 +345,7 @@ class VCFtoHaplotypes():
         """
         reference = pysam.FastaFile(self.ref_haps_fn)
         vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
-        self.__haplotypes = {}
+        haplotypes = {}
         for refname in list(reference.references):
             ret = {}
             refseq = reference.fetch(refname)
@@ -362,8 +362,8 @@ class VCFtoHaplotypes():
                                                start, in_samp, out_samp))
 
             ret[f"ref_{refname}"] = refseq
-            self.__haplotypes[refname] = ret
-        return self.__haplotypes
+            haplotypes[refname] = ret
+        return haplotypes
             
     def __keep_entry(self, e, start, end):
         """
@@ -478,9 +478,10 @@ class PhabJob():
     Its only responsibility is to attach to shared memory before calling it
     """
 
-    def __init__(self, name, mem_vcf_info):
+    def __init__(self, name, mem_vcf_info, data=None):
         self.name = name
         self.mem_vcf_info = mem_vcf_info
+        self.data = data
 
     def build_haplotypes(self):
         """
@@ -488,6 +489,9 @@ class PhabJob():
         This is essentially my collect_haplotypes
         """
         # Attach shared memory
+        if self.data:
+            return data
+
         shm_name, shm_size = self.mem_vcf_info
         existing_shm = shm.SharedMemory(name=shm_name)
         data = bytes(existing_shm.buf[:shm_size])
@@ -523,7 +527,7 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     
     if in_mem:
         logging.info("Building haplotypes")
-        vcf_info.build_all()
+        all_haplotypes = vcf_info.build_all()
     logging.info("Harmonizing variants")
     # Shared memory for vcf_info to reduce copies/memory
     data = pickle.dumps(vcf_info)
@@ -534,8 +538,11 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     atexit.register(cleanup_shared_memory, shared_info)
 
     # Now we build all the jobs
-    jobs = [PhabJob(name, mem_vcf_info) for name in
-            list(pysam.FastaFile(vcf_info.ref_haps_fn).references)]
+    m_refs = list(pysam.FastaFile(vcf_info.ref_haps_fn).references)
+    if in_mem:
+        jobs = [PhabJob(name, mem_vcf_info, all_haplotypes[name]) for name in m_refs]
+    else:
+        jobs = [PhabJob(name, mem_vcf_info) for name in m_refs]
 
     to_call = functools.partial(safe_align_method,
                                 func=align_method,
