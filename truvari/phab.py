@@ -377,16 +377,16 @@ class VCFtoHaplotypes():
 ##################
 
 
-def status_marker(job_id, pid_dict, func, job):  # pragma: no cover
+def status_marker(job_id, pid_queue, func, job):  # pragma: no cover
     """
     Before running the function set a status
     """
-    pid_dict[job_id] = os.getpid()  # Register PID
+    pid_queue.put_nowait((job_id, os.getpid()))
     try:
         ret = func(job)
     except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
         ret = f"ERROR: {e}"
-    pid_dict[job_id] = -1  # Mark as finished
+    pid_queue.put_nowait((job_id, -1))
     return ret
 
 
@@ -413,20 +413,18 @@ def monitored_pool(method, jobs, threads):
     #multiprocessing.set_start_method("forkserver")
 
     with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
-        pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
+        pid_queue = manager.Queue()
         
-        results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
+        results = [pool.apply_async(status_marker, (jid, pid_queue, method, job,))
                    for jid, job in enumerate(jobs)]
         fail_count = Counter()
         time.sleep(1)
-        while any(v != -2 for v in pid_dict.values()):
-            for job_id, pid in pid_dict.items():
-                # Not started or already handled
-                if pid in (0, -2):
-                    continue
-
-                # Either finished or failed
-                if pid == -1:
+        active_jobs = {}
+        while n_completed + n_failed < len(jobs):
+            # Flush queue
+            while not pid_queue.empty():
+                job_id, pid = pid_queue.get_nowait()
+                if pid == -1: 
                     try:
                         output = results[job_id].get()
                     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -439,13 +437,18 @@ def monitored_pool(method, jobs, threads):
                         n_completed += 1
                         yield output
                     # Mark as completed
-                    pid_dict[job_id] = -2
-                elif not is_process_alive(pid):
+                    active_jobs.pop(job_id, None)  # Job finished
+                else:
+                    active_jobs[job_id] = pid
+
+            # Monitor jobs
+            for job_id, pid in list(active_jobs.keys()):
+                if not is_process_alive(pid):
                     fail_count[job_id] += 1
                     if fail_count[job_id] >= MAXFAIL:
                         logging.error(f"{jobs[job_id].name} ERROR: Failed")
                         n_failed += 1
-                        pid_dict[job_id] = -2
+                        active_jobs.pop(job_id, None)  # Job finished
 
             # Manual progress bars
             pct_completed = (n_completed + n_failed) / len(jobs)

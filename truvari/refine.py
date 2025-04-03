@@ -382,7 +382,8 @@ def refine_main(cmdargs):
                                       max_size=params.sizemax)
     align_method = phab.get_align_method(args.align, args.mafft_params)
     phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
-                  align_method=align_method, threads=args.threads)
+                  align_method=align_method, in_mem=True,
+                  threads=args.threads)
 
     # phab may have suffixed the cSample
     if params.bSample == params.cSample:
