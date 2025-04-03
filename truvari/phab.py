@@ -108,7 +108,7 @@ def deduplicate_haps(d):
     return dedup_dict, key_mapping
 
 
-def align_method_wrapper(job, func, dedup=False):
+def align_wrap(job, func, dedup=False):
     """
     Wrapper for safely calling the alignment method.
     Can optionally perform dedup for the alignment method.
@@ -126,7 +126,6 @@ def align_method_wrapper(job, func, dedup=False):
         work, key_map = deduplicate_haps(work)
 
     msa = func(work)
-   
 
     if dedup:
         msa = {key: msa[val] for key, val in key_map.items()}
@@ -251,7 +250,8 @@ class VCFtoHaplotypes():
         self.max_size = max_size
         # Filled in later by `self.set_regions`
         self.ref_haps_fn = None
-        self.__haplotypes = None
+        # Filled in later by `self.build_all`
+        self.__haplotypes = {}
 
         # Need to know sample names for output
         self.sample_lookup = {}
@@ -312,26 +312,34 @@ class VCFtoHaplotypes():
 
     def get_haplotypes(self, refname):
         """
-        Fetches the variants and builds the haplotypes of all the self.samples_lookup
+        Fetches the locus' haplotypes
         returns the fasta dictionary
         """
         if self.__haplotypes:
             return self.__haplotypes[refname]
+
+        reference = pysam.FastaFile(self.ref_haps_fn)
+        vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
+
+        return self.build_haplotypes(reference, refname, vcfs)
+
+    def build_haplotypes(self, reference, refname, vcfs):
+        """
+        Build haplotypes on already opened files
+        """
+        ret = {}
+        refseq = reference.fetch(refname)
         chrom, start, end = re.split(':|-', refname)
         start = int(start)
         end = int(end)
-        refseq = pysam.FastaFile(self.ref_haps_fn).fetch(refname)
 
         filt = functools.partial(self.__keep_entry, start=start, end=end)
 
-        ret = {}
-        for vcf_fn in self.vcf_fns:
-            vcf = truvari.VariantFile(vcf_fn)
+        for vcf_fn, vcf in zip(self.vcf_fns, vcfs):
             entries = list(filter(filt, vcf.fetch(chrom, start, end)))
             for in_samp, out_samp in self.sample_lookup[vcf_fn]:
                 ret.update(make_haplotypes(refseq, entries, refname,
                                            start, in_samp, out_samp))
-            vcf.close()
 
         ret[f"ref_{refname}"] = refseq
         return ret
@@ -345,24 +353,10 @@ class VCFtoHaplotypes():
         vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
         haplotypes = {}
         for refname in list(reference.references):
-            ret = {}
-            refseq = reference.fetch(refname)
-            chrom, start, end = re.split(':|-', refname)
-            start = int(start)
-            end = int(end)
-
-            filt = functools.partial(self.__keep_entry, start=start, end=end)
-
-            for vcf_fn, vcf in zip(self.vcf_fns, vcfs):
-                entries = list(filter(filt, vcf.fetch(chrom, start, end)))
-                for in_samp, out_samp in self.sample_lookup[vcf_fn]:
-                    ret.update(make_haplotypes(refseq, entries, refname,
-                                               start, in_samp, out_samp))
-
-            ret[f"ref_{refname}"] = refseq
+            ret = self.build_haplotypes(reference, refname, vcfs)
             haplotypes[refname] = ret
         return haplotypes
-            
+
     def __keep_entry(self, e, start, end):
         """
         I feel like this could be handled by truvari v5 api
@@ -377,16 +371,16 @@ class VCFtoHaplotypes():
 ##################
 
 
-def status_marker(job_id, pid_queue, func, job):  # pragma: no cover
+def status_marker(job_id, pid_dict, func, job):
     """
     Before running the function set a status
     """
-    pid_queue.put_nowait((job_id, os.getpid()))
+    pid_dict[job_id] = os.getpid()  # Register PID
     try:
         ret = func(job)
     except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
         ret = f"ERROR: {e}"
-    pid_queue.put_nowait((job_id, -1))
+    pid_dict[job_id] = -1  # Mark as finished
     return ret
 
 
@@ -410,21 +404,22 @@ def monitored_pool(method, jobs, threads):
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
-    #multiprocessing.set_start_method("forkserver")
 
-    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
-        pid_queue = manager.Queue()
-        
-        results = [pool.apply_async(status_marker, (jid, pid_queue, method, job,))
+    with multiprocessing.Pool(threads, maxtasksperchild=100) as pool, multiprocessing.Manager() as manager:
+        pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
+
+        results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
                    for jid, job in enumerate(jobs)]
         fail_count = Counter()
         time.sleep(1)
-        active_jobs = {}
-        while n_completed + n_failed < len(jobs):
-            # Flush queue
-            while not pid_queue.empty():
-                job_id, pid = pid_queue.get_nowait()
-                if pid == -1: 
+        while any(v != -2 for v in pid_dict.values()):
+            for job_id, pid in pid_dict.items():
+                # Not started or already handled
+                if pid in (0, -2):
+                    continue
+
+                # Either finished or failed
+                if pid == -1:
                     try:
                         output = results[job_id].get()
                     except Exception as e:  # pylint: disable=broad-exception-caught
@@ -437,18 +432,13 @@ def monitored_pool(method, jobs, threads):
                         n_completed += 1
                         yield output
                     # Mark as completed
-                    active_jobs.pop(job_id, None)  # Job finished
-                else:
-                    active_jobs[job_id] = pid
-
-            # Monitor jobs
-            for job_id, pid in list(active_jobs.keys()):
-                if not is_process_alive(pid):
+                    pid_dict[job_id] = -2
+                elif not is_process_alive(pid):
                     fail_count[job_id] += 1
                     if fail_count[job_id] >= MAXFAIL:
                         logging.error(f"{jobs[job_id].name} ERROR: Failed")
                         n_failed += 1
-                        active_jobs.pop(job_id, None)  # Job finished
+                        pid_dict[job_id] = -2
 
             # Manual progress bars
             pct_completed = (n_completed + n_failed) / len(jobs)
@@ -504,7 +494,7 @@ class PhabJob():
         existing_shm = shm.SharedMemory(name=shm_name)
         data = bytes(existing_shm.buf[:shm_size])
         vcf_info = pickle.loads(data)
-        
+
         return vcf_info.get_haplotypes(self.name)
 # pylint: enable=too-few-public-methods
 
@@ -527,34 +517,31 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     :type `buffer`: :class:`int`
     :param `align_method`: Alignment method's function. See `get_align_method`
     :type `method`: function
-    :param `in_mem`: Hold haplotypes in memory for faster result
-    :type `in_mem`: bool
     :param `threads`: Number of threads to use
     :type `threads`: :class:`int`
     """
     logging.info("Preparing reference/regions")
     vcf_info.set_regions(regions, buffer)
-    
+
+    m_refs = list(pysam.FastaFile(vcf_info.ref_haps_fn).references)
     if in_mem:
         logging.info("Building haplotypes")
         all_haplotypes = vcf_info.build_all()
-    logging.info("Harmonizing variants")
-    # Shared memory for vcf_info to reduce copies/memory
-    data = pickle.dumps(vcf_info)
-    shared_info = shm.SharedMemory(create=True, size=len(data))
-    shared_info.buf[:len(data)] = data
-    mem_vcf_info = (shared_info.name, shared_info.size)
-    # Cleanup shared memory on exit
-    atexit.register(cleanup_shared_memory, shared_info)
 
-    # Now we build all the jobs
-    m_refs = list(pysam.FastaFile(vcf_info.ref_haps_fn).references)
-    if in_mem:
-        jobs = [PhabJob(name, mem_vcf_info, all_haplotypes[name]) for name in m_refs]
+        jobs = [PhabJob(name, None, all_haplotypes[name]) for name in m_refs]
     else:
+        # Shared memory for vcf_info to reduce copies/memory
+        data = pickle.dumps(vcf_info)
+        shared_info = shm.SharedMemory(create=True, size=len(data))
+        shared_info.buf[:len(data)] = data
+        mem_vcf_info = (shared_info.name, shared_info.size)
+        # Cleanup shared memory on exit
+        atexit.register(cleanup_shared_memory, shared_info)
+
         jobs = [PhabJob(name, mem_vcf_info) for name in m_refs]
 
-    to_call = functools.partial(align_method_wrapper,
+    logging.info("Harmonizing variants")
+    to_call = functools.partial(align_wrap,
                                 func=align_method,
                                 dedup=dedup)
     with open(output_fn[:-len(".gz")], 'w') as fout:
@@ -564,12 +551,11 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(vcf_info.out_samples) + '\n')
-        
+
         if in_mem:
             with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
                 for result in pool.imap_unordered(to_call, jobs):
                     fout.write(result)
-
         else:
             for entry_set in monitored_pool(to_call, jobs, threads):
                 fout.write(entry_set)
