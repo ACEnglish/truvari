@@ -253,6 +253,7 @@ class VCFtoHaplotypes():
         self.max_size = max_size
         # Filled in later by `self.set_regions`
         self.ref_haps_fn = None
+        self.__haplotypes = None
 
         # Need to know sample names for output
         self.sample_lookup = {}
@@ -316,6 +317,8 @@ class VCFtoHaplotypes():
         Fetches the variants and builds the haplotypes of all the self.samples_lookup
         returns the fasta dictionary
         """
+        if self.__haplotypes:
+            return self.__haplotypes[refname]
         chrom, start, end = re.split(':|-', refname)
         start = int(start)
         end = int(end)
@@ -337,11 +340,31 @@ class VCFtoHaplotypes():
 
     def build_all(self):
         """
+        Builds a dictionary of refname : { haplotype_dict }
         Yields each locus' name and haplotypes as a dict
         """
-        for name in list(pysam.FastaFile(self.ref_haps_fn).references):
-            yield name, self.get_haplotypes(name)
+        reference = pysam.FastaFile(self.ref_haps_fn)
+        vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
+        self.__haplotypes = {}
+        for refname in list(reference.references):
+            ret = {}
+            refseq = reference.fetch(refname)
+            chrom, start, end = re.split(':|-', refname)
+            start = int(start)
+            end = int(end)
 
+            filt = functools.partial(self.__keep_entry, start=start, end=end)
+
+            for vcf_fn, vcf in zip(self.vcf_fns, vcfs):
+                entries = list(filter(filt, vcf.fetch(chrom, start, end)))
+                for in_samp, out_samp in self.sample_lookup[vcf_fn]:
+                    ret.update(make_haplotypes(refseq, entries, refname,
+                                               start, in_samp, out_samp))
+
+            ret[f"ref_{refname}"] = refseq
+            self.__haplotypes[refname] = ret
+        return self.__haplotypes
+            
     def __keep_entry(self, e, start, end):
         """
         I feel like this could be handled by truvari v5 api
@@ -384,6 +407,8 @@ def monitored_pool(method, jobs, threads):
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
+    multiprocessing.set_start_method("forkserver")
+
     with multiprocessing.Pool(threads, maxtasksperchild=10) as pool, multiprocessing.Manager() as manager:
         pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
 
@@ -467,13 +492,13 @@ class PhabJob():
         existing_shm = shm.SharedMemory(name=shm_name)
         data = bytes(existing_shm.buf[:shm_size])
         vcf_info = pickle.loads(data)
-
+        
         return vcf_info.get_haplotypes(self.name)
 # pylint: enable=too-few-public-methods
 
 
 def run_phab(vcf_info, regions, output_fn, buffer=100,
-             align_method=run_poa, dedup=False, threads=1):
+             align_method=run_poa, dedup=False, in_mem=True, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
@@ -495,7 +520,10 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     """
     logging.info("Preparing reference/regions")
     vcf_info.set_regions(regions, buffer)
-
+    
+    if in_mem:
+        logging.info("Building haplotypes")
+        vcf_info.build_all()
     logging.info("Harmonizing variants")
     # Shared memory for vcf_info to reduce copies/memory
     data = pickle.dumps(vcf_info)

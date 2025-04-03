@@ -125,7 +125,7 @@ def make_vcf(variants, sample_names):
                 gt[0] = "1"
             if sample + '_2' in variants[var]:
                 gt[1] = "1"
-            out.write("/".join(gt))
+            out.write("|".join(gt))
         out.write('\n')
     out.seek(0)
     return out.read()
