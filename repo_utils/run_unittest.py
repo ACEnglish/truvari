@@ -129,20 +129,20 @@ class TestPhab(unittest.TestCase):
             fout.write("chr1\t700\t900\n")
 
         regions = phab.parse_regions(reg_fn)
-        vcfhap.set_regions(regions)
-        haps = next(vcfhap.build_all())
-
-        result = phab.safe_align_method(haps[1], phab.run_wfa)
+        vcfhap.set_regions(regions, buff=0)
+        haps = vcfhap.build_all()
+        key = 'chr1:700-900'
+        result = phab.align_wrap(haps[key], phab.run_wfa)
         self.assertFalse(result.startswith("ERROR"), f"WFA failed: {result}")
 
-        result = phab.safe_align_method(haps[1], phab.run_poa, dedup=True)
+        result = phab.align_wrap(haps[key], phab.run_poa, dedup=True)
         self.assertFalse(result.startswith("ERROR"), f"POA failed: {result}")
 
-        result = phab.run_mafft(haps[1])
+        result = phab.run_mafft(haps[key])
         self.assertTrue(isinstance(result, dict), f"MAFFT failed: {result}")
 
         with self.assertRaises(TypeError):
-            phab.safe_align_method(haps, phab.run_wfa)
+            phab.align_wrap("", phab.run_wfa)
 
         with self.assertRaises(ValueError):
             phab.get_align_method("bob")
@@ -158,7 +158,7 @@ class TestPhab(unittest.TestCase):
         shared_info.buf[:len(data)] = data
         mem_vcf_info = (shared_info.name, shared_info.size)
         job = phab.PhabJob("fake", mem_vcf_info)
-        self.assertTrue(phab.safe_align_method(job, "not a function") == "ERROR: 'str' object is not callable", "PhabJob")
+        self.assertTrue(phab.status_marker(1, {}, "", job) == "ERROR: 'str' object is not callable", "PhabJob")
         phab.cleanup_shared_memory(shared_info)
 
 

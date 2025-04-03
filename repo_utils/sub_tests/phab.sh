@@ -12,7 +12,7 @@ if [ $phab ]; then
     assert_equal $(fn_md5 $ANSDIR/phab/phab_result.vcf.gz) $(fn_md5 $OD/phab_result.vcf.gz)
 fi
 
-run phab_wfa $truv phab -o $OD/phab_result_wfa.vcf.gz \
+run phab_wfa $truv phab --lowmem -o $OD/phab_result_wfa.vcf.gz \
                         -r chr1:700-900 --align wfa \
                         -f $INDIR/references/phab_ref.fa \
                         $INDIR/variants/phab_base.vcf.gz \
