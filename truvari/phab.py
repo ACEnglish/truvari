@@ -108,7 +108,7 @@ def deduplicate_haps(d):
     return dedup_dict, key_mapping
 
 
-def safe_align_method(job, func, dedup=False):
+def align_method_wrapper(job, func, dedup=False):
     """
     Wrapper for safely calling the alignment method.
     Can optionally perform dedup for the alignment method.
@@ -125,10 +125,8 @@ def safe_align_method(job, func, dedup=False):
     if dedup:
         work, key_map = deduplicate_haps(work)
 
-    try:
-        msa = func(work)
-    except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
-        return f"ERROR: {e}"
+    msa = func(work)
+   
 
     if dedup:
         msa = {key: msa[val] for key, val in key_map.items()}
@@ -384,7 +382,10 @@ def status_marker(job_id, pid_dict, func, job):  # pragma: no cover
     Before running the function set a status
     """
     pid_dict[job_id] = os.getpid()  # Register PID
-    ret = func(job)
+    try:
+        ret = func(job)
+    except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
+        ret = f"ERROR: {e}"
     pid_dict[job_id] = -1  # Mark as finished
     return ret
 
@@ -409,9 +410,9 @@ def monitored_pool(method, jobs, threads):
     n_completed = 0
     n_failed = 0
     prev_completed = 0.05
-    multiprocessing.set_start_method("forkserver")
+    #multiprocessing.set_start_method("forkserver")
 
-    with multiprocessing.Pool(threads, maxtasksperchild=10) as pool, multiprocessing.Manager() as manager:
+    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool, multiprocessing.Manager() as manager:
         pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
         
         results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
@@ -492,10 +493,10 @@ class PhabJob():
         Returns the fasta dict of haplotypes for this job
         This is essentially my collect_haplotypes
         """
-        # Attach shared memory
         if self.data:
-            return data
+            return self.data
 
+        # Attach shared memory
         shm_name, shm_size = self.mem_vcf_info
         existing_shm = shm.SharedMemory(name=shm_name)
         data = bytes(existing_shm.buf[:shm_size])
@@ -523,6 +524,8 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     :type `buffer`: :class:`int`
     :param `align_method`: Alignment method's function. See `get_align_method`
     :type `method`: function
+    :param `in_mem`: Hold haplotypes in memory for faster result
+    :type `in_mem`: bool
     :param `threads`: Number of threads to use
     :type `threads`: :class:`int`
     """
@@ -548,7 +551,7 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
     else:
         jobs = [PhabJob(name, mem_vcf_info) for name in m_refs]
 
-    to_call = functools.partial(safe_align_method,
+    to_call = functools.partial(align_method_wrapper,
                                 func=align_method,
                                 dedup=dedup)
     with open(output_fn[:-len(".gz")], 'w') as fout:
@@ -558,9 +561,15 @@ def run_phab(vcf_info, regions, output_fn, buffer=100,
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
         fout.write("\t".join(vcf_info.out_samples) + '\n')
+        
+        if in_mem:
+            with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
+                for result in pool.imap_unordered(to_call, jobs):
+                    fout.write(result)
 
-        for entry_set in monitored_pool(to_call, jobs, threads):
-            fout.write(entry_set)
+        else:
+            for entry_set in monitored_pool(to_call, jobs, threads):
+                fout.write(entry_set)
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
 
@@ -598,6 +607,8 @@ def parse_args(args):
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--samples", type=str, default=None,
                         help="Subset of samples to MSA")
+    parser.add_argument("--lowmem", action="store_false",
+                        help="For harmonizing many samples")
     parser.add_argument("--threads", type=int, default=1,
                         help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
@@ -723,6 +734,7 @@ def phab_main(cmdargs):
              buffer=args.buffer,
              align_method=method,
              dedup=args.no_dedup,
+             in_mem=args.lowmem,
              threads=args.threads)
 
     logging.info("Finished phab")

@@ -132,17 +132,17 @@ class TestPhab(unittest.TestCase):
         vcfhap.set_regions(regions)
         haps = next(vcfhap.build_all())
 
-        result = phab.safe_align_method(haps[1], phab.run_wfa)
+        result = phab.align_method_wrapper(haps[1], phab.run_wfa)
         self.assertFalse(result.startswith("ERROR"), f"WFA failed: {result}")
 
-        result = phab.safe_align_method(haps[1], phab.run_poa, dedup=True)
+        result = phab.align_method_wrapper(haps[1], phab.run_poa, dedup=True)
         self.assertFalse(result.startswith("ERROR"), f"POA failed: {result}")
 
         result = phab.run_mafft(haps[1])
         self.assertTrue(isinstance(result, dict), f"MAFFT failed: {result}")
 
         with self.assertRaises(TypeError):
-            phab.safe_align_method(haps, phab.run_wfa)
+            phab.align_method_wrapper(haps, phab.run_wfa)
 
         with self.assertRaises(ValueError):
             phab.get_align_method("bob")
@@ -158,7 +158,7 @@ class TestPhab(unittest.TestCase):
         shared_info.buf[:len(data)] = data
         mem_vcf_info = (shared_info.name, shared_info.size)
         job = phab.PhabJob("fake", mem_vcf_info)
-        self.assertTrue(phab.safe_align_method(job, "not a function") == "ERROR: 'str' object is not callable", "PhabJob")
+        self.assertTrue(phab.align_method_wrapper(job, "not a function") == "ERROR: 'str' object is not callable", "PhabJob")
         phab.cleanup_shared_memory(shared_info)
 
 
