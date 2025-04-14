@@ -12,6 +12,7 @@ from argparse import Namespace
 from collections import defaultdict
 
 import pandas as pd
+import numpy as np
 from pysam import bcftools
 from intervaltree import IntervalTree
 
@@ -186,10 +187,10 @@ def make_region_report(data):
 
     base = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
     baseP = int(base.sum())
-    baseN = int((~base).sum())
+    baseN = np.size(base) - np.count_nonzero(base)
     comp = (data['out_tp'] != 0) | (data['out_fp'] != 0)
     compP = int(comp.sum())
-    compN = int((~comp).sum())
+    compN = np.size(comp) - np.count_nonzero(comp)
 
     result["TP"] = int(true_positives.sum())
     result["TN"] = int(true_negatives.sum())
