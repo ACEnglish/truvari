@@ -1,4 +1,4 @@
-# Truvari 5.2.1
+# Truvari 5.3
 *in progress*
 
 * Fixed FP BNDs being dropped [details](https://github.com/ACEnglish/truvari/discussions/263). 

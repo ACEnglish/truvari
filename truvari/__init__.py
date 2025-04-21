@@ -66,7 +66,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '5.2.1-dev'
+__version__ = '5.3.0'
 
 
 from truvari.bench import (
