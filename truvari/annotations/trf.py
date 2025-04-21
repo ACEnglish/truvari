@@ -20,7 +20,7 @@ import truvari
 
 try:
     from setproctitle import setproctitle  # pylint: disable=import-error,useless-suppression
-except ModuleNotFoundError:
+except ModuleNotFoundError:  # pragma: no cover
     def setproctitle(_):
         """ dummy function """
         return
@@ -40,7 +40,7 @@ def compare_scores(a, b):
         ret = 1
     elif a["score"] < b["score"]:
         ret = -1
-    else:
+    else:  # pragma: no cover
         aspan = a["end"] - a["start"]
         bspan = b["end"] - b["start"]
         if aspan > bspan:
@@ -156,7 +156,7 @@ class TRFAnno():
         If candidate insertions are made elsewhere (e.g. from batching),
         use those. otherwise this method will run_trf itself
         """
-        if annos is None:
+        if annos is None:  # pragma: no cover
             seq = self.make_seq(entry, "INS")
             fa_fn = truvari.make_temp_filename(suffix=".fa")
             with open(fa_fn, 'w') as fout:
@@ -176,7 +176,7 @@ class TRFAnno():
             return scores[0]
         return scores
 
-    def annotate(self, entry, score_filter=True):
+    def annotate(self, entry, score_filter=True):  # pragma: no cover
         """
         Figure out the hit and return
         """
@@ -308,7 +308,7 @@ def run_trf(fa_fn, executable="trf409.linux64",
     tr_fn = fa_fn + ".txt"
     cmd = f"{executable} {fa_fn} {trf_params} > {tr_fn}"
     ret = truvari.cmd_exe(cmd)
-    if ret.ret_code != 0:
+    if ret.ret_code != 0:  # pragma: no cover
         logging.error("Couldn't run trf. Check Parameters")
         logging.error(cmd)
         logging.error(str(ret))
@@ -352,7 +352,7 @@ class AnnoStack():
         self.tanno = TRFAnno(cur_anno, ref_seq, self.motif_sim)
 
 
-def process_ref_region(region, args):
+def process_ref_region(region, args):  # pragma: no cover
     """
     Process a section of the reference.
     Tries to run TRF only once
@@ -508,7 +508,7 @@ def iter_tr_regions(fn, region=None):
         tb = tabix.open(fn)
         try:
             data = tb.query(*region)
-        except tabix.TabixError as e:
+        except tabix.TabixError as e:  # pragma: no cover
             logging.debug(f"Region {region} failed: {e}")
             data = []
 

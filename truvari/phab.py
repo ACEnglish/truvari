@@ -4,15 +4,20 @@ Wrapper around MAFFT and other tools to harmonize phased variants
 import os
 import re
 import sys
+import time
+import atexit
+import pickle
 import shutil
 import logging
 import argparse
+import functools
+from io import StringIO
+from collections import defaultdict, Counter
 import multiprocessing
-from functools import partial
-from io import BytesIO, StringIO
-from collections import defaultdict
+import multiprocessing.shared_memory as shm
 
 import pysam
+import psutil
 import pyabpoa
 from pysam import samtools
 from intervaltree import IntervalTree
@@ -21,177 +26,9 @@ import truvari
 
 DEFAULT_MAFFT_PARAM = "--auto --thread 1"
 
-
-def parse_regions(argument):
-    """
-    Parse the --region argument
-    returns list of regions
-    """
-    ret = []
-    if not argument:
-        return ret
-    if os.path.exists(argument):
-        for i in truvari.opt_gz_open(argument):
-            try:
-                chrom, start, end = i.strip().split('\t')[:3]
-                start = int(start)
-                end = int(end)
-            except Exception:  # pylint: disable=broad-except
-                logging.error("Unable to parse bed line %s", i)
-                sys.exit(1)
-            ret.append((chrom, start, end))
-    else:
-        for i in argument.split(','):
-            try:
-                chrom, start, end = re.split(':|-', i)
-                start = int(start)
-                end = int(end)
-            except ValueError:
-                logging.error("Unable to parse region line %s", i)
-                sys.exit(1)
-            ret.append((chrom, start, end))
-    return ret
-
-
-def merged_region_file(regions, buff=100):
-    """
-    Write a file for extracting reference regions with samtools
-    returns the name of the temporary file made
-    """
-    m_dict = defaultdict(list)
-    for i in regions:
-        m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
-
-    out_file_name = truvari.make_temp_filename()
-    n_reg = 0
-    with open(out_file_name, 'w') as fout:
-        for chrom in sorted(m_dict.keys()):
-            intvs = IntervalTree.from_tuples(m_dict[chrom])
-            intvs.merge_overlaps()
-            for i in sorted(intvs):
-                fout.write(f"{chrom}:{i.begin}-{i.end}\n")
-                n_reg += 1
-    if n_reg == 0:
-        logging.critical("No regions to be refined. Exiting")
-        sys.exit(0)
-    return out_file_name
-
-
-def extract_reference(reg_fn, ref_fn):
-    """
-    Pull the reference
-    """
-    out_fn = truvari.make_temp_filename(suffix='.fa')
-    with open(out_fn, 'w') as fout:
-        fout.write(samtools.faidx(ref_fn, "-r", reg_fn))
-    return out_fn
-
-
-def incorporate(consensus_sequence, entry, correction):
-    """
-    Incorporate a variant into a haplotype returning the new correction field
-    """
-    if entry.alts[0] == '*':
-        return correction
-
-    ref_len = len(entry.ref)
-    alt_len = len(entry.alts[0]) if entry.alts else 0
-    # Need to check it doesn't overlap previous position
-    position = entry.pos + correction
-    consensus_sequence[position:position + ref_len] = list(entry.alts[0])
-    return correction + (alt_len - ref_len)
-
-
-def make_haplotypes(sequence, entries, o_samp, ref, start, sample):
-    """
-    Given a reference sequence, set of entries to incorporate, sample name, reference key, and reference start position
-    Make the two haplotypes
-    """
-    haps = (list(sequence), list(sequence))
-    correction = [-start, -start]
-    for entry in entries:
-        if entry.samples[sample]['GT'][0] == 1:
-            correction[0] = incorporate(haps[0], entry, correction[0])
-        if len(entry.samples[sample]['GT']) > 1 and entry.samples[sample]['GT'][1] == 1:
-            correction[1] = incorporate(haps[1], entry, correction[1])
-    return (f">{o_samp}_1_{ref}\n{''.join(haps[0])}\n"
-            f">{o_samp}_2_{ref}\n{''.join(haps[1])}\n").encode()
-
-
-#pylint: disable=too-many-locals
-def make_consensus(data, ref_fn, passonly=True, max_size=50000):
-    """
-    Creates consensus sequence from variants
-    """
-    vcf_fn, sample, prefix = data
-    reference = pysam.FastaFile(ref_fn)
-    vcf = truvari.VariantFile(vcf_fn)
-    o_samp = 'p:' + sample if prefix else sample
-    ret = {}
-
-    tree = defaultdict(IntervalTree)
-    for ref in list(reference.references):
-        chrom, start, end = re.split(':|-', ref)
-        start = int(start)
-        end = int(end)
-        tree[chrom].addi(start, end+1, data=ref)
-
-    vcf_i = vcf.fetch_regions(tree, with_region=True)
-
-    # Don't make haplotypes of non-sequence resolved, non-pass (sometimes), too big variants
-    # Note: max_size == -1 now that we're not capping by variant size.
-    # pylint: disable=unnecessary-lambda-assignment
-    entry_filter = lambda e: \
-           e.is_resolved() \
-           and (not passonly or not e.is_filtered()) \
-           and (max_size == -1 or e.var_size() <= max_size)
-    # pylint: enable=unnecessary-lambda-assignment
-
-    cur_key = None
-    cur_entries = []
-    for entry, key in vcf_i:
-        if cur_key is None:
-            cur_key = key
-
-        if key != cur_key:
-            ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
-            ref_seq = reference.fetch(ref)
-            ret[ref] = make_haplotypes(ref_seq, filter(entry_filter, cur_entries), o_samp,
-                                       ref, cur_key[1].begin, sample)
-            cur_key = key
-            cur_entries = []
-        cur_entries.append(entry)
-
-    if cur_entries:
-        ref = f"{cur_key[0]}:{cur_key[1].begin}-{cur_key[1].end - 1}"
-        ref_seq = reference.fetch(ref)
-        ret[ref] = make_haplotypes(ref_seq, cur_entries, o_samp,
-                                   ref, cur_key[1].begin, sample)
-
-    return ret
-#pylint: enable=too-many-locals
-
-
-def make_haplotype_jobs(base_vcf, bSamples=None, comp_vcf=None, cSamples=None, prefix_comp=False):
-    """
-    Sets up sample parameters for extract haplotypes
-    returns list of tuple of (VCF, sample_name, should_prefix) and the sample names
-    to expect in the haplotypes' fasta
-    """
-    ret = []
-    if bSamples is None:
-        bSamples = list(truvari.VariantFile(base_vcf).header.samples)
-    ret.extend([(base_vcf, samp, False) for samp in bSamples])
-
-    if comp_vcf:
-        if cSamples is None:
-            cSamples = list(truvari.VariantFile(comp_vcf).header.samples)
-        ret.extend([(comp_vcf, samp, prefix_comp or samp in bSamples)
-                    for samp in cSamples])
-
-    samp_names = sorted({('p:' if prefix else '') + samp
-                         for _, samp, prefix in ret})
-    return ret, samp_names
+############
+# aligners #
+############
 
 
 def fasta_reader(fa_str):
@@ -211,28 +48,6 @@ def fasta_reader(fa_str):
         cur_entry = StringIO()
     cur_entry.seek(0)
     yield cur_name, cur_entry.read()
-
-
-def collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly=True, max_size=50000):
-    """
-    Calls extract haplotypes for every hap_job and the reference sequence
-    """
-    all_haps = defaultdict(BytesIO)
-    m_ref = pysam.FastaFile(ref_haps_fn)
-    with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-        to_call = partial(make_consensus, ref_fn=ref_haps_fn, passonly=passonly, max_size=max_size)
-        # Keep imap because determinism
-        for pos, haplotypes in enumerate(pool.imap(to_call, hap_jobs)):
-            for location, fasta_entry in haplotypes.items():
-                cur = all_haps[location]
-                cur.write(fasta_entry)
-                if pos == len(hap_jobs) - 1: # Write reference for this location at the end
-                    cur.write(f">ref_{location}\n{m_ref[location]}\n".encode())
-                    cur.seek(0)
-                    all_haps[location] = cur.read()
-        pool.close()
-        pool.join()
-    return all_haps.values()
 
 
 def expand_cigar(seq, ref, cigar):
@@ -258,133 +73,495 @@ def expand_cigar(seq, ref, cigar):
     return "".join(ref), "".join(seq)
 
 
-def run_wfa(seq_bytes):
+def deduplicate_haps(d):
+    """
+    Deduplicates a dictionary by replacing duplicate values with a single key.
+    """
+    value_to_key = {}
+    dedup_dict = {}
+    key_mapping = {}
+
+    for key, value in d.items():
+        if value in value_to_key:
+            current_key = value_to_key[value]
+
+            # If the new key is a 'ref_' key and the current key isn't, update preference
+            if key.startswith("ref_") and not current_key.startswith("ref_"):
+                dedup_dict[key] = value
+                del dedup_dict[current_key]
+                value_to_key[value] = key
+
+                for k, v in key_mapping.items():
+                    if v == current_key:
+                        key_mapping[k] = key
+
+                key_mapping[key] = key
+            else:
+                key_mapping[key] = current_key
+
+        else:
+            dedup_key = key
+            value_to_key[value] = dedup_key
+            dedup_dict[dedup_key] = value
+            key_mapping[key] = dedup_key
+
+    return dedup_dict, key_mapping
+
+
+def align_wrap(job, func, dedup=False):
+    """
+    Wrapper for safely calling the alignment method.
+    Can optionally perform dedup for the alignment method.
+    Will then return a call to truvari.msa2vcf on the align method's result
+    Note, if the MSA fails, this return s a string "ERROR: {e}" instead of raising an exception
+    """
+    if isinstance(job, PhabJob):
+        work = job.build_haplotypes()
+    elif isinstance(job, dict):
+        work = job
+    else:
+        raise TypeError(f"Unknown job type {type(job)}")
+
+    if dedup:
+        work, key_map = deduplicate_haps(work)
+
+    msa = func(work)
+
+    if dedup:
+        msa = {key: msa[val] for key, val in key_map.items()}
+
+    return truvari.msa2vcf(msa)
+
+
+def run_wfa(haplotypes):
     """
     Align haplotypes independently with WFA
     Much faster than mafft, but may be less accurate at finding parsimonous representations
+    a pre-build `WavefrontAligner` may be passed
     """
-    fasta = dict(fasta_reader(seq_bytes.decode()))
-    ref_key = [_ for _ in fasta.keys() if _.startswith("ref_")][0]
-    reference = fasta[ref_key]
-    aligner = WavefrontAligner(reference, span="end-to-end",
+    ref_key = next((k for k in haplotypes if k.startswith("ref_")))
+    reference = haplotypes[ref_key]
+    aligner = WavefrontAligner(reference,
+                               distance="affine2p",
+                               span="end-to-end",
                                heuristic="adaptive")
-    for haplotype in fasta:
+    for haplotype in haplotypes:
         if haplotype == ref_key:
             continue
-        seq = fasta[haplotype]
+        seq = haplotypes[haplotype]
         aligner.wavefront_align(seq)
-        fasta[haplotype] = expand_cigar(seq, reference, aligner.cigartuples)
-    return truvari.msa2vcf(fasta)
+        haplotypes[haplotype] = expand_cigar(seq,
+                                             reference,
+                                             aligner.cigartuples)
+    return haplotypes
 
 
-def run_mafft(seq_bytes, params=DEFAULT_MAFFT_PARAM):
+def run_mafft(haplotypes, params=DEFAULT_MAFFT_PARAM):
     """
-    Run mafft on the provided sequences provided as a bytestr and return msa2vcf lines
+    Run mafft on the provided haplotypes dictionary
     """
+    seq_bytes = "".join(
+        [f'>{k}\n{v}\n' for k, v in haplotypes.items()]).encode()
+
     # Dev only method for overwriting test answers - don't use until code is good
     dev_name = None
-    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":
+    if "PHAB_WRITE_MAFFT" in os.environ and os.environ["PHAB_WRITE_MAFFT"] == "1":  # pragma: no cover
         import hashlib  # pylint: disable=import-outside-toplevel
         dev_name = hashlib.md5(seq_bytes, usedforsecurity=False).hexdigest()
 
     ret = truvari.cmd_exe(f"mafft {params} -", stdin=seq_bytes)
-    if ret.ret_code != 0:
+    if ret.ret_code != 0:  # pragma: no cover
         logging.error("Unable to run MAFFT")
         logging.error("stderr: %s", ret.stderr)
         return ""
 
-    if dev_name is not None:
+    if dev_name is not None:  # pragma: no cover
         with open("repo_utils/test_files/external/fake_mafft/lookup/fm_" + dev_name + ".msa", 'w') as fout:
             fout.write(ret.stdout)
 
     fasta = dict(fasta_reader(ret.stdout))
-    return truvari.msa2vcf(fasta)
+    return fasta
 
 
-def run_poa(seq_bytes):
+def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     """
-    Run partial order alignment to create msa
+    Run partial order alignment of haplotypes to create msa
+    a pre-build pyabpoa.msa_aligner may be passed
     """
     parts = []
-    for k, v in fasta_reader(seq_bytes.decode()):
+    for k, v in haplotypes.items():
         parts.append((len(v), v, k))
     parts.sort(reverse=True)
+
     _, seqs, names = zip(*parts)
-    aligner = pyabpoa.msa_aligner()
-    aln_result = aligner.msa(seqs, False, True)
-    return truvari.msa2vcf(dict(zip(names, aln_result.msa_seq)))
+
+    if aligner is None:
+        # aln_mode='g', extra_f=0.25, extra_b=50)
+        aligner = pyabpoa.msa_aligner()
+    aln_result = aligner.msa(seqs, out_cons, out_msa)
+
+    return dict(zip(names, aln_result.msa_seq))
+
+#############
+# data prep #
+#############
 
 
-# pylint: disable=too-many-arguments, too-many-locals
-# This is just how many arguments it takes
-def phab(var_regions, base_vcf, ref_fn, output_fn, bSamples=None, buffer=100,
-         mafft_params=DEFAULT_MAFFT_PARAM, comp_vcf=None, cSamples=None,
-         prefix_comp=False, threads=1, method="mafft", passonly=True, max_size=50000):
+def make_haplotypes(sequence, entries, reg_name, start, in_sample, out_sample):
+    """
+    Make the two haplotypes
+    """
+    def incorporate(consensus_sequence, entry, correction):
+        """
+        Incorporate a variant into a haplotype returning the new correction field
+        """
+        if entry.alts[0] == '*':
+            return correction
+
+        ref_len = len(entry.ref)
+        alt_len = len(entry.alts[0]) if entry.alts else 0
+        # Need to check it doesn't overlap previous position
+        position = entry.pos + correction
+        consensus_sequence[position:position + ref_len] = list(entry.alts[0])
+        return correction + (alt_len - ref_len)
+
+    haps = (list(sequence), list(sequence))
+    # Correction from the input sequence's start (0) to the actual start
+    correction = [-start, -start]
+    for entry in entries:
+        if entry.samples[in_sample]['GT'][0] == 1:
+            correction[0] = incorporate(haps[0], entry, correction[0])
+        if len(entry.samples[in_sample]['GT']) > 1 and entry.samples[in_sample]['GT'][1] == 1:
+            correction[1] = incorporate(haps[1], entry, correction[1])
+    return {f"{out_sample}_1_{reg_name}": ''.join(haps[0]),
+            f"{out_sample}_2_{reg_name}": ''.join(haps[1])}
+
+
+class VCFtoHaplotypes():
+    """
+    Class for holding input VCFs with helpers for fetching/filtering
+    variants and writing the output header
+    """
+
+    def __init__(self, reference_fn, vcf_fns, samples=None, passonly=True, max_size=50000):
+        self.reference_fn = reference_fn
+        self.vcf_fns = vcf_fns
+        self.passonly = passonly
+        self.max_size = max_size
+        # Filled in later by `self.set_regions`
+        self.ref_haps_fn = None
+        # Filled in later by `self.build_all`
+        self.__haplotypes = {}
+
+        # Need to know sample names for output
+        self.sample_lookup = {}
+        seen = {}
+        self.out_samples = []
+        for i in vcf_fns:
+            self.sample_lookup[i] = []
+            for old_sample in list(truvari.VariantFile(i).header.samples):
+                # Only grab the requested samples
+                if samples is not None and old_sample not in samples:
+                    continue
+                # --force-sample when needed
+                if old_sample in seen:
+                    new_sample = old_sample + ':' + str(seen[old_sample])
+                    seen[old_sample] += 1
+                else:
+                    new_sample = old_sample
+                    seen[old_sample] = 1
+                # For the output vcf
+                self.out_samples.append(new_sample)
+                # For parsing input vcfs
+                self.sample_lookup[i].append((old_sample, new_sample))
+
+        # Must be sorted for the msa2vcf later
+        self.out_samples.sort()
+
+    def set_regions(self, regions, buff=100):
+        """
+        Write a file for extracting reference regions with samtools
+        Then extracts those regions.
+        Sets the class's x/y variables
+        """
+        m_dict = defaultdict(list)
+        for i in regions:
+            m_dict[i[0]].append((max(0, i[1] - buff), i[2] + buff))
+
+        regions_file_name = truvari.make_temp_filename()
+        n_reg = 0
+        with open(regions_file_name, 'w') as fout:
+            for chrom in sorted(m_dict.keys()):
+                intvs = IntervalTree.from_tuples(m_dict[chrom])
+                intvs.merge_overlaps()
+                for i in sorted(intvs):
+                    fout.write(f"{chrom}:{i.begin}-{i.end}\n")
+                    n_reg += 1
+        if n_reg == 0:
+            logging.critical("No regions to be refined. Exiting")
+            sys.exit(0)
+
+        # Pull sequences
+        out_fn = truvari.make_temp_filename(suffix='.fa')
+        with open(out_fn, 'w') as fout:
+            fout.write(samtools.faidx(
+                self.reference_fn, "-r", regions_file_name))
+        # Facilitate fetching
+        samtools.faidx(out_fn)
+        self.ref_haps_fn = out_fn
+
+    def get_haplotypes(self, refname):
+        """
+        Fetches the locus' haplotypes
+        returns the fasta dictionary
+        """
+        if self.__haplotypes:
+            return self.__haplotypes[refname]
+
+        reference = pysam.FastaFile(self.ref_haps_fn)
+        vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
+
+        return self.build_haplotypes(reference, refname, vcfs)
+
+    def build_haplotypes(self, reference, refname, vcfs):
+        """
+        Build haplotypes on already opened files
+        """
+        ret = {}
+        refseq = reference.fetch(refname)
+        chrom, start, end = re.split(':|-', refname)
+        start = int(start)
+        end = int(end)
+
+        filt = functools.partial(self.__keep_entry, start=start, end=end)
+
+        for vcf_fn, vcf in zip(self.vcf_fns, vcfs):
+            entries = list(filter(filt, vcf.fetch(chrom, start, end)))
+            for in_samp, out_samp in self.sample_lookup[vcf_fn]:
+                ret.update(make_haplotypes(refseq, entries, refname,
+                                           start, in_samp, out_samp))
+
+        ret[f"ref_{refname}"] = refseq
+        return ret
+
+    def build_all(self):
+        """
+        Builds a dictionary of refname : { haplotype_dict }
+        Yields each locus' name and haplotypes as a dict
+        """
+        reference = pysam.FastaFile(self.ref_haps_fn)
+        vcfs = [truvari.VariantFile(vcf_fn) for vcf_fn in self.vcf_fns]
+        haplotypes = {}
+        for refname in list(reference.references):
+            ret = self.build_haplotypes(reference, refname, vcfs)
+            haplotypes[refname] = ret
+        return haplotypes
+
+    def __keep_entry(self, e, start, end):
+        """
+        I feel like this could be handled by truvari v5 api
+        """
+        return e.is_resolved() \
+            and (not self.passonly or not e.is_filtered()) \
+            and (self.max_size == -1 or e.var_size() <= self.max_size) \
+            and e.within(start, end)
+
+##################
+# Infrastructure #
+##################
+
+
+def status_marker(job_id, pid_dict, func, job):
+    """
+    Before running the function set a status
+    """
+    pid_dict[job_id] = os.getpid()  # Register PID
+    try:
+        ret = func(job)
+    except Exception as e:  # pylint: disable=broad-exception-caught pragma: no cover
+        ret = f"ERROR: {e}"
+    pid_dict[job_id] = -1  # Mark as finished
+    return ret
+
+
+def is_process_alive(pid):  # pragma: no cover
+    """Check if a process is running and not a zombie/failed state."""
+    if not psutil.pid_exists(pid):
+        return False  # PID doesn't exist
+    try:
+        proc = psutil.Process(pid)
+        return proc.is_running() and proc.status() not in {psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD}
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return False  # Process was removed or is inaccessible
+
+
+def monitored_pool(method, jobs, threads):
+    """
+    Create a pool of workers, send them the method/jobs, monitor the results for yielding
+    """
+    # Allow jobs to fail upto 5 times
+    MAXFAIL = 5
+    n_completed = 0
+    n_failed = 0
+    prev_completed = 0.05
+
+    with multiprocessing.Pool(threads, maxtasksperchild=100) as pool, multiprocessing.Manager() as manager:
+        pid_dict = manager.dict({_: 0 for _ in range(len(jobs))})
+
+        results = [pool.apply_async(status_marker, (jid, pid_dict, method, job,))
+                   for jid, job in enumerate(jobs)]
+        fail_count = Counter()
+        time.sleep(1)
+        while any(v != -2 for v in pid_dict.values()):
+            for job_id, pid in pid_dict.items():
+                # Not started or already handled
+                if pid in (0, -2):
+                    continue
+
+                # Either finished or failed
+                if pid == -1:
+                    try:
+                        output = results[job_id].get()
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        output = f"ERROR: {e}"
+
+                    if isinstance(output, str) and output.startswith("ERROR:"):
+                        n_failed += 1
+                        logging.error(f"{jobs[job_id].name} {output}")
+                    else:
+                        n_completed += 1
+                        yield output
+                    # Mark as completed
+                    pid_dict[job_id] = -2
+                elif not is_process_alive(pid):
+                    fail_count[job_id] += 1
+                    if fail_count[job_id] >= MAXFAIL:
+                        logging.error(f"{jobs[job_id].name} ERROR: Failed")
+                        n_failed += 1
+                        pid_dict[job_id] = -2
+
+            # Manual progress bars
+            pct_completed = (n_completed + n_failed) / len(jobs)
+            if pct_completed >= prev_completed:
+                logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                             n_completed, len(jobs),
+                             pct_completed * 100, n_failed)
+                prev_completed = min(1, pct_completed + 0.05)
+            # Don't thrash the manager
+            time.sleep(1)
+    # Close up progress
+    if (n_completed + n_failed) / len(jobs) != prev_completed:
+        logging.info("Completed %d / %d (%d%%) Loci; %d Failed",
+                     n_completed, len(jobs),
+                     100, n_failed)
+
+    # I should perhaps exit non-zero if too many jobs fail...
+
+
+def cleanup_shared_memory(shared_info):
+    """
+    cleans shm
+    """
+    try:
+        shared_info.close()
+        shared_info.unlink()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(f"Error cleaning up shared memory: {e}")
+
+
+# pylint: disable=too-few-public-methods
+class PhabJob():
+    """
+    This holds all the information needed to run one task through VCFtoHaplotypes
+    Its only responsibility is to attach to shared memory before calling it
+    """
+
+    def __init__(self, name, mem_vcf_info, data=None):
+        self.name = name
+        self.mem_vcf_info = mem_vcf_info
+        self.data = data
+
+    def build_haplotypes(self):
+        """
+        Returns the fasta dict of haplotypes for this job
+        This is essentially my collect_haplotypes
+        """
+        if self.data:
+            return self.data
+
+        # Attach shared memory
+        shm_name, shm_size = self.mem_vcf_info
+        existing_shm = shm.SharedMemory(name=shm_name)
+        data = bytes(existing_shm.buf[:shm_size])
+        vcf_info = pickle.loads(data)
+
+        return vcf_info.get_haplotypes(self.name)
+# pylint: enable=too-few-public-methods
+
+
+def run_phab(vcf_info, regions, output_fn, buffer=100,
+             align_method=run_poa, dedup=False, in_mem=True, threads=1):
     """
     Harmonize variants with MSA. Runs on a set of regions given files to create
     haplotypes and writes results to a compressed/indexed VCF
 
-    :param `var_regions`: List of tuples of region's (chrom, start, end)
-    :type `var_regions`: :class:`list`
-    :param `base_vcf`: VCF file name
-    :type `base_vcf`: :class:`str`
-    :param `ref_fn`: Reference file name
-    :type `ref_fn`: :class:`str`
+    :param `vcf_info` : VCF to Haplotype maker
+    :type `vcf_info` : :class:`VCFtoHaplotypes`
+    :param `regions`: List of tuples of region's (chrom, start, end)
+    :type `regions`: :class:`list`
+    :param `reference_fn`: Reference file name
+    :type `reference_fn`: :class:`str`
     :param `output_fn`: Output VCF.gz
-    :param `bSamples`: Samples from `base_vcf` to create haplotypes
-    :type `bSamples`: :class:`list`
+    :type `output_fn`: :class:`str`
     :param `buffer`: Flanking reference bases to added to regions
     :type `buffer`: :class:`int`
-    :param `mafft_params`: Parameters for mafft
-    :type `mafft_params`: :class:`str`
-    :param `comp_vcf`: VCF file name
-    :type `comp_vcf`: :class:`str`
-    :param `cSamples`: Samples from `comp_vcf` to create haplotypes
-    :type `cSamples`: :class:`list`
-    :param `prefix_comp`: Ensure unique sample names by prefixing comp samples
-    :type `prefix_comp`: :class:`bool`
+    :param `align_method`: Alignment method's function. See `get_align_method`
+    :type `method`: function
     :param `threads`: Number of threads to use
     :type `threads`: :class:`int`
-    :param `method`: Alignment method to use mafft or wfa
-    :type `method`: :class:`str`
     """
-    if max_size == -1 or max_size >= 50000:
-        logging.warning("Harmonizing variants ≥50kbp is not recommended")
+    logging.info("Preparing reference/regions")
+    vcf_info.set_regions(regions, buffer)
 
-    logging.info("Preparing regions")
-    region_fn = merged_region_file(var_regions, buffer)
+    m_refs = list(pysam.FastaFile(vcf_info.ref_haps_fn).references)
+    if in_mem:
+        logging.info("Building haplotypes")
+        all_haplotypes = vcf_info.build_all()
 
-    logging.info("Extracting haplotypes")
-    ref_haps_fn = extract_reference(region_fn, ref_fn)
-    hap_jobs, samp_names = make_haplotype_jobs(base_vcf, bSamples,
-                                               comp_vcf, cSamples,
-                                               prefix_comp)
-    haplotypes = collect_haplotypes(ref_haps_fn, hap_jobs, threads, passonly, max_size)
+        jobs = [PhabJob(name, None, all_haplotypes[name]) for name in m_refs]
+    else:
+        # Shared memory for vcf_info to reduce copies/memory
+        data = pickle.dumps(vcf_info)
+        shared_info = shm.SharedMemory(create=True, size=len(data))
+        shared_info.buf[:len(data)] = data
+        mem_vcf_info = (shared_info.name, shared_info.size)
+        # Cleanup shared memory on exit
+        atexit.register(cleanup_shared_memory, shared_info)
+
+        jobs = [PhabJob(name, mem_vcf_info) for name in m_refs]
 
     logging.info("Harmonizing variants")
-    if method == "mafft":
-        align_method = partial(run_mafft, params=mafft_params)
-    elif method == "wfa":
-        align_method = run_wfa
-    else:
-        align_method = run_poa
-
+    to_call = functools.partial(align_wrap,
+                                func=align_method,
+                                dedup=dedup)
     with open(output_fn[:-len(".gz")], 'w') as fout:
         fout.write(('##fileformat=VCFv4.1\n'
                     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'))
-        for ctg in truvari.VariantFile(base_vcf).header.contigs.values():
+        for ctg in truvari.VariantFile(vcf_info.vcf_fns[0]).header.contigs.values():
             fout.write(str(ctg.header_record))
         fout.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t")
-        fout.write("\t".join(samp_names) + "\n")
+        fout.write("\t".join(vcf_info.out_samples) + '\n')
 
-        with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
-            for result in pool.imap_unordered(align_method, haplotypes):
-                fout.write(result)
-            pool.close()
-            pool.join()
+        if in_mem:
+            with multiprocessing.Pool(threads, maxtasksperchild=1000) as pool:
+                for result in pool.imap_unordered(to_call, jobs):
+                    fout.write(result)
+        else:
+            for entry_set in monitored_pool(to_call, jobs, threads):
+                fout.write(entry_set)
 
     truvari.compress_index_vcf(output_fn[:-len(".gz")], output_fn)
-# pylint: enable=too-many-arguments, too-many-locals
+
 
 ######
 # UI #
@@ -397,35 +574,38 @@ def parse_args(args):
     """
     parser = argparse.ArgumentParser(prog="phab", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("input", metavar="INPUT", type=str, nargs="+",
+                        help="Input VCFs to harmonize")
     parser.add_argument("-r", "--region", type=str, required=True,
                         help="Bed filename or comma-separated list of chrom:start-end regions to process")
-    parser.add_argument("-b", "--base", type=str, required=True,
-                        help="Baseline vcf to MSA")
     parser.add_argument("-f", "--reference", type=str, required=True,
                         help="Reference")
     parser.add_argument("-o", "--output", type=str, default="phab_out.vcf.gz",
                         help="Output VCF")
-    parser.add_argument("--buffer", type=int, default=100,
-                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
-    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
-                        help="Alignment method (%(default)s)")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
-                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
-    parser.add_argument("--bSamples", type=str, default=None,
-                        help="Subset of samples to MSA from base-VCF")
-    parser.add_argument("-c", "--comp", type=str, default=None,
-                        help="Comparison vcf to MSA")
-    parser.add_argument("--cSamples", type=str, default=None,
-                        help="Subset of samples to MSA from comp-VCF")
-    parser.add_argument("-t", "--threads", type=int, default=1,
-                        help="Number of threads (%(default)s)")
     parser.add_argument("--maxsize", type=int, default=50000,
                         help="Maximum size of variant to incorporate into haplotypes (%(default)s)")
     parser.add_argument("--passonly", action="store_true",
                         help="Only incorporate passing variants (%(default)s)")
+    parser.add_argument("--no-dedup", action="store_false",
+                        help="Don't dedupicate haplotypes before MSA")
+    parser.add_argument("--buffer", type=int, default=100,
+                        help="Number of reference bases before/after region to add to MSA (%(default)s)")
+    parser.add_argument("--align", type=str, choices=["mafft", "wfa", "poa"], default="poa",
+                        help="Alignment method (%(default)s)")
+    parser.add_argument("--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+                        help="Parameters for mafft, wrap in a single quote (%(default)s)")
+    parser.add_argument("--samples", type=str, default=None,
+                        help="Subset of samples to MSA")
+    parser.add_argument("--lowmem", action="store_false",
+                        help="For harmonizing many samples")
+    parser.add_argument("--threads", type=int, default=1,
+                        help="Number of threads (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
+    if args.samples is not None:
+        args.samples = args.samples.split(',')
+
     return args
 
 
@@ -435,7 +615,7 @@ def check_requirements(align):
     """
     check_fail = False
     if align == "mafft":
-        if not shutil.which("mafft"):
+        if not shutil.which("mafft"):  # pragma: no cover
             logging.error("Unable to find mafft in PATH")
             check_fail = True
     return check_fail
@@ -452,33 +632,73 @@ def check_params(args):
     if os.path.exists(args.output):
         logging.error("Output file already exists")
         check_fail = True
-    if args.comp is not None and not os.path.exists(args.comp):
-        logging.error("File %s does not exist", args.comp)
-        check_fail = True
-    if not os.path.exists(args.base):
-        logging.error("File %s does not exist", args.base)
-        check_fail = True
-    if args.comp is not None and not args.comp.endswith(".gz"):
-        logging.error(
-            "Comparison vcf %s does not end with .gz. Must be bgzip'd", args.comp)
-        check_fail = True
-    if args.comp is not None and not truvari.check_vcf_index(args.comp):
-        logging.error(
-            "Comparison vcf %s must be indexed", args.comp)
-        check_fail = True
-    if not args.base.endswith(".gz"):
-        logging.error(
-            "Base vcf %s does not end with .gz. Must be bgzip'd", args.base)
-        check_fail = True
-    if not truvari.check_vcf_index(args.base):
-        logging.error(
-            "Base vcf %s must be indexed", args.base)
-        check_fail = True
+
     if not os.path.exists(args.reference):
         logging.error("Reference %s does not exist", args.reference)
         check_fail = True
 
+    for i in args.input:
+        if not os.path.exists(i):
+            logging.error("File %s does not exist", i)
+            check_fail = True
+        else:
+            if not i.endswith(".gz"):
+                logging.error("File %s must be bgzip'd (.gz)", i)
+                check_fail = True
+            if not truvari.check_vcf_index(i):
+                logging.error("File %s must be indexed", i)
+                check_fail = True
+    if not args.samples is None and not len(args.samples) == len(set(args.samples)):
+        logging.error("Redundant sample names in --samples")
+        check_fail = True
     return check_fail
+
+
+def parse_regions(argument):
+    """
+    Parse the --region, be it None, a file, or csv
+    """
+    ret = []
+    if not argument:
+        return ret
+
+    if os.path.exists(argument):
+        for i in truvari.opt_gz_open(argument):
+            try:
+                chrom, start, end = i.strip().split('\t')[:3]
+                start = int(start)
+                end = int(end)
+            except Exception:  # pylint: disable=broad-except  pragma: no cover
+                logging.error("Unable to parse bed line %s", i)
+                sys.exit(1)
+            ret.append((chrom, start, end))
+        return ret
+
+    for i in argument.split(','):
+        try:
+            chrom, start, end = re.split(':|-', i)
+            start = int(start)
+            end = int(end)
+        except ValueError:  # pragma: no cover
+            logging.error("Unable to parse region line %s", i)
+            sys.exit(1)
+        ret.append((chrom, start, end))
+    return ret
+
+
+def get_align_method(method, params=DEFAULT_MAFFT_PARAM):
+    """
+    Helper for organizing how to get the different alignment methods
+    """
+    if method == "mafft":
+        align_method = functools.partial(run_mafft, params=params)
+    elif method == "wfa":
+        align_method = run_wfa
+    elif method == "poa":
+        align_method = run_poa
+    else:
+        raise ValueError(f"Unknown alignment method {method}")
+    return align_method
 
 
 def phab_main(cmdargs):
@@ -491,15 +711,19 @@ def phab_main(cmdargs):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
-    if args.bSamples is not None:
-        args.bSamples = args.bSamples.split(',')
-
-    if args.comp and args.cSamples is not None:
-        args.cSamples = args.cSamples.split(',')
+    m_vcf_info = VCFtoHaplotypes(args.reference,
+                                 args.input, args.samples,
+                                 passonly=args.passonly,
+                                 max_size=args.maxsize)
 
     all_regions = parse_regions(args.region)
-    phab(all_regions, args.base, args.reference, args.output, args.bSamples, args.buffer,
-         args.mafft_params, args.comp, args.cSamples, threads=args.threads, method=args.align,
-         passonly=args.passonly, max_size=args.maxsize)
+    method = get_align_method(args.align, args.mafft_params)
+
+    run_phab(m_vcf_info, all_regions, args.output,
+             buffer=args.buffer,
+             align_method=method,
+             dedup=args.no_dedup,
+             in_mem=args.lowmem,
+             threads=args.threads)
 
     logging.info("Finished phab")

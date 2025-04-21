@@ -25,7 +25,7 @@ def parse_args(args):
                         help="Truvari result directory")
     parser.add_argument("-o", "--output", required=True,
                         help="Output prefix")
-    parser.add_argument("-r", "--no-refine", action="store_false",
+    parser.add_argument("-r", "--no-refine", action="store_true",
                         help="Don't pull from refined results")
     parser.add_argument("-w", "--write-phab", action="store_true",
                         help="Count/Write the phab variant representations")
@@ -269,7 +269,7 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
             phab_dir = os.path.join(input_dir, 'phab_bench')
             output.pull_from_dir(phab_dir, regions, within=True,
                                  from_b=params['bSample'],
-                                 from_c='p:' + params['cSample'],
+                                 from_c=params['cSample'],
                                  is_refined=True)
         else:
             mask = regions['state'] == 'TP'
@@ -312,7 +312,7 @@ def make_ga4gh_main(args):
     logging.info("Consolidating VCFs")
     output = make_ga4gh(args.input,
                         args.output,
-                        pull_refine=args.no_refine,
+                        pull_refine=not args.no_refine,
                         write_phab=args.write_phab)
     logging.info("Stats: %s", json.dumps(output.stats, indent=4))
     with open(args.output + '.summary.json' ,'w') as fout:

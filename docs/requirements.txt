@@ -1,3 +1,4 @@
+psutil>=7.0.0
 pywfa>=0.5.1
 sphinx>=7.2
 sphinx_rtd_theme>=2

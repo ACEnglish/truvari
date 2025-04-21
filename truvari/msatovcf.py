@@ -105,6 +105,9 @@ def msa_to_vars(msa, chrom, ref_seq=None, start_pos=0, abs_anchor_base='N'):
         anchor_base = ref_seq[0] if ref_seq[0] != '-' else abs_anchor_base
         for variant in aln_to_vars(chrom, start_pos, ref_seq, alt_seq, anchor_base):
             final_vars[variant].append(cur_samp_hap)
+    # This sorting is doing a lot of work
+    # Prevents phab from needing to keep track of sample order
+    # because it just writes the header SAMPLE names sorted
     return sorted(list(sample_names)), final_vars
 
 
@@ -122,7 +125,7 @@ def make_vcf(variants, sample_names):
                 gt[0] = "1"
             if sample + '_2' in variants[var]:
                 gt[1] = "1"
-            out.write("/".join(gt))
+            out.write("|".join(gt))
         out.write('\n')
     out.seek(0)
     return out.read()
@@ -145,7 +148,7 @@ def msa2vcf(msa, anchor_base='N'):
         >>> fasta = dict(fasta_reader(seqs))
         >>> m_entries_str = truvari.msa2vcf(fasta)
     """
-    ref_key = [_ for _ in msa.keys() if _.startswith("ref_")][0]
+    ref_key = next((k for k in msa if k.startswith("ref_")))
     chrom, rest = ref_key[len("ref_"):].split(':')
     ref_seq = msa[ref_key].upper() if isinstance(msa[ref_key], str) else None
     start_pos = int(rest.split('-')[0])

@@ -202,7 +202,7 @@ def cmd_exe(cmd, stdin=None, timeout=-1, cap_stderr=True, pipefail=False):
         os.killpg(proc.pid, signal.SIGTERM)
         proc.kill()
         return cmd_result(214, "", "", timedelta(seconds=time.time() - t_start))
-    except KeyboardInterrupt:
+    except KeyboardInterrupt:  # pragma: no cover
         logging.error("KeyboardInterrupt on cmd %s", cmd)
         os.killpg(proc.pid, signal.SIGKILL)
         proc.kill()

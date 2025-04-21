@@ -2,7 +2,7 @@
 [![pylint](imgs/pylint.svg)](https://github.com/acenglish/truvari/actions/workflows/pylint.yml)
 [![FuncTests](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml/badge.svg?branch=develop&event=push)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
 [![coverage](imgs/coverage.svg)](https://github.com/acenglish/truvari/actions/workflows/func_tests.yml)
-[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v5.1.1)](https://github.com/ACEnglish/truvari/compare/v5.1.1...develop)
+[![develop](https://img.shields.io/github/commits-since/acenglish/truvari/v5.2.0)](https://github.com/ACEnglish/truvari/compare/v5.2.0...develop)
 [![Downloads](https://static.pepy.tech/badge/truvari)](https://pepy.tech/project/truvari)
 
 ![Logo](https://raw.githubusercontent.com/ACEnglish/truvari/develop/imgs/BoxScale1_DarkBG.png)  
@@ -29,7 +29,7 @@ The current most common Truvari use case is for structural variation benchmarkin
   truvari bench -b base.vcf.gz -c comp.vcf.gz -f reference.fa -o output_dir/
 ```
 
-Find more matches by harmonizing phased varians using refine:
+Find more matches by harmonizing phased variants using refine:
 ```
    truvari refine output_dir/
 ```

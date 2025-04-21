@@ -38,7 +38,7 @@ def edit_header(header, tags, groups):
     """
     Add the header information
     """
-    tmpl = '##INFO=<ID={mid},Type={mty},Number={mnum},Description="{desc}">'
+    tmpl = '##INFO=<ID={mid},Number={mnum},Type={mty},Description="{desc}">'
     tag_meta = {}
     tag_meta["AF"] = (
         "Float", '1', "Allele Frequency on {count} {grp} samples")

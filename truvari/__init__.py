@@ -43,7 +43,6 @@ Extra methods:
 :meth:`overlap_percent`
 :meth:`overlaps`
 :meth:`performance_metrics`
-:meth:`phab`
 :meth:`read_bed_tree`
 :meth:`reciprocal_overlap`
 :meth:`restricted_float`
@@ -67,7 +66,7 @@ Data:
 :data:`truvari.SZBINTYPE`
 """
 
-__version__ = '5.2.0'
+__version__ = '5.3.0'
 
 
 from truvari.bench import (
@@ -96,10 +95,6 @@ from truvari.matching import (
 
 from truvari.msatovcf import (
     msa2vcf
-)
-
-from truvari.phab import (
-    phab,
 )
 
 from truvari.region_vcf_iter import (

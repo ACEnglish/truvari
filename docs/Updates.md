@@ -1,5 +1,29 @@
-# Truvari 5.1.1
+# Truvari 5.3
 *in progress*
+
+* Fixed FP BNDs being dropped [details](https://github.com/ACEnglish/truvari/discussions/263). 
+* Restore default `--sizemax` - Some callers make SVs that span the entire chromosome, which disrupts truvari's chunking strategy
+* `phab`
+  * Can now harmonize samples' variants across any number of VCFs. This entails a UI change of no more `-b/-c`.
+  * For a large jobs, a `--lowmem` flag:
+    * turns on progress bars and process pool monitoring for better tracking of failed harmonization jobs
+    * Much lower memory usage, and fewer failures
+  * Api refactor to programmatically build haplotypes with `phab.VCFtoHaplotypes` and other phab functions
+* `bench`
+  * Can now run on vcfs without SAMPLE columns (e.g. annotation files)
+* Fixed `anno grpaf` header tags. Some tools (e.g. IGV) don't link Type before Number.
+* Fixed edge case when iterating variants not inside regions
+
+# Truvari 5.2.0
+*February 16, 2025*
+
+* The default `--align` method for `phab` and `bench` switched to POA. See [discussion](https://github.com/ACEnglish/truvari/discussions/261) for details.
+* Fix bug in `--pick ac` where FN/FP variants were not being counted/output.
+* Fix `--dup-to-ins` Ticket [#258](https://github.com/ACEnglish/truvari/issues/258)
+* `ga4gh` now also writes a variant count summary json
+
+# Truvari 5.1.1
+*February 5, 2025*
 
 * `bench`
   *  new automatic hook into the refine step via `truvari bench --refine`

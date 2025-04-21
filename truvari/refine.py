@@ -12,12 +12,12 @@ from argparse import Namespace
 from collections import defaultdict
 
 import pandas as pd
+import numpy as np
 from pysam import bcftools
 from intervaltree import IntervalTree
 
 import truvari
-from truvari.phab import check_requirements as phab_check_requirements
-from truvari.phab import DEFAULT_MAFFT_PARAM
+from truvari import phab
 from truvari.make_ga4gh import make_ga4gh
 
 
@@ -187,10 +187,10 @@ def make_region_report(data):
 
     base = (data['out_tpbase'] != 0) | (data['out_fn'] != 0)
     baseP = int(base.sum())
-    baseN = int((~base).sum())
+    baseN = np.size(base) - np.count_nonzero(base)
     comp = (data['out_tp'] != 0) | (data['out_fp'] != 0)
     compP = int(comp.sum())
-    compN = int((~comp).sum())
+    compN = np.size(comp) - np.count_nonzero(comp)
 
     result["TP"] = int(true_positives.sum())
     result["TN"] = int(true_negatives.sum())
@@ -259,7 +259,7 @@ def parse_args(args):
                         help="Which bed file coordinates to use, Regions or includebed Original (%(default)s)")
     parser.add_argument("-S", "--subset", action="store_true",
                         help="Only report metrics from the refined regions")
-    parser.add_argument("-m", "--mafft-params", type=str, default=DEFAULT_MAFFT_PARAM,
+    parser.add_argument("-m", "--mafft-params", type=str, default=phab.DEFAULT_MAFFT_PARAM,
                         help="Parameters for mafft, wrap in a single quote (%(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
@@ -267,7 +267,7 @@ def parse_args(args):
     return args
 
 
-def check_params(args):
+def check_params(args):  # pragma: no cover
     """
     Sets up all the parameters from the bench/params.json
 
@@ -301,8 +301,6 @@ def check_params(args):
         logging.error("Reference %s does not exist", args.reference)
 
     # Setup prefix
-    params["cSample"] = "p:" + params["cSample"]
-
     bhdir = os.path.join(args.benchdir, 'phab_bench')
     if os.path.exists(bhdir):
         check_fail = True
@@ -333,7 +331,7 @@ def refine_main(cmdargs):
     Main
     """
     args = parse_args(cmdargs)
-    if phab_check_requirements(args.align):
+    if phab.check_requirements(args.align):
         logging.error("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
@@ -358,9 +356,11 @@ def refine_main(cmdargs):
         # If they both have F calls, should try to refine
         regions["refined"] = (regions["in_fn"] > 0) & (regions["in_fp"] > 0)
         # Only refine base that have some comp calls to refine with
-        regions["refined"] |= (regions['in_fn'] > 0) & (regions[["in_tp", "in_fp"]].sum(axis=1) > 0)
+        regions["refined"] |= (regions['in_fn'] > 0) & (
+            regions[["in_tp", "in_fp"]].sum(axis=1) > 0)
         # And vice-versa
-        regions["refined"] |= (regions['in_fp'] > 0) & (regions[["in_tpbase", "in_fn"]].sum(axis=1) > 0)
+        regions["refined"] |= (regions['in_fp'] > 0) & (
+            regions[["in_tpbase", "in_fn"]].sum(axis=1) > 0)
 
     logging.info("%d regions to be refined", regions["refined"].sum())
 
@@ -376,13 +376,24 @@ def refine_main(cmdargs):
 
     # refine's call to phab will never buffer because we assume the regions to be refined
     # have already been buffered
-    truvari.phab(to_eval_coords, base_vcf, args.reference, phab_vcf, buffer=0,
-                 mafft_params=args.mafft_params, comp_vcf=comp_vcf, prefix_comp=True,
-                 threads=args.threads, method=args.align, passonly=params.passonly,
-                 max_size=params.sizemax)
+    m_vcf_info = phab.VCFtoHaplotypes(reference_fn=args.reference,
+                                      vcf_fns=[base_vcf, comp_vcf],
+                                      samples=[params.bSample, params.cSample],
+                                      passonly=params.passonly,
+                                      max_size=params.sizemax)
+    align_method = phab.get_align_method(args.align, args.mafft_params)
+    phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
+                  align_method=align_method, in_mem=True,
+                  threads=args.threads)
+
+    # phab may have suffixed the cSample
+    if params.bSample == params.cSample:
+        params.cSample = params.cSample + ':1'
+        logging.critical(params.cSample)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
+
     var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,

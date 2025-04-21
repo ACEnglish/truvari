@@ -162,7 +162,7 @@ def check_params(args):
     return check_fail
 
 
-def check_sample(vcf_fn, sample_id=None):
+def check_sample(vcf_fn, sample_id=None):  # pragma: no cover
     """
     Checks that a sample is inside a vcf
     Returns True if check failed
@@ -172,10 +172,7 @@ def check_sample(vcf_fn, sample_id=None):
     if sample_id is not None and sample_id not in vcf_file.header.samples:
         logging.error("Sample %s not found in vcf (%s)", sample_id, vcf_fn)
         check_fail = True
-    if len(vcf_file.header.samples) == 0:
-        logging.error("No SAMPLE columns found in vcf (%s)", vcf_fn)
-        check_fail = True
-    if sample_id is None:
+    if len(vcf_file.header.samples) != 0 and sample_id is None:
         sample_id = vcf_file.header.samples[0]
     return check_fail, sample_id
 
@@ -385,7 +382,7 @@ class BenchOutput():
                     box["TP-comp_TP-gt"] += 1
                 else:
                     box["TP-comp_FP-gt"] += 1
-            elif match.comp.var_size() >= self.m_params.sizemin:
+            elif match.comp.var_size() >= self.m_params.sizemin or match.comp.is_bnd():
                 # The if is because we don't count FPs between sizefilt-sizemin
                 box["comp cnt"] += 1
                 box["FP"] += 1
@@ -554,7 +551,7 @@ class Bench():
             return fns
 
         # 5k variants takes too long
-        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:
+        if self.params.short_circuit and (len(base_variants) + len(comp_variants)) > 5000:  # pragma: no cover
             pos = []
             cnt = 0
             chrom = None
@@ -771,7 +768,16 @@ def bench_main(cmdargs):
         sys.stderr.write("Couldn't run Truvari. Please fix parameters\n")
         sys.exit(100)
 
+    if args.bSample is None or args.cSample is None:
+        if args.refine:
+            sys.stderr.write("Cannot hook to `--refine` on VCFs without SAMPLE columns")
+            sys.exit(100)
+        skip_gt = True
+    else:
+        skip_gt = False
+
     params = truvari.VariantParams(args,
+                                   skip_gt=skip_gt,
                                    short_circuit=args.short,
                                    decompose=args.no_decompose)
 
