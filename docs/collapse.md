@@ -76,7 +76,19 @@ For some results, one may not want to collapse variants with conflicting genotyp
 
 --intra
 =======
-When a single sample is run through multiple SV callers, one may wish to consolidate those results. After the `bcftools merge` of the VCFs, there will be one SAMPLE column per-input. With `--intra`, collapse will consolidate the sample information so that only a single sample column is present in the output. Since the multiple callers may have different genotypes or other FORMAT fields with conflicting information, `--intra` takes the first column from the VCF, then second, etc. For example, if we have an entry with:
+When a single sample is run through multiple SV callers, one may wish to consolidate those results. After the `bcftools merge` of the VCFs, there will be one SAMPLE column per-input. With `--intra`, collapse will consolidate the sample information so that only a single sample column is present in the output. This will also add a `FORMAT/SUPP` field which will indicates which columns had a present GT (e.g. 0/1 or 1/1). For example, these two calls would collapse:
+
+```
+#Call    FORMAT    S1     S2
+Call1   GT:GQ:AD  1/1    ./.
+Call2   GT:GQ:AD  ./.    1/1
+
+# Into
+#Call    FORMAT         S1
+Call1   GT:GQ:AD:SUPP  1/1:3
+```
+
+Since the multiple callers may have different genotypes or other FORMAT fields with conflicting information, `--intra` takes the first column from the VCF, then second, etc. For example, if we have an entry with:
 ```
 FORMAT    RESULT1     RESULT2
 GT:GQ:AD  ./.:.:3,0  1/1:20:0,30
