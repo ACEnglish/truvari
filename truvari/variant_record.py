@@ -26,6 +26,7 @@ class VariantRecord:
         self._resolved_ref = None
         self._resolved_alt = None
         self._decomp_repr = None
+        self._afannos = None
         self.end = record.stop
         if params is None:
             self.params = truvari.VariantParams()
@@ -80,7 +81,9 @@ class VariantRecord:
             >>> e.allele_freq_annos()
             {'AF': 0.5, 'MAF': 0.5, 'ExcHet': 1.0, 'HWE': 1.0, 'MAC': 1, 'AC': [1, 1], 'AN': 2, 'N_HEMI': 0, 'N_HOMREF': 0, 'N_HET': 1, 'N_HOMALT': 0, 'N_MISS': 2}
         """
-        return allele_freq_annos(self, samples)
+        if self._afannos is None:
+            self._afannos = allele_freq_annos(self, samples)
+        return self._afannos
 
     def bnd_direction_strand(self):
         """
