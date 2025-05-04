@@ -15,6 +15,8 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: 3.10.4
+      - name: Upgrade pip
+        run: python3 -m pip install --upgrade pip
       - name: Cache python
         uses: actions/cache@v3
         with:
@@ -22,7 +24,6 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip 
           python3 -m pip install --upgrade setuptools
           python3 -m pip install Cython pylint anybadge coverage
           python3 -m pip install .
