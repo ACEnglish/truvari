@@ -22,7 +22,8 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
         run: |
-          python3 -m pip install --upgrade pip setuptools
+          python3 -m pip install --upgrade pip 
+          python3 -m pip install --upgrade setuptools
           python3 -m pip install Cython pylint anybadge coverage
           python3 -m pip install .
       - name: Running ssshtest
