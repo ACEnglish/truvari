@@ -203,7 +203,8 @@ class VariantRecord:
                           str(self), str(other))
             return ret
 
-        self.compare_gts(other, ret)
+        if not self.params.skip_gt:
+            self.compare_gts(other, ret)
 
         # Score is percent of allowed distance needed to find this match
         if self.params.bnddist > 0:
