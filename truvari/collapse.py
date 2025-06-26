@@ -518,6 +518,10 @@ def check_params(args):
         if not os.path.exists(args.reference):
             logging.error("Reference %s does not exist", args.reference)
             check_fail = True
+    elif args.write_resolved:
+        logging.error("Cannot write resolved (`-w`) SVs without`--reference`")
+        check_fail = True
+
     return check_fail
 
 

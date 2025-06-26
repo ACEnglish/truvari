@@ -159,6 +159,10 @@ def check_params(args):
             check_fail = True
     elif args.refine:
         logging.error("Hooking into `truvari refine` only possible with `--reference`")
+        check_fail = True
+    elif args.write_resolved:
+        logging.error("Cannot write resolved (`-w`) SVs without`--reference`")
+        check_fail = True
     return check_fail
 
 
