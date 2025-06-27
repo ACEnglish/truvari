@@ -745,7 +745,7 @@ class VariantRecord:
         b_seq = b_seq.upper()
         st_dist, ed_dist = self.distance(other)
 
-        if not self.params.no_roll or st_dist == 0 or ed_dist == 0:
+        if self.params.no_roll or st_dist == 0 or ed_dist == 0:
             return truvari.seqsim(a_seq, b_seq)
 
         # Return best of rolled, unrolled from both ends, and direct similarity

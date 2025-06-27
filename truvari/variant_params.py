@@ -26,7 +26,7 @@ class VariantParams():
        * - `typeignore`
          - Whether to ignore variant type mismatches during comparison. Default: `False`.
        * - `no_roll`
-         - Whether to disable rolling of sequences for comparisons. Default: `False`.
+         - Disable rolling of sequences for comparisons. Default: `False`.
        * - `chunksize`
          - Number of entries to process in each chunk. Default: 1000.
        * - `bSample`
