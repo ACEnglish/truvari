@@ -462,7 +462,7 @@ def parse_args(args):
                         help="Min pct reciprocal overlap (%(default)s) for DEL events")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=False,
                         help="Variant types don't need to match to compare (%(default)s)")
-    thresg.add_argument("-n", "--no-roll", action="store_false",
+    thresg.add_argument("-n", "--no-roll", action="store_true",
                         help="Turn off rolling sequence similarity")
     thresg.add_argument("-m", "--max-resolve", type=truvari.restricted_int, default=25000,
                         help="Maximum size of variant to attempt to sequence resolve ($(default)s)")
