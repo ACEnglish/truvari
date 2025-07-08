@@ -860,12 +860,12 @@ class VariantRecord:
             except ValueError:
                 pass
 
-        if self.alts is not None and self.alts[0].count("<"):
+        if not self.is_resolved() and self.alts is not None and self.alts[0].count("<"):
             start, end = self.boundaries()
             size = end - start
         else:
-            r_len = len(self.ref)
-            a_len = len(self.alts[0]) if self.alts is not None else 0
+            r_len = len(self.get_ref())
+            a_len = len(self.get_alt())
             if r_len == a_len:
                 if r_len == 1:
                     size = 0  # SNPs are special
