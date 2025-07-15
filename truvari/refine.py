@@ -389,7 +389,7 @@ def refine_main(cmdargs):
     # phab may have suffixed the cSample
     if params.bSample == params.cSample:
         params.cSample = params.cSample + ':1'
-        logging.critical(params.cSample)
+        logging.warning("Comparision sample %s renamed to avoid name collision", params.cSample)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")

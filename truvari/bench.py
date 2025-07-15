@@ -82,9 +82,9 @@ def parse_args(args):
     filteg.add_argument("--passonly", action="store_true", default=defaults.passonly,
                         help="Only consider calls with FILTER == PASS")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=defaults.sizemin,
-                        help="Minimum variant size to consider from --comp (%(default)s)")
+                        help="Minimum variant size to consider from --base (%(default)s)")
     filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=None,
-                        help="Minimum variant size to consider from --base (30)")
+                        help="Minimum variant size to consider from --comp (30)")
     filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
                         help="Maximum variant size to consider (-1 = off)")
     filteg.add_argument("--no-ref", default=defaults.no_ref, choices=['a', 'b', 'c'],

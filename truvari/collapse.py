@@ -151,7 +151,7 @@ def collapse_chunk(chunk, params):
         # Sort back to where they need to be to choose the next to evaluate
         remaining_calls.sort(key=params.sorter)
 
-    if params.no_consolidate:
+    if params.consolidate:
         for val in ret:
             if params.gt != 'off':
                 edited_entry, collapse_cnt = gt_aware_consolidate(
@@ -476,7 +476,7 @@ def parse_args(args):
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
     parser.add_argument("--chain", action="store_true", default=False,
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
-    parser.add_argument("--no-consolidate", action="store_false", default=True,
+    parser.add_argument("--no-consolidate", action="store_true", default=True,
                         help="Skip consolidation of sample genotype fields (%(default)s)")
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
@@ -506,7 +506,7 @@ def check_params(args):
                       args.input)
     if not os.path.exists(args.input + '.tbi'):
         check_fail = True
-        logging.error("Input vcf index %s.tbi does not exist. Must be indexed",
+        logging.error("Input vcf %s is not indexed (tabix)",
                       args.input)
     if args.hap and args.chain:
         check_fail = True
@@ -825,7 +825,7 @@ def collapse_main(args):
     params.gt = args.gt
     params.chain = args.chain
     params.sorter = SORTS[args.keep]
-    params.no_consolidate = args.no_consolidate
+    params.consolidate = args.no_consolidate
 
     base = truvari.VariantFile(args.input, params=params)
     regions = truvari.build_region_tree(base, includebed=args.bed)
