@@ -196,10 +196,10 @@ def make_region_report(data):
     result["TN"] = int(true_negatives.sum())
     result["FP"] = int(false_pos.sum())
     result["FN"] = int(false_neg.sum())
-    result["base P"] = baseP
-    result["base N"] = baseN
-    result["comp P"] = compP
-    result["comp N"] = compN
+    result["base P"] = int(baseP)
+    result["base N"] = int(baseN)
+    result["comp P"] = int(compP)
+    result["comp N"] = int(compN)
     # precision
     result["PPV"] = result["TP"] / \
         result["comp P"] if result["comp P"] != 0 else None

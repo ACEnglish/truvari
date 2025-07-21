@@ -42,7 +42,7 @@ class VariantParams():
        * - `sizefilt`
          - Minimum size filter for comparison in the "comparison" dataset. Default: 30.
        * - `sizemax`
-         - Maximum variant size to consider. Default: -1, off.
+         - Maximum variant size to consider. Default: 50,000; -1, off.
        * - `passonly`
          - Whether to only consider variants with a "PASS" filter status. Default: `False`.
        * - `no_ref`
