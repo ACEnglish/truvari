@@ -396,6 +396,7 @@ def refine_main(cmdargs):
 
     var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
+    # pylint: disable=not-callable
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
                             includebed=reeval_bed)
     m_bench.run()

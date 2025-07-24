@@ -65,6 +65,7 @@ Data:
 :data:`truvari.SZBINS`
 :data:`truvari.SZBINTYPE`
 """
+# pylint: disable=undefined-all-variable
 
 __version__ = '5.3.0'
 
@@ -72,7 +73,7 @@ __all__ = [
     # Classes
     "Bench", "BenchOutput", "StatsBox", "MatchResult", "GT", "LogFileStderr",
     "SV", "VariantFile", "VariantParams", "VariantRecord",
-    
+
     # Methods
     "bed_ranges", "benchdir_count_entries", "best_seqsim", "build_region_tree", "check_vcf_index",
     "chunker", "cmd_exe", "compress_index_vcf", "coords_within", "count_entries", "extend_region_tree",
@@ -81,7 +82,7 @@ __all__ = [
     "overlap_percent", "overlaps", "performance_metrics", "read_bed_tree", "reciprocal_overlap",
     "restricted_float", "restricted_int", "ref_ranges", "roll_seqsim", "seqsim", "setup_logging",
     "sizesim", "unroll_seqsim", "vcf_ranges", "vcf_to_df",
-    
+
     # Data
     "HEADERMAT", "QUALBINS", "SVTYTYPE", "SZBINMAX", "SZBINS", "SZBINTYPE"
 ]
