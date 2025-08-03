@@ -57,7 +57,11 @@ def check_co_occur(data, features, threshold=0.50):
     If abs(phi) >= 0.50, the features could be redundant for stratp test
     """
     # pylint: disable=import-outside-toplevel
-    from scipy.stats import chi2_contingency
+    try:
+        from scipy.stats import chi2_contingency
+    except (OSError,  ModuleNotFoundError):
+        logging.error("Cannot run `--check-co` without scipy package")
+        sys.exit(1)
     for a, b in itertools.combinations(features, 2):
         if data[a].nunique() < data[b].nunique():
             a, b = b, a

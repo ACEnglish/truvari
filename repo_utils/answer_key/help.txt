@@ -14,6 +14,7 @@ Available commands:
     phab          Variant harmonization using MSA
     refine        Automated bench result refinement with phab
     ga4gh         Convert Truvari result to GA4GH
+    stratp        Stratification performance test
     version       Print the Truvari version and exit
 
 positional arguments:
