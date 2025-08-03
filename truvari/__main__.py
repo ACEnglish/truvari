@@ -18,9 +18,10 @@ from truvari.vcf2df import vcf2df_main
 from truvari.refine import refine_main
 from truvari.collapse import collapse_main
 from truvari.stratify import stratify_main
+from truvari.stratp_test import stratp_main
 from truvari.segmentation import segment_main
-from truvari.consistency import consistency_main
 from truvari.make_ga4gh import make_ga4gh_main
+from truvari.consistency import consistency_main
 
 def flat_version(args):
     """Print the version"""
@@ -41,6 +42,7 @@ TOOLS = {"bench": bench_main,
          "phab": phab_main,
          "refine": refine_main,
          "ga4gh": make_ga4gh_main,
+         "stratp": stratp_main,
          "version": flat_version}
 
 USAGE = f"""\
@@ -58,6 +60,7 @@ Available commands:
     [bold][cyan]phab[/][/]          Variant harmonization using MSA
     [bold][cyan]refine[/][/]        Automated bench result refinement with phab
     [bold][cyan]ga4gh[/][/]         Convert Truvari result to GA4GH
+    [bold][cyan]stratp[/][/]        Stratification performance test
     [bold][cyan]version[/][/]       Print the Truvari version and exit
 """
 
