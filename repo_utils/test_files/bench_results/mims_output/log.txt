@@ -1,0 +1,81 @@
+2025-07-20 18:02:03,687 [INFO] Truvari v5.3.0
+2025-07-20 18:02:03,687 [INFO] Command /Users/english/py/bin/truvari bench -f /Users/english/code/references/grch38/GRCh38_1kg_mainchrs.fa -P 0.70 -p 0 --pick single --dup-to-ins --includebed ../smaht_mims_sv_v2_easy_nodenseregions.bed -c /Users/english/code/SMaHT_MIMS/callers/delly/hapmix_ill_GCC_BCM_calls_clean.vcf.gz -b ../smaht_mims_sv_v2_easy.vcf.gz -o bench/dellyill_easy_nodense
+2025-07-20 18:02:03,688 [INFO] Params:
+{
+    "base": "/Users/english/code/SMaHT_MIMS/benchmark_v2/smaht_mims_sv_v2_easy.vcf.gz",
+    "comp": "/Users/english/code/SMaHT_MIMS/callers/delly/hapmix_ill_GCC_BCM_calls_clean.vcf.gz",
+    "output": "bench/dellyill_easy_nodense",
+    "includebed": "/Users/english/code/SMaHT_MIMS/benchmark_v2/smaht_mims_sv_v2_easy_nodenseregions.bed",
+    "extend": 0,
+    "debug": false,
+    "reference": "/Users/english/code/references/grch38/GRCh38_1kg_mainchrs.fa",
+    "refdist": 500,
+    "pctseq": 0.0,
+    "pctsize": 0.7,
+    "pctovl": 0.0,
+    "typeignore": false,
+    "no_roll": false,
+    "chunksize": 1000,
+    "bSample": "HG005",
+    "cSample": "SMACUIX7SY21",
+    "dup_to_ins": true,
+    "bnddist": 100,
+    "sizemin": 50,
+    "sizefilt": 30,
+    "sizemax": 50000,
+    "passonly": false,
+    "no_ref": false,
+    "pick": "single",
+    "ignore_monref": true,
+    "check_multi": true,
+    "check_monref": true,
+    "no_single_bnd": true,
+    "write_resolved": false,
+    "decompose": true,
+    "short_circuit": false,
+    "skip_gt": false,
+    "max_resolve": 25000
+}
+2025-07-20 18:02:03,765 [WARNING] 171 contigs present in comparison VCF header are not in baseline VCF.
+2025-07-20 18:02:03,995 [INFO] Including 9774 bed regions
+2025-07-20 18:02:17,091 [INFO] Zipped 43311 variants Counter({'base': 34140, 'comp': 9171})
+2025-07-20 18:02:17,092 [INFO] 27940 chunks of 43311 variants Counter({'base': 34140, 'comp': 9019, '__filtered': 152})
+2025-07-20 18:02:22,836 [INFO] Stats: {
+    "TP-base": 6236,
+    "TP-comp": 6236,
+    "FP": 2783,
+    "FN": 27904,
+    "precision": 0.6914292050116421,
+    "recall": 0.18265963678968952,
+    "f1": 0.28897796519845226,
+    "base cnt": 34140,
+    "comp cnt": 9019,
+    "TP-comp_TP-gt": 4950,
+    "TP-comp_FP-gt": 1286,
+    "TP-base_TP-gt": 4950,
+    "TP-base_FP-gt": 1286,
+    "gt_concordance": 0.7937780628608082,
+    "gt_matrix": {
+        "(0, 0)": {
+            "(0, 0)": 2412,
+            "(0, 1)": 635,
+            "(1, 1)": 17
+        },
+        "(1, 0)": {
+            "(0, 1)": 796,
+            "(1, 1)": 24,
+            "(0, 0)": 26
+        },
+        "(1, 1)": {
+            "(0, 1)": 520,
+            "(1, 1)": 921,
+            "(0, 0)": 23
+        },
+        "(0, 1)": {
+            "(0, 1)": 821,
+            "(1, 1)": 18,
+            "(0, 0)": 23
+        }
+    }
+}
+2025-07-20 18:02:22,836 [INFO] Finished bench

@@ -170,13 +170,15 @@ def stratp_test(m_data, state, features,  min_obs=10, n_perm=10000, tail="left",
         for val in rank[feat].unique():
             sub = rank[feat] == val
             if sub.sum() < min_obs or (~sub).sum() < min_obs:
-                logging.warning("%s : %s with < %d observations ignored (%d case, %d control)",
+                logging.warning("Unable to permute %s : %s with < %d groups (%d case, %d control)",
                                 feat, val, min_obs, sub.sum(), (~sub).sum())
-                continue
-            logging.debug("Testing %s : %s", feat, val)
-            result = permutation_test(np.array(rank[sub].index),
-                                      np.array(rank[~sub].index),
-                                      n_perm, tail)
+                result = [np.array(rank[sub].index).mean() - np.array(rank[~sub].index).mean(),
+                          np.nan, np.nan, np.nan, np.nan]
+            else:
+                logging.debug("Testing %s : %s", feat, val)
+                result = permutation_test(np.array(rank[sub].index),
+                                        np.array(rank[~sub].index),
+                                        n_perm, tail)
             acc = m_data[m_data[feat] == val][state].mean()
             rows.append([feat,
                          val,
@@ -295,7 +297,7 @@ def stratp_main(args):
     """
     Run StratP test on a truvari directory with benchmarking results
     """
-    args = parse_args(sys.argv[1:])
+    args = parse_args(args)
     np.random.seed(args.seed)
     data_file = os.path.join(args.bench_dir, "data.jl")
     if not os.path.exists(data_file):
