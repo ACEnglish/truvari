@@ -57,20 +57,20 @@ def parse_args(args):
                         help="Min reciprocal overlap (%(default)s)")
     thresg.add_argument("-t", "--typeignore", action="store_true", default=defaults.typeignore,
                         help="Don't compare variant types (%(default)s)")
-    thresg.add_argument("-n", "--no-roll", action="store_true",
-                        help="Turn off rolling sequence similarity")
     thresg.add_argument("--pick", type=str, default=defaults.pick, choices=PICKERS.keys(),
                         help="Number of matches reported per-call (%(default)s)")
     thresg.add_argument("-d", "--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-B", "--bnddist", type=int, default=defaults.bnddist,
                         help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
-    thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
-                        help="Max reference distance to compare calls (%(default)s)")
     thresg.add_argument("-N", "--no-decompose", action="store_false",
                         help="Disallow symbolic variant decomposition to BNDs")
     thresg.add_argument("-m", "--max-resolve", type=int, default=defaults.max_resolve,
                         help="Maximum size of variant to attempt to sequence resolve (%(default)s)")
+    thresg.add_argument("-C", "--chunksize", type=truvari.restricted_int, default=defaults.chunksize,
+                        help="Max reference distance to compare calls (%(default)s)")
+    thresg.add_argument("-n", "--no-roll", action="store_true",
+                        help="Turn off rolling sequence similarity")
 
     genoty = parser.add_argument_group("Genotype Comparison Arguments")
     genoty.add_argument("--bSample", type=str, default=None,
@@ -86,7 +86,7 @@ def parse_args(args):
     filteg.add_argument("-S", "--sizefilt", type=truvari.restricted_int, default=None,
                         help="Minimum variant size to consider from --comp (30)")
     filteg.add_argument("--sizemax", type=int, default=defaults.sizemax,
-                        help="Maximum variant size to consider (-1 = off)")
+                        help="Maximum variant size to consider (%(default)s; -1 = off)")
     filteg.add_argument("--no-ref", default=defaults.no_ref, choices=['a', 'b', 'c'],
                         help="Exclude 0/0 or ./. GT calls from all (a), base (b), or comp (c) vcfs (%(default)s)")
     filteg.add_argument("--includebed", type=str, default=None,
