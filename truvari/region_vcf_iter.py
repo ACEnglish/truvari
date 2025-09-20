@@ -223,6 +223,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
         chroms = sorted(list(vcf.header.contigs))
     else:
         chroms = sorted(tree.keys())
+
     ret_type = (lambda x, y, z: (x, (y, z))
                 ) if with_region else (lambda x, y, z: x)
     for chrom in chroms:
