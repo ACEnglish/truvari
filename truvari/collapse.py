@@ -481,7 +481,7 @@ def parse_args(args):
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
                         help="Minimum variant size to consider for comparison (%(default)s)")
-    filteg.add_argument("-S", "--sizemax", type=truvari.restricted_int, default=50000,
+    filteg.add_argument("-S", "--sizemax", type=int, default=50000,
                         help="Maximum variant size to consider for comparison (-1 = off; %(default)s)")
     filteg.add_argument("--passonly", action="store_true", default=False,
                         help="Only consider calls with FILTER == PASS")
