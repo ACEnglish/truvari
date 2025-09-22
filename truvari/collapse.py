@@ -6,6 +6,7 @@ Will collapse all variants within sizemin/max that match over thresholds
 import os
 import sys
 import gzip
+import math
 import json
 import logging
 import argparse
@@ -85,71 +86,160 @@ class CollapsedCalls():
         self.genotype_mask |= o_mask
         return False
 
+class DoublePrio():
+    """
+    Keeps two sortings of a list and allows them to link to each other so that
+    the first sorting can keep what's next to compare and 
+    the second sorting can help reduce the search space of what we compare against
+    """
+    __SEC_SIZE = 0 # Index of secondary size element
+    __SEC_ENTRY = 1 # Index of the call
+    __SEC_PRIM = 2 # Index of secondary primary index element
 
-def find_new_matches(base, remaining_calls, dest_collapse, params):
-    """
-    Pull variants from remaining calls that match to the base entry into the destination collapse
-    Updates everything in place
-    """
-    # Sort based on size difference to current call
-    remaining_calls.sort(key=partial(relative_size_sorter, base))
-    i = 0
-    while i < len(remaining_calls):
-        candidate = remaining_calls[i]
-        mat = base.match(candidate)
-        mat.matid = dest_collapse.match_id
-        if params.hap and not hap_resolve(base,  candidate):
-            mat.state = False
-        if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
-            mat.state = False
-        if mat.state:
-            dest_collapse.matches.append(mat)
-            remaining_calls.pop(i)
-        else:
-            # move to next one
-            i += 1
-            # short circuit
-            if mat.sizesim is not None and mat.sizesim < params.pctsize:
-                return
+    def __init__(self, elements, secondary=None):
+        self.primary = elements
+        self.secondary = sorted([(s.var_size(), s, idx) for idx, s in enumerate(self.primary)], key=lambda x: x[0])
+
+        # Holds secondary index for each primary element
+        # Allows primary to jump to the appropriate place in secondary
+        self.linked = [_[1] for _ in sorted([(idx[2], s_idx) for s_idx, idx in enumerate(self.secondary)])]
+
+        self.mask = [True] * len(self.primary)
+    
+    def get_next(self):
+        """
+        Returns the index first non-masked element of primary
+        """
+        for i in range(len(self.mask)):
+            if self.mask[i]:
+                self.mask[i] = False
+                return i
+        return None
+
+    def get_matches(self, p_idx, dest_collapse, params):
+        """
+        Given the index in primary, and a destination for the collapsed calls, and the matching parameters
+        find all of the matches' primary index to be returned
+        and also update the dest_collapse
+        """
+        ret = []
+        s_idx = self.linked[p_idx]
+        base = self.primary[p_idx]
+        m_size = base.var_size()
+        # Only need to look within this size regime - give it some buffer just in case
+        #min_size = m_size - math.floor(m_size * params.pctsize) - 2
+        #max_size = m_size + math.ceil(m_size * params.pctsize) + 2
+        # Check is secondary index
+        check = s_idx - 1
+        # Lets always check one more than we need to
+        #break_next = False
+        while check >= 0:
+            # Match already used
+            if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
+                check -= 1
+                continue
+            
+            # We've gone too far, this and no other variants will be able to match
+            candidate = self.secondary[check][self.__SEC_ENTRY]
+            #if candidate.var_size() < min_size:
+                #if break_next:
+                    #break
+                #break_next = True
+
+            # D.R.Y.
+            mat = base.match(candidate)
+            mat.matid = dest_collapse.match_id
+            if params.hap and hap_resolve(base, candidate):
+                mat.state = False
+            if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
+                mat.state = False
+            if mat.state:
+                matched_to = self.secondary[check][self.__SEC_PRIM]
+                ret.append(matched_to)
+                self.mask[matched_to] = False
+                dest_collapse.matches.append(mat)
+            elif base.sizesim(candidate)[0] < params.pctsize:
+                # Short circiut - first element that isn't above sizesim
+                check = 0
+
+            # and go to the next one
+            check -= 1
+
+        check = s_idx + 1
+        #break_next = False
+        while check < len(self.secondary):
+            # Match already used
+            if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
+                check += 1
+                continue
+            
+            # We've gone too far, this and no other variants will be able to match
+            candidate = self.secondary[check][self.__SEC_ENTRY]
+            #if candidate.var_size() > max_size:
+                #if break_next:
+                    #break
+                #break_next = True
+
+            # D.R.Y.
+            mat = base.match(candidate)
+            mat.matid = dest_collapse.match_id
+            if params.hap and hap_resolve(base, candidate):
+                mat.state = False
+            if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
+                mat.state = False
+            if mat.state:
+                matched_to = self.secondary[check][self.__SEC_PRIM]
+                ret.append(matched_to)
+                self.mask[matched_to] = False
+                dest_collapse.matches.append(mat)
+            elif base.sizesim(candidate)[0] < params.pctsize:
+                # Short circiut - first element that isn't above sizesim
+                check = len(self.secondary)
+
+            # and go to the next one
+            check += 1
+
+        return ret
 
 def collapse_chunk(chunk, params):
     """
     Returns a list of lists with [keep entry, collap matches, match_id, gt_consolidate_count]
     """
     chunk_dict, chunk_id = chunk
-    remaining_calls = sorted(chunk_dict['base'], key=params.sorter)
-
+    prio = DoublePrio(sorted(chunk_dict['base'], key=params.sorter))
     call_id = -1
-    ret = []  # list of Collapses
-    while remaining_calls:
+    ret = []
+    while any(prio.mask):
         call_id += 1
-        m_collap = CollapsedCalls(remaining_calls.pop(0),
+        next_idx = prio.get_next()
+        m_collap = CollapsedCalls(prio.primary[next_idx], 
                                   f'{chunk_id}.{call_id}')
         # quicker genotype comparison - needs to be refactored
         m_collap.genotype_mask = m_collap.make_genotype_mask(m_collap.entry,
                                                              params.gt)
 
-        find_new_matches(m_collap.entry, remaining_calls, m_collap, params)
-        # Chain will only operate once to prevent 'sliding'
-        # e.g. collapsing integers within 5 of 1, 4, 6, 8
-        # without a single operation 1
-        # with a single operation 1, 8
-        # not chaining at all 1, 6
+        matches_idx = prio.get_matches(next_idx, m_collap, params)
+
         if params.chain:
             i = 0
-            while remaining_calls and i < len(m_collap.matches):
-                find_new_matches(m_collap.matches[i].comp, remaining_calls, m_collap, params)
+            while any(prio.mask) and i < len(m_collap.matches):
+                matches_idx.extend(prio.get_matches(matches_idx[i], m_collap, params))
                 i += 1
 
         # If hap, only allow the best match
         # put the rest of the remaining calls back
         if params.hap and m_collap.matches:
-            mats = sorted(m_collap.matches, reverse=True)
-            m_collap.matches = [mats.pop(0)]
-            remaining_calls.extend(mats)
+            best_match = m_collap.matches[0]
+            best_match_idx = matches_idx[0]
+            for omatch, oidx in zip(m_collap.matches[1:], matches_idx[1:]):
+                if omatch > best_match:
+                    best_match = omatch
+                    best_match_idx = oidx
+            for reset in matches_idx:
+                if reset != best_match_idx:
+                    prio.mask[reset] = True
+            m_collap.matches = [best_match]
         ret.append(m_collap)
-        # Sort back to where they need to be to choose the next to evaluate
-        remaining_calls.sort(key=params.sorter)
 
     if params.consolidate:
         for val in ret:
@@ -167,12 +257,6 @@ def collapse_chunk(chunk, params):
     ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
-
-def relative_size_sorter(base, comp):
-    """
-    Sort calls based on the absolute size difference of base and comp
-    """
-    return abs(base.var_size() - comp.var_size())
 
 
 def collapse_into_entry(entry, others, hap_mode=False):
@@ -448,6 +532,8 @@ def parse_args(args):
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
+    thresg.add_argument("-R", "--bench-refdist", action="store_true",
+                        help="Pre-clustering performed with ≤v5.3 compatibility (%(default))")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -476,7 +562,7 @@ def parse_args(args):
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
     parser.add_argument("--chain", action="store_true", default=False,
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
-    parser.add_argument("--no-consolidate", action="store_true", default=True,
+    parser.add_argument("--no-consolidate", action="store_false", default=False,
                         help="Skip consolidation of sample genotype fields (%(default)s)")
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
@@ -777,7 +863,7 @@ def tree_size_chunker(params, chunks):
             yield {'base': intv[2].to_list(), '__filtered': []}, chunk_count
 
 
-def tree_dist_chunker(params, chunks):
+def tree_dist_chunker(params, chunks, bench_refdist=True):
     """
     To reduce the number of variants in a chunk try to sub-chunk by reference distance before hand
     Needs to return the same thing as a chunker
@@ -793,9 +879,14 @@ def tree_dist_chunker(params, chunks):
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
         to_add = []
         for entry in chunk['base']:
-            st, ed = entry.boundaries()
-            st -= params.refdist
-            ed += params.refdist
+            st_, ed = entry.boundaries()
+            # Backwards compatibility
+            if bench_refdist:
+                st = st_ - params.refdist
+                ed += params.refdist
+            else:
+                st = st_ - params.refdist
+                ed = st_ + params.refdist
             to_add.append((st, ed, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -825,7 +916,7 @@ def collapse_main(args):
     params.gt = args.gt
     params.chain = args.chain
     params.sorter = SORTS[args.keep]
-    params.consolidate = args.no_consolidate
+    params.consolidate = not args.no_consolidate
 
     base = truvari.VariantFile(args.input, params=params)
     regions = truvari.build_region_tree(base, includebed=args.bed)
@@ -834,7 +925,7 @@ def collapse_main(args):
 
     chunks = truvari.chunker(params, ('base', base_i))
     smaller_chunks = tree_size_chunker(params, chunks)
-    even_smaller_chunks = tree_dist_chunker(params, smaller_chunks)
+    even_smaller_chunks = tree_dist_chunker(params, smaller_chunks, args.bench_refdist)
 
     outputs = CollapseOutput(args, params)
     m_collap = partial(collapse_chunk, params=params)

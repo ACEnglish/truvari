@@ -9,6 +9,7 @@ import truvari
 from truvari.annotations.af_calc import allele_freq_annos
 
 RC = str.maketrans("ATCG", "TAGC")
+SV_ALT_MATCH = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
 # pylint: disable=attribute-defined-outside-init
 
@@ -27,6 +28,8 @@ class VariantRecord:
         self._resolved_alt = None
         self._decomp_repr = None
         self._afannos = None
+        self._varsize = None
+        self._vartype = None
         self.end = record.stop
         if params is None:
             self.params = truvari.VariantParams()
@@ -849,6 +852,10 @@ class VariantRecord:
         :return: the entry's size
         :rtype: int
         """
+        # Visited enough that we take the memory hit
+        if self._varsize is not None:
+            return self._varsize
+
         if "SVLEN" in self.info:
             if type(self.info["SVLEN"]) in [list, tuple]:
                 size = self.info["SVLEN"][0]
@@ -856,6 +863,7 @@ class VariantRecord:
                 size = self.info["SVLEN"]
             try:
                 size = abs(int(size))
+                self._varsize = size
                 return size
             except ValueError:
                 pass
@@ -873,6 +881,7 @@ class VariantRecord:
                     size = r_len
             else:
                 size = abs(r_len - a_len)
+        self._varsize = size
         return size
 
     def var_type(self):
@@ -892,11 +901,12 @@ class VariantRecord:
         :return: SV type
         :rtype: :class:`truvari.SV`
         """
-        sv_alt_match = re.compile(r"\<(?P<SVTYPE>.*)\>")
-
+        if self._vartype is not None:
+            return self._vartype
         try:
             if self.alleles_variant_types[1] == 'BND':
-                return truvari.SV.BND
+                self._vartype = truvari.SV.BND
+                return self._vartype
         except (IndexError, AttributeError):
             pass
 
@@ -904,7 +914,9 @@ class VariantRecord:
             ret_type = self.info["SVTYPE"]
             if isinstance(ret_type, (list, tuple)):
                 ret_type = ret_type[0]
-            return truvari.get_svtype(ret_type)
+            
+            self._vartype = truvari.get_svtype(ret_type)
+            return self._vartype
 
         if self.is_resolved():
             if len(self.ref) < len(self.alts[0]):
@@ -913,14 +925,17 @@ class VariantRecord:
                 ret_type = "DEL"
             elif len(self.ref) == len(self.alts[0]):
                 ret_type = "SNP" if len(self.ref) == 1 else "UNK"
-            return truvari.get_svtype(ret_type)
+            self._vartype = truvari.get_svtype(ret_type)
+            return self._vartype
 
-        mat = sv_alt_match.match(
+        mat = SV_ALT_MATCH.match(
             self.alts[0]) if self.alts is not None else None
         if mat is not None:
-            return truvari.get_svtype(mat.groupdict()["SVTYPE"].split(':')[0])
+            self._vartype = truvari.get_svtype(mat.groupdict()["SVTYPE"].split(':')[0])
+            return self._vartype
 
-        return truvari.get_svtype("UNK")
+        self._vartype = truvari.get_svtype("UNK")
+        return self._vartype
 
     def to_hash(self, hasher=hashlib.sha1):
         """
