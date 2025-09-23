@@ -11,7 +11,7 @@ from truvari.annotations.af_calc import allele_freq_annos
 RC = str.maketrans("ATCG", "TAGC")
 SV_ALT_MATCH = re.compile(r"\<(?P<SVTYPE>.*)\>")
 
-# pylint: disable=attribute-defined-outside-init
+# pylint: disable=attribute-defined-outside-init,too-many-instance-attributes
 
 
 class VariantRecord:
@@ -914,7 +914,7 @@ class VariantRecord:
             ret_type = self.info["SVTYPE"]
             if isinstance(ret_type, (list, tuple)):
                 ret_type = ret_type[0]
-            
+
             self._vartype = truvari.get_svtype(ret_type)
             return self._vartype
 

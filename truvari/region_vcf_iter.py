@@ -247,8 +247,8 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
             continue  # region on chromosome not in vcf
         try:
             cur_entry = next(cur_iter)
-        except StopIteration:
-            # variant-less chromosome
+        except (StopIteration, ValueError):
+            # variant-less chromosome, absent chromosome
             continue
         cur_start, cur_end = cur_entry.boundaries()
 

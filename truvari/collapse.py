@@ -6,7 +6,6 @@ Will collapse all variants within sizemin/max that match over thresholds
 import os
 import sys
 import gzip
-import math
 import json
 import logging
 import argparse
@@ -89,14 +88,14 @@ class CollapsedCalls():
 class DoublePrio():
     """
     Keeps two sortings of a list and allows them to link to each other so that
-    the first sorting can keep what's next to compare and 
+    the first sorting can keep what's next to compare and
     the second sorting can help reduce the search space of what we compare against
     """
     __SEC_SIZE = 0 # Index of secondary size element
     __SEC_ENTRY = 1 # Index of the call
     __SEC_PRIM = 2 # Index of secondary primary index element
 
-    def __init__(self, elements, secondary=None):
+    def __init__(self, elements):
         self.primary = elements
         self.secondary = sorted([(s.var_size(), s, idx) for idx, s in enumerate(self.primary)], key=lambda x: x[0])
 
@@ -105,13 +104,13 @@ class DoublePrio():
         self.linked = [_[1] for _ in sorted([(idx[2], s_idx) for s_idx, idx in enumerate(self.secondary)])]
 
         self.mask = [True] * len(self.primary)
-    
+
     def get_next(self):
         """
         Returns the index first non-masked element of primary
         """
-        for i in range(len(self.mask)):
-            if self.mask[i]:
+        for i, mask_value in enumerate(self.mask):
+            if mask_value:
                 self.mask[i] = False
                 return i
         return None
@@ -125,26 +124,15 @@ class DoublePrio():
         ret = []
         s_idx = self.linked[p_idx]
         base = self.primary[p_idx]
-        m_size = base.var_size()
-        # Only need to look within this size regime - give it some buffer just in case
-        #min_size = m_size - math.floor(m_size * params.pctsize) - 2
-        #max_size = m_size + math.ceil(m_size * params.pctsize) + 2
         # Check is secondary index
         check = s_idx - 1
-        # Lets always check one more than we need to
-        #break_next = False
         while check >= 0:
             # Match already used
             if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
                 check -= 1
                 continue
-            
-            # We've gone too far, this and no other variants will be able to match
+
             candidate = self.secondary[check][self.__SEC_ENTRY]
-            #if candidate.var_size() < min_size:
-                #if break_next:
-                    #break
-                #break_next = True
 
             # D.R.Y.
             mat = base.match(candidate)
@@ -166,19 +154,13 @@ class DoublePrio():
             check -= 1
 
         check = s_idx + 1
-        #break_next = False
         while check < len(self.secondary):
             # Match already used
             if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
                 check += 1
                 continue
-            
-            # We've gone too far, this and no other variants will be able to match
+
             candidate = self.secondary[check][self.__SEC_ENTRY]
-            #if candidate.var_size() > max_size:
-                #if break_next:
-                    #break
-                #break_next = True
 
             # D.R.Y.
             mat = base.match(candidate)
@@ -209,10 +191,11 @@ def collapse_chunk(chunk, params):
     prio = DoublePrio(sorted(chunk_dict['base'], key=params.sorter))
     call_id = -1
     ret = []
+
     while any(prio.mask):
         call_id += 1
         next_idx = prio.get_next()
-        m_collap = CollapsedCalls(prio.primary[next_idx], 
+        m_collap = CollapsedCalls(prio.primary[next_idx],
                                   f'{chunk_id}.{call_id}')
         # quicker genotype comparison - needs to be refactored
         m_collap.genotype_mask = m_collap.make_genotype_mask(m_collap.entry,
@@ -254,6 +237,7 @@ def collapse_chunk(chunk, params):
 
     for i in chunk_dict['__filtered']:
         ret.append(CollapsedCalls(i, None))
+
     ret.sort(key=cmp_to_key(lambda x, y: x.entry.pos - y.entry.pos))
     return ret
 
@@ -532,8 +516,8 @@ def parse_args(args):
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
-    thresg.add_argument("-R", "--bench-refdist", action="store_true",
-                        help="Pre-clustering performed with ≤v5.3 compatibility (%(default))")
+    parser.add_argument("-R", "--bench-refdist", action="store_true",
+                        help="Perform pre-clustering with slower, but more accurate ≤v5.3 compatibility (%(default))")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -556,7 +540,8 @@ def parse_args(args):
                         help="Allow decomposition for SV to BND comparison (%(default)s)")
     thresg.add_argument("-d", "--dup-to-ins", action="store_true",
                         help="Assume DUP svtypes are INS (%(default)s)")
-
+    thresg.add_argument("-B", "--bnddist", type=int, default=100,
+                        help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
