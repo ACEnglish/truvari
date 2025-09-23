@@ -29,7 +29,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade setuptools
           python3 -m pip install Cython pylint anybadge coverage
-          python3 -m pip install .
+          python3 -m pip install ./[bwa]
       - name: Running ssshtest
         run: |
           TMPDIR=`pwd` bash repo_utils/truvari_ssshtests.sh
