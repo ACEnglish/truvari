@@ -104,15 +104,19 @@ class DoublePrio():
         self.linked = [_[1] for _ in sorted([(idx[2], s_idx) for s_idx, idx in enumerate(self.secondary)])]
 
         self.mask = [True] * len(self.primary)
+        self._next_idx = 0
 
     def get_next(self):
         """
         Returns the index first non-masked element of primary
         """
-        for i, mask_value in enumerate(self.mask):
-            if mask_value:
+        while self._next_idx < len(self.mask):
+            if self.mask[self._next_idx]:
+                i = self._next_idx
                 self.mask[i] = False
+                self._next_idx += 1
                 return i
+            self._next_idx += 1
         return None
 
     def get_matches(self, p_idx, dest_collapse, params):
@@ -124,64 +128,51 @@ class DoublePrio():
         ret = []
         s_idx = self.linked[p_idx]
         base = self.primary[p_idx]
-        # Check is secondary index
+
+        def check_and_add_match(check):
+            """
+            Check if candidate at index matches and add to results if valid.
+            Returns True to continue checking, False to short-circuit.
+            """
+            # Match already used
+            if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
+                return True
+
+            candidate = self.secondary[check][self.__SEC_ENTRY]
+
+            mat = base.match(candidate)
+            mat.matid = dest_collapse.match_id
+            if params.hap and not hap_resolve(base, candidate):
+                mat.state = False
+            if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
+                mat.state = False
+            if mat.state:
+                matched_to = self.secondary[check][self.__SEC_PRIM]
+                ret.append(matched_to)
+                self.mask[matched_to] = False
+                dest_collapse.matches.append(mat)
+            elif base.sizesim(candidate)[0] < params.pctsize:
+                # Short circuit - first element that isn't above sizesim
+                return False
+
+            return True
+
+        # Check backwards from s_idx
         check = s_idx - 1
         while check >= 0:
-            # Match already used
-            if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
-                check -= 1
-                continue
-
-            candidate = self.secondary[check][self.__SEC_ENTRY]
-
-            # D.R.Y.
-            mat = base.match(candidate)
-            mat.matid = dest_collapse.match_id
-            if params.hap and hap_resolve(base, candidate):
-                mat.state = False
-            if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
-                mat.state = False
-            if mat.state:
-                matched_to = self.secondary[check][self.__SEC_PRIM]
-                ret.append(matched_to)
-                self.mask[matched_to] = False
-                dest_collapse.matches.append(mat)
-            elif base.sizesim(candidate)[0] < params.pctsize:
-                # Short circiut - first element that isn't above sizesim
-                check = 0
-
-            # and go to the next one
+            if not check_and_add_match(check):
+                break
             check -= 1
 
+        # Check forwards from s_idx
         check = s_idx + 1
         while check < len(self.secondary):
-            # Match already used
-            if not self.mask[self.secondary[check][self.__SEC_PRIM]]:
-                check += 1
-                continue
-
-            candidate = self.secondary[check][self.__SEC_ENTRY]
-
-            # D.R.Y.
-            mat = base.match(candidate)
-            mat.matid = dest_collapse.match_id
-            if params.hap and hap_resolve(base, candidate):
-                mat.state = False
-            if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
-                mat.state = False
-            if mat.state:
-                matched_to = self.secondary[check][self.__SEC_PRIM]
-                ret.append(matched_to)
-                self.mask[matched_to] = False
-                dest_collapse.matches.append(mat)
-            elif base.sizesim(candidate)[0] < params.pctsize:
-                # Short circiut - first element that isn't above sizesim
-                check = len(self.secondary)
-
-            # and go to the next one
+            if not check_and_add_match(check):
+                break
             check += 1
 
         return ret
+
 
 def collapse_chunk(chunk, params):
     """
@@ -191,6 +182,7 @@ def collapse_chunk(chunk, params):
     prio = DoublePrio(sorted(chunk_dict['base'], key=params.sorter))
     call_id = -1
     ret = []
+    #logging.critical([(_.pos, _.var_type(), _.var_size()) for _ in chunk_dict['base']])
 
     while any(prio.mask):
         call_id += 1
@@ -517,7 +509,7 @@ def parse_args(args):
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("-R", "--bench-refdist", action="store_true",
-                        help="Perform pre-clustering with slower, but more accurate ≤v5.3 compatibility (%(default))")
+                        help="Perform pre-clustering with slower, but more accurate ≤v5.3 compatibility (%(default)s)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -920,3 +912,6 @@ def collapse_main(args):
     outputs.close()
     outputs.dump_log()
     logging.info("Finished collapse")
+
+if __name__ == '__main__':
+    collapse_main(sys.argv[1:])
