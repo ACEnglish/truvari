@@ -508,8 +508,8 @@ def parse_args(args):
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
                         help="Store median start/end/size of collapsed entries in kept's INFO")
-    parser.add_argument("-R", "--bench-refdist", action="store_true",
-                        help="Perform pre-clustering with slower, but more accurate ≤v5.3 compatibility (%(default)s)")
+    parser.add_argument("-F", "--fast-cluster", action="store_true",
+                        help="Perform pre-clustering faster, but potentially lose matches (%(default)s)")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -840,7 +840,7 @@ def tree_size_chunker(params, chunks):
             yield {'base': intv[2].to_list(), '__filtered': []}, chunk_count
 
 
-def tree_dist_chunker(params, chunks, bench_refdist=True):
+def tree_dist_chunker(params, chunks, fast_clust=False):
     """
     To reduce the number of variants in a chunk try to sub-chunk by reference distance before hand
     Needs to return the same thing as a chunker
@@ -857,13 +857,16 @@ def tree_dist_chunker(params, chunks, bench_refdist=True):
         to_add = []
         for entry in chunk['base']:
             st_, ed = entry.boundaries()
-            # Backwards compatibility
-            if bench_refdist:
-                st = st_ - params.refdist
-                ed += params.refdist
-            else:
+            if fast_clust and (ed - st_) >= 100000:
+                # By only clustering on the beginnings, we miss some matches
+                # e.g. 1-5 & 4-5 when refdist=2, but gain enormous runtime savings
+                # when collapsing thousands of GIANT ≥ 100Mbp SVs overlapping many
+                # smaller SVs
                 st = st_ - params.refdist
                 ed = st_ + params.refdist
+            else:
+                st = st_ - params.refdist
+                ed += params.refdist
             to_add.append((st, ed, LinkedList(entry)))
         tree = merge_intervals(to_add)
         for intv in tree:
@@ -902,7 +905,7 @@ def collapse_main(args):
 
     chunks = truvari.chunker(params, ('base', base_i))
     smaller_chunks = tree_size_chunker(params, chunks)
-    even_smaller_chunks = tree_dist_chunker(params, smaller_chunks, args.bench_refdist)
+    even_smaller_chunks = tree_dist_chunker(params, smaller_chunks, args.fast_cluster)
 
     outputs = CollapseOutput(args, params)
     m_collap = partial(collapse_chunk, params=params)
