@@ -3,34 +3,28 @@ The wiki holds documentation most relevant for develop. For information on a spe
 Citation:  
 English, A.C., Menon, V.K., Gibbs, R.A. et al. Truvari: refined structural variant comparison preserves allelic diversity. Genome Biol 23, 271 (2022). https://doi.org/10.1186/s13059-022-02840-6
 
-# Before you start
-VCFs aren't always created with a strong adherence to the format's specification. 
-
-Truvari expects input VCFs to be valid so that it will only output valid VCFs. 
-
-We've developed a separate tool that runs multiple validation programs and standard VCF parsing libraries in order to validate a VCF. 
-
-Run [this program](https://github.com/acenglish/usable_vcf) over any VCFs that are giving Truvari trouble. 
-
-Furthermore, Truvari expects 'resolved' SVs (e.g. DEL/INS) and will not interpret BND signals across SVTYPEs (e.g. combining two BND lines to match a DEL call). A brief description of Truvari bench methodology is linked below.
-
-Finally, Truvari does not handle multi-allelic VCF entries and as of v4.0 will throw an error if multi-allelics are encountered. Please use `bcftools norm` to split multi-allelic entries. 
-
 # Index
 
 - [[Updates|Updates]]
 - [[Installation|Installation]]
-- Truvari Commands:
-  - [[anno|anno]]
-  - [[bench|bench]]
-  - [[collapse|collapse]]
-  - [[consistency|consistency]]
-  - [[divide|divide]]
-  - [[ga4gh|ga4gh]]
-  - [[phab|phab]]
-  - [[refine|refine]]
-  - [[segment|segment]]
-  - [[stratify|stratify]]
-  - [[vcf2df|vcf2df]]
 - [[Development|Development]]
-- [[Citations|Citations]]
+
+Truvari Commands:  
+- Benchmarking  
+  - [[bench|bench]] - Performance metrics from comparison of two VCFs  
+  - [[refine|refine]] - Automated bench result refinement with phab  
+- Merging  
+  - [[collapse|collapse]]     Collapse redundant VCF entries  
+  - [[phab|phab]]         Variant harmonization using MSA  
+- Analysis  
+  - [[consistency|consistency]]  Consistency report between multiple VCFs  
+  - [[stratify|stratify]]     Count VCF entries inside BED regions  
+  - [[vcf2df|vcf2df]]       Turn VCF into pandas DataFrame  
+  - [[stratp|Stratp-Test]]       Stratification performance test  
+- Annotation  
+  - [[anno|anno]]         VCF Annotations  
+- Misc  
+  - [[segment|segment]]      Normalization of SVs into disjointed genomic regions  
+  - [[divide|divide]]       Divide a VCF into independent shards  
+  - [[ga4gh|ga4gh]]        Convert Truvari result to GA4GH  
+

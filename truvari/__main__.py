@@ -18,9 +18,11 @@ from truvari.vcf2df import vcf2df_main
 from truvari.refine import refine_main
 from truvari.collapse import collapse_main
 from truvari.stratify import stratify_main
+from truvari.stratp_test import stratp_main
 from truvari.segmentation import segment_main
-from truvari.consistency import consistency_main
 from truvari.make_ga4gh import make_ga4gh_main
+from truvari.consistency import consistency_main
+
 
 def flat_version(args):
     """Print the version"""
@@ -41,24 +43,34 @@ TOOLS = {"bench": bench_main,
          "phab": phab_main,
          "refine": refine_main,
          "ga4gh": make_ga4gh_main,
+         "stratp": stratp_main,
          "version": flat_version}
 
 USAGE = f"""\
-[bold]Truvari v{__version__}[/] Structural Variant Benchmarking and Annotation
+[bold]Truvari v{__version__}[/] — Structural Variant Benchmarking and Annotation
 
-Available commands:
-    [bold][cyan]bench[/][/]         Performance metrics from comparison of two VCFs
-    [bold][cyan]collapse[/][/]      Collapse possibly redundant VCF entries
-    [bold][cyan]anno[/][/]          Annotate a VCF
-    [bold][cyan]consistency[/][/]   Consistency report between multiple VCFs
-    [bold][cyan]vcf2df[/][/]        Turn a VCF into a pandas DataFrame
-    [bold][cyan]segment[/][/]       Normalization of SVs into disjointed genomic regions
-    [bold][cyan]stratify[/][/]      Count variants per-region in vcf
-    [bold][cyan]divide[/][/]        Divide a VCF into independent shards
-    [bold][cyan]phab[/][/]          Variant harmonization using MSA
-    [bold][cyan]refine[/][/]        Automated bench result refinement with phab
-    [bold][cyan]ga4gh[/][/]         Convert Truvari result to GA4GH
-    [bold][cyan]version[/][/]       Print the Truvari version and exit
+[bold underline]Benchmarking[/]
+  [cyan]bench[/]        Performance metrics from comparison of two VCFs
+  [cyan]refine[/]       Automated bench result refinement with phab
+
+[bold underline]Merging[/]
+  [cyan]collapse[/]     Collapse redundant VCF entries
+  [cyan]phab[/]         Variant harmonization using MSA
+
+[bold underline]Analysis[/]
+  [cyan]consistency[/]  Consistency report between multiple VCFs
+  [cyan]stratify[/]     Count VCF entries inside BED regions
+  [cyan]vcf2df[/]       Turn VCF into pandas DataFrame
+  [cyan]stratp[/]       Stratification performance test
+
+[bold underline]Annotation[/]
+  [cyan]anno[/]         VCF Annotations
+
+[bold underline]Misc[/]
+  [cyan]segment[/]      Normalization of SVs into disjointed genomic regions
+  [cyan]divide[/]       Divide a VCF into independent shards
+  [cyan]ga4gh[/]        Convert Truvari result to GA4GH
+  [cyan]version[/]      Print the Truvari version and exit
 """
 
 
@@ -84,6 +96,7 @@ class ArgumentParser(argparse.ArgumentParser):
         """ pretty print """
         console = Console(stderr=True)
         console.print(message, highlight=False)
+
 
 def main():
     """

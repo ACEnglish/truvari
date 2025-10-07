@@ -1,5 +1,17 @@
-# Truvari 5.3
-*in progress*
+# Truvari 5.4.0
+*October 7, 2025*
+
+* New `stratp` command to automatically generate benchmark performance evaluation across stratifications
+* `truvari.VariantRecord.allele_freq_annos` now stores the results to speed up reuse in e.g. `collapse`.
+* LazyImporting for faster startup times
+* `collapse` now allows `--sizemax -1` to work with all large SVs easily.
+* New `collapse` argument `--fast-cluster` will dramatically speed up runtime when collapsing large (>100kbp) SVs
+* bwapy, which is a bother to install on macs, is now optional by default (#295)
+* `vcf2df --parquet` will write a parquet file, which is more stable across environments than the default joblib file.
+* Miscellaneous bug fixes (#288, #286, #284, #282, #275)
+
+# Truvari 5.3.0
+*April 21, 2025*
 
 * Fixed FP BNDs being dropped [details](https://github.com/ACEnglish/truvari/discussions/263). 
 * Restore default `--sizemax` - Some callers make SVs that span the entire chromosome, which disrupts truvari's chunking strategy

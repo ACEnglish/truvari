@@ -242,6 +242,8 @@ This VCF makes different results depending on the `--pick` parameter
 | ac        |    TP     |   TP      |    FP     |
 | multi     |    TP     |   TP      |    TP     |
 
+Note that multi-matching should be used with care. By allowing SVs to match multiple times, performance metrics become inflated in a way that’s misleading. Recall can exceed the number of calls made. Precision can be skewed if one baseline event explains many false calls. For example, if a single comparison SV matches to two baseline SVs, the caller only made one prediction, yet it’s getting credit for finding two events, thus inflating recall.
+
 --dup-to-ins
 ============
 

@@ -223,6 +223,7 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
         chroms = sorted(list(vcf.header.contigs))
     else:
         chroms = sorted(tree.keys())
+
     ret_type = (lambda x, y, z: (x, (y, z))
                 ) if with_region else (lambda x, y, z: x)
     for chrom in chroms:
@@ -246,8 +247,8 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
             continue  # region on chromosome not in vcf
         try:
             cur_entry = next(cur_iter)
-        except StopIteration:
-            # variant-less chromosome
+        except (StopIteration, ValueError):
+            # variant-less chromosome, absent chromosome
             continue
         cur_start, cur_end = cur_entry.boundaries()
 

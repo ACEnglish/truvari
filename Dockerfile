@@ -20,7 +20,7 @@ RUN wget https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb \
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install setproctitle pylint anybadge coverage && \
     python3 -m pip install --upgrade setuptools && \
-    python3 -m pip install ./
+    python3 -m pip install ./[bwa]
 
 WORKDIR /data
 

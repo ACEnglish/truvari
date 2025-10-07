@@ -414,6 +414,10 @@ def parse_args(args):
                         help="Skip the attempt to optimize the dataframe's size")
     parser.add_argument("-c", "--compress", metavar="LVL", type=int, default=3,
                         help="Compression level for joblib 0-9 (%(default)s)")
+    parser.add_argument("-a", "--alleles", action="store_true",
+                        help="Add REF/ALT alleles into the dataframe")
+    parser.add_argument("-p", "--parquet", action="store_true",
+                        help="Write a parquet file instead of joblib dump")
     parser.add_argument("--debug", action="store_true",
                         help="Verbose logging")
     args = parser.parse_args(args)
@@ -436,15 +440,17 @@ def vcf2df_main(args):
     out = None
     if args.bench_dir:
         out = bench_dir_to_df(args.vcf, args.info,
-                              args.format, args.sample, args.no_prefix)
+                              args.format, args.sample, args.no_prefix, args.alleles)
     else:
         out = vcf_to_df(args.vcf, args.info, args.format,
-                        args.sample, args.no_prefix)
+                        args.sample, args.no_prefix, args.alleles)
 
     # compression -- this is not super important for most VCFs
     logging.info("Optimizing DataFrame memory")
     pre_size, post_size = optimize_df_memory(out)
     logging.info("Optimized %.2fMB to %.2fMB", pre_size / 1e6, post_size / 1e6)
-
-    joblib.dump(out, args.output, compress=args.compress)
+    if args.parquet:
+        out.to_parquet(args.output)
+    else:
+        joblib.dump(out, args.output, compress=args.compress)
     logging.info("Finished vcf2df")

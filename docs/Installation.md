@@ -10,6 +10,11 @@ python3 -m pip install truvari==3.2.0
 ```
 See [pypi](https://pypi.org/project/Truvari/#history) for a history of all distributed releases.
 
+When using some annotations (e.g. `truvari anno remap`) The bwapy needs to be available. This can be installed via:
+```
+python3 -m pip install truvari[bwa]
+```
+
 Manual Installation
 ===================
 To build Truvari directly, clone the repository and switch to a specific tag.

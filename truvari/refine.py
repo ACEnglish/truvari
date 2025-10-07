@@ -196,10 +196,10 @@ def make_region_report(data):
     result["TN"] = int(true_negatives.sum())
     result["FP"] = int(false_pos.sum())
     result["FN"] = int(false_neg.sum())
-    result["base P"] = baseP
-    result["base N"] = baseN
-    result["comp P"] = compP
-    result["comp N"] = compN
+    result["base P"] = int(baseP)
+    result["base N"] = int(baseN)
+    result["comp P"] = int(compP)
+    result["comp N"] = int(compN)
     # precision
     result["PPV"] = result["TP"] / \
         result["comp P"] if result["comp P"] != 0 else None
@@ -389,13 +389,14 @@ def refine_main(cmdargs):
     # phab may have suffixed the cSample
     if params.bSample == params.cSample:
         params.cSample = params.cSample + ':1'
-        logging.critical(params.cSample)
+        logging.warning("Comparision sample %s renamed to avoid name collision", params.cSample)
 
     # Now run bench on the phab harmonized variants
     logging.info("Running bench")
 
     var_params = truvari.VariantParams(params, no_ref='a', short_circuit=True)
     outdir = os.path.join(args.benchdir, "phab_bench")
+    # pylint: disable=not-callable
     m_bench = truvari.Bench(params=var_params, base_vcf=phab_vcf, comp_vcf=phab_vcf, outdir=outdir,
                             includebed=reeval_bed)
     m_bench.run()
