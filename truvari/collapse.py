@@ -534,6 +534,8 @@ def parse_args(args):
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-B", "--bnddist", type=int, default=100,
                         help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
+    thresg.add_argument("--dynthresh", type=str, default=None,
+                        help="Dynamic thres params (min_diff,max_diff,s_min,s_max) overrides pctsize/pctseq (off)")
 
     parser.add_argument("--hap", action="store_true", default=False,
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
@@ -550,7 +552,8 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
 
     args = parser.parse_args(args)
-
+    if args.dynthresh is not None:
+        args.dynthresh = map(int, args.dynthresh)
     return args
 
 

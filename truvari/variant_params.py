@@ -1,8 +1,6 @@
 """
 Truvari main parameters
 """
-# pylint: disable=too-few-public-methods
-
 
 class VariantParams():
     """
@@ -67,7 +65,8 @@ class VariantParams():
          - Whether to skip genotype comparisons. Default: `False`.
        * - `max_resolve`
          - Maximum size of a variant to attempt sequence resolving. Default: 25000.
-
+       * - `dynthresh`
+         - Tuple of parameters for dynamic thresholding (min_diff, max_diff, sz_min, sz_max) Default: `None`=off
     """
 
     DEFAULTS = {
@@ -98,6 +97,7 @@ class VariantParams():
         "short_circuit": False,
         "skip_gt": False,
         "max_resolve": 25000,
+        "dynthresh": None
     }
 
     def __init__(self, args=None, **kwargs):
@@ -129,3 +129,37 @@ class VariantParams():
 
         # Set attributes
         self.__dict__.update(params)
+
+    def calc_dyn_thresh(self, size):
+        """
+        # min_diff=5, max_diff=30, s_min=50, s_max=1500
+        Linear interpolation of size to determine threshold
+        """
+        min_diff, max_diff, s_min, s_max = self.dynthresh
+        if s_min is None:
+            s_min = 2 * min_diff
+        if s_max is None:
+            s_max = 2 * max_diff
+
+        if size <= s_min:
+            allowed_diff = min_diff
+        elif size >= s_max:
+            allowed_diff = max_diff
+        else:
+            # Linear interpolation between min_diff and max_diff
+            scale = (size - s_min) / (s_max - s_min)
+            allowed_diff = min_diff + scale * (max_diff - min_diff)
+
+        return 1 - allowed_diff / size
+
+    def get_pctsize(self, size):
+        """
+        Returns either the flat self.pctsize or the dynamic threshold based on the point
+        """
+        return self.calc_dyn_thresh(size) if self.dynthresh else self.pctsize
+
+    def get_pctseq(self, size):
+        """
+        Returns either the flat self.pctseq or the dynamic threshold based on the point
+        """
+        return self.calc_dyn_thresh(size) if self.dynthresh else self.pctseq

@@ -801,7 +801,8 @@ class VariantRecord:
                 return ret
 
         ret.sizesim, ret.sizediff = self.sizesim(other)
-        if ret.sizesim < self.params.pctsize:
+        m_size = min(self.var_size(), other.var_size())
+        if ret.sizesim < self.params.get_pctsize(m_size):
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(self), str(other), ret.sizesim)
             ret.state = False
@@ -821,7 +822,7 @@ class VariantRecord:
 
         if self.params.pctseq > 0 and self.is_resolved() and other.is_resolved():
             ret.seqsim = self.seqsim(other)
-            if ret.seqsim < self.params.pctseq:
+            if ret.seqsim < self.params.get_pctsize(m_size):
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(self), str(other), ret.seqsim)
                 ret.state = False
