@@ -822,7 +822,7 @@ class VariantRecord:
 
         if self.params.pctseq > 0 and self.is_resolved() and other.is_resolved():
             ret.seqsim = self.seqsim(other)
-            if ret.seqsim < self.params.get_pctsize(m_size):
+            if ret.seqsim < self.params.get_pctseq(m_size):
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(self), str(other), ret.seqsim)
                 ret.state = False
