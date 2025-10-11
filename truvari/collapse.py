@@ -553,7 +553,7 @@ def parse_args(args):
 
     args = parser.parse_args(args)
     if args.dynthresh is not None:
-        args.dynthresh = map(int, args.dynthresh)
+        args.dynthresh = list(map(int, args.dynthresh.split(',')))
     return args
 
 
