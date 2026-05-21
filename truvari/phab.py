@@ -303,11 +303,9 @@ class VCFtoHaplotypes():
 
         # Pull sequences
         out_fn = truvari.make_temp_filename(suffix='.fa')
-        with open(out_fn, 'w') as fout:
-            fout.write(samtools.faidx(
-                self.reference_fn, "-r", regions_file_name))
+        samtools.faidx(self.reference_fn, "-r", regions_file_name, "-o", out_fn))
         # Facilitate fetching
-        samtools.faidx(out_fn)
+        samtools.faidx(out_fn, "-o", out_fn + '.fai')
         self.ref_haps_fn = out_fn
 
     def get_haplotypes(self, refname):
