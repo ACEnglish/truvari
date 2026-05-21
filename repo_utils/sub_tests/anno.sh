@@ -99,7 +99,8 @@ fi
 
 #                                 repmask
 run anno_repmask \
-    $truv anno repmask -i $INDIR/variants/multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py
+    $truv anno repmask -i $INDIR/variants/multi.vcf.gz -o $OD/repmask.vcf -e $INDIR/external/fakeRM.py \
+            -p='-pa {threads} -qq -e hmmer -species human -lcambig -nocut -div 50 -no_id -s {fasta}'
 if [ $anno_repmask ]; then
     assert_exit_code 0
     assert_equal $(fn_md5 $ANSDIR/anno/repmask.vcf) $(fn_md5 $OD/repmask.vcf)
