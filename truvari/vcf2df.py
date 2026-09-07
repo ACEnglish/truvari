@@ -281,7 +281,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         raise TypeError("Multiple samples being pulled, must use prefix")
 
     header = ["hash", "chrom", "start", "end", "id", "svtype", "svlen",
-              "szbin", "qual", "filter", "is_pass"]
+              "szbin", "qual", "filter", "is_pass", 'mate_chr', 'mate_pos']
 
     info_ops = []
     if with_info:
@@ -315,6 +315,12 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         """
         for entry in v:
             varsize = entry.var_size()
+            vartype = entry.var_type()
+            if vartype == truvari.SV.BND:
+                mate_chr, mate_pos = entry.bnd_position()
+            else:
+                mate_chr, mate_pos = None, None
+
             cur_row = [entry.to_hash(),
                        entry.chrom,
                        entry.start,
@@ -325,7 +331,9 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
                        truvari.get_sizebin(varsize),
                        entry.qual,
                        list(entry.filter),
-                       not entry.is_filtered()
+                       not entry.is_filtered(),
+                       mate_chr,
+                       mate_pos,
                        ]
 
             for i, op in info_ops:
