@@ -12,14 +12,6 @@ if [ $anno_hompct ]; then
     info_tests hompct $OD/anno_hompct.vcf HOMPCT
 fi
 
-#                                 remap
-#run anno_remap \
-#    $truv anno remap -H 10 $VCF -r $REF -o $OD/anno_remap.vcf
-#if [ $anno_remap ]; then
-#    assert_exit_code 0
-#    info_tests remap $OD/anno_remap.vcf REMAP,REMAPHits
-#fi
-
 #                                 gcpct
 run anno_gcpct \
     $truv anno gcpct $VCF -r $REF -o $OD/anno_gcpct.vcf
@@ -51,14 +43,6 @@ if [ $anno_svinfo ]; then
     assert_exit_code 0
     info_tests svinfo $OD/anno_svinfo.vcf SVTYPE,SVLEN
 fi
-
-#                                 grm
-#run anno_grm \
-#    $truv anno grm -i $INDIR/variants/input2.vcf.gz -r $REF -o $OD/grm.jl -t 2
-#if [ $anno_grm ]; then
-#    assert_exit_code 0
-#    df_check anno_grm $ANSDIR/anno/grm.jl $OD/grm.jl
-#fi
 
 #                                 trf
 run anno_trf \
@@ -112,24 +96,14 @@ if [ $anno_repmask_err ]; then
     assert_exit_code 1
 fi
 
-#                                 bpovl
-run anno_bpovl \
-    $truv anno bpovl $INDIR/variants/input1.vcf.gz \
-                     -o $OD/anno_bpovl.jl \
-                     -a $INDIR/misc/anno.gtf.gz -p gff --sizemin 2
-if [ $anno_bpovl ]; then
-    assert_exit_code 0
-    df_check anno_bpovl $ANSDIR/anno/anno_bpovl.jl $OD/anno_bpovl.jl
-fi
-
 #                                 density
 run anno_density \
     $truv anno density $INDIR/variants/input3.vcf.gz \
-                       -o $OD/anno_density.jl \
+                       -o $OD/anno_density.pq \
                        -g $INDIR/beds/genome.bed -m $INDIR/beds/mask.bed
 if [ $anno_density ]; then
     assert_exit_code 0
-    df_check anno_density $ANSDIR/anno/anno_density.jl $OD/anno_density.jl
+    pq_check anno_density $ANSDIR/anno/anno_density.pq $OD/anno_density.pq
 fi
 
 #                                 dpcnt
