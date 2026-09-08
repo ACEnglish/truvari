@@ -838,6 +838,7 @@ class VariantRecord:
 
         .. note:: How size is determined
 
+            - BNDs are always size == 0
             - Starts by trying to use INFO/SVLEN
             - If SVLEN is unavailable and ALT field is an SV (e.g. <INS>, <DEL>, etc), \
             use abs(vcf.start - vcf.end). The INFO/END tag needs to be available, \
@@ -851,6 +852,10 @@ class VariantRecord:
         """
         # Visited enough that we take the memory hit
         if self._varsize is not None:
+            return self._varsize
+
+        if self.var_type() == truvari.SV.BND:
+            self._varsize = 0
             return self._varsize
 
         if "SVLEN" in self.info:

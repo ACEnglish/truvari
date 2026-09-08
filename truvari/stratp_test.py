@@ -65,11 +65,11 @@ def check_co_occur(data, features, threshold=0.50):
     for a, b in itertools.combinations(features, 2):
         if data[a].nunique() < data[b].nunique():
             a, b = b, a
-        grp = data.groupby([a, b]).size().unstack()
+        grp = data.groupby([a, b]).size().unstack().fillna(0)
         chi2, _, _, _ = chi2_contingency(grp)
         n = grp.sum().sum()
         phi = np.sqrt(chi2 / n)
-        logging.debug("Co-occurance check %s - %s phi=%.3f\n%s",
+        logging.debug("Co-occurrence check %s - %s phi=%.3f\n%s",
                       a, b,  phi, grp)
         if abs(phi) >= threshold:
             logging.warning(

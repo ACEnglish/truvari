@@ -4,12 +4,10 @@ Identify 'dense' and 'sparse' variant windows of the genome
 import logging
 import argparse
 from collections import Counter, defaultdict
-import joblib
 import pandas as pd
 from intervaltree import IntervalTree
 
 import truvari
-
 
 def parse_args(args):
     """
@@ -22,7 +20,7 @@ def parse_args(args):
     parser.add_argument("input", nargs="?", type=str, default="/dev/stdin",
                         help="Input VCF (%(default)s)")
     parser.add_argument("-o", "--output", type=str, required=True,
-                        help="Output joblib DataFrame")
+                        help="Output parquet file")
     parser.add_argument("-m", "--mask", type=str,
                         help="Mask bed file")
     parser.add_argument("-w", "--windowsize", type=truvari.restricted_int, default=10000,
@@ -98,4 +96,4 @@ def density_main(args):
     logging.info("Density Counts\n%s", str(
         data["anno"].value_counts(dropna=False)))
 
-    joblib.dump(data, args.output)
+    data.to_parquet(args.output)
