@@ -269,7 +269,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         >>> df = truvari.vcf_to_df("repo_utils/test_files/variants/input2.vcf.gz", True, True)
         >>> df.columns
         Index(['chrom', 'start', 'end', 'id', 'svtype', 'svlen', 'szbin', 'qual',
-               'filter', 'is_pass', 'mate_chr', 'mate_pos', 'QNAME', 'QSTART',
+               'filter', 'is_pass', 'mate_chrom', 'mate_pos', 'QNAME', 'QSTART',
                'QSTRAND', 'SVTYPE', 'SVLEN', 'NA12878_GT', 'NA12878_PL_ref',
                'NA12878_PL_het', 'NA12878_PL_hom', 'NA12878_AD_ref', 'NA12878_AD_alt'],
               dtype='str')
@@ -281,7 +281,7 @@ def vcf_to_df(fn, with_info=True, with_format=True, sample=None, no_prefix=False
         raise TypeError("Multiple samples being pulled, must use prefix")
 
     header = ["hash", "chrom", "start", "end", "id", "svtype", "svlen",
-              "szbin", "qual", "filter", "is_pass", 'mate_chr', 'mate_pos']
+              "szbin", "qual", "filter", "is_pass", 'mate_chrom', 'mate_pos']
 
     info_ops = []
     if with_info:
