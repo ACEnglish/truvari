@@ -1,3 +1,21 @@
+# Truvari 5.5.0
+*September 19, 2026*
+
+* Fix `--no-consolidate` bug (#304)
+* Update pysam usage for new behavior (#307)
+* Add `mate_chrom` and `mate_pos` to `truvari vcf2df` for BND svtypes
+* Force `SVTYPE == 'BND'` entries to have `VariantRecord.var_size()` of zero.
+* Drop bwapy dependency
+  - Removes `truvari anno remap` and `truvari anno grm`
+* Remove `truvari anno bpovl`.
+  - Unused feature, maintained alternatives exist (e.g. bedtools intersect)
+* Update minimum python version to 3.12 and update all dependencies version
+* Update Dockerfile to newer ubuntu and python
+* Update `truvari anno density` to write parquet instead of joblib file
+* Add dependency on pyarrow to ensure parquet files can be used
+
+
+
 # Truvari 5.4.0
 *October 7, 2025*
 

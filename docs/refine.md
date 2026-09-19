@@ -36,7 +36,7 @@ The option `--write-phab` will ignore the original variant representations and w
 
 `--align`
 =========
-By default, Truvari will make the haplotypes and use an external call `mafft` to perform a multiple sequence alignment between them and the reference to harmonize the variants. While this is the most accurate alignment technique, it isn't fast. If you're willing to sacrifice some accuracy for a huge speed increase, you can use `--align wfa`, which also doesn't require an external tool. Another option is `--align poa` which performs a partial order alignment which is faster than mafft but less accurate and slower than wfa but more accurate. However, `poa` appears to be non-deterministic which is not ideal for some benchmarking purposes.
+Truvari will make the haplotypes and use a multiple sequence alignment between the haplotypes and reference to harmonize the variants. There are several options for MSA algorithm Truvari can use. The first is `--align mafft`, which is the most accurate alignment technique, but it isn't fast. If you're willing to sacrifice some accuracy for a huge speed increase, you can use `--align wfa`, which also doesn't require an external tool. Another option is `--align poa`, which is the default, and performs a partial order alignment which is faster than mafft but less accurate and slower than wfa but more accurate. However, `poa` appears to be non-deterministic across machines which is not ideal for some benchmarking purposes.
 
 `--use-original-vcfs`
 =====================
