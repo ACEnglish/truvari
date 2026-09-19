@@ -271,6 +271,7 @@ int-import-graph=
 
 # Maximum number of arguments for function / method
 max-args=10
+max-positional-arguments=10
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore

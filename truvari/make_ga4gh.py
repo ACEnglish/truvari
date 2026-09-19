@@ -35,7 +35,6 @@ def parse_args(args):
     return args
 
 
-
 def build_tree(regions, buffer=0):
     """
     Build tree from regions
@@ -57,7 +56,6 @@ def get_truvari_filenames(in_dir):
             'fn': os.path.join(in_dir, 'fn.vcf.gz'),
             'fp': os.path.join(in_dir, 'fp.vcf.gz'),
             'params': os.path.join(in_dir, 'params.json')}
-
 
 
 def check_bench_dir(dirname):
@@ -129,6 +127,7 @@ class Ga4ghOutput():
     """
     Helper class for consolidating benchmark vcfs into a ga4gh output format
     """
+
     def __init__(self, in_base, in_comp, out_prefix, bSample, cSample, buffer=0):
         # You gotta do the header copy stuff..
         # And also add the new FORMAT tags
@@ -183,6 +182,7 @@ class Ga4ghOutput():
                 return x
         else:
             refine_tree = build_tree(regions, self.buffer)
+
             def puller(x):
                 return x.fetch_regions(refine_tree, inside=within)
 
@@ -262,9 +262,9 @@ def make_ga4gh(input_dir, out_prefix, pull_refine=False, write_phab=False, subse
     if not pull_refine:
         output.pull_from_dir(input_dir)
     else:
-        regions = pd.read_csv(os.path.join(
-            input_dir, "refine.regions.txt"), sep='\t')
-        regions = regions[regions['refined']] # Only interested in this subset
+        regions = pd.read_csv(os.path.join(input_dir, "refine.regions.txt"),
+                              sep='\t', dtype={'chrom': str})
+        regions = regions[regions['refined']]  # Only interested in this subset
         if write_phab:
             phab_dir = os.path.join(input_dir, 'phab_bench')
             output.pull_from_dir(phab_dir, regions, within=True,
@@ -315,6 +315,6 @@ def make_ga4gh_main(args):
                         pull_refine=not args.no_refine,
                         write_phab=args.write_phab)
     logging.info("Stats: %s", json.dumps(output.stats, indent=4))
-    with open(args.output + '.summary.json' ,'w') as fout:
+    with open(args.output + '.summary.json', 'w') as fout:
         json.dump(output.stats, fout, indent=4)
     logging.info("Finished")

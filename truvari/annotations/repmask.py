@@ -187,7 +187,8 @@ def parse_args(args):
     parser.add_argument("-t", "--threshold", type=truvari.restricted_float, default=.8,
                         help="Threshold for pct of allele covered (%(default)s)")
     parser.add_argument("-p", "--params", type=str, default=DEFAULTPARAMS,
-                        help="Default parameter string to send to RepeatMasker (%(default)s)")
+                        help=("Default parameter string to send to RepeatMasker "
+                              "(use -p='...' if value starts with a dash; %(default)s)"))
     parser.add_argument("-T", "--threads", type=truvari.restricted_int, default=1,
                         help="Number of threads to use (%(default)s)")
     parser.add_argument("--debug", action="store_true",

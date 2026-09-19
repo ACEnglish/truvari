@@ -1,9 +1,9 @@
-2025-02-16 22:44:26,757 [INFO] Truvari v5.2.1.dev0+ec2fc3c.uc
-2025-02-16 22:44:26,758 [INFO] Command /data/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz -p 0 -o test_results/bench_bnd/ --no-decompose
-2025-02-16 22:44:26,759 [INFO] Params:
+2026-05-21 21:29:41,574 [INFO] Truvari v5.4.1.dev0+860593b
+2026-05-21 21:29:41,575 [INFO] Command /Users/english/code/truvari/truvari/__main__.py bench -b repo_utils/test_files/variants/bnd.base.vcf.gz -c repo_utils/test_files/variants/bnd.comp.vcf.gz --sizemax -1 -p 0 -o test_results/bench_bnd/ --no-decompose
+2026-05-21 21:29:41,575 [INFO] Params:
 {
-    "base": "/data/repo_utils/test_files/variants/bnd.base.vcf.gz",
-    "comp": "/data/repo_utils/test_files/variants/bnd.comp.vcf.gz",
+    "base": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.base.vcf.gz",
+    "comp": "/Users/english/code/truvari/repo_utils/test_files/variants/bnd.comp.vcf.gz",
     "output": "test_results/bench_bnd/",
     "includebed": null,
     "extend": 0,
@@ -14,7 +14,7 @@
     "pctsize": 0.7,
     "pctovl": 0.0,
     "typeignore": false,
-    "no_roll": true,
+    "no_roll": false,
     "chunksize": 1000,
     "bSample": "HG008-T",
     "cSample": "HG008_T_hiphase.haplotagged",
@@ -34,12 +34,13 @@
     "decompose": false,
     "short_circuit": false,
     "skip_gt": false,
-    "max_resolve": 25000
+    "max_resolve": 25000,
+    "dynthresh": null
 }
-2025-02-16 22:44:26,818 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
-2025-02-16 22:44:27,079 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
-2025-02-16 22:44:27,080 [INFO] 226 chunks of 439 variants Counter({'comp': 243, 'base': 195, '__filtered': 1})
-2025-02-16 22:44:27,201 [INFO] Stats: {
+2026-05-21 21:29:41,604 [WARNING] 193 contigs present in comparison VCF header are not in baseline VCF.
+2026-05-21 21:29:41,775 [INFO] Zipped 439 variants Counter({'comp': 243, 'base': 196})
+2026-05-21 21:29:41,775 [INFO] 192 chunks of 439 variants Counter({'comp': 243, 'base': 195, '__filtered': 1})
+2026-05-21 21:29:41,855 [INFO] Stats: {
     "TP-base": 120,
     "TP-comp": 120,
     "FP": 123,
@@ -68,4 +69,4 @@
         }
     }
 }
-2025-02-16 22:44:27,202 [INFO] Finished bench
+2026-05-21 21:29:41,855 [INFO] Finished bench

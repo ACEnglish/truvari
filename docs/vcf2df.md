@@ -1,4 +1,4 @@
-We enjoy using [pandas](https://pandas.pydata.org/)/[seaborn](https://seaborn.pydata.org/) for python plotting, so we've made the command `truvari vcf2df`. This will turn a VCF into a pandas DataFrame and save it to a file using joblib. The resulting DataFrame will always have the columns:
+We enjoy using [pandas](https://pandas.pydata.org/)/[seaborn](https://seaborn.pydata.org/) for python plotting, so we've made the command `truvari vcf2df`. This will turn a VCF into a pandas DataFrame and save it to a file using joblib or parquet. The resulting DataFrame will always have the columns:
 * chrom: variant chromosome
 * start: 0-based start from pysam.VariantRecord.start
 * end: 0-based end from pysam.VariantRecord.stop
@@ -19,7 +19,7 @@ After you've created your benchmarking results with `truvari bench`, you'll ofte
     * fp : Parsed from the fp.vcf
     * fn : Parsed from the fn.vcf
 
-The created DataFrame is saved into a joblib file, which can then be plotted as simply as:
+The created DataFrame is saved into a joblib file by default, which can then be plotted as simply as:
 ```python
 import joblib
 import seaborn as sb
@@ -31,6 +31,14 @@ plt.xticks(rotation=45, ha='right')
 p.set(title="True Positives by svtype and szbin")
 ```
 ![](https://github.com/spiralgenetics/truvari/blob/develop/imgs/truv2df_example.png)
+
+If you chose to create a `--parquet | -p` file, simply load with
+```python
+```python
+import pandas as pd
+data = pd.read_parquet("test.jl")
+```
+Generally, we recommend using parquet. The joblib files are tied to the python environment (i.e. specific pandas versions) that created them, which can make cross-environment analysis difficult.
 
 This enables concatenation of Truvari results across multiple benchmarking experiments for advanced comparison. For example, imagine there's multiple parameters used for SV discovery over multiple samples. After running `truvari bench` on each of the results with the output directories named to `params/sample/` and each converted to DataFrames with `truvari vcf2df`, we can expand/concatenate the saved joblib DataFrames with:
 
@@ -57,7 +65,7 @@ result = pyranges.PyRanges(df.rename(columns={'chrom':"Chromosome", "start":"Sta
 ```
 
 ```
-usage: vcf2df [-h] [-b] [-i] [-f] [-s SAMPLE] [-n] [-S] [-c LVL] [--debug] VCF JL
+usage: vcf2df [-h] [-b] [-i] [-f] [-s SAMPLE] [-n] [-S] [-c LVL] [-a] [-p] [--debug] VCF JL
 
 Takes a vcf and creates a data frame. Can parse a bench output directory
 
@@ -65,7 +73,7 @@ positional arguments:
   VCF                   VCF to parse
   JL                    Output joblib to save
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -b, --bench-dir       Input is a truvari bench directory
   -i, --info            Attempt to put the INFO fields into the dataframe
@@ -77,5 +85,7 @@ optional arguments:
                         Skip the attempt to optimize the dataframe's size
   -c LVL, --compress LVL
                         Compression level for joblib 0-9 (3)
+  -a, --alleles         Add REF/ALT alleles into the dataframe
+  -p, --parquet         Write a parquet file instead of joblib dump
   --debug               Verbose logging
 ```

@@ -507,9 +507,13 @@ class VariantRecord:
         """
         Determines whether a variant call should be filtered based on Truvari parameters or specific requirements.
 
-        This method evaluates a variant entry (`entry`) and checks if it should be excluded from further processing
-        based on filtering criteria such as monomorphic reference, multi-allelic records, filtering status,
-        sample presence, or unsupported single-end BNDs.
+        .. note:: Filtering Logic:
+
+            - **Monomorphic Reference:** If `check_monref` is enabled and the entry is a monomorphic reference, it is filtered.
+            - **Multi-Allelic Records:** If `check_multi` is enabled and the entry is multi-allelic, an error is raised.
+            - **Filtered Variants:** If `passonly` is enabled and the entry is flagged as filtered, it is excluded.
+            - **Sample Presence:** If `no_ref` is set to include the entry's type (base or comparison) or `pick == 'ac'`, the sample must be present in the entry.
+            - **Single-End BNDs:** Single-end BNDs are always excluded.
 
         :param entry: The variant entry to evaluate.
         :type entry: truvari.VariantRecord
@@ -519,15 +523,7 @@ class VariantRecord:
 
         :return: `True` if the variant should be filtered (excluded), otherwise `False`.
         :rtype: bool
-
         :raises ValueError: If the entry is multi-allelic and `check_multi` is enabled in the Truvari parameters.
-
-        Filtering Logic:
-            - **Monomorphic Reference:** If `check_monref` is enabled and the entry is a monomorphic reference, it is filtered.
-            - **Multi-Allelic Records:** If `check_multi` is enabled and the entry is multi-allelic, an error is raised.
-            - **Filtered Variants:** If `passonly` is enabled and the entry is flagged as filtered, it is excluded.
-            - **Sample Presence:** If `no_ref` is set to include the entry's type (base or comparison) or `pick == 'ac'`, the sample must be present in the entry.
-            - **Single-End BNDs:** Single-end BNDs are always excluded.
         """
         if self.params.check_monref and self.is_monrefstar():
             return True
@@ -801,7 +797,8 @@ class VariantRecord:
                 return ret
 
         ret.sizesim, ret.sizediff = self.sizesim(other)
-        if ret.sizesim < self.params.pctsize:
+        m_size = min(self.var_size(), other.var_size())
+        if ret.sizesim < self.params.get_pctsize(m_size):
             logging.debug("%s and %s size similarity is too low (%.3f)",
                           str(self), str(other), ret.sizesim)
             ret.state = False
@@ -821,7 +818,7 @@ class VariantRecord:
 
         if self.params.pctseq > 0 and self.is_resolved() and other.is_resolved():
             ret.seqsim = self.seqsim(other)
-            if ret.seqsim < self.params.pctseq:
+            if ret.seqsim < self.params.get_pctseq(m_size):
                 logging.debug("%s and %s sequence similarity is too low (%.3ff)",
                               str(self), str(other), ret.seqsim)
                 ret.state = False
@@ -841,6 +838,7 @@ class VariantRecord:
 
         .. note:: How size is determined
 
+            - BNDs are always size == 0
             - Starts by trying to use INFO/SVLEN
             - If SVLEN is unavailable and ALT field is an SV (e.g. <INS>, <DEL>, etc), \
             use abs(vcf.start - vcf.end). The INFO/END tag needs to be available, \
@@ -854,6 +852,10 @@ class VariantRecord:
         """
         # Visited enough that we take the memory hit
         if self._varsize is not None:
+            return self._varsize
+
+        if self.var_type() == truvari.SV.BND:
+            self._varsize = 0
             return self._varsize
 
         if "SVLEN" in self.info:

@@ -3,9 +3,7 @@ Truvari annotations:
 * [gcpct](anno#truvari-anno-gcpct) - GC Percent
 * [gtcnt](anno#truvari-anno-gtcnt) - Genotype Counts
 * [trf](anno#truvari-anno-trf) - Tandem Repeats
-* [grm](anno#truvari-anno-grm) - Mappability
 * [repmask](anno#truvari-anno-repmask) - Repeats
-* [remap](anno#truvari-anno-remap) - Allele Remapping
 * [hompct](anno#truvari-anno-hompct) - Homozygous Percent
 * [numneigh](anno#truvari-anno-numneigh) - Number of Neighbors
 * [svinfo](anno#truvari-anno-svinfo) - SVINFO Fields
@@ -122,55 +120,6 @@ If using an older version of Truvari (≤4.3.1) or adotto catalog v1.2, you may 
 zcat adotto_TRregions_v1.2.bed.gz | cut -f1-3,18 | sed 's/"\[/[/g; s/"$//; s/""/"/g; s/"motif":/"repeat":/g' | bgzip > anno.trf.bed.gz
 ```
 
-# truvari anno grm
-
-For every SV, we create a kmer over the the upstream and downstream reference and alternate breakpoints. 
-We then remap that kmer to the reference genome and report alignment information.
-This does not alter the VCF traditional annotations, but instead will create a pandas 
-DataFrame and save it to a joblib object.
-
-There are four queries made per-SV. For both reference (r), alternate (a) we create upstream (up) and downstream (dn) kmers.
-So the columns are all prefixed with one of "rup_", "rdn_", "aup_", "adn_".
-
-In the alignment information per-query, there are three 'hit' counts:
-- nhits : number of query hits
-- dir_hits : direct strand hit count
-- com_hits : compliment strand hit count
-
-The rest of the alignment information is reported by average (avg), maximum (max), and minimum (min)
-
-The suffixes are:
-- q : mapping quality score of the hits
-- ed : edit distance of the hits
-- mat : number of matches
-- mis : number of mismatches
-
-For example, "aup_avg_q", is the alternate's upstream breakend kmer's average mapping quality score.
-
-```
-usage: grm [-h] -i INPUT -r REFERENCE [-R REGIONS] [-o OUTPUT] [-k KMERSIZE] [-m MIN_SIZE] [-t THREADS] [--debug]
-
-Maps graph edge kmers with BWA to assess Graph Reference Mappability
-
-options:
-  -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-                        Input VCF
-  -r REFERENCE, --reference REFERENCE
-                        BWA indexed reference
-  -R REGIONS, --regions REGIONS
-                        Bed file of regions to parse (None)
-  -o OUTPUT, --output OUTPUT
-                        Output dataframe (results.jl)
-  -k KMERSIZE, --kmersize KMERSIZE
-                        Size of kmer to map (50)
-  -m MIN_SIZE, --min-size MIN_SIZE
-                        Minimum size of variants to map (25)
-  -t THREADS, --threads THREADS
-                        Number of threads (1)
-  --debug               Verbose logging
-```
-
 # truvari anno repmask
 
 ```
@@ -201,45 +150,7 @@ options:
   --debug               Verbose logging
 ```
 
-# truvari anno remap
 
-Taking the Allele’s sequence, remap it to the reference and annotate based on the closest alignment.
-
-![](https://github.com/spiralgenetics/truvari/blob/develop/imgs/remap_example.png)
-
-```
-usage: remap [-h] -r REFERENCE [-o OUTPUT] [-m MINLENGTH] [-t THRESHOLD] [-d DIST] [-H HITS] [--debug] [input]
-
-Remap VCF'S alleles sequence to the reference to annotate REMAP
-
-- novel : Allele has no hits in reference
-- tandem : Allele's closest hit is within len(allele) bp of the SV's position
-- interspersed : Allele's closest hit is not tandem
-- partial : Allele only has partial hit(s) less than --threshold
-
-Which alleles and alignments to consider can be altered with:
-- --minlength : minimum SV length to considred (50)
-- --dist : For deletion SVs, do not consider alignments that hit within Nbp of the SV's position
-(a.k.a. alignments back to the source sequence) (10)
-- --threshold : Minimum percent of allele's sequence used by alignment to be considered (.8)
-
-positional arguments:
-  input                 Input VCF (/dev/stdin)
-
-options:
-  -h, --help            show this help message and exit
-  -r REFERENCE, --reference REFERENCE
-                        BWA indexed reference
-  -o OUTPUT, --output OUTPUT
-                        Output VCF (/dev/stdout)
-  -m MINLENGTH, --minlength MINLENGTH
-                        Smallest length of allele to remap (50)
-  -t THRESHOLD, --threshold THRESHOLD
-                        Threshold for pct of allele covered to consider hit (0.8)
-  -d DIST, --dist DIST  Minimum distance an alignment must be from a DEL's position to be considered (10))
-  -H HITS, --hits HITS  Report top hits as chr:start-end.pct (max 0)
-  --debug               Verbose logging
-```
 # truvari anno hompct
 
 ```

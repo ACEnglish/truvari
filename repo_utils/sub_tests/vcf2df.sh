@@ -36,3 +36,9 @@ if [ $vcf2df_multi ]; then
     assert_exit_code 0
     df_check vcf2df_multi $ANSDIR/vcf2df/multi_vcf2df.jl $OD/multi_vcf2df.jl
 fi
+
+run vcf2df_bnd $truv vcf2df -p $INDIR/variants/bnd.base.vcf.gz $OD/bnd_base.pq
+if [ $vcf2df_bnd ]; then
+    assert_exit_code 0
+    pq_check vcf2df_bnd $ANSDIR/vcf2df/bnd_base.pq $OD/bnd_base.pq
+fi

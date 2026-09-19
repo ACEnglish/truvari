@@ -51,6 +51,21 @@ assert a.equals(b), \"$base_df != $comp_df\";
     assert_exit_code 0
 }
 
+pq_check() {
+    # check if parquet dataframes are equivalent
+    test_name=$1
+    base_df=$2
+    comp_df=$3
+    run $test_name python3 -c """
+import pandas;
+a = pandas.read_parquet(\"$base_df\")
+b = pandas.read_parquet(\"$comp_df\")
+assert a.equals(b), \"$base_df != $comp_df\";
+"""
+    assert_exit_code 0
+}
+
+
 dump_logs() {
     # For debugging, put this after any failing command
     echo '---- STDERR ----'

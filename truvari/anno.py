@@ -7,18 +7,15 @@ import truvari.annotations as tannos
 
 ANNOS = {
     "addid": ("Set ID field", tannos.addid_main),
-    "bpovl": ("Annotation Intersection", tannos.bpovl_main),
     "chunks": ("Chunk Boundaries and Variant Counts", tannos.chunks_main),
     "density": ("Variant Density", tannos.density_main),
     "dpcnt": ("Call Depth Counts", tannos.dpcnt_main),
     "gcpct": ("GC Percent", tannos.gcpct_main),
-    "grm": ("Mappability", tannos.grm_main),
     "grpaf": ("Sample Group Allele Frequency", tannos.grpaf_main),
     "gtcnt": ("Genotype Counts", tannos.gtcnt_main),
     "hompct": ("Homozygous Percent", tannos.hompct_main),
     "lcr": ("Low-complexity Regions", tannos.lcr_main),
     "numneigh": ("Number of Neighbors", tannos.numneigh_main),
-    "remap": ("Allele Remapping", tannos.remap_main),
     "repmask": ("Repeats", tannos.rmk_main),
     "svinfo": ("SVINFO Fields", tannos.svinfo_main),
     "trf": ("Tandem Repeats", tannos.trf_main)

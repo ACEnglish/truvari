@@ -136,7 +136,7 @@ def check_params(args):
     if not os.path.exists(args.base):
         logging.error("File %s does not exist", args.base)
         check_fail = True
-    if not args.comp.endswith(".gz"):
+    if not args.comp.endswith(".gz") and not args.comp.endswith('bcf'):
         logging.error("Comparison vcf %s does not end with .gz. Must be bgzip'd",
                       args.comp)
         check_fail = True

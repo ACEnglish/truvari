@@ -48,8 +48,8 @@ def chunks_main(args):
     Main
     """
     args = parse_args(args)
-    v = truvari.VariantFile(args.input, drop_samples=True)
-    m = truvari.VariantParams(args=args, pctseq=0)
+    m = truvari.VariantParams(args=args, sizefilt=0, pctseq=0)
+    v = truvari.VariantFile(args.input, drop_samples=True, params=m)
     if args.bed:
         v = v.fetch_bed(args.bed)
     c = truvari.chunker(m, ('base', v))

@@ -181,6 +181,8 @@ Symbolic Alt sub-types are ignored e.g. `<DUP:TANDEM>` is considered just `<DUP>
 
 Truvari can replace the symbolic alt of resolved SVs in the output VCF with the parameter `--write-resolved`. 
 
+Note that symbolic allele VCF entries must have an `INFO/END` and/or a `INFO/SVLEN` in order to have their size determined according to the [truvari size logic](https://truvari.readthedocs.io/en/latest/truvari.package.html#truvari.VariantRecord.var_size).
+
 BND Comparison
 ==============
 Breakend (BND) variants are compared by checking a few conditions using a single threshold of `--bnddist` which holds the maximum distance around a breakpoint position to search for a match. Similar to the `--refdist` parameter, truvari looks for overlaps between the `dist` 'buffered' boundaries (e.g. `overlaps( POS_base - dist, POS_base + dist, POS_comp - dist, POS_comp + dist)` Additionally, if the CIPOS and and CIEND info tags are available in the entry, the e.g. POS is further buffered by `-abs(CIPOS[0])` and `+(abs(CIPOS[1])`.
@@ -249,9 +251,12 @@ Note that multi-matching should be used with care. By allowing SVs to match mult
 
 Most SV benchmarks only report DEL and INS SVTYPEs. The flag `--dup-to-ins` will interpret SVs with SVTYPE == DUP to SVTYPE == INS. Note that DUPs generally aren't sequence resolved (i.e. the ALT isn't a sequence) like INS. Therefore, `--dup-to-ins` typically should be used without sequence comparison via `--pctseq 0`
 
-Size filtering
-==============
+Internal filtering
+===================
 
+Truvari will filter calls based on parameters as well as a few universal assumptions. These filters can be broken down into three types, size, location, and other.
+
+### Size Filtering
 `--sizemax` is the maximum size of a base or comparison call to be considered.
 
 `--sizemin` is the minimum size of a base call to be considered.  
@@ -269,6 +274,16 @@ This has the side effect of artificially inflating specificity. For example, if 
 above were below the similarity threshold, it would not be classified as a FP since it is below the `sizemin`
 threshold. So we're giving the call a better chance to be useful and less chance to be detrimental
 to final statistics.
+
+### Other Filters
+* Multi-allelic records are disallowed. 
+* Monomorphic reference sites (i.e. `ALT='.'`) are always filtered. 
+* If passonly is enabled and the entry does not have `FILTER` value of `PASS` or `.`, it is filtered.
+* If `no_ref` is set, the sample must be present in the entry e.g. `GT != 0/0 & GT != ./.`. 
+* Single-end BNDs are always filtered
+
+### Location Filter
+If an `--includebed` is provided, VCF entries' start and end must be within a single region. Additional documentation is below in the "Include Bed & VCF Header Contigs". A diagram illustrating the location possibilities is available [here](https://github.com/TimD1/vcfdist/wiki/03-Variant-Filtering#bed-region).
 
 Include Bed & VCF Header Contigs 
 ================================

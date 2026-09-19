@@ -61,14 +61,11 @@ chr1	147022730	SV2	N	<DEL>	.	PASS	SVLEN=-990414;END=148013144
 
 This bug has been replicated with bcftools 1.18 and 1.21.
 
---choose behavior
+--keep behavior
 =================
-When collapsing, the default `--choose` behavior is to take the `first` variant by position from a cluster to
-be written to the output while the others will be placed in the collapsed output. 
-Other choosing options are `maxqual` (the call with the highest quality score) or `common` (the call with the highest minor allele count).
+When collapsing, a set of variants that match together will need an SV chosen as the representative. The default `--keep` behavior is to choose the `first` variant by position from the set to be kept and written to the output. The other SVs will be placed in the collapsed output. Other options for which variant to keep are `maxqual` (the call with the highest quality score) or `common` (the call with the highest minor allele count).
 
-Samples with no genotype information in the kept variant will be filled by the first
-collapsed variant containing genotype information.                                                                                    
+Samples with no genotype information in the kept variant will be filled by the first collapsed variant containing genotype information.                                                                                    
 
 --gt
 ====

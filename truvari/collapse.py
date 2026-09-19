@@ -534,12 +534,14 @@ def parse_args(args):
                         help="Assume DUP svtypes are INS (%(default)s)")
     thresg.add_argument("-B", "--bnddist", type=int, default=100,
                         help="Maximum distance allowed between BNDs (%(default)s; -1=off)")
+    thresg.add_argument("--dynthresh", type=str, default=None,
+                        help="Dynamic thres params (min_diff,max_diff,s_min,s_max) overrides pctsize/pctseq (off)")
 
-    parser.add_argument("--hap", action="store_true", default=False,
+    parser.add_argument("--hap", action="store_true",
                         help="Collapsing a single individual's haplotype resolved calls (%(default)s)")
-    parser.add_argument("--chain", action="store_true", default=False,
+    parser.add_argument("--chain", action="store_true",
                         help="Chain comparisons to extend possible collapsing (%(default)s)")
-    parser.add_argument("--no-consolidate", action="store_false", default=False,
+    parser.add_argument("--no-consolidate", action="store_true",
                         help="Skip consolidation of sample genotype fields (%(default)s)")
     filteg = parser.add_argument_group("Filtering Arguments")
     filteg.add_argument("-s", "--sizemin", type=truvari.restricted_int, default=50,
@@ -550,7 +552,11 @@ def parse_args(args):
                         help="Only consider calls with FILTER == PASS")
 
     args = parser.parse_args(args)
-
+    if args.dynthresh is not None:
+        args.dynthresh = list(map(int, args.dynthresh.split(',')))
+        tmp = truvari.VariantParams(dynthresh=args.dynthresh).calc_dyn_thresh(args.sizemin)
+        args.pctseq = tmp
+        args.pctsize = tmp
     return args
 
 
