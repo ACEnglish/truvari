@@ -189,8 +189,16 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     a pre-build pyabpoa.msa_aligner may be passed
     """
     parts = []
+    mk_out = "PHAB_WRITE_SEQS" in os.environ and os.environ["PHAB_WRITE_SEQS"] == "1" # pragma: no cover
+    if mk_out:
+        mk_out_fh = open("seqs.fa", 'w')
+        mk_aln_fh = open("msa.txt", 'w')
     for k, v in haplotypes.items():
+        if mk_out:
+            print(f">{k}\n{v}", file=mk_out_fh)
         parts.append((len(v), v, k))
+    if mk_out:
+        mk_out_fh.close()
     parts.sort(reverse=True)
 
     _, seqs, names = zip(*parts)
@@ -199,8 +207,13 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
         # aln_mode='g', extra_f=0.25, extra_b=50)
         aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, out_cons, out_msa)
-
-    return dict(zip(names, aln_result.msa_seq))
+    
+    ret = dict(zip(names, aln_result.msa_seq))
+    if mk_out:
+        for k,v in ret.items():
+            print(f">{k}\n{v}", file=mk_aln_fh)
+        mk_aln_fh.close()
+    return ret
 
 #############
 # data prep #
@@ -217,12 +230,18 @@ def make_haplotypes(sequence, entries, reg_name, start, in_sample, out_sample):
         """
         if entry.alts[0] == '*':
             return correction
-
-        ref_len = len(entry.ref)
-        alt_len = len(entry.alts[0]) if entry.alts else 0
+        # DEBUG
+        if not entry.is_resolved() and entry.var_type() == truvari.SV.DEL:
+            ref_len = entry.var_size()
+            alt_len = 0
+            alt_seq = [] # Anchor base?
+        else:
+            ref_len = len(entry.ref)
+            alt_len = len(entry.alts[0]) if entry.alts else 0
+            alt_seq = list(entry.alts[0])
         # Need to check it doesn't overlap previous position
         position = entry.pos + correction
-        consensus_sequence[position:position + ref_len] = list(entry.alts[0])
+        consensus_sequence[position:position + ref_len] = alt_seq
         return correction + (alt_len - ref_len)
 
     haps = (list(sequence), list(sequence))
@@ -358,8 +377,12 @@ class VCFtoHaplotypes():
     def __keep_entry(self, e, start, end):
         """
         I feel like this could be handled by truvari v5 api
+        Allow symbolic deletions to get through
+        Maybe we could hook VariantRecord.resolve in to the SVs
         """
-        return e.is_resolved() \
+        # DEBUG
+        #return e.is_resolved() \
+        return (e.is_resolved() or e.var_type() == truvari.SV.DEL)\
             and (not self.passonly or not e.is_filtered()) \
             and (self.max_size == -1 or e.var_size() <= self.max_size) \
             and e.within(start, end)
