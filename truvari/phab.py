@@ -189,16 +189,19 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
     a pre-build pyabpoa.msa_aligner may be passed
     """
     parts = []
-    mk_out = "PHAB_WRITE_SEQS" in os.environ and os.environ["PHAB_WRITE_SEQS"] == "1" # pragma: no cover
+    # ToDo: Clean this up
+    mk_out = os.environ["PHAB_WRITE_SEQS"] if "PHAB_WRITE_SEQS" in os.environ else False # pragma: no cover
     if mk_out:
-        mk_out_fh = open("seqs.fa", 'w')
-        mk_aln_fh = open("msa.txt", 'w')
+        mk_out_fh = open(f"{mk_out}.seqs.fa", 'w') # pylint: disable=consider-using-with
+
     for k, v in haplotypes.items():
         if mk_out:
             print(f">{k}\n{v}", file=mk_out_fh)
         parts.append((len(v), v, k))
+
     if mk_out:
         mk_out_fh.close()
+
     parts.sort(reverse=True)
 
     _, seqs, names = zip(*parts)
@@ -207,12 +210,12 @@ def run_poa(haplotypes, aligner=None, out_cons=False, out_msa=True):
         # aln_mode='g', extra_f=0.25, extra_b=50)
         aligner = pyabpoa.msa_aligner()
     aln_result = aligner.msa(seqs, out_cons, out_msa)
-    
+
     ret = dict(zip(names, aln_result.msa_seq))
     if mk_out:
-        for k,v in ret.items():
-            print(f">{k}\n{v}", file=mk_aln_fh)
-        mk_aln_fh.close()
+        with open(f"{mk_out}.msa", 'w') as mk_aln_fh:
+            for k,v in ret.items():
+                print(f">{k}\n{v}", file=mk_aln_fh)
     return ret
 
 #############
