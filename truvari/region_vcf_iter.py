@@ -242,7 +242,9 @@ def region_filter_stream(vcf, tree, inside=True, with_region=False):
             continue
 
         try:
-            cur_iter = vcf.fetch(chrom)
+            # Include the preceding base for variants with a replacement anchor.
+            start = max(0, cur_intv.begin - 1) if inside else None
+            cur_iter = vcf.fetch(chrom, start)
         except ValueError:
             continue  # region on chromosome not in vcf
         try:

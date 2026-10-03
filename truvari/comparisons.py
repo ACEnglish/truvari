@@ -39,30 +39,47 @@ def best_seqsim(a_seq, b_seq, st_dist):
     """
     Returns best of roll, unroll, and direct sequence similarity
     
-    .. warning:: `roll_seqsim` is only called when both sequences are < 500bp in length
+    .. warning:: Smallest rotations are only compared when both sequences are < 500bp in length
     """
-    # Only allow rolling on < 500bp sequences, otherwise, it gets huge/slow
+    rolled = None
     if len(a_seq) < 500 and len(b_seq) < 500:
-        rssm = roll_seqsim(a_seq, b_seq)
-    else:
-        rssm = 0
-    return max(rssm, unroll_seqsim(a_seq, b_seq, st_dist),
-               unroll_seqsim(a_seq, b_seq, -st_dist),
-               unroll_seqsim(b_seq, a_seq, st_dist),
-               unroll_seqsim(b_seq, a_seq, -st_dist),
-               seqsim(a_seq, b_seq))
+        rolled = (_smallest_rotation(a_seq), _smallest_rotation(b_seq))
+
+    def rotations():
+        if rolled is not None:
+            yield rolled
+        for first, second in ((a_seq, b_seq), (b_seq, a_seq)):
+            for shift in (st_dist, -st_dist):
+                offset = shift % len(second)
+                yield first, second[-offset:] + second[:-offset]
+
+    a_upper, b_upper = a_seq.upper(), b_seq.upper()
+    total_length = len(a_upper) + len(b_upper)
+    best_distance = edlib.align(a_upper, b_upper)["editDistance"]
+    for first, second in rotations():
+        if best_distance == 0:
+            break
+        # Only search for an alignment that improves the best distance.
+        distance = edlib.align(first.upper(), second.upper(),
+                               k=best_distance - 1)["editDistance"]
+        if distance >= 0:
+            best_distance = distance
+    return (total_length - best_distance) / total_length
+
+
+def _smallest_rotation(seq):
+    """Return the lexicographically smallest rotation."""
+    doubled = seq + seq
+    size = len(seq)
+    return min(doubled[i:i + size] for i in range(size))
 
 
 def roll_seqsim(a_seq, b_seq):
     """
     Compare the lexicographically smallest rotations of two sequences
     """
-    def smallest_rotation(s):
-        doubled = s + s
-        n = len(s)
-        return min(doubled[i:i + n] for i in range(n))
-    r_a = smallest_rotation(a_seq)
-    r_b = smallest_rotation(b_seq)
+    r_a = _smallest_rotation(a_seq)
+    r_b = _smallest_rotation(b_seq)
     return seqsim(r_a, r_b)
 
 
