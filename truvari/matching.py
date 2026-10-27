@@ -154,11 +154,13 @@ def file_zipper(*start_files):
                  file_counts)
 
 
-def chunker(params, *files):
+def chunker(params, *files, filtered_callback=None):
     """
     Given a `truvari.VariantParams` and multiple files, zip them and create chunks
 
-    Yields tuple of the chunk of calls, and an identifier of the chunk
+    Yields tuple of the chunk of calls, and an identifier of the chunk.
+    If filtered_callback is supplied, pass excluded records to it immediately
+    instead of retaining them in the chunk. Eligible groups are unchanged.
     """
     call_counts = Counter()
     chunk_count = 0
@@ -168,17 +170,26 @@ def chunker(params, *files):
     reference = pysam.FastaFile(params.reference) if params.reference is not None else None
     for key, entry in file_zipper(*files):
         if entry.filter_call(key == 'base'):
-            cur_chunk['__filtered'].append(entry)
+            if filtered_callback is None:
+                cur_chunk['__filtered'].append(entry)
+            else:
+                filtered_callback(entry)
             call_counts['__filtered'] += 1
             continue
 
         if entry.is_bnd() and params.bnddist == -1:
-            cur_chunk['__filtered'].append(entry)
+            if filtered_callback is None:
+                cur_chunk['__filtered'].append(entry)
+            else:
+                filtered_callback(entry)
             call_counts['__filtered'] += 1
             continue
 
         if not entry.is_bnd() and entry.filter_size(key == 'base'):
-            cur_chunk['__filtered'].append(entry)
+            if filtered_callback is None:
+                cur_chunk['__filtered'].append(entry)
+            else:
+                filtered_callback(entry)
             call_counts['__filtered'] += 1
             continue
 

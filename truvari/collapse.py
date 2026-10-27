@@ -510,6 +510,8 @@ def parse_args(args):
                         help="Store median start/end/size of collapsed entries in kept's INFO")
     parser.add_argument("-F", "--fast-cluster", action="store_true",
                         help="Perform pre-clustering faster, but potentially lose matches (%(default)s)")
+    parser.add_argument("--stream-filtered", action="store_true",
+                        help="Write excluded records immediately to reduce collection memory; output order may change")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Verbose logging")
 
@@ -909,11 +911,15 @@ def collapse_main(args):
     truvari.merge_region_tree_overlaps(regions)
     base_i = base.fetch_regions(regions)
 
-    chunks = truvari.chunker(params, ('base', base_i))
+    outputs = CollapseOutput(args, params)
+    filtered_callback = None
+    if args.stream_filtered:
+        filtered_callback = lambda entry: outputs.write(CollapsedCalls(entry, None))
+    chunks = truvari.chunker(params, ('base', base_i),
+                            filtered_callback=filtered_callback)
     smaller_chunks = tree_size_chunker(params, chunks)
     even_smaller_chunks = tree_dist_chunker(params, smaller_chunks, args.fast_cluster)
 
-    outputs = CollapseOutput(args, params)
     m_collap = partial(collapse_chunk, params=params)
     for call in itertools.chain.from_iterable(map(m_collap, even_smaller_chunks)):
         outputs.write(call, args.median_info)

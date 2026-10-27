@@ -13,6 +13,7 @@ sys.path.insert(0, os.getcwd())
 import truvari
 from truvari import phab
 from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
+from repo_utils.test_stream_filtered import StreamingTests
 
 # Assume we're running in truvari root directory
 
