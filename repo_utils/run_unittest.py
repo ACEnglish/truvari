@@ -7,10 +7,12 @@ import unittest
 
 from collections import defaultdict
 from intervaltree import IntervalTree
+import pysam
 
 # Use the current truvari, not any installed libraries
 sys.path.insert(0, os.getcwd())
 import truvari
+import truvari.collapse
 from truvari import phab
 from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 
@@ -160,6 +162,73 @@ class TestPhab(unittest.TestCase):
         job = phab.PhabJob("fake", mem_vcf_info)
         self.assertTrue(phab.status_marker(1, {}, "", job) == "ERROR: 'str' object is not callable", "PhabJob")
         phab.cleanup_shared_memory(shared_info)
+
+
+TEST_VCF_HEADER = """##fileformat=VCFv4.2
+##contig=<ID=chr20,length=1000000>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+"""
+TEST_REFERENCE = "repo_utils/test_files/references/reference.fa"
+
+
+def write_indexed_vcf(records, samples):
+    """
+    Write records (lists of the VCF columns, from CHROM to the samples' GT) under TEST_VCF_HEADER
+    to a bgzipped, indexed temporary VCF and return its path
+    """
+    fn = truvari.make_temp_filename(suffix=".vcf")
+    with open(fn, 'w') as fout:
+        fout.write(TEST_VCF_HEADER)
+        fout.write("\t".join(["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
+                             + samples) + "\n")
+        for record in records:
+            fout.write("\t".join(str(column) for column in record) + "\n")
+    return pysam.tabix_index(fn, preset="vcf", force=True)
+
+
+def run_collapse(input_vcf, *options):
+    """
+    Run truvari collapse on input_vcf and return (kept record IDs, collapsed record IDs)
+    """
+    kept_fn = truvari.make_temp_filename(suffix=".vcf")
+    collapsed_fn = truvari.make_temp_filename(suffix=".vcf")
+    truvari.collapse.collapse_main(["-i", input_vcf, "-o", kept_fn, "-c", collapsed_fn, *options])
+    with pysam.VariantFile(kept_fn) as kept, pysam.VariantFile(collapsed_fn) as collapsed:
+        return [r.id for r in kept], [r.id for r in collapsed]
+
+
+class TestDupToInsOverlap(unittest.TestCase):
+    """
+    --dup-to-ins sets a resolved DUP's end to start + 1, so --pctovl must use the DUP's original
+    interval; otherwise overlapping DUPs have no overlap and never collapse.
+    """
+
+    def make_vcf(self):
+        with pysam.FastaFile(TEST_REFERENCE) as fasta:
+            records = []
+            for name, start in (("dup1", 200000), ("dup2", 200100), ("dup3", 201200)):
+                records.append(["chr20", start, name, fasta.fetch("chr20", start - 1, start), "<DUP>", 60,
+                                "PASS", f"SVTYPE=DUP;SVLEN=1000;END={start + 1000}", "GT", "0/1"])
+        return write_indexed_vcf(records, ["sample"])
+
+    def test_recovl_uses_original_interval(self):
+        params = truvari.VariantParams(dup_to_ins=True)
+        with pysam.FastaFile(TEST_REFERENCE) as fasta:
+            dup1, dup2, dup3 = list(truvari.VariantFile(self.make_vcf(), params=params))
+            for entry in (dup1, dup2, dup3):
+                self.assertTrue(entry.resolve(fasta), f"Couldn't resolve {entry}")
+                self.assertEqual(entry.end, entry.start + 1)
+        self.assertAlmostEqual(dup1.recovl(dup2), 0.9, places=3)
+        self.assertEqual(dup1.recovl(dup3), 0)
+
+    def test_overlapping_dups_collapsed(self):
+        kept, collapsed = run_collapse(self.make_vcf(), "-f", TEST_REFERENCE, "--dup-to-ins", "--pctovl", "0.1",
+                                       "--pctseq", "0", "--refdist", "2000")
+        self.assertEqual(collapsed, ["dup2"])
+        self.assertEqual(kept, ["dup1", "dup3"])
 
 
 class FakeVCFI():

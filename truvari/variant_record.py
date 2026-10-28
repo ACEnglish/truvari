@@ -636,8 +636,9 @@ class VariantRecord:
             >>> a.recovl(b)
             0
         """
-        astart, aend = self.boundaries(ins_inflate)
-        bstart, bend = other.boundaries(ins_inflate)
+        # With --dup-to-ins, `resolve` sets a DUP's end to start + 1, so use its original interval (start to END)
+        astart, aend = (self.start, self.stop) if self.params.dup_to_ins and self.var_type() == truvari.SV.DUP else self.boundaries(ins_inflate)
+        bstart, bend = (other.start, other.stop) if other.params.dup_to_ins and other.var_type() == truvari.SV.DUP else other.boundaries(ins_inflate)
         return truvari.reciprocal_overlap(astart, aend, bstart, bend)
 
     def resolve(self, ref):
