@@ -124,10 +124,17 @@ class DoublePrio():
         Given the index in primary, and a destination for the collapsed calls, and the matching parameters
         find all of the matches' primary index to be returned
         and also update the dest_collapse
+
+        With --gt and --gt-add-best-matches-first, matches are gathered first and then added best
+        first (MatchResult order), each skipped if it conflicts with the genotypes already in the
+        collapse. Adding them in scan order lets a sample's first matching call take its place
+        even when another of its calls matches better.
         """
         ret = []
         s_idx = self.linked[p_idx]
         base = self.primary[p_idx]
+        add_best_first = params.gt != 'off' and params.gt_add_best_matches_first
+        deferred = []  # (MatchResult, primary index) when add_best_first
 
         def check_and_add_match(check):
             """
@@ -144,6 +151,9 @@ class DoublePrio():
             mat.matid = dest_collapse.match_id
             if params.hap and not hap_resolve(base, candidate):
                 mat.state = False
+            if mat.state and add_best_first:
+                deferred.append((mat, self.secondary[check][self.__SEC_PRIM]))
+                return True
             if mat.state and dest_collapse.gt_conflict(candidate, params.gt):
                 mat.state = False
             if mat.state:
@@ -170,6 +180,12 @@ class DoublePrio():
             if not check_and_add_match(check):
                 break
             check += 1
+
+        for mat, matched_to in sorted(deferred, key=lambda match_and_index: match_and_index[0], reverse=True):
+            if not dest_collapse.gt_conflict(mat.comp, params.gt):
+                ret.append(matched_to)
+                self.mask[matched_to] = False
+                dest_collapse.matches.append(mat)
 
         return ret
 
@@ -504,6 +520,10 @@ def parse_args(args):
                         help="Bed file of regions to analyze")
     parser.add_argument("--gt", type=str, choices=['off', 'all', 'het'], default='off',
                         help="Disallow intra-sample events to collapse for genotypes (%(default)s)")
+    parser.add_argument("--gt-add-best-matches-first", action="store_true",
+                        help=("With --gt, add a cluster's matches best first instead of in scan order, so a "
+                              "sample's best-matching call is collapsed rather than the first one reached "
+                              "(%(default)s)"))
     parser.add_argument("--intra", action="store_true",
                         help="Intrasample merge to first sample in output (%(default)s)")
     parser.add_argument("--median-info", action="store_true",
@@ -900,6 +920,7 @@ def collapse_main(args):
     params.keep = args.keep
     params.hap = args.hap
     params.gt = args.gt
+    params.gt_add_best_matches_first = args.gt_add_best_matches_first
     params.chain = args.chain
     params.sorter = SORTS[args.keep]
     params.consolidate = not args.no_consolidate

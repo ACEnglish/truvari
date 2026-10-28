@@ -71,6 +71,8 @@ Samples with no genotype information in the kept variant will be filled by the f
 ====
 For some results, one may not want to collapse variants with conflicting genotypes from a single sample. With the `--gt all` parameter, variants which are present (non `0/0` or `./.`) in the same sample are not collapsed. With the `-gt het` parameter, only variants which are both heterozygous in a sample (e.g. `0/1` and `0/1`) are prevented from collapsing. The `--gt het` is useful for some SV callers which will redundantly call variants and typically genotype them all as `1/1`.
 
+By default, matches are added to a cluster in the order they're found, so when a sample has two calls that both match the kept variant, the first one found joins the cluster and the other is blocked, even if the other is the better match. With `--gt-add-best-matches-first`, all matches are found first and then added best match first, so each sample's best-matching call is the one collapsed.
+
 --intra
 =======
 When a single sample is run through multiple SV callers, one may wish to consolidate those results. After the `bcftools merge` of the VCFs, there will be one SAMPLE column per-input. With `--intra`, collapse will consolidate the sample information so that only a single sample column is present in the output. This will also add a `FORMAT/SUPP` field which will indicates which columns had a present GT (e.g. 0/1 or 1/1). For example, these two calls would collapse:

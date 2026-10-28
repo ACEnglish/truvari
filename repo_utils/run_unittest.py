@@ -7,10 +7,12 @@ import unittest
 
 from collections import defaultdict
 from intervaltree import IntervalTree
+import pysam
 
 # Use the current truvari, not any installed libraries
 sys.path.insert(0, os.getcwd())
 import truvari
+import truvari.collapse
 from truvari import phab
 from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 
@@ -160,6 +162,72 @@ class TestPhab(unittest.TestCase):
         job = phab.PhabJob("fake", mem_vcf_info)
         self.assertTrue(phab.status_marker(1, {}, "", job) == "ERROR: 'str' object is not callable", "PhabJob")
         phab.cleanup_shared_memory(shared_info)
+
+
+TEST_VCF_HEADER = """##fileformat=VCFv4.2
+##contig=<ID=chr20,length=1000000>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+"""
+
+
+def write_indexed_vcf(records, samples):
+    """
+    Write records (lists of the VCF columns, from CHROM to the samples' GT) under TEST_VCF_HEADER
+    to a bgzipped, indexed temporary VCF and return its path
+    """
+    fn = truvari.make_temp_filename(suffix=".vcf")
+    with open(fn, 'w') as fout:
+        fout.write(TEST_VCF_HEADER)
+        fout.write("\t".join(["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
+                             + samples) + "\n")
+        for record in records:
+            fout.write("\t".join(str(column) for column in record) + "\n")
+    return pysam.tabix_index(fn, preset="vcf", force=True)
+
+
+def run_collapse(input_vcf, *options):
+    """
+    Run truvari collapse on input_vcf and return (kept record IDs, collapsed record IDs)
+    """
+    kept_fn = truvari.make_temp_filename(suffix=".vcf")
+    collapsed_fn = truvari.make_temp_filename(suffix=".vcf")
+    truvari.collapse.collapse_main(["-i", input_vcf, "-o", kept_fn, "-c", collapsed_fn, *options])
+    with pysam.VariantFile(kept_fn) as kept, pysam.VariantFile(collapsed_fn) as collapsed:
+        return [r.id for r in kept], [r.id for r in collapsed]
+
+
+class TestCollapseGtAddBestMatchesFirst(unittest.TestCase):
+    """
+    With --gt all, a sample can join a cluster with only one call. Sample B has a nested 230 bp DEL
+    and a 360 bp DEL nearly identical to sample A's 352 bp DEL (the cluster's first call). truvari
+    scans smaller variants first, so by default B's 230 bp DEL joins and blocks B's 360 bp DEL;
+    with --gt-add-best-matches-first, B's 360 bp DEL joins instead.
+    """
+
+    def make_vcf(self):
+        return write_indexed_vcf([
+            ["chr20", 100000, "a_del352", "N", "<DEL>", 60, "PASS", "SVTYPE=DEL;SVLEN=-352;END=100352",
+             "GT", "0/1", "./."],
+            ["chr20", 100005, "b_del360", "N", "<DEL>", 60, "PASS", "SVTYPE=DEL;SVLEN=-360;END=100365",
+             "GT", "./.", "0/1"],
+            ["chr20", 100060, "b_del230", "N", "<DEL>", 60, "PASS", "SVTYPE=DEL;SVLEN=-230;END=100290",
+             "GT", "./.", "0/1"],
+        ], ["A", "B"])
+
+    def test_default_adds_first_match_reached(self):
+        kept, collapsed = run_collapse(self.make_vcf(), "--gt", "all", "--pctseq", "0", "--pctsize", "0.5",
+                                       "--pctovl", "0.1")
+        self.assertEqual(collapsed, ["b_del230"])
+        self.assertEqual(sorted(kept), ["a_del352", "b_del360"])
+
+    def test_best_match_first(self):
+        kept, collapsed = run_collapse(self.make_vcf(), "--gt", "all", "--pctseq", "0", "--pctsize", "0.5",
+                                       "--pctovl", "0.1", "--gt-add-best-matches-first")
+        self.assertEqual(collapsed, ["b_del360"])
+        self.assertEqual(sorted(kept), ["a_del352", "b_del230"])
 
 
 class FakeVCFI():
