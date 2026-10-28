@@ -7,10 +7,12 @@ import unittest
 
 from collections import defaultdict
 from intervaltree import IntervalTree
+import pysam
 
 # Use the current truvari, not any installed libraries
 sys.path.insert(0, os.getcwd())
 import truvari
+import truvari.collapse
 from truvari import phab
 from truvari.region_vcf_iter import region_filter_stream, region_filter_fetch
 
@@ -160,6 +162,72 @@ class TestPhab(unittest.TestCase):
         job = phab.PhabJob("fake", mem_vcf_info)
         self.assertTrue(phab.status_marker(1, {}, "", job) == "ERROR: 'str' object is not callable", "PhabJob")
         phab.cleanup_shared_memory(shared_info)
+
+
+TEST_VCF_HEADER = """##fileformat=VCFv4.2
+##contig=<ID=chr20,length=1000000>
+##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">
+##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Length of structural variant">
+##INFO=<ID=END,Number=1,Type=Integer,Description="End position of the variant">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+"""
+
+
+def write_indexed_vcf(records, samples):
+    """
+    Write records (lists of the VCF columns, from CHROM to the samples' GT) under TEST_VCF_HEADER
+    to a bgzipped, indexed temporary VCF and return its path
+    """
+    fn = truvari.make_temp_filename(suffix=".vcf")
+    with open(fn, 'w') as fout:
+        fout.write(TEST_VCF_HEADER)
+        fout.write("\t".join(["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
+                             + samples) + "\n")
+        for record in records:
+            fout.write("\t".join(str(column) for column in record) + "\n")
+    return pysam.tabix_index(fn, preset="vcf", force=True)
+
+
+def run_collapse(input_vcf, *options):
+    """
+    Run truvari collapse on input_vcf and return (kept record IDs, collapsed record IDs)
+    """
+    kept_fn = truvari.make_temp_filename(suffix=".vcf")
+    collapsed_fn = truvari.make_temp_filename(suffix=".vcf")
+    truvari.collapse.collapse_main(["-i", input_vcf, "-o", kept_fn, "-c", collapsed_fn, *options])
+    with pysam.VariantFile(kept_fn) as kept, pysam.VariantFile(collapsed_fn) as collapsed:
+        return [r.id for r in kept], [r.id for r in collapsed]
+
+
+class TestCollapseBndSizeSubChunking(unittest.TestCase):
+    """
+    collapse sub-chunks chunks of 100+ variants by size. BNDs all have size 0, so they must be kept
+    in one sub-chunk; otherwise each is alone and none are collapsed.
+    """
+    N_BNDS = 110
+
+    def make_vcf(self, n_dels=0):
+        records = [["chr20", 10000 + i % 50, f"bnd{i}", "N", "N[chr20:50000[", 60, "PASS", "SVTYPE=BND",
+                    "GT", "0/1"] for i in range(self.N_BNDS)]
+        records += [["chr20", 10010 + i, f"del{i}", "N", "<DEL>", 60, "PASS",
+                     f"SVTYPE=DEL;SVLEN=-{100 * (i + 1)};END={10010 + i + 100 * (i + 1)}", "GT", "0/1"]
+                    for i in range(n_dels)]
+        return write_indexed_vcf(sorted(records, key=lambda r: r[1]), ["sample"])
+
+    def test_bnds_kept_in_one_sub_chunk(self):
+        params = truvari.VariantParams()
+        entries = list(truvari.VariantFile(self.make_vcf(n_dels=5), params=params))
+        sub_chunks = [chunk['base'] for chunk, _ in
+                      truvari.collapse.tree_size_chunker(params, [({'base': entries, '__filtered': []}, 1)])]
+        bnd_sub_chunks = [chunk for chunk in sub_chunks if any(entry.is_bnd() for entry in chunk)]
+        self.assertEqual(len(bnd_sub_chunks), 1, "BNDs were split across sub-chunks")
+        self.assertEqual(sum(entry.is_bnd() for entry in bnd_sub_chunks[0]), self.N_BNDS)
+        self.assertEqual(sum(len(chunk) for chunk in sub_chunks), self.N_BNDS + 5, "Variants lost")
+
+    def test_bnds_in_large_chunk_collapsed(self):
+        kept, collapsed = run_collapse(self.make_vcf())
+        self.assertEqual(len(kept), 1, f"Expected 1 kept BND, got {len(kept)}")
+        self.assertEqual(len(collapsed), self.N_BNDS - 1)
 
 
 class FakeVCFI():

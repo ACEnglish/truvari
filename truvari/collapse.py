@@ -823,6 +823,9 @@ def tree_size_chunker(params, chunks):
     """
     To reduce the number of variants in a chunk try to sub-chunk by size-similarity before hand
     Needs to return the same thing as a chunker
+
+    BNDs are kept together in one sub-chunk: they all have size 0, so sub-chunking them by size
+    would put each in its own sub-chunk and none would be compared.
     """
     chunk_count = 0
     thresh = 1 if "COLLAP_SUB" in os.environ and os.environ["COLLAP_SUB"] == "1" else 100
@@ -832,8 +835,14 @@ def tree_size_chunker(params, chunks):
             yield chunk, chunk_count
             continue
         yield {'__filtered': chunk['__filtered'], 'base': []}, chunk_count
+        bnds = [entry for entry in chunk['base'] if entry.is_bnd()]
+        if bnds:
+            chunk_count += 1
+            yield {'base': bnds, '__filtered': []}, chunk_count
         to_add = []
         for entry in chunk['base']:
+            if entry.is_bnd():
+                continue
             # How much smaller/larger would be in sizesim?
             sz = entry.var_size()
             diff = sz * (1 - params.pctsize)
