@@ -140,19 +140,45 @@ def original_stratify(base_vcf, comp_vcf, regions):
     return to_eval & (results[0] != 0) & (results[1] != 0)
 
 
-def refined_stratify(outdir, to_eval_coords, regions, threads=1):
+def refined_stratify(outdir, to_eval_coords, regions, threads=1, failed_regions=None):
     """
     update regions in-place with the output variant counts
+
+    Regions overlapping `failed_regions` (phab region names) keep their unrefined counts
     """
     counts = truvari.benchdir_count_entries(
         outdir, to_eval_coords, True, threads)
     counts.index = regions[regions['refined']].index
     counts.columns = ["out_tpbase", "out_tp", "out_fn", "out_fp"]
     regions = regions.join(counts)
+    # Failed regions keep their original counts. After the index assignment, which needs
+    # 'refined' as sent to phab
+    if failed_regions:
+        regions['refined'] &= ~unrefinable_mask(regions, failed_regions)
     for i in ["tpbase", "tp", "fn", "fp"]:
         regions[f"out_{i}"] = regions[f"in_{i}"].where(
             ~regions['refined'], regions[f"out_{i}"].fillna(0).astype(int))
     return regions
+
+
+def unrefinable_mask(regions, failed_regions):
+    """
+    Mask of regions overlapping any `chrom:start-end` name in failed_regions. Overlap, not
+    equality, because phab merges overlapping regions before naming them
+    """
+    mask = pd.Series(False, index=regions.index)
+    for name in failed_regions:
+        chrom, _, coords = name.rpartition(':')
+        start, _, end = coords.partition('-')
+        try:
+            start, end = int(start), int(end)
+        except ValueError:  # pragma: no cover
+            logging.warning("Could not parse failed phab region %s", name)
+            continue
+        mask |= ((regions['chrom'] == chrom)
+                 & (regions['start'] < end)
+                 & (regions['end'] > start))
+    return mask
 
 
 def make_region_report(data):
@@ -382,9 +408,12 @@ def refine_main(cmdargs):
                                       passonly=params.passonly,
                                       max_size=params.sizemax)
     align_method = phab.get_align_method(args.align, args.mafft_params)
-    phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
-                  align_method=align_method, in_mem=True,
-                  threads=args.threads)
+    failed_regions = phab.run_phab(m_vcf_info, to_eval_coords, phab_vcf, buffer=0,
+                                   align_method=align_method, in_mem=True,
+                                   threads=args.threads)
+    if failed_regions:
+        logging.warning("phab failed on %d region(s); keeping their unrefined counts",
+                        len(failed_regions))
 
     # phab may have suffixed the cSample
     if params.bSample == params.cSample:
@@ -402,7 +431,8 @@ def refine_main(cmdargs):
     m_bench.run()
 
     # Count what's happened over the regions
-    regions = refined_stratify(outdir, to_eval_coords, regions, args.threads)
+    regions = refined_stratify(outdir, to_eval_coords, regions, args.threads,
+                               failed_regions=failed_regions)
     report = make_region_report(regions)
     regions.to_csv(os.path.join(args.benchdir, 'refine.regions.txt'),
                    sep='\t', index=False)
